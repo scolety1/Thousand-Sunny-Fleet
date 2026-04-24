@@ -1,3 +1,4 @@
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Project,
 
@@ -13,10 +14,57 @@ param(
 
     [int]$MaxCodexAttempts = 4,
 
-    [switch]$PushCheckpoint
+    [switch]$PushCheckpoint,
+
+    [switch]$ValidateOnly,
+
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$ExtraArgs
 )
 
 $ErrorActionPreference = "Continue"
+
+function Stop-Usage {
+    param([string]$Message)
+
+    Write-Host $Message -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Usage:" -ForegroundColor Yellow
+    Write-Host "  .\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 2 -MaxBatches 1"
+    Write-Host ""
+    Write-Host "Important: use normal hyphens (-), not smart dashes copied from rich text." -ForegroundColor Yellow
+    exit 1
+}
+
+function Test-SmartDash {
+    param([string[]]$Values)
+
+    $smartDashCodes = @(0x2012, 0x2013, 0x2014, 0x2015)
+    foreach ($value in $Values) {
+        foreach ($char in $value.ToCharArray()) {
+            if ($smartDashCodes -contains [int][char]$char) {
+                return $true
+            }
+        }
+    }
+    return $false
+}
+
+if ($ExtraArgs.Count -gt 0) {
+    Stop-Usage "Unexpected extra arguments: $($ExtraArgs -join ' ')"
+}
+
+if (Test-SmartDash @($Project, $Repo, $ConfigPath, $BaseBranch)) {
+    Stop-Usage "Smart dash detected in command arguments."
+}
+
+if ($BatchSize -lt 1) {
+    Stop-Usage "-BatchSize must be at least 1."
+}
+
+if ($MaxBatches -lt 1) {
+    Stop-Usage "-MaxBatches must be at least 1."
+}
 
 function Get-ProjectConfig {
     if (![string]::IsNullOrWhiteSpace($Repo)) {
@@ -28,13 +76,19 @@ function Get-ProjectConfig {
         }
     }
 
+    if ([string]::IsNullOrWhiteSpace($Project)) {
+        Stop-Usage "Missing required -Project or -Repo value."
+    }
+
     if (!(Test-Path $ConfigPath)) {
         Write-Host "Config not found: $ConfigPath" -ForegroundColor Red
         exit 1
     }
 
-    $projects = @(Get-Content $ConfigPath -Raw | ConvertFrom-Json)
-    $match = @($projects | Where-Object { $_.name -eq $Project })
+    $parsedProjects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+    $projects = @($parsedProjects | ForEach-Object { $_ })
+    $projectName = [string]$Project
+    $match = @($projects | Where-Object { [string]$_.name -ceq $projectName })
     if ($match.Count -ne 1) {
         Write-Host "Project not found or ambiguous: $Project" -ForegroundColor Red
         Write-Host "Available projects:"
@@ -166,15 +220,25 @@ function Ensure-LogExclude {
 }
 
 $script:projectConfig = Get-ProjectConfig
-$repoPath = Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue
-if (!$repoPath) {
+$repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
+if ($repoMatches.Count -ne 1) {
     Write-Host "Repo not found: $($script:projectConfig.repo)" -ForegroundColor Red
     exit 1
 }
+$repoPath = $repoMatches[0].Path
 
 $fleetRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $repoPath.Path
+Set-Location $repoPath
 Ensure-LogExclude
+
+if ($ValidateOnly) {
+    Write-Host "Project resolved successfully." -ForegroundColor Green
+    Write-Host "Project: $($script:projectConfig.name)"
+    Write-Host "Repo: $repoPath"
+    Write-Host "Build directory: $($script:projectConfig.buildDirectory)"
+    Write-Host "Build command: $($script:projectConfig.buildCommand)"
+    exit 0
+}
 
 $status = @(git status --porcelain)
 if ($status.Count -gt 0) {
@@ -186,7 +250,8 @@ if ($status.Count -gt 0) {
 $branch = git branch --show-current
 if ($branch -eq $BaseBranch) {
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $safeProject = if ([string]::IsNullOrWhiteSpace($script:projectConfig.name)) { "project" } else { $script:projectConfig.name -replace "[^a-zA-Z0-9_-]", "-" }
+    $safeProject = if ([string]::IsNullOrWhiteSpace($script:projectConfig.name)) { "project" } else { ([string]$script:projectConfig.name) -replace "[^a-zA-Z0-9_-]+", "-" }
+    $safeProject = $safeProject.Trim("-")
     $branch = "codex/mission-$safeProject-$timestamp"
     git checkout -b $branch
     if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -204,7 +269,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     $task = Get-FirstUncheckedTask
     if ([string]::IsNullOrWhiteSpace($task)) {
         Write-Host "No unchecked tasks. Generating next $BatchSize from mission." -ForegroundColor Cyan
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "generate-next-five.ps1") -Repo $repoPath.Path -BaseBranch $BaseBranch -Count $BatchSize
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "generate-next-five.ps1") -Repo $repoPath -BaseBranch $BaseBranch -Count $BatchSize
         if ($LASTEXITCODE -ne 0) { exit 1 }
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
         git add docs/codex/TASK_QUEUE.md docs/codex/NEXT_5_TASKS.md
@@ -279,7 +344,7 @@ Do not edit NIGHTLY_REPORT.md.
         if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 
-    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "checkpoint-review.ps1") -Repo $repoPath.Path -BaseBranch $BaseBranch -BuildDirectory $script:projectConfig.buildDirectory -BuildCommand $script:projectConfig.buildCommand
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "checkpoint-review.ps1") -Repo $repoPath -BaseBranch $BaseBranch -BuildDirectory $script:projectConfig.buildDirectory -BuildCommand $script:projectConfig.buildCommand
     if ($LASTEXITCODE -ne 0) { exit 1 }
 
     $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
