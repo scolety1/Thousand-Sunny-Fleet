@@ -1,0 +1,16 @@
+[
+  {
+    "name": "EasyLife",
+    "repo": "C:\\Dev\\easylifehq.github.io",
+    "rounds": 99,
+    "briefScript": "scripts\\codex-brief.ps1",
+    "loopScript": "scripts\\codex-night-loop.ps1"
+  },
+  {
+    "name": "RestaurantDemo",
+    "repo": "C:\\Dev\\restaurant-automation-demo",
+    "rounds": 99,
+    "briefScript": "scripts\\codex-brief.ps1",
+    "loopScript": "scripts\\codex-night-loop.ps1"
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "name": "frontend-static-demo",
+  "description": "Moderate profile for static frontend demo and sales-site repositories.",
+  "defaultRounds": 12,
+  "maxChangedFiles": 16,
+  "allowedPaths": [
+    "src/",
+    "docs/codex/",
+    "README.md",
+    ".gitattributes",
+    ".gitignore"
+  ],
+  "blockedPaths": [
+    "dist/",
+    "build/",
+    "server/",
+    "api/",
+    "functions/",
+    "backend/",
+    ".env",
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json"
+  ],
+  "blockedTerms": [
+    "backend",
+    "auth",
+    "login",
+    "oauth",
+    "stripe",
+    "payment",
+    "checkout",
+    "firebase",
+    "supabase",
+    "api key",
+    "secret",
+    "analytics",
+    "tracking",
+    "gtag",
+    "pixel",
+    "hotjar"
+  ],
+  "buildDirectory": ".",
+  "buildCommand": "npm.cmd run build"
+}

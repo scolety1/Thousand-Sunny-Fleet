@@ -1,0 +1,25 @@
+{
+  "name": "docs-only",
+  "description": "Profile for documentation-only repositories or documentation-only passes.",
+  "defaultRounds": 10,
+  "maxChangedFiles": 12,
+  "allowedPaths": [
+    "docs/",
+    "README.md"
+  ],
+  "blockedPaths": [
+    ".env",
+    "package.json",
+    "package-lock.json",
+    "functions/",
+    "src/",
+    "app-vNext/src/"
+  ],
+  "blockedTerms": [
+    "api key",
+    "secret",
+    "credential"
+  ],
+  "buildDirectory": ".",
+  "buildCommand": ""
+}

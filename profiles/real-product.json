@@ -1,0 +1,50 @@
+{
+  "name": "real-product",
+  "description": "Strict profile for real product repositories.",
+  "defaultRounds": 6,
+  "maxChangedFiles": 8,
+  "allowedPaths": [
+    "app-vNext/src/",
+    "docs/codex/",
+    "docs/ai/",
+    "README.md"
+  ],
+  "blockedPaths": [
+    ".firebaserc",
+    "firebase.json",
+    "firestore.rules",
+    "functions/",
+    "old-site/",
+    "dist/",
+    "build/",
+    "app-vNext/dist/",
+    "app-vNext/build/",
+    "app-vNext/coverage/",
+    "coverage/",
+    ".env",
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "app-vNext/package.json",
+    "app-vNext/package-lock.json",
+    "app-vNext/npm-shrinkwrap.json",
+    "index.html",
+    "assets/",
+    "sw.js",
+    "manifest.webmanifest"
+  ],
+  "blockedTerms": [
+    "api key",
+    "bearer token",
+    "secret",
+    "openai",
+    "anthropic",
+    "gemini",
+    "firebase functions",
+    "httpsCallable",
+    "process.env",
+    "import.meta.env"
+  ],
+  "buildDirectory": "app-vNext",
+  "buildCommand": "npm.cmd run build"
+}

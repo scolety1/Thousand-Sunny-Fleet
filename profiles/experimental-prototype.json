@@ -1,0 +1,36 @@
+{
+  "name": "experimental-prototype",
+  "description": "Profile for sandboxed prototypes with fake data and no real integrations.",
+  "defaultRounds": 8,
+  "maxChangedFiles": 14,
+  "allowedPaths": [
+    "src/",
+    "app-vNext/src/features/experiments/",
+    "docs/codex/",
+    "docs/ai/",
+    "README.md"
+  ],
+  "blockedPaths": [
+    ".env",
+    "functions/",
+    "server/",
+    "api/",
+    "backend/",
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json"
+  ],
+  "blockedTerms": [
+    "api key",
+    "bearer token",
+    "secret",
+    "real api",
+    "openai key",
+    "firebase functions",
+    "stripe",
+    "payment",
+    "auth provider"
+  ],
+  "buildDirectory": ".",
+  "buildCommand": "npm.cmd run build"
+}
