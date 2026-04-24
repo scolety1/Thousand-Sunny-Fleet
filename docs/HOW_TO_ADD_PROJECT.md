@@ -68,3 +68,14 @@ Then import:
 ```powershell
 .\planner\import-next-tasks.ps1 -Repo C:\Dev\your-project -Mode append
 ```
+
+## Morning merge check
+
+Before merging an unattended branch, run:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\fleet-morning-review.ps1
+```
+
+Only merge after the branch is clean, the build passes, and the report/diff look safe.

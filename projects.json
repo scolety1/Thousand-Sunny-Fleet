@@ -4,13 +4,17 @@
     "repo": "C:\\Dev\\easylifehq.github.io",
     "rounds": 99,
     "briefScript": "scripts\\codex-brief.ps1",
-    "loopScript": "scripts\\codex-night-loop.ps1"
+    "loopScript": "scripts\\codex-night-loop.ps1",
+    "buildDirectory": "app-vNext",
+    "buildCommand": "npm.cmd run build"
   },
   {
     "name": "RestaurantDemo",
     "repo": "C:\\Dev\\restaurant-automation-demo",
     "rounds": 99,
     "briefScript": "scripts\\codex-brief.ps1",
-    "loopScript": "scripts\\codex-night-loop.ps1"
+    "loopScript": "scripts\\codex-night-loop.ps1",
+    "buildDirectory": ".",
+    "buildCommand": "npm.cmd run build"
   }
 ]
