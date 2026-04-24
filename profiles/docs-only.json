@@ -2,6 +2,7 @@
   "name": "docs-only",
   "description": "Profile for documentation-only repositories or documentation-only passes.",
   "defaultRounds": 10,
+  "branchPrefix": "codex/docs",
   "maxChangedFiles": 12,
   "allowedPaths": [
     "docs/",

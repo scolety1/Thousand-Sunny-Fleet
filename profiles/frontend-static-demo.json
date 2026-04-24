@@ -2,6 +2,7 @@
   "name": "frontend-static-demo",
   "description": "Moderate profile for static frontend demo and sales-site repositories.",
   "defaultRounds": 12,
+  "branchPrefix": "codex/static-demo",
   "maxChangedFiles": 16,
   "allowedPaths": [
     "src/",

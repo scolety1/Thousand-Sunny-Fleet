@@ -2,6 +2,7 @@
   "name": "experimental-prototype",
   "description": "Profile for sandboxed prototypes with fake data and no real integrations.",
   "defaultRounds": 8,
+  "branchPrefix": "codex/experiment",
   "maxChangedFiles": 14,
   "allowedPaths": [
     "src/",

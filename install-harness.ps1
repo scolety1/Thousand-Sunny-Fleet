@@ -35,7 +35,9 @@ $copyMap = @(
     @{ Source = "templates\docs\codex\TASK_QUEUE.md"; Target = "docs\codex\TASK_QUEUE.md" },
     @{ Source = "templates\docs\codex\RUN_POLICY.md"; Target = "docs\codex\RUN_POLICY.md" },
     @{ Source = "templates\docs\codex\NIGHTLY_REPORT.md"; Target = "docs\codex\NIGHTLY_REPORT.md" },
-    @{ Source = "templates\scripts\codex-brief.ps1"; Target = "scripts\codex-brief.ps1" }
+    @{ Source = "templates\scripts\codex-brief.ps1"; Target = "scripts\codex-brief.ps1" },
+    @{ Source = "templates\scripts\codex-guardrails.ps1"; Target = "scripts\codex-guardrails.ps1" },
+    @{ Source = "templates\scripts\codex-night-loop.ps1"; Target = "scripts\codex-night-loop.ps1" }
 )
 
 foreach ($item in $copyMap) {

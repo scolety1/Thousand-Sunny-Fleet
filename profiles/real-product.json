@@ -2,6 +2,7 @@
   "name": "real-product",
   "description": "Strict profile for real product repositories.",
   "defaultRounds": 6,
+  "branchPrefix": "codex/product",
   "maxChangedFiles": 8,
   "allowedPaths": [
     "app-vNext/src/",
