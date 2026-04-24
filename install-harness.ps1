@@ -76,6 +76,9 @@ if ($AddToFleet) {
             rounds = $roundCount
             briefScript = "scripts\codex-brief.ps1"
             loopScript = "scripts\codex-night-loop.ps1"
+            buildDirectory = if ($profileData.buildDirectory) { [string]$profileData.buildDirectory } else { "." }
+            buildCommand = if ($profileData.buildCommand) { [string]$profileData.buildCommand } else { "" }
+            profile = $Profile
         }
 
         $projects | ConvertTo-Json -Depth 6 | Set-Content $configPath

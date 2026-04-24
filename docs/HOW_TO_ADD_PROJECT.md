@@ -1,10 +1,12 @@
 # How To Add A Project
 
-## 1. Install the harness
+## 1. Add the project to the fleet
+
+Prefer `add-project.ps1` for new projects. It installs the repo harness files, registers build settings, excludes raw logs locally, and validates the fleet config.
 
 ```powershell
 cd C:\Dev\codex-fleet
-.\install-harness.ps1 -Repo C:\Dev\your-project -Profile frontend-static-demo -AddToFleet
+.\add-project.ps1 -Name YourProject -Repo C:\Dev\your-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
 ```
 
 Profiles:
@@ -13,6 +15,14 @@ Profiles:
 - `frontend-static-demo`
 - `docs-only`
 - `experimental-prototype`
+
+For EasyLife-style repos where the app lives in a subfolder:
+
+```powershell
+.\add-project.ps1 -Name YourProduct -Repo C:\Dev\your-product -Profile real-product -BuildDirectory app-vNext -BuildCommand "npm.cmd run build"
+```
+
+If the repo already has uncommitted changes, commit them first. Use `-Force` only when you intentionally want to install/register despite a dirty tree.
 
 ## 2. Edit the task queue
 
@@ -28,21 +38,34 @@ Add small unchecked tasks using:
 - [ ] Narrow task: describe exactly one safe change. Do not add backend, auth, payment, secrets, deployment, dependencies, or broad rewrites.
 ```
 
-## 3. Run the project
-
-```powershell
-cd C:\Dev\your-project
-powershell -ExecutionPolicy Bypass -File .\scripts\codex-night-loop.ps1 -Rounds 3
-```
-
-Or run all configured projects:
+## 3. Prove the project with one task first
 
 ```powershell
 cd C:\Dev\codex-fleet
-.\run-fleet.ps1
+.\run-checkpoint-loop.ps1 -Project YourProject -BatchSize 1 -MaxBatches 1
 ```
 
-## 4. Generate next-task request
+If that passes, scale slowly:
+
+```powershell
+.\run-checkpoint-loop.ps1 -Project YourProject -BatchSize 2 -MaxBatches 1
+```
+
+Then choose longer settings based on risk:
+
+```powershell
+.\run-checkpoint-loop.ps1 -Project YourProject -BatchSize 3 -MaxBatches 4
+```
+
+## 4. Validate or review anytime
+
+```powershell
+.\run-checkpoint-loop.ps1 -Project YourProject -ValidateOnly
+.\debug-checkpoint.ps1 -Repo C:\Dev\your-project
+.\fleet-status.ps1
+```
+
+## 5. Generate next-task request
 
 ```powershell
 cd C:\Dev\codex-fleet
@@ -55,7 +78,7 @@ Paste `docs/codex/NEXT_TASK_REQUEST.md` into ChatGPT Pro, or run the Codex CLI p
 .\planner\run-planner.ps1 -Repo C:\Dev\your-project
 ```
 
-## 5. Import proposed tasks
+## 6. Import proposed tasks
 
 Review:
 
@@ -96,3 +119,19 @@ cd C:\Dev\codex-fleet
 ```
 
 The loop may push the Codex branch if `-PushCheckpoint` is used, but it never merges to `main`.
+
+## What a project needs
+
+Minimum files inside the target repo:
+
+```text
+docs/codex/MISSION.md
+docs/codex/TASK_QUEUE.md
+docs/codex/RUN_POLICY.md
+docs/codex/NIGHTLY_REPORT.md
+scripts/codex-brief.ps1
+scripts/codex-guardrails.ps1
+scripts/codex-night-loop.ps1
+```
+
+`add-project.ps1` creates these from templates when they are missing.

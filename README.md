@@ -14,6 +14,7 @@ Configured in `projects.json`:
 ```powershell
 cd C:\Dev\codex-fleet
 
+.\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
 .\fleet-status.ps1
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
@@ -55,7 +56,21 @@ The checkpoint loop:
 
 ## Reusable Harness
 
-Install the base docs/scripts into a new repo:
+Add a new repo to the fleet:
+
+```powershell
+.\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
+```
+
+Then prove it with one small task:
+
+```powershell
+.\run-checkpoint-loop.ps1 -Project MyProject -BatchSize 1 -MaxBatches 1
+```
+
+`add-project.ps1` installs starter `docs/codex` files, registers the project in `projects.json`, adds `.codex-logs/` to the repo's local Git exclude, and validates that the checkpoint loop can find the project.
+
+Install only the base docs/scripts into a repo:
 
 ```powershell
 .\install-harness.ps1 -Repo C:\Dev\your-project -Profile frontend-static-demo -AddToFleet
