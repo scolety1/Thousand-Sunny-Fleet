@@ -79,3 +79,20 @@ cd C:\Dev\codex-fleet
 ```
 
 Only merge after the branch is clean, the build passes, and the report/diff look safe.
+
+## Mission checkpoint loop
+
+For longer autonomous work, create or edit:
+
+```text
+C:\Dev\your-project\docs\codex\MISSION.md
+```
+
+Then run:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\run-checkpoint-loop.ps1 -Project YourProjectName -BatchSize 5 -MaxBatches 2 -PushCheckpoint
+```
+
+The loop may push the Codex branch if `-PushCheckpoint` is used, but it never merges to `main`.

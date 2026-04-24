@@ -27,6 +27,24 @@ cd C:\Dev\codex-fleet
 
 `fleet-morning-review.ps1` checks each configured project before you merge: branch, dirty state, unchecked tasks, changed files, recent report entries, and build result.
 
+## Mission Checkpoint Loop
+
+Run a mission-driven branch in reviewed batches:
+
+```powershell
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -PushCheckpoint
+```
+
+The checkpoint loop:
+
+- keeps work on a Codex branch
+- implements tasks one at a time
+- runs external builds
+- commits each successful task
+- writes `docs/codex/CHECKPOINT_REVIEW.md`
+- generates/imports the next five tasks when the queue is empty
+- never merges to `main`
+
 ## Reusable Harness
 
 Install the base docs/scripts into a new repo:
