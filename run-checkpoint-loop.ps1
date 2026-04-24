@@ -14,6 +14,8 @@ param(
 
     [int]$MaxCodexAttempts = 4,
 
+    [int]$VisualEvery = 0,
+
     [switch]$PushCheckpoint,
 
     [switch]$SkipDebug,
@@ -66,6 +68,10 @@ if ($BatchSize -lt 1) {
 
 if ($MaxBatches -lt 1) {
     Stop-Usage "-MaxBatches must be at least 1."
+}
+
+if ($VisualEvery -lt 0) {
+    Stop-Usage "-VisualEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -366,6 +372,15 @@ Do not edit NIGHTLY_REPORT.md.
         powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "debug-checkpoint.ps1") -Repo $repoPath -BaseBranch $BaseBranch
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    if ($VisualEvery -gt 0 -and ($batch % $VisualEvery -eq 0)) {
+        $serveDir = if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildDirectory)) { "." } else { $script:projectConfig.buildDirectory }
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-smoke.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Visual smoke failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }
     }

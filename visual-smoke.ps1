@@ -1,0 +1,170 @@
+[CmdletBinding(PositionalBinding = $false)]
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$Repo,
+
+    [string]$Project = "",
+
+    [string]$ServeDirectory = ".",
+
+    [string]$ServeCommand = "npm.cmd run dev -- --host 127.0.0.1 --port {PORT}",
+
+    [int]$Port = 4179,
+
+    [string[]]$RequiredText = @(),
+
+    [string[]]$Anchors = @(),
+
+    [string]$BaseUrl = "",
+
+    [int]$ChromePort = 9222,
+
+    [string]$ChromePath = "",
+
+    [string]$OutRoot = ".codex-logs",
+
+    [switch]$SkipServer
+)
+
+$ErrorActionPreference = "Continue"
+
+function Find-Chrome {
+    $candidates = @(
+        "C:\Program Files\Google\Chrome\Application\chrome.exe",
+        "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        "C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    return ""
+}
+
+function Wait-Http {
+    param([string]$Url, [int]$TimeoutSeconds = 45)
+
+    $started = Get-Date
+    while (((Get-Date) - $started).TotalSeconds -lt $TimeoutSeconds) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                return $true
+            }
+        } catch {
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    return $false
+}
+
+function Stop-Tree {
+    param([int]$ProcessId)
+    if ($ProcessId -gt 0) {
+        cmd.exe /c "taskkill /PID $ProcessId /T /F" | Out-Null
+    }
+}
+
+$repoMatches = @(Resolve-Path $Repo -ErrorAction SilentlyContinue)
+if ($repoMatches.Count -ne 1) {
+    Write-Host "Repo not found or ambiguous: $Repo" -ForegroundColor Red
+    exit 1
+}
+$repoPath = $repoMatches[0].Path
+
+if ([string]::IsNullOrWhiteSpace($Project)) {
+    $Project = Split-Path -Leaf $repoPath
+}
+
+if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    $BaseUrl = "http://127.0.0.1:$Port"
+}
+
+if ($RequiredText.Count -eq 0) {
+    if ($Project -match "Restaurant") {
+        $RequiredText = @("Cellar & Table", "wine", "restaurant", "Text", "Email")
+    } else {
+        $RequiredText = @("EasyLife")
+    }
+}
+
+if ($Anchors.Count -eq 0 -and $Project -match "Restaurant") {
+    $Anchors = @("#demos", "#wine-list", "#ways-we-can-help", "#contact")
+}
+
+$chrome = if ([string]::IsNullOrWhiteSpace($ChromePath)) { Find-Chrome } else { $ChromePath }
+if ([string]::IsNullOrWhiteSpace($chrome) -or !(Test-Path $chrome)) {
+    Write-Host "Chrome or Edge not found." -ForegroundColor Red
+    exit 1
+}
+
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outDir = Join-Path $repoPath (Join-Path $OutRoot "visual-$timestamp")
+New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+$serveProcess = $null
+$chromeProcess = $null
+
+try {
+    if (!$SkipServer) {
+        $serveDir = Join-Path $repoPath $ServeDirectory
+        $command = $ServeCommand.Replace("{PORT}", [string]$Port)
+        $serveLog = Join-Path $outDir "server.log"
+        $serveErr = Join-Path $outDir "server.err.log"
+        $serveProcess = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $command) -WorkingDirectory $serveDir -RedirectStandardOutput $serveLog -RedirectStandardError $serveErr -PassThru -WindowStyle Hidden
+    }
+
+    if (-not (Wait-Http -Url $BaseUrl -TimeoutSeconds 60)) {
+        Write-Host "Timed out waiting for $BaseUrl" -ForegroundColor Red
+        exit 1
+    }
+
+    $chromeUserData = Join-Path $outDir "chrome-profile"
+    $chromeArgs = @(
+        "--headless=new",
+        "--remote-debugging-port=$ChromePort",
+        "--user-data-dir=$chromeUserData",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "about:blank"
+    )
+    $chromeProcess = Start-Process -FilePath $chrome -ArgumentList $chromeArgs -PassThru -WindowStyle Hidden
+
+    if (-not (Wait-Http -Url "http://127.0.0.1:$ChromePort/json/version" -TimeoutSeconds 30)) {
+        Write-Host "Timed out waiting for Chrome DevTools on port $ChromePort" -ForegroundColor Red
+        exit 1
+    }
+
+    $runner = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "tools\visual-smoke-runner.mjs"
+    $options = @{
+        baseUrl = $BaseUrl
+        outDir = $outDir
+        requiredText = $RequiredText
+        anchors = $Anchors
+        chromePort = $ChromePort
+    } | ConvertTo-Json -Compress
+    $optionsFile = Join-Path $outDir "visual-smoke-options.json"
+    Set-Content -Path $optionsFile -Value $options
+
+    node $runner "@$optionsFile"
+    $ok = $LASTEXITCODE -eq 0
+    if ($ok) {
+        Write-Host "Visual smoke passed. Artifacts: $outDir" -ForegroundColor Green
+        exit 0
+    }
+
+    Write-Host "Visual smoke failed. Artifacts: $outDir" -ForegroundColor Red
+    exit 1
+} finally {
+    if ($chromeProcess) {
+        Stop-Tree -ProcessId $chromeProcess.Id
+    }
+    if ($serveProcess) {
+        Stop-Tree -ProcessId $serveProcess.Id
+    }
+}

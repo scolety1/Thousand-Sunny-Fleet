@@ -18,6 +18,7 @@ cd C:\Dev\codex-fleet
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
 .\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
+.\visual-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
 ```
@@ -30,12 +31,14 @@ cd C:\Dev\codex-fleet
 
 `debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes.
 
+`visual-smoke.ps1` launches the site, opens Chrome/Edge headless, checks key text/anchors on desktop and mobile, records console issues, and saves screenshots under `.codex-logs/visual-*`.
+
 ## Mission Checkpoint Loop
 
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -46,6 +49,7 @@ The checkpoint loop:
 - commits each successful task
 - writes `docs/codex/CHECKPOINT_REVIEW.md`
 - runs the checkpoint debugger unless `-SkipDebug` is passed
+- optionally runs visual smoke checks with `-VisualEvery N`
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
