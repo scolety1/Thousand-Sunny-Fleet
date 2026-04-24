@@ -34,6 +34,23 @@ function Normalize-Path {
     return ($Path -replace "\\", "/")
 }
 
+function Get-LatestMarkdownSection {
+    param([string]$Path)
+
+    if (!(Test-Path $Path)) {
+        return ""
+    }
+
+    $content = Get-Content $Path -Raw
+    $matches = [regex]::Matches($content, "(?m)^##\s+.+$")
+    if ($matches.Count -eq 0) {
+        return $content
+    }
+
+    $start = $matches[$matches.Count - 1].Index
+    return $content.Substring($start)
+}
+
 $script:Issues = @()
 $repoMatches = @(Resolve-Path $Repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -141,21 +158,23 @@ if ($suspiciousHits.Count -gt 0) {
 
 if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") {
     $review = Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw
-    if ($review -notmatch "(?is)## Verdict\s+GREEN\b") {
+    $verdictMatch = [regex]::Match($review, "(?im)^## Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)\s*$")
+    $verdict = if ($verdictMatch.Success) { $verdictMatch.Groups[1].Value.ToUpperInvariant() } else { "" }
+    if ($verdict -ne "GREEN") {
         Add-Issue "FAIL" "Checkpoint verdict is not GREEN."
     }
-    if ($review -match "(?i)stop for human review|RED") {
-        Add-Issue "FAIL" "Checkpoint review requested human stop or contains RED."
+    if ($review -match "(?im)^## Recommended Next Step\s*\r?\n\s*stop for human review\s*$") {
+        Add-Issue "FAIL" "Checkpoint review requested human stop."
     }
 } else {
     Add-Issue "WARN" "Missing docs/codex/CHECKPOINT_REVIEW.md."
 }
 
 if (Test-Path "docs/codex/NIGHTLY_REPORT.md") {
-    $reportTail = Get-Content "docs/codex/NIGHTLY_REPORT.md" -Tail 120
-    $failedReports = @($reportTail | Where-Object { $_ -match "(?i)Build result:\s*Failed" })
+    $latestReport = Get-LatestMarkdownSection "docs/codex/NIGHTLY_REPORT.md"
+    $failedReports = @($latestReport -split "\r?\n" | Where-Object { $_ -match "(?i)Build result:\s*(Failed|Skipped)" })
     if ($failedReports.Count -gt 0) {
-        Add-Issue "WARN" "Recent report contains Failed/Skipped entries."
+        Add-Issue "WARN" "Latest report contains Failed/Skipped entries."
     }
 } else {
     Add-Issue "WARN" "Missing docs/codex/NIGHTLY_REPORT.md."
