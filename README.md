@@ -17,6 +17,7 @@ cd C:\Dev\codex-fleet
 .\fleet-status.ps1
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
+.\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
 ```
@@ -26,6 +27,8 @@ cd C:\Dev\codex-fleet
 `make-context-bundles.ps1` writes paste-ready ChatGPT Pro context bundles into `out/`.
 
 `fleet-morning-review.ps1` checks each configured project before you merge: branch, dirty state, unchecked tasks, changed files, recent report entries, and build result.
+
+`debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes.
 
 ## Mission Checkpoint Loop
 
@@ -42,6 +45,7 @@ The checkpoint loop:
 - runs external builds
 - commits each successful task
 - writes `docs/codex/CHECKPOINT_REVIEW.md`
+- runs the checkpoint debugger unless `-SkipDebug` is passed
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 

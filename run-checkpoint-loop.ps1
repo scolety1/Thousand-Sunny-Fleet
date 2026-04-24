@@ -16,6 +16,8 @@ param(
 
     [switch]$PushCheckpoint,
 
+    [switch]$SkipDebug,
+
     [switch]$ValidateOnly,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -358,6 +360,14 @@ Do not edit NIGHTLY_REPORT.md.
     if ($checkpointText -match "(?is)## Verdict\s+RED\b" -or $checkpointText -match "(?i)stop for human review") {
         Write-Host "Checkpoint review requested a human stop. Ending loop without merge." -ForegroundColor Yellow
         break
+    }
+
+    if (!$SkipDebug) {
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "debug-checkpoint.ps1") -Repo $repoPath -BaseBranch $BaseBranch
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
+            exit 1
+        }
     }
 
     if ($PushCheckpoint) {
