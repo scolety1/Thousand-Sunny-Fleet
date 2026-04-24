@@ -154,7 +154,7 @@ function Invoke-CodexExec {
     param([string]$Prompt, [string]$LogPath)
 
     for ($attempt = 1; $attempt -le $MaxCodexAttempts; $attempt++) {
-        Write-Host "Codex attempt $attempt of $MaxCodexAttempts" -ForegroundColor DarkCyan
+        Write-Host "Starting Codex run attempt $attempt of $MaxCodexAttempts" -ForegroundColor DarkCyan
         $attemptLog = if ($attempt -eq 1) { $LogPath } else { $LogPath -replace "\.log$", "-attempt-$attempt.log" }
         $Prompt | & codex exec --full-auto - 2>&1 | Tee-Object -FilePath $attemptLog
         $exitCode = $LASTEXITCODE
