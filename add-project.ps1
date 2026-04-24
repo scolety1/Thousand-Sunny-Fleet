@@ -107,7 +107,14 @@ Add-LocalExclude -RepoPath $repoPath
 
 $projects = @()
 if (Test-Path $configPath) {
-    $projects = @(Get-Content $configPath -Raw | ConvertFrom-Json)
+    $loadedProjects = Get-Content $configPath -Raw | ConvertFrom-Json
+    if ($loadedProjects -is [array]) {
+        $projects = @($loadedProjects)
+    } elseif ($null -ne $loadedProjects -and $loadedProjects.PSObject.Properties.Name -contains "value") {
+        $projects = @($loadedProjects.value)
+    } elseif ($null -ne $loadedProjects) {
+        $projects = @($loadedProjects)
+    }
 }
 
 $projectEntry = [pscustomobject]@{
@@ -128,7 +135,8 @@ if ($existing.Count -gt 0) {
 }
 
 $projects += $projectEntry
-$projects |
+$projects = @($projects | Where-Object { $_.name -and $_.repo })
+@($projects) |
     Sort-Object name |
     ConvertTo-Json -Depth 8 |
     Set-Content -Path $configPath -Encoding UTF8

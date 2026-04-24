@@ -16,5 +16,15 @@
     "loopScript": "scripts\\codex-night-loop.ps1",
     "buildDirectory": ".",
     "buildCommand": "npm.cmd run build"
+  },
+  {
+    "name": "UrbanKitchenWineList",
+    "repo": "C:\\Dev\\urban-kitchen-wine-list",
+    "rounds": 99,
+    "briefScript": "scripts\\codex-brief.ps1",
+    "loopScript": "scripts\\codex-night-loop.ps1",
+    "buildDirectory": ".",
+    "buildCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
+    "profile": "frontend-static-demo"
   }
 ]
