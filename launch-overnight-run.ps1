@@ -34,6 +34,8 @@ param(
 
     [switch]$AllowSafeStopRequests,
 
+    [switch]$RequireMagicPreflight,
+
     [switch]$DryRun
 )
 
@@ -109,6 +111,21 @@ if (!$SkipDoctor) {
     & powershell @doctorArgs
     if ($LASTEXITCODE -ne 0) {
         Stop-WithMessage "Overnight run refused. Chopper found a ship that is not ready."
+    }
+}
+
+if ($RequireMagicPreflight) {
+    $preflightArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $fleetRoot "prepare-magic-run.ps1"), "-ConfigPath", $ConfigPath, "-AllowNoTasks", "-Strict")
+    if (![string]::IsNullOrWhiteSpace($Project)) {
+        $preflightArgs += @("-Project", $Project)
+    }
+    $preflightExclusions = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    if ($preflightExclusions.Count -gt 0) {
+        $preflightArgs += @("-ExcludeProject", ($preflightExclusions -join ","))
+    }
+    & powershell @preflightArgs
+    if ($LASTEXITCODE -ne 0) {
+        Stop-WithMessage "Overnight run refused. Magic preflight found a blocking ship."
     }
 }
 

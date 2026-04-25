@@ -546,7 +546,8 @@ function Test-TaskScope {
         "docs/codex/VISUAL_BUGS.md",
         "docs/codex/SIMON_DESIGN_REVIEW.md",
         "docs/codex/ROBIN_COPY_REVIEW.md",
-        "docs/codex/JOEY_SECURITY_REVIEW.md"
+        "docs/codex/JOEY_SECURITY_REVIEW.md",
+        "docs/codex/MAGIC_SCORECARD.md"
     )
     $violations = @()
     foreach ($file in @($FilesChanged)) {
@@ -734,6 +735,40 @@ $($contractLines -join "`n")
 $files
 - Risks or follow-up needed: $Risk
 "@
+
+    Append-MagicScorecard -Task $Task -FilesChanged $FilesChanged -BuildResult $BuildResult -Risk $Risk -Contract $Contract
+}
+
+function Append-MagicScorecard {
+    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null)
+
+    if (!(Test-Path "docs/codex/MAGIC_SCORECARD.md")) {
+        New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+        "# Magic Scorecard`n`nThis file is appended by Codex Fleet after checkpoint-loop tasks.`n" | Set-Content "docs/codex/MAGIC_SCORECARD.md"
+    }
+
+    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $status = switch -Regex ($BuildResult) {
+        "Passed" { "moved-forward"; break }
+        "Quarantined" { "learned-from-failure"; break }
+        "Blocked|Failed" { "needs-human-or-smaller-slice"; break }
+        default { "recorded" }
+    }
+    $changedCount = if ($null -eq $FilesChanged) { 0 } else { @($FilesChanged).Count }
+    $taskClass = if ($null -ne $Contract) { [string]$Contract.class } else { "unknown" }
+    $taskRisk = if ($null -ne $Contract) { [string]$Contract.risk } else { "unknown" }
+    Add-Content "docs/codex/MAGIC_SCORECARD.md" @"
+
+## $date
+
+- Task: $Task
+- Result: $BuildResult
+- Magic signal: $status
+- Task class: $taskClass
+- Task risk: $taskRisk
+- Changed files: $changedCount
+- Follow-up: $Risk
+"@
 }
 
 function Append-QuarantineReport {
@@ -848,7 +883,7 @@ function Invoke-TaskQuarantine {
     Append-Report -Task $Task -FilesChanged $filesChanged -BuildResult "Quarantined" -Risk $Reason
     Append-QuarantineReport -Task $Task -Reason $Reason -Batch $Batch -TaskIndex $TaskIndex -FilesChanged $filesChanged
 
-    Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md")
+    Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md", "docs/codex/MAGIC_SCORECARD.md")
     $pendingQuarantineCommit = @(git diff --cached --name-only)
     if ($pendingQuarantineCommit.Count -gt 0) {
         if (-not (Invoke-FleetCommit -Message "Codex quarantine failed task batch $Batch task $TaskIndex")) {
@@ -1595,7 +1630,7 @@ REVIEW_FINDING: P2: short description
         }
         Mark-FirstUncheckedTaskComplete
         Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract
-        Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md"))
+        Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md"))
         if (-not (Invoke-FleetCommit -Message "Codex checkpoint batch $batch task $i")) { exit 1 }
     }
 

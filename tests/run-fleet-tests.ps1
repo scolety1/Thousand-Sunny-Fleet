@@ -710,6 +710,26 @@ function Test-ShipPreviewRefreshSupport {
     Assert-True -Condition ($readmeText -match 'SkipShipPreviewRefresh') -Message "README documents the ship preview refresh behavior"
 }
 
+function Test-MagicRunSupport {
+    $preflightPath = Join-Path $fleetRoot "prepare-magic-run.ps1"
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path $preflightPath) -Message "Fleet exposes magic-run preflight"
+    Assert-True -Condition ($plannerText -match 'MAGIC_MISSION\.md') -Message "Nami planner reads magic mission"
+    Assert-True -Condition ($plannerText -match 'WORK_PACKS\.md') -Message "Nami planner reads work packs"
+    Assert-True -Condition ($plannerText -match 'MAGIC_SCORECARD\.md') -Message "Nami planner reads magic scorecard"
+    Assert-True -Condition ($plannerText -match 'coherent work-pack progress') -Message "Nami planner prioritizes coherent work-pack progress"
+    Assert-True -Condition ($loopText -match 'Append-MagicScorecard') -Message "Checkpoint loop appends magic scorecard entries"
+    Assert-True -Condition ($loopText -match 'docs/codex/MAGIC_SCORECARD\.md') -Message "Checkpoint loop stages magic scorecard"
+    Assert-True -Condition ($overnightText -match '\[switch\]\$RequireMagicPreflight') -Message "Overnight launcher exposes magic preflight gate"
+    Assert-True -Condition ($overnightText -match 'prepare-magic-run\.ps1') -Message "Overnight launcher can run magic preflight"
+    Assert-True -Condition ($overnightText -match '-Strict') -Message "Overnight magic preflight treats warnings as blockers"
+    Assert-True -Condition ($readmeText -match 'prepare-magic-run\.ps1') -Message "README documents magic-run preflight"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -742,6 +762,7 @@ Test-LaunchControlSupport
 Test-JoeyStorageRules
 Test-DebuggerReportFileAllowance
 Test-ShipPreviewRefreshSupport
+Test-MagicRunSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)

@@ -52,6 +52,9 @@ $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+
 $completed = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[x\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
 $quarantined = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[!\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
+$magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
+$workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
+$magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
 $simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No Simon design review found." }
@@ -92,6 +95,10 @@ Rules:
 - Do not generate generic copy polish tasks when Robin names a concrete rewrite.
 - Do not repeat recently completed tasks unless Simon, Visual Bug Report, Robin, Joey, or Checkpoint Review says the issue remains.
 - Do not repeat quarantined tasks. If a quarantined task still matters, propose a smaller safer version that avoids the failure reason.
+- If MAGIC_MISSION.md and WORK_PACKS.md are present, plan from them before inventing isolated polish tasks.
+- Prefer coherent work-pack progress: choose one active pack, generate tasks that advance it in order, and include the pack name in natural task wording.
+- Use MAGIC_SCORECARD.md to avoid work that previously scored as weak, blocked, or repetitive.
+- Every task should make the next screenshot, workflow, or user-facing product state measurably better.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
 
@@ -102,6 +109,15 @@ Base branch: $BaseBranch
 
 Mission:
 $mission
+
+Magic mission:
+$magicMission
+
+Work packs:
+$workPacks
+
+Magic scorecard tail:
+$($magicScorecard -join "`n")
 
 Run policy:
 $policy

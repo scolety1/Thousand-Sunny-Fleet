@@ -34,6 +34,7 @@ cd C:\Dev\codex-fleet
 .\launch-overnight-run.ps1 -Project EasyLife
 .\fleet-status.ps1
 .\fleet-supervisor.ps1 -Once
+.\prepare-magic-run.ps1
 .\merge-readiness.ps1
 .\visual-gallery.ps1
 .\tests\run-fleet-tests.ps1
@@ -85,6 +86,10 @@ Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-
 
 `fleet-supervisor.ps1` writes `out/fleet-supervisor.md` and can stay open as an all-day dashboard. It shows each ship's branch, HEAD, dirty state, remaining tasks, checkpoint verdict, Simon verdict, Joey verdict, and latest report note.
 
+`prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
+
+The longer path is tracked in `docs/TWELVE_HOUR_MAGIC_ROADMAP.md`: product direction, coherent work selection, before/after quality memory, long-run supervision, and larger software-engineering modes.
+
 `merge-readiness.ps1` runs Jimbei Harbor Master and writes `out/merge-readiness.md`. It gives each ship one of three answers: `DO NOT MERGE`, `SAFE TO INSPECT`, or `SAFE TO MERGE AFTER HUMAN REVIEW`.
 
 `visual-gallery.ps1` writes `out/visual-gallery.html`, a local screenshot gallery for the latest visual smoke and visual inspection runs across the fleet.
@@ -130,6 +135,7 @@ The checkpoint loop:
 - generates/imports the next five tasks when the queue is empty
 - refreshes `out/ship-previews.html` and `out/ship-previews.json` when a loop finishes, unless `-SkipShipPreviewRefresh` is passed
 - never merges to `main`
+- appends `docs/codex/MAGIC_SCORECARD.md` so long runs leave a product-progress memory for the next planner pass
 
 Each project can configure `profile`, Phase 0 `projectType`, `riskTier`, `capabilities`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. `visualPaths` can include query strings such as `/easylist?visualQa=1` for dev-only visual QA access. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, Simon, and Robin. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
 
@@ -140,6 +146,8 @@ Long-running steps are wrapped by the fleet watchdog, including Codex implementa
 `-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, Robin RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
 Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Robin copy review, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Robin/Joey repair orders take priority over fresh feature work.
+
+When present, Nami also reads `MAGIC_MISSION.md`, `WORK_PACKS.md`, and `MAGIC_SCORECARD.md`. Those files turn overnight planning from isolated polish tasks into coherent work-pack progress: one product direction, one active pack, and a memory of weak or blocked slices to avoid.
 
 Phase 3 task contracts can be added to task lines when a task needs tighter implementation controls:
 
