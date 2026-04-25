@@ -23,6 +23,6 @@
 - [x] Add a latest screenshot gallery for visual review.
 - [x] Improve checkpoint summaries with completed tasks, changed files, visual/Simon/Joey status, and next-batch guidance.
 - [x] Add launch presets for proof, school-day, and overnight runs.
-- [ ] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
+- [x] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
 
 More detail: `docs/FLEET_IMPROVEMENT_GAMEPLAN.md`.

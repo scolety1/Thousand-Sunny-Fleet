@@ -230,6 +230,32 @@ function Get-FleetRateLimitDelaySeconds {
     return $DefaultSeconds
 }
 
+function Test-FleetBlockingReviewOutput {
+    param(
+        [string]$Path = "",
+        [string]$Text = ""
+    )
+
+    $content = $Text
+    if (![string]::IsNullOrWhiteSpace($Path)) {
+        if (!(Test-Path $Path)) {
+            return $false
+        }
+        $content = Get-Content $Path -Raw
+    }
+
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        return $false
+    }
+
+    return (
+        $content -match "(?im)^\s*REVIEW_STATUS:\s*BLOCKED\b" -or
+        $content -match "(?im)^\s*REVIEW_FINDING:\s*P[12]\b" -or
+        $content -match "(?im)^\s*\[?P[12]\]?\s*[:\-]" -or
+        $content -match "::code-comment\{[^}]*priority=(1|2)\b"
+    )
+}
+
 function Invoke-FleetCodexReadOnly {
     param(
         [Parameter(Mandatory = $true)]

@@ -24,6 +24,7 @@ cd C:\Dev\codex-fleet
 .\fleet-supervisor.ps1 -Once
 .\merge-readiness.ps1
 .\visual-gallery.ps1
+.\tests\run-fleet-tests.ps1
 .\recover-interrupted-task.ps1 -Project EasyLife
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
@@ -53,6 +54,8 @@ cd C:\Dev\codex-fleet
 `merge-readiness.ps1` runs Jimbei Harbor Master and writes `out/merge-readiness.md`. It gives each ship one of three answers: `DO NOT MERGE`, `SAFE TO INSPECT`, or `SAFE TO MERGE AFTER HUMAN REVIEW`.
 
 `visual-gallery.ps1` writes `out/visual-gallery.html`, a local screenshot gallery for the latest visual smoke and visual inspection runs across the fleet.
+
+`tests\run-fleet-tests.ps1` runs deterministic fleet tests without touching real ships. It generates disposable fixture repos under `.codex-local/fixtures/`, validates parsing/config/guardrail helpers, and removes fixtures when it finishes unless `-KeepFixtures` is passed.
 
 `debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes.
 

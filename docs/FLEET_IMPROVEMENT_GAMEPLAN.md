@@ -25,6 +25,7 @@ The fleet can already:
 - write a merge-readiness report with one merge/no-merge answer per ship
 - write a local visual screenshot gallery for faster morning inspection
 - include visual, Simon, Joey, changed-file, completed-task, and next-batch guidance in checkpoint reviews
+- run deterministic script-level tests against disposable fixture ships
 
 The system is now useful, but it still needs stronger recovery and operator controls before it is truly comfortable for all-day unattended runs.
 
@@ -178,7 +179,7 @@ This should be interactive by default and unattended only with an explicit `-Con
 
 ## Priority 4 - Test Harness
 
-### 9. Script-level tests
+### 9. Script-level tests - done
 
 Problem:
 Fleet changes are getting complex enough that syntax checks are not enough.
@@ -196,7 +197,15 @@ Add lightweight tests for:
 
 These can be PowerShell tests without adding heavy dependencies.
 
-### 10. Fixture ships
+Implemented as:
+
+```powershell
+.\tests\run-fleet-tests.ps1
+```
+
+The suite validates task parsing, task completion regex, model-chain config, visual path config, rate-limit detection, watchdog process handling, review finding parsing, safe staging behavior, read-only dirty guards, doctor readiness, merge readiness, and checkpoint debugging.
+
+### 10. Fixture ships - done
 
 Problem:
 Testing against real ships is useful but noisy.
@@ -210,6 +219,8 @@ Create tiny fixture repos under `.codex-local/fixtures/` or generated temp folde
 
 Use them to test fleet logic without risking real repos.
 
+Implemented through `tests/new-fixture-ships.ps1`; generated repos live under ignored `.codex-local/fixtures/`.
+
 ## Recommended Build Order
 
 1. `fleet-doctor.ps1` - done
@@ -219,8 +230,8 @@ Use them to test fleet logic without risking real repos.
 5. recover interrupted task helper - done
 6. merge readiness report
 7. screenshot gallery
-8. script-level tests
-9. fixture ships
+8. script-level tests - done
+9. fixture ships - done
 
 ## Operating Rule
 

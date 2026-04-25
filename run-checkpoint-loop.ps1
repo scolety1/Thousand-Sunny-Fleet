@@ -365,17 +365,7 @@ function Stage-Files {
 function Test-BlockingReviewOutput {
     param([string]$Path)
 
-    if (!(Test-Path $Path)) {
-        return $false
-    }
-
-    $text = Get-Content $Path -Raw
-    return (
-        $text -match "(?im)^\s*REVIEW_STATUS:\s*BLOCKED\b" -or
-        $text -match "(?im)^\s*REVIEW_FINDING:\s*P[12]\b" -or
-        $text -match "(?im)^\s*\[?P[12]\]?\s*[:\-]" -or
-        $text -match "::code-comment\{[^}]*priority=(1|2)\b"
-    )
+    return (Test-FleetBlockingReviewOutput -Path $Path)
 }
 
 function Get-FreeTcpPort {
@@ -612,6 +602,8 @@ if ($ValidateOnly) {
     Write-Host "Planner models: $((Get-ProjectModels -Role "planner") -join ', ')"
     Write-Host "Timeouts: codex=$(Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)s build=$(Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)s planner=$(Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds)s visual=$(Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)s"
     Write-Host "Rate-limit cooldown: $(Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds))s, max cooldowns $(Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns)"
+    $validateVisualPaths = @(Get-ConfigArray -Name "visualPaths")
+    Write-Host "Visual paths: $(if ($validateVisualPaths.Count -gt 0) { $validateVisualPaths -join ', ' } else { 'none' })"
     exit 0
 }
 
