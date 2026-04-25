@@ -86,7 +86,7 @@ Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-
 
 `fleet-supervisor.ps1` writes `out/fleet-supervisor.md` and can stay open as an all-day dashboard. It shows each ship's branch, HEAD, dirty state, remaining tasks, checkpoint verdict, Simon verdict, Joey verdict, and latest report note.
 
-`prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
+`prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, active-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
 
 The longer path is tracked in `docs/TWELVE_HOUR_MAGIC_ROADMAP.md`: product direction, coherent work selection, before/after quality memory, long-run supervision, and larger software-engineering modes.
 
@@ -147,7 +147,7 @@ Long-running steps are wrapped by the fleet watchdog, including Codex implementa
 
 Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Robin copy review, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Robin/Joey repair orders take priority over fresh feature work.
 
-When present, Nami also reads `MAGIC_MISSION.md`, `WORK_PACKS.md`, and `MAGIC_SCORECARD.md`. Those files turn overnight planning from isolated polish tasks into coherent work-pack progress: one product direction, one active pack, and a memory of weak or blocked slices to avoid.
+When present, Nami also reads `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`. Those files turn overnight planning from isolated polish tasks into coherent work-pack progress: one product direction, one active pack, and a memory of weak or blocked slices to avoid. If `WORK_PACK_STATUS.md` names an active pack, planner output must mention that active pack before the tasks can be imported.
 
 Phase 3 task contracts can be added to task lines when a task needs tighter implementation controls:
 

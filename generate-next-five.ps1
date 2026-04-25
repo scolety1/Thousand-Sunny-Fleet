@@ -54,6 +54,7 @@ $quarantined = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
 $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
+$workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
@@ -63,6 +64,25 @@ $robin = if (Test-Path "docs/codex/ROBIN_COPY_REVIEW.md") { Get-Content "docs/co
 $joey = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "No Joey security review found." }
 $reportTail = if (Test-Path "docs/codex/NIGHTLY_REPORT.md") { Get-Content "docs/codex/NIGHTLY_REPORT.md" -Tail 140 } else { @("No report found.") }
 $quarantineTail = if (Test-Path "docs/codex/QUARANTINED_TASKS.md") { Get-Content "docs/codex/QUARANTINED_TASKS.md" -Tail 140 } else { @("No quarantined tasks report found.") }
+
+function Get-ActiveWorkPack {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+    $activeLine = [regex]::Match($Text, "(?im)^-\s*(Pack\s+\d+\s+-\s+[^:]+):\s*ACTIVE\s*$")
+    if ($activeLine.Success) {
+        return $activeLine.Groups[1].Value.Trim()
+    }
+
+    $activeHeading = [regex]::Match($Text, "(?ims)^##\s+Active Work Pack\s*\r?\n\s*(Pack\s+\d+\s+-\s+[^\r\n]+)")
+    if ($activeHeading.Success) {
+        return $activeHeading.Groups[1].Value.Trim()
+    }
+
+    return ""
+}
+
+$activeWorkPack = Get-ActiveWorkPack -Text $workPackStatus
 
 $prompt = @"
 You are the mission planner for an unattended Codex branch.
@@ -97,6 +117,8 @@ Rules:
 - Do not repeat quarantined tasks. If a quarantined task still matters, propose a smaller safer version that avoids the failure reason.
 - If MAGIC_MISSION.md and WORK_PACKS.md are present, plan from them before inventing isolated polish tasks.
 - Prefer coherent work-pack progress: choose one active pack, generate tasks that advance it in order, and include the pack name in natural task wording.
+- If WORK_PACK_STATUS.md names an active pack, every fresh mission-forward task must mention that active pack label, for example "Pack 1 - Product Spine".
+- Do not move to a later pack until WORK_PACK_STATUS.md marks the current pack DONE.
 - Use MAGIC_SCORECARD.md to avoid work that previously scored as weak, blocked, or repetitive.
 - Every task should make the next screenshot, workflow, or user-facing product state measurably better.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
@@ -115,6 +137,9 @@ $magicMission
 
 Work packs:
 $workPacks
+
+Work pack status:
+$workPackStatus
 
 Magic scorecard tail:
 $($magicScorecard -join "`n")
@@ -207,6 +232,16 @@ if ($vagueTasks.Count -gt 0) {
     Write-Host "Planner produced task(s) without explicit forbidden scope." -ForegroundColor Red
     $vagueTasks | ForEach-Object { Write-Host "  $_" }
     exit 1
+}
+
+if (![string]::IsNullOrWhiteSpace($activeWorkPack)) {
+    $activePackNumber = [regex]::Match($activeWorkPack, "Pack\s+\d+").Value
+    $packTasks = @($tasks | Where-Object { $_ -notmatch [regex]::Escape($activeWorkPack) -and $_ -notmatch [regex]::Escape($activePackNumber) })
+    if ($packTasks.Count -gt 0) {
+        Write-Host "Planner produced task(s) that do not mention the active work pack: $activeWorkPack" -ForegroundColor Red
+        $packTasks | ForEach-Object { Write-Host "  $_" }
+        exit 1
+    }
 }
 
 $repairContext = "$simon`n$visualBugs`n$robin"

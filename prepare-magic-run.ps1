@@ -87,6 +87,37 @@ function Test-UsefulMarkdown {
     return $true
 }
 
+function Get-ActiveWorkPack {
+    param([string]$Path)
+
+    if (!(Test-Path -LiteralPath $Path)) { return "" }
+    $text = Get-Content -LiteralPath $Path -Raw
+    $activeLine = [regex]::Match($text, "(?im)^-\s*(Pack\s+\d+\s+-\s+[^:]+):\s*ACTIVE\s*$")
+    if ($activeLine.Success) {
+        return $activeLine.Groups[1].Value.Trim()
+    }
+
+    $activeHeading = [regex]::Match($text, "(?ims)^##\s+Active Work Pack\s*\r?\n\s*(Pack\s+\d+\s+-\s+[^\r\n]+)")
+    if ($activeHeading.Success) {
+        return $activeHeading.Groups[1].Value.Trim()
+    }
+
+    return ""
+}
+
+function Test-WorkPackStatus {
+    param([string]$Path)
+
+    if (!(Test-Path -LiteralPath $Path)) { return $false }
+    $text = Get-Content -LiteralPath $Path -Raw
+    if ($text -notmatch "(?im)^##\s+Active Work Pack\s*$") { return $false }
+    if ($text -notmatch "(?im)^##\s+Pack Status\s*$") { return $false }
+    $activeMatches = [regex]::Matches($text, "(?im)^-\s*Pack\s+\d+\s+-\s+[^:]+:\s*ACTIVE\s*$")
+    if ($activeMatches.Count -ne 1) { return $false }
+    if ($text -match "(?im)^\s*(TBD\.?|TODO|-\s+TBD\.?)\s*$") { return $false }
+    return $true
+}
+
 function Get-LockStatus {
     param([string]$ProjectName)
 
@@ -184,6 +215,29 @@ List the observable outcomes that would make the next morning feel successful.
 This file is appended by Codex Fleet after successful, blocked, or quarantined checkpoint-loop tasks.
 "@
     }
+
+    $statusPath = Join-Path $codexDir "WORK_PACK_STATUS.md"
+    if (!(Test-Path -LiteralPath $statusPath)) {
+        Set-Content -LiteralPath $statusPath -Value @"
+# Work Pack Status
+
+## Active Work Pack
+
+Pack 1 - Product Spine
+
+## Pack Status
+
+- Pack 1 - Product Spine: ACTIVE
+- Pack 2 - Interaction Quality: PENDING
+- Pack 3 - Voice And Trust: PENDING
+- Pack 4 - Finish Pass: PENDING
+
+## Completion Rules
+
+- Mark a pack DONE only when its done-when line in WORK_PACKS.md is satisfied and Simon/checkpoint reports do not repeat the same blocker.
+- Move exactly one next pack to ACTIVE before the next long run.
+"@
+    }
 }
 
 if ($MinUncheckedTasks -lt 0) {
@@ -197,8 +251,8 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "| Ship | Result | Dirty | Tasks | Lock | Mission | Work Packs | Scorecard | Notes |",
-    "| --- | --- | --- | ---: | --- | --- | --- | --- | --- |"
+    "| Ship | Result | Dirty | Tasks | Lock | Mission | Work Packs | Active Pack | Scorecard | Notes |",
+    "| --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- |"
 )
 
 $blocked = 0
@@ -206,7 +260,7 @@ $warnings = 0
 foreach ($ship in $projects) {
     $repo = [string]$ship.repo
     if (!(Test-Path -LiteralPath $repo)) {
-        $lines += "| $($ship.name) | BLOCKED | n/a | 0 | n/a | missing | missing | missing | Repo not found: $repo |"
+        $lines += "| $($ship.name) | BLOCKED | n/a | 0 | n/a | missing | missing | missing | missing | Repo not found: $repo |"
         $blocked++
         continue
     }
@@ -224,9 +278,12 @@ foreach ($ship in $projects) {
     $lockStatus = Get-LockStatus -ProjectName ([string]$ship.name)
     $missionPath = Join-Path $repo "docs\codex\MAGIC_MISSION.md"
     $workPackPath = Join-Path $repo "docs\codex\WORK_PACKS.md"
+    $workPackStatusPath = Join-Path $repo "docs\codex\WORK_PACK_STATUS.md"
     $scorePath = Join-Path $repo "docs\codex\MAGIC_SCORECARD.md"
     $missionOk = Test-UsefulMarkdown -Path $missionPath -RequiredHeadings @("12-Hour Outcome", "Target User", "Product Promise", "Visual Direction", "Non-Goals", "Definition Of Magic")
     $workPackOk = Test-UsefulMarkdown -Path $workPackPath -RequiredHeadings @("Pack 1 - Product Spine", "Pack 2 - Interaction Quality", "Pack 3 - Voice And Trust", "Pack 4 - Finish Pass")
+    $workPackStatusOk = Test-WorkPackStatus -Path $workPackStatusPath
+    $activePack = Get-ActiveWorkPack -Path $workPackStatusPath
     $scoreOk = Test-Path -LiteralPath $scorePath
 
     $notes = [System.Collections.Generic.List[string]]::new()
@@ -247,6 +304,10 @@ foreach ($ship in $projects) {
         if ($result -ne "BLOCKED") { $result = "WARN" }
         $notes.Add("needs WORK_PACKS.md") | Out-Null
     }
+    if (-not $workPackStatusOk) {
+        if ($result -ne "BLOCKED") { $result = "WARN" }
+        $notes.Add("needs WORK_PACK_STATUS.md with one ACTIVE pack") | Out-Null
+    }
     if (-not $scoreOk) {
         if ($result -ne "BLOCKED") { $result = "WARN" }
         $notes.Add("needs scorecard seed") | Out-Null
@@ -261,9 +322,10 @@ foreach ($ship in $projects) {
 
     $missionText = if ($missionOk) { "ready" } else { "missing/incomplete" }
     $workPackText = if ($workPackOk) { "ready" } else { "missing/incomplete" }
+    $activePackText = if ($workPackStatusOk) { $activePack } else { "missing/incomplete" }
     $scoreText = if ($scoreOk) { "ready" } else { "missing" }
     $noteText = if ($notes.Count -gt 0) { ($notes -join "; ") } else { "ok" }
-    $lines += "| $($ship.name) | $result | $dirtyText | $taskCount | $lockStatus | $missionText | $workPackText | $scoreText | $noteText |"
+    $lines += "| $($ship.name) | $result | $dirtyText | $taskCount | $lockStatus | $missionText | $workPackText | $activePackText | $scoreText | $noteText |"
 }
 
 $lines += ""

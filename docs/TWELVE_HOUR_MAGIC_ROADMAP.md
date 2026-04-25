@@ -6,15 +6,15 @@ This roadmap defines what has to be true before Codex Fleet can be trusted for l
 
 - [x] Add `prepare-magic-run.ps1` to check whether a ship has a real 12-hour mission, work packs, and scorecard memory before launch.
 - [x] Add starter `MAGIC_MISSION.md`, `WORK_PACKS.md`, and `MAGIC_SCORECARD.md` templates.
-- [ ] Fill those files for each real ship before long runs.
+- [x] Fill those files for each real ship before long runs.
 - [ ] Teach morning review to summarize whether each ship advanced its active work pack.
 
 ## Roadmap 2 - Coherent Work Selection
 
 - [x] Feed `MAGIC_MISSION.md`, `WORK_PACKS.md`, and `MAGIC_SCORECARD.md` into Nami planning.
 - [x] Tell Nami to prefer one active work pack over isolated polish.
-- [ ] Add explicit work-pack completion markers so Nami can move to the next pack without guessing.
-- [ ] Add a planner validation gate that rejects vague tasks when a work pack is active.
+- [x] Add explicit work-pack completion markers so Nami can move to the next pack without guessing.
+- [x] Add a planner validation gate that rejects vague tasks when a work pack is active.
 
 ## Roadmap 3 - Before/After Quality Memory
 

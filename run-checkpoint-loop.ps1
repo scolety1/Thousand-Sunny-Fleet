@@ -757,6 +757,7 @@ function Append-MagicScorecard {
     $changedCount = if ($null -eq $FilesChanged) { 0 } else { @($FilesChanged).Count }
     $taskClass = if ($null -ne $Contract) { [string]$Contract.class } else { "unknown" }
     $taskRisk = if ($null -ne $Contract) { [string]$Contract.risk } else { "unknown" }
+    $activePack = Get-ActiveWorkPackForLoop
     Add-Content "docs/codex/MAGIC_SCORECARD.md" @"
 
 ## $date
@@ -764,11 +765,30 @@ function Append-MagicScorecard {
 - Task: $Task
 - Result: $BuildResult
 - Magic signal: $status
+- Active work pack: $activePack
 - Task class: $taskClass
 - Task risk: $taskRisk
 - Changed files: $changedCount
 - Follow-up: $Risk
 "@
+}
+
+function Get-ActiveWorkPackForLoop {
+    $path = "docs/codex/WORK_PACK_STATUS.md"
+    if (!(Test-Path $path)) { return "none" }
+
+    $text = Get-Content $path -Raw
+    $activeLine = [regex]::Match($text, "(?im)^-\s*(Pack\s+\d+\s+-\s+[^:]+):\s*ACTIVE\s*$")
+    if ($activeLine.Success) {
+        return $activeLine.Groups[1].Value.Trim()
+    }
+
+    $activeHeading = [regex]::Match($text, "(?ims)^##\s+Active Work Pack\s*\r?\n\s*(Pack\s+\d+\s+-\s+[^\r\n]+)")
+    if ($activeHeading.Success) {
+        return $activeHeading.Groups[1].Value.Trim()
+    }
+
+    return "unknown"
 }
 
 function Append-QuarantineReport {
