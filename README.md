@@ -69,6 +69,8 @@ The checkpoint loop:
 
 `-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
+Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Joey repair orders take priority over fresh feature work.
+
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 
 For larger real-product sprints, the checkpoint debugger allows up to 60 changed files before stopping for review. Keep `BatchSize` modest and increase `MaxBatches` when a ship needs more work.

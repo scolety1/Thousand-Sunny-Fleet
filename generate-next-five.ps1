@@ -28,6 +28,9 @@ $completed = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
+$simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No Simon design review found." }
+$visualBugs = if (Test-Path "docs/codex/VISUAL_BUGS.md") { Get-Content "docs/codex/VISUAL_BUGS.md" -Raw } else { "No visual bug report found." }
+$joey = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "No Joey security review found." }
 $reportTail = if (Test-Path "docs/codex/NIGHTLY_REPORT.md") { Get-Content "docs/codex/NIGHTLY_REPORT.md" -Tail 140 } else { @("No report found.") }
 
 $prompt = @"
@@ -41,6 +44,16 @@ Rules:
 - Each task must be small enough for one Codex implementation round.
 - Each task must include explicit forbidden scope.
 - Prefer tasks that advance the mission and reduce obvious rough edges.
+- Treat Simon, Visual Bug Report, and Joey as active repair orders, not optional reading.
+- Priority order for next tasks:
+  1. If Joey is RED or says stop for human security review, output one docs-only task to summarize the security stop-risk, then no more tasks.
+  2. If Visual Bug Report has HIGH findings or suggested visual fix tasks, turn those into the first tasks.
+  3. If Simon has a Priority Fix, Designer Handoff, What Not To Do Next, or Next 5 Design Tasks, use those to shape the next tasks before inventing unrelated work.
+  4. If Checkpoint Review says patch first, convert the patch concern into task(s).
+  5. Only after those repair orders are addressed, generate fresh mission-forward tasks.
+- If Simon says "continue but fix visual issues first", the next tasks must fix those visual issues first.
+- Do not generate generic polish tasks when Simon or Visual Bug Report names a concrete issue.
+- Do not repeat recently completed tasks unless Simon, Visual Bug Report, Joey, or Checkpoint Review says the issue remains.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
 
@@ -57,6 +70,15 @@ $policy
 
 Checkpoint review:
 $checkpoint
+
+Simon design review:
+$simon
+
+Visual bug report:
+$visualBugs
+
+Joey security review:
+$joey
 
 Existing unchecked tasks:
 $(if ($unchecked.Count -eq 0) { "- None" } else { ($unchecked | ForEach-Object { "- $_" }) -join "`n" })
@@ -93,6 +115,68 @@ $tasks = @(Get-Content $outPath | Where-Object { $_ -match "^\s*-\s+\[ \]\s+.+" 
 if ($tasks.Count -eq 0) {
     Write-Host "Planner output did not include markdown checklist tasks." -ForegroundColor Red
     exit 1
+}
+if ($tasks.Count -gt $Count) {
+    Write-Host "Planner produced too many tasks: $($tasks.Count), expected at most $Count." -ForegroundColor Red
+    exit 1
+}
+
+$vagueTasks = @($tasks | Where-Object { $_ -notmatch "(?i)do not|without|avoid|forbidden" })
+if ($vagueTasks.Count -gt 0) {
+    Write-Host "Planner produced task(s) without explicit forbidden scope." -ForegroundColor Red
+    $vagueTasks | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
+
+$repairContext = "$simon`n$visualBugs"
+$repairSignals = @(
+    "Priority Fix",
+    "Designer Handoff",
+    "Visual Problems To Fix",
+    "Suggested Task Queue Wording",
+    "continue but fix visual issues first"
+)
+$hasRepairSignal = $false
+foreach ($signal in $repairSignals) {
+    if ($repairContext -match [regex]::Escape($signal)) {
+        $hasRepairSignal = $true
+        break
+    }
+}
+if ($hasRepairSignal) {
+    $taskText = ($tasks -join "`n")
+    $repairTerms = @(
+        "visual",
+        "mobile",
+        "design",
+        "layout",
+        "hierarchy",
+        "spacing",
+        "tap",
+        "overflow",
+        "header",
+        "hero",
+        "filter",
+        "card",
+        "badge",
+        "typography",
+        "truncat",
+        "Simon",
+        "Walkthrough"
+    )
+    $mentionsRepair = $false
+    foreach ($term in $repairTerms) {
+        if ($taskText -match "(?i)$term") {
+            $mentionsRepair = $true
+            break
+        }
+    }
+    if (-not $mentionsRepair) {
+        Write-Host "Planner ignored active Simon/visual repair signals." -ForegroundColor Red
+        Write-Host "Generated tasks:" -ForegroundColor Yellow
+        $tasks | ForEach-Object { Write-Host "  $_" }
+        exit 1
+    }
 }
 
 Write-Host "Wrote $OutFile with $($tasks.Count) proposed task(s)." -ForegroundColor Green
