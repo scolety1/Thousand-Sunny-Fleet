@@ -66,6 +66,27 @@ function Add-MaintenanceItem {
     }) | Out-Null
 }
 
+function Get-MaintenanceSignalPriority {
+    param([string]$Line)
+
+    if ($Line -match "(?i)\bRED\b|\bP1\b|vulnerab|\bfail(?:ed|ure|s)?\b|\berror\b") {
+        return "high"
+    }
+    if ($Line -match "(?i)\bYELLOW\b|\bP2\b|regression|timeout") {
+        return "medium"
+    }
+    return "low"
+}
+
+function Test-InformationalMaintenanceLine {
+    param([string]$Line)
+
+    return ($Line -match "(?i)^\s*-\s+A\s+GREEN\s+result\s+means\b" -or
+        $Line -match "(?i)^\s*-\s+Human\s+review\s+is\s+still\s+required\b" -or
+        $Line -match "(?i)^\s*-\s+Local\s+storage\s+is\s+allowed\b" -or
+        $Line -match "(?i)^\s*-\s+Task\s+attempted:")
+}
+
 function Add-ReportSignalItems {
     param(
         [System.Collections.Generic.List[object]]$Items,
@@ -75,9 +96,11 @@ function Add-ReportSignalItems {
     )
 
     if (!(Test-Path $Path)) { return }
-    $matches = @(Select-String -Path $Path -Pattern "RED|YELLOW|P1|P2|TODO|FIXME|flaky|regression|slow|timeout|deprecated|vulnerab|outdated|debt|error|fail" -CaseSensitive:$false -ErrorAction SilentlyContinue | Select-Object -First 8)
+    $signalPattern = "\bRED\b|\bYELLOW\b|\bP1\b|\bP2\b|\bTODO\b|\bFIXME\b|flaky|regression|slow|timeout|deprecated|vulnerab|outdated|debt|\berror\b|\bfail(?:ed|ure|s)?\b"
+    $matches = @(Select-String -Path $Path -Pattern $signalPattern -CaseSensitive:$false -ErrorAction SilentlyContinue | Select-Object -First 8)
     foreach ($match in $matches) {
-        $priority = if ($match.Line -match "RED|P1|vulnerab|fail|error") { "high" } elseif ($match.Line -match "YELLOW|P2|regression|timeout") { "medium" } else { "low" }
+        if (Test-InformationalMaintenanceLine -Line $match.Line) { continue }
+        $priority = Get-MaintenanceSignalPriority -Line $match.Line
         Add-MaintenanceItem -Items $Items -Lane $Lane -Priority $priority -Source "$Source line $($match.LineNumber)" -Summary $match.Line.Trim()
     }
 }

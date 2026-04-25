@@ -378,6 +378,10 @@ function Test-PhaseEightMaintenanceSupport {
     Assert-True -Condition ($maintenanceText -match 'TECH_DEBT\.md') -Message "Maintenance lane tracks technical debt"
     Assert-True -Condition ($maintenanceText -match '\[switch\]\$IncludeDirty') -Message "Maintenance lane requires an explicit opt-in to scan dirty ships"
     Assert-True -Condition ($maintenanceText -match 'SKIPPED DIRTY') -Message "Maintenance lane skips dirty ships by default"
+    Assert-True -Condition ($maintenanceText -match 'Get-MaintenanceSignalPriority') -Message "Maintenance lane centralizes signal priority"
+    Assert-True -Condition ($maintenanceText -match '\\bRED\\b') -Message "Maintenance lane avoids substring matches for RED"
+    Assert-True -Condition ($maintenanceText -match 'Test-InformationalMaintenanceLine') -Message "Maintenance lane skips informational review boilerplate"
+    Assert-True -Condition ($maintenanceText -match 'Task\\s\+attempted') -Message "Maintenance lane skips task-attempted prose"
     foreach ($signal in @("dependency-review", "performance-regression", "flaky", "bug-triage", "issue-intake")) {
         Assert-True -Condition ($maintenanceText -match [regex]::Escape($signal)) -Message "Maintenance lane handles $signal signals"
     }
