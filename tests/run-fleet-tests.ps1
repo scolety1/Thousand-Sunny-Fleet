@@ -761,6 +761,30 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
 }
 
+function Test-SophisticatedSoftwareModeSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $featureText = Get-Content (Join-Path $fleetRoot "software-feature-mode.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\TWELVE_HOUR_MAGIC_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "software-feature-mode.ps1")) -Message "Fleet exposes software feature mode gate"
+    Assert-True -Condition ($loopText -match 'mode:') -Message "Task contract parser recognizes mode metadata"
+    Assert-True -Condition ($loopText -match 'feature-pack') -Message "Checkpoint loop supports feature-pack mode"
+    Assert-True -Condition ($loopText -match 'Test-SoftwareFeatureModeApproval') -Message "Feature-pack mode has approval gate"
+    Assert-True -Condition ($loopText -match 'SOFTWARE_FEATURE_PLAN\.md') -Message "Feature-pack mode requires feature plan"
+    Assert-True -Condition ($loopText -match 'SOFTWARE_FEATURE_APPROVAL\.md') -Message "Feature-pack mode requires feature approval"
+    Assert-True -Condition ($loopText -match 'RUNTIME_CHECKS\.md') -Message "Feature-pack mode requires runtime checks"
+    Assert-True -Condition ($loopText -match 'Test-PackageAndDependencyChanges') -Message "Checkpoint loop gates package/dependency changes"
+    Assert-True -Condition ($loopText -match 'canEditPackageFiles') -Message "Package edits require ship capability"
+    Assert-True -Condition ($loopText -match 'canAddDependencies') -Message "Dependency edits require ship capability"
+    Assert-True -Condition ($plannerText -match 'mode:feature-pack') -Message "Planner is taught feature-pack metadata"
+    Assert-True -Condition ($featureText -match 'IncludeDependencyChange') -Message "Software feature mode supports dependency lane"
+    Assert-True -Condition ($featureText -match 'DEPENDENCY_APPROVAL\.md') -Message "Software feature mode validates dependency approval"
+    Assert-True -Condition ($readmeText -match 'Devil Fruit Phase 5') -Message "README documents sophisticated software mode"
+    Assert-True -Condition ($roadmapText -match '\[x\] Add approved "bigger-change mode"') -Message "Roadmap marks sophisticated software mode complete"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -795,6 +819,7 @@ Test-DebuggerReportFileAllowance
 Test-ShipPreviewRefreshSupport
 Test-MagicRunSupport
 Test-LongRunSupervisorSupport
+Test-SophisticatedSoftwareModeSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)

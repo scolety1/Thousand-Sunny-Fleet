@@ -93,9 +93,10 @@ Generate exactly $Count next tasks as markdown checklist lines.
 Rules:
 - Output only checklist lines, no commentary.
 - Each line must start with "- [ ] ".
-- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low scope:src/,docs/codex/ accept:npm.cmd test].
+- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single scope:src/,docs/codex/ accept:npm.cmd test].
 - Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
+- Supported modes: mode:single and mode:feature-pack. Use mode:feature-pack only when SOFTWARE_FEATURE_PLAN.md and SOFTWARE_FEATURE_APPROVAL.md are approved and the task has explicit scope and accept metadata.
 - Use scope: only when the task can be safely bounded to clear path prefixes.
 - Use accept: only for task-specific checks beyond the normal external build.
 - Each task must be small enough for one Codex implementation round.
@@ -124,6 +125,7 @@ Rules:
 - If QUALITY_QUARANTINE.md exists, treat it like an active repair order. The next task must be a smaller repair task for the named active work pack.
 - Every task should make the next screenshot, workflow, or user-facing product state measurably better.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
+- Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
 
 Repository: $($repoPath.Path)

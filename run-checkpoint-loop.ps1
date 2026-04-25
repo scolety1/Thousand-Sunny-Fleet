@@ -411,8 +411,10 @@ function Resolve-TaskContract {
 
     $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "design", "copy", "backend", "migration", "integration", "performance")
     $allowedRisks = @("low", "medium", "high", "gated")
+    $allowedModes = @("single", "feature-pack")
     $taskClass = "feature"
     $risk = "low"
+    $mode = "single"
     $scope = @()
     $acceptance = @()
     $summary = $Task
@@ -430,6 +432,12 @@ function Resolve-TaskContract {
         if ($riskMatch.Success) {
             $candidate = $riskMatch.Groups[1].Value.Trim().ToLowerInvariant()
             if ($allowedRisks -contains $candidate) { $risk = $candidate }
+        }
+
+        $modeMatch = [regex]::Match($metadata, "(?:^|\s)mode:([^\s]+)")
+        if ($modeMatch.Success) {
+            $candidate = $modeMatch.Groups[1].Value.Trim().ToLowerInvariant()
+            if ($allowedModes -contains $candidate) { $mode = $candidate }
         }
 
         $scopeMatch = [regex]::Match($metadata, "(?:^|\s)scope:([^\s]+)")
@@ -450,6 +458,7 @@ function Resolve-TaskContract {
         summary = $summary
         class = $taskClass
         risk = $risk
+        mode = $mode
         scope = $scope
         acceptance = $acceptance
     }
@@ -487,6 +496,79 @@ function Test-ApprovalFileForLoop {
     if (!(Test-Path $Path)) { return $false }
     $text = Get-Content $Path -Raw
     return ($text -match "(?im)^\s*Status:\s*APPROVED\s*$")
+}
+
+function Get-CapabilityForLoop {
+    param([string]$Name)
+
+    foreach ($source in @($script:projectConfig, $script:profileConfig)) {
+        if ($null -eq $source) { continue }
+        $capabilities = Get-ConfigPropertyValue -Object $source -Name "capabilities"
+        if ($null -eq $capabilities) { continue }
+        $value = Get-ConfigPropertyValue -Object $capabilities -Name $Name
+        if ($null -ne $value) {
+            return [bool]$value
+        }
+    }
+
+    return $false
+}
+
+function Test-SoftwareFeaturePlanForLoop {
+    $planPath = "docs/codex/SOFTWARE_FEATURE_PLAN.md"
+    if (!(Test-Path $planPath)) {
+        Write-Host "Feature-pack mode requires docs/codex/SOFTWARE_FEATURE_PLAN.md." -ForegroundColor Red
+        return $false
+    }
+
+    $text = Get-Content $planPath -Raw
+    foreach ($heading in @("Active Work Pack", "User Workflow", "Files And Modules", "Runtime Scenarios", "Rollback Plan", "Acceptance Commands")) {
+        if ($text -notmatch "(?im)^##\s+$([regex]::Escape($heading))\s*$") {
+            Write-Host "SOFTWARE_FEATURE_PLAN.md is missing heading: $heading" -ForegroundColor Red
+            return $false
+        }
+    }
+
+    if ($text -match "(?im)^\s*(TBD\.?|TODO|-\s+TBD\.?)\s*$") {
+        Write-Host "SOFTWARE_FEATURE_PLAN.md still contains TBD/TODO placeholders." -ForegroundColor Red
+        return $false
+    }
+
+    return $true
+}
+
+function Test-SoftwareFeatureModeApproval {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or [string]$Contract.mode -ne "feature-pack") {
+        return $true
+    }
+
+    if ((Get-ArchitecturePlanStatusForLoop) -ne "approved") {
+        Write-Host "Feature-pack mode requires approved Phase 1 architecture." -ForegroundColor Red
+        return $false
+    }
+    if (!(Test-ApprovalFileForLoop -Path "docs/codex/SOFTWARE_FEATURE_APPROVAL.md")) {
+        Write-Host "Feature-pack mode requires approved SOFTWARE_FEATURE_APPROVAL.md." -ForegroundColor Red
+        return $false
+    }
+    if (!(Test-SoftwareFeaturePlanForLoop)) {
+        return $false
+    }
+    if ($Contract.scope.Count -eq 0) {
+        Write-Host "Feature-pack mode requires explicit scope: metadata." -ForegroundColor Red
+        return $false
+    }
+    if ($Contract.acceptance.Count -eq 0) {
+        Write-Host "Feature-pack mode requires explicit accept: metadata." -ForegroundColor Red
+        return $false
+    }
+    if (!(Test-Path "docs/codex/RUNTIME_CHECKS.md")) {
+        Write-Host "Feature-pack mode requires docs/codex/RUNTIME_CHECKS.md runtime scenarios." -ForegroundColor Red
+        return $false
+    }
+
+    return $true
 }
 
 function Get-SensitiveIntentText {
@@ -547,7 +629,12 @@ function Test-TaskScope {
         "docs/codex/SIMON_DESIGN_REVIEW.md",
         "docs/codex/ROBIN_COPY_REVIEW.md",
         "docs/codex/JOEY_SECURITY_REVIEW.md",
-        "docs/codex/MAGIC_SCORECARD.md"
+        "docs/codex/MAGIC_SCORECARD.md",
+        "docs/codex/QUALITY_QUARANTINE.md",
+        "docs/codex/SOFTWARE_FEATURE_PLAN.md",
+        "docs/codex/SOFTWARE_FEATURE_APPROVAL.md",
+        "docs/codex/DEPENDENCY_PROPOSAL.md",
+        "docs/codex/DEPENDENCY_APPROVAL.md"
     )
     $violations = @()
     foreach ($file in @($FilesChanged)) {
@@ -587,6 +674,35 @@ function Invoke-TaskAcceptanceChecks {
             Write-Host "Log: $logPath" -ForegroundColor Yellow
             return $false
         }
+    }
+
+    return $true
+}
+
+function Test-PackageAndDependencyChanges {
+    param(
+        [object]$Contract,
+        [string[]]$FilesChanged
+    )
+
+    $packagePattern = "(?i)(^|/)(package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|pyproject\.toml|poetry\.lock|requirements\.txt|Pipfile|Pipfile\.lock)$"
+    $packageFiles = @($FilesChanged | Where-Object { ([string]$_).Replace("\", "/") -match $packagePattern })
+    if ($packageFiles.Count -eq 0) {
+        return $true
+    }
+
+    if (!(Test-ApprovalFileForLoop -Path "docs/codex/DEPENDENCY_APPROVAL.md")) {
+        Write-Host "Package/dependency changes require approved DEPENDENCY_APPROVAL.md." -ForegroundColor Red
+        $packageFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+        return $false
+    }
+    if (!(Get-CapabilityForLoop -Name "canEditPackageFiles")) {
+        Write-Host "Package file edits are not enabled by this ship/profile capability." -ForegroundColor Red
+        return $false
+    }
+    if (!(Get-CapabilityForLoop -Name "canAddDependencies")) {
+        Write-Host "Dependency changes are not enabled by this ship/profile capability." -ForegroundColor Red
+        return $false
     }
 
     return $true
@@ -644,7 +760,7 @@ function Invoke-RuntimeVerificationGate {
 
     $needsRuntime = $false
     if ($null -ne $Contract) {
-        $needsRuntime = ($Contract.class -in @("integration", "performance") -or $Contract.acceptance.Count -gt 0)
+        $needsRuntime = ($Contract.class -in @("integration", "performance") -or $Contract.mode -eq "feature-pack" -or $Contract.acceptance.Count -gt 0)
     }
     if (!$needsRuntime -and !(Test-Path "docs/codex/RUNTIME_CHECKS.md")) {
         return $true
@@ -721,6 +837,7 @@ function Append-Report {
     if ($null -ne $Contract) {
         $contractLines += "- Task class: $($Contract.class)"
         $contractLines += "- Task risk: $($Contract.risk)"
+        $contractLines += "- Task mode: $($Contract.mode)"
         $contractLines += "- Allowed scope: $(if ($Contract.scope.Count -gt 0) { $Contract.scope -join ', ' } else { 'profile/default' })"
         $contractLines += "- Acceptance checks: $(if ($Contract.acceptance.Count -gt 0) { $Contract.acceptance -join ', ' } else { 'external build only' })"
     }
@@ -1574,7 +1691,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host "----- TASK $i of $BatchSize -----" -ForegroundColor Cyan
         Write-Host "Selected task: $task" -ForegroundColor Cyan
         $taskContract = Resolve-TaskContract -Task $task
-        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
         if ($taskContract.risk -in @("high", "gated") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
             Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present." -Contract $taskContract
             Write-Host "High/gated task requires approved architecture plan. Ending loop for human review." -ForegroundColor Red
@@ -1595,6 +1712,11 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             Write-Host "Sensitive-system task requires approved Phase 5 artifacts. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
+        if (-not (Test-SoftwareFeatureModeApproval -Contract $taskContract)) {
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Feature-pack mode requires approved architecture, feature plan, runtime checks, scope, and acceptance commands." -Contract $taskContract
+            Write-Host "Feature-pack task is not approved for autonomous implementation. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
         $taskBase = (git rev-parse HEAD 2>$null)
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($taskBase)) {
             Write-Host "Could not determine task base commit before implementation." -ForegroundColor Red
@@ -1611,6 +1733,7 @@ $task
 Task contract:
 - Class: $($taskContract.class)
 - Risk: $($taskContract.risk)
+- Mode: $($taskContract.mode)
 - Summary: $($taskContract.summary)
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 - Acceptance checks: $(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ", " } else { "External build only." })
@@ -1692,6 +1815,7 @@ $task
 Task contract:
 - Class: $($taskContract.class)
 - Risk: $($taskContract.risk)
+- Mode: $($taskContract.mode)
 - Summary: $($taskContract.summary)
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 
@@ -1764,6 +1888,11 @@ REVIEW_FINDING: P2: short description
         if ($finalScopeViolations.Count -gt 0) {
             if (Invoke-TaskQuarantine -Task $task -Reason "Final changed files are outside declared scope: $($finalScopeViolations -join ', ')." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Blocked" -Risk "Final changed files are outside declared scope: $($finalScopeViolations -join ', ')." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Test-PackageAndDependencyChanges -Contract $taskContract -FilesChanged $filesChanged)) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Package/dependency files changed without approved dependency lane and enabled capabilities." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Blocked" -Risk "Package/dependency files changed without approved dependency lane and enabled capabilities." -Contract $taskContract
             exit 1
         }
         Mark-FirstUncheckedTaskComplete

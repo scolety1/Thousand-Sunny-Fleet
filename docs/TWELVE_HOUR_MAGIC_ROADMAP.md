@@ -32,10 +32,10 @@ This roadmap defines what has to be true before Codex Fleet can be trusted for l
 
 ## Roadmap 5 - Sophisticated Software
 
-- [ ] Require architecture approval for larger feature packs, backend work, integrations, migrations, auth, payments, and external APIs.
-- [ ] Add approved "bigger-change mode" task contracts for multi-file feature slices with stricter acceptance checks.
-- [ ] Add runtime scenario tests for real workflows, not just builds and screenshots.
-- [ ] Add dependency and package-change proposal lanes for approved non-frontend work.
+- [x] Require architecture approval for larger feature packs, backend work, integrations, migrations, auth, payments, and external APIs.
+- [x] Add approved "bigger-change mode" task contracts for multi-file feature slices with stricter acceptance checks.
+- [x] Add runtime scenario tests for real workflows, not just builds and screenshots.
+- [x] Add dependency and package-change proposal lanes for approved non-frontend work.
 
 ## Honest Readiness
 

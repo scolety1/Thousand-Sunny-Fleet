@@ -26,6 +26,7 @@ cd C:\Dev\codex-fleet
 .\migration-review.ps1 -Repo C:\Dev\my-project
 .\sensitive-systems-review.ps1 -Repo C:\Dev\my-project
 .\runtime-verify.ps1 -Repo C:\Dev\my-project -Template
+.\software-feature-mode.ps1 -Repo C:\Dev\my-project -Template
 .\release-readiness.ps1 -Project EasyLife
 .\fleet-maintenance.ps1
 .\fleet-autopilot-policy.ps1
@@ -67,6 +68,8 @@ cd C:\Dev\codex-fleet
 `sensitive-systems-review.ps1` is the Phase 5 auth, payment, secrets, and external-service gate. It scans staged diffs for common secret patterns and validates `EXTERNAL_SERVICES.md`, `AUTH_POLICY.md`/`AUTH_APPROVAL.md`, and `PAYMENT_RISK.md`/`PAYMENT_APPROVAL.md` when those sensitive areas are in play. The checkpoint loop runs this gate before every Fleet commit.
 
 `runtime-verify.ps1` is the Phase 6 runtime verification gate. It reads `docs/codex/RUNTIME_CHECKS.md` and writes `docs/codex/RUNTIME_VERIFICATION.md`. Checks can be `command: ...`, `url: ...`, or `text: file => expected text`. Integration/performance tasks and tasks with `accept:` commands trigger runtime verification during the checkpoint loop.
+
+`software-feature-mode.ps1` is the Devil Fruit Phase 5 gate for sophisticated software work. It prepares or validates `SOFTWARE_FEATURE_PLAN.md`, `SOFTWARE_FEATURE_APPROVAL.md`, `RUNTIME_CHECKS.md`, and optional dependency proposal/approval docs. Checkpoint tasks using `mode:feature-pack` require approved architecture, approved feature plan, explicit `scope:`, explicit `accept:`, runtime scenarios, and dependency approval plus enabled package/dependency capabilities before package files may change.
 
 `release-readiness.ps1` is the Phase 7 release and operations gate. It writes `out/release-readiness.md` with build status, commits, changed files, checkpoint/security/runtime/migration/sensitive-system gates, deployment plan status, post-deploy smoke plan status, rollback plan status, and release approval status. It never deploys.
 
@@ -155,9 +158,10 @@ Phase 3 task contracts can be added to task lines when a task needs tighter impl
 
 ```md
 - [ ] Add API health smoke test. [class:test risk:medium scope:tests/,src/ accept:npm.cmd test]
+- [ ] Build Pack 1 - Product Spine settings workflow slice. [class:feature risk:high mode:feature-pack scope:app-vNext/src/,docs/codex/ accept:npm.cmd run build,npm.cmd test]
 ```
 
-Supported classes are `feature`, `bugfix`, `refactor`, `test`, `docs`, `design`, `copy`, `backend`, `migration`, `integration`, and `performance`. Supported risks are `low`, `medium`, `high`, and `gated`; `high` and `gated` tasks require an approved Phase 1 architecture plan. `scope:` limits changed files to path prefixes, and `accept:` runs task-specific checks in addition to the normal external build.
+Supported classes are `feature`, `bugfix`, `refactor`, `test`, `docs`, `design`, `copy`, `backend`, `migration`, `integration`, and `performance`. Supported risks are `low`, `medium`, `high`, and `gated`; `high` and `gated` tasks require an approved Phase 1 architecture plan. Supported modes are `single` and `feature-pack`; `feature-pack` requires approved software feature docs, explicit scope, acceptance commands, and runtime scenarios. `scope:` limits changed files to path prefixes, and `accept:` runs task-specific checks in addition to the normal external build.
 
 Backend and migration task classes are additionally gated. `class:backend` requires approved architecture. `class:migration` requires approved architecture plus the Phase 4 migration proposal and approval gate.
 
