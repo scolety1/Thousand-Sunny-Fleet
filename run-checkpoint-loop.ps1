@@ -34,6 +34,8 @@ param(
 
     [int]$RateLimitMaxCooldowns = 4,
 
+    [int]$MaxTaskQuarantines = 3,
+
     [int]$VisualEvery = 0,
 
     [int]$VisualInspectEvery = 0,
@@ -47,6 +49,8 @@ param(
     [switch]$SkipDebug,
 
     [switch]$ContinueOnYellowCheckpoint,
+
+    [switch]$QuarantineFailedTasks,
 
     [switch]$ValidateOnly,
 
@@ -112,6 +116,10 @@ if ($RateLimitCooldownSeconds -lt 60) {
 
 if ($RateLimitMaxCooldowns -lt 0) {
     Stop-Usage "-RateLimitMaxCooldowns must be 0 or greater."
+}
+
+if ($MaxTaskQuarantines -lt 0) {
+    Stop-Usage "-MaxTaskQuarantines must be 0 or greater."
 }
 
 foreach ($timeoutSpec in @(
@@ -399,6 +407,20 @@ function Mark-FirstUncheckedTaskComplete {
     Set-Content $path $newLines
 }
 
+function Mark-FirstUncheckedTaskQuarantined {
+    $path = "docs/codex/TASK_QUEUE.md"
+    $updated = $false
+    $newLines = foreach ($line in Get-Content $path) {
+        if (-not $updated -and $line -match "^(\s*-\s+)\[ \](\s+.+)$") {
+            $updated = $true
+            "$($Matches[1])[!]$($Matches[2])"
+        } else {
+            $line
+        }
+    }
+    Set-Content $path $newLines
+}
+
 function Append-Report {
     param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk)
     if (!(Test-Path "docs/codex/NIGHTLY_REPORT.md")) {
@@ -418,6 +440,125 @@ function Append-Report {
 $files
 - Risks or follow-up needed: $Risk
 "@
+}
+
+function Append-QuarantineReport {
+    param(
+        [string]$Task,
+        [string]$Reason,
+        [int]$Batch,
+        [int]$TaskIndex,
+        [string[]]$FilesChanged
+    )
+
+    if (!(Test-Path "docs/codex/QUARANTINED_TASKS.md")) {
+        New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+        "# Quarantined Fleet Tasks`n" | Set-Content "docs/codex/QUARANTINED_TASKS.md"
+    }
+
+    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $files = if ($FilesChanged.Count -gt 0) { ($FilesChanged | ForEach-Object { "- $_" }) -join "`n" } else { "- None" }
+    Add-Content "docs/codex/QUARANTINED_TASKS.md" @"
+
+## $date
+
+- Batch: $Batch
+- Task index: $TaskIndex
+- Task: $Task
+- Reason: $Reason
+- Files restored before continuing:
+$files
+- Next step: Nami should avoid repeating this exact task until a human reviews the failure.
+"@
+}
+
+function Get-TaskChangedFiles {
+    $changed = @(
+        @(git diff --name-only)
+        @(git diff --cached --name-only)
+        @(git ls-files --others --exclude-standard)
+    )
+    return @($changed | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique)
+}
+
+function Restore-TaskChanges {
+    param([string]$TaskBase)
+
+    if ([string]::IsNullOrWhiteSpace($TaskBase)) {
+        return $false
+    }
+
+    $repoFullPath = [System.IO.Path]::GetFullPath($repoPath)
+    $trackedPaths = @(
+        @(git diff --name-only)
+        @(git diff --cached --name-only)
+    ) | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
+    $untrackedPaths = @(git ls-files --others --exclude-standard)
+
+    if ($trackedPaths.Count -gt 0) {
+        & git restore --source $TaskBase --staged --worktree -- @trackedPaths
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+    }
+
+    foreach ($path in $untrackedPaths) {
+        if ([string]::IsNullOrWhiteSpace($path)) { continue }
+        $target = [System.IO.Path]::GetFullPath((Join-Path $repoFullPath $path))
+        if (!$target.StartsWith($repoFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Host "Refusing to remove untracked path outside repo: $path" -ForegroundColor Red
+            return $false
+        }
+        if (Test-Path -LiteralPath $target) {
+            Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    $remaining = @(git status --porcelain)
+    return ($remaining.Count -eq 0)
+}
+
+function Invoke-TaskQuarantine {
+    param(
+        [string]$Task,
+        [string]$Reason,
+        [int]$Batch,
+        [int]$TaskIndex,
+        [string]$TaskBase
+    )
+
+    if (!$QuarantineFailedTasks) {
+        return $false
+    }
+
+    if ($script:TaskQuarantineCount -ge $MaxTaskQuarantines) {
+        Write-Host "Task quarantine limit reached ($MaxTaskQuarantines). Ending loop for human review." -ForegroundColor Red
+        return $false
+    }
+
+    $script:TaskQuarantineCount++
+    $filesChanged = @(Get-TaskChangedFiles)
+    Write-Host "Quarantining failed task $script:TaskQuarantineCount of $MaxTaskQuarantines, restoring task changes, and continuing." -ForegroundColor Yellow
+
+    if (-not (Restore-TaskChanges -TaskBase $TaskBase)) {
+        Write-Host "Could not restore task changes cleanly. Ending loop for human review." -ForegroundColor Red
+        return $false
+    }
+
+    Mark-FirstUncheckedTaskQuarantined
+    Append-Report -Task $Task -FilesChanged $filesChanged -BuildResult "Quarantined" -Risk $Reason
+    Append-QuarantineReport -Task $Task -Reason $Reason -Batch $Batch -TaskIndex $TaskIndex -FilesChanged $filesChanged
+
+    Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md")
+    $pendingQuarantineCommit = @(git diff --cached --name-only)
+    if ($pendingQuarantineCommit.Count -gt 0) {
+        git commit -m "Codex quarantine failed task batch $Batch task $TaskIndex"
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+    }
+
+    return $true
 }
 
 function Invoke-CodexExec {
@@ -670,6 +811,7 @@ if ($branch -eq $BaseBranch) {
 $logRoot = ".codex-logs\checkpoint-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $script:RunLogRoot = $logRoot
+$script:TaskQuarantineCount = 0
 
 for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     Write-Host ""
@@ -718,6 +860,11 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host ""
         Write-Host "----- TASK $i of $BatchSize -----" -ForegroundColor Cyan
         Write-Host "Selected task: $task" -ForegroundColor Cyan
+        $taskBase = (git rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($taskBase)) {
+            Write-Host "Could not determine task base commit before implementation." -ForegroundColor Red
+            exit 1
+        }
 
         $prompt = @"
 Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, and docs/codex/TASK_QUEUE.md.
@@ -738,17 +885,24 @@ Rules:
         $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1 -Models (Get-ProjectModels -Role "implement") -TimeoutSeconds (Get-TimeoutSetting -Role "implement" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds))
         $statusAfter = @(git status --porcelain)
         if ($exit -ne 0 -and $statusAfter.Count -eq 0) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Codex command failed after retries and made no changes." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged @() -BuildResult "Failed" -Risk "Codex command failed after retries and made no changes."
             exit 1
         }
         if ($statusAfter.Count -eq 0) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Codex made no changes." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged @() -BuildResult "Skipped" -Risk "Codex made no changes."
             exit 1
         }
 
-        if (-not (Invoke-ProjectGuardrails -Task $task -Stage "implementation")) { exit 1 }
+        if (-not (Invoke-ProjectGuardrails -Task $task -Stage "implementation")) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Implementation guardrails failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            exit 1
+        }
         if (-not (Invoke-ExternalBuild)) {
-            Append-Report -Task $task -FilesChanged @(git diff --name-only; git ls-files --others --exclude-standard) -BuildResult "Failed" -Risk "External build failed."
+            $failedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "External build failed after implementation." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $failedFiles -BuildResult "Failed" -Risk "External build failed."
             exit 1
         }
 
@@ -776,14 +930,21 @@ REVIEW_FINDING: P2: short description
         [void](Invoke-CodexExec -Prompt $reviewPrompt -LogPath $log2 -Models (Get-ProjectModels -Role "review") -ResponsePath $reviewResponse -TimeoutSeconds (Get-TimeoutSetting -Role "review" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)))
 
         if (Test-BlockingReviewOutput -Path $reviewResponse) {
-            Append-Report -Task $task -FilesChanged @(git diff --name-only; git ls-files --others --exclude-standard) -BuildResult "Blocked" -Risk "Review reported an unresolved P1/P2 finding."
+            $blockedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Review reported an unresolved P1/P2 finding." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $blockedFiles -BuildResult "Blocked" -Risk "Review reported an unresolved P1/P2 finding."
             Write-Host "Review reported an unresolved P1/P2 finding. Ending loop without marking task complete." -ForegroundColor Red
             exit 1
         }
 
-        if (-not (Invoke-ProjectGuardrails -Task $task -Stage "review")) { exit 1 }
+        if (-not (Invoke-ProjectGuardrails -Task $task -Stage "review")) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Review guardrails failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            exit 1
+        }
         if (-not (Invoke-ExternalBuild)) {
-            Append-Report -Task $task -FilesChanged @(git diff --name-only; git ls-files --others --exclude-standard) -BuildResult "Failed" -Risk "Final external build failed."
+            $finalFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final external build failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalFailedFiles -BuildResult "Failed" -Risk "Final external build failed."
             exit 1
         }
 

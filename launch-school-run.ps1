@@ -12,9 +12,13 @@ param(
 
     [int]$RateLimitMaxCooldowns = 5,
 
+    [int]$MaxTaskQuarantines = 3,
+
     [switch]$SkipDoctor,
 
     [switch]$PushCheckpoint,
+
+    [switch]$QuarantineFailedTasks,
 
     [switch]$DryRun
 )
@@ -46,6 +50,7 @@ function Get-Projects {
 
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
+if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
@@ -64,7 +69,7 @@ if (!$SkipDoctor) {
 foreach ($ship in Get-Projects) {
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -VisualInspectEvery 2 -SimonEvery 2 -JoeyEvery 4 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -VisualInspectEvery 2 -SimonEvery 2 -JoeyEvery 4 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
     Write-Host "Launching school run for $($ship.name): batch $BatchSize x $MaxBatches..." -ForegroundColor Cyan
