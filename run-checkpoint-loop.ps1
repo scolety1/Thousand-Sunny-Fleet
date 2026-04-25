@@ -18,6 +18,8 @@ param(
 
     [int]$VisualInspectEvery = 0,
 
+    [int]$SimonEvery = 0,
+
     [switch]$PushCheckpoint,
 
     [switch]$SkipDebug,
@@ -78,6 +80,10 @@ if ($VisualEvery -lt 0) {
 
 if ($VisualInspectEvery -lt 0) {
     Stop-Usage "-VisualInspectEvery must be 0 or greater."
+}
+
+if ($SimonEvery -lt 0) {
+    Stop-Usage "-SimonEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -404,6 +410,25 @@ Do not edit NIGHTLY_REPORT.md.
         if (-not $visualInspectPassed) {
             Write-Host "Visual inspect found blocking issues. Ending loop without merge." -ForegroundColor Red
             exit 1
+        }
+    }
+
+    if ($SimonEvery -gt 0 -and ($batch % $SimonEvery -eq 0)) {
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "simon-design-review.ps1") -Repo $repoPath -Project $script:projectConfig.name -BaseBranch $BaseBranch
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Simon design review failed. Ending loop without merge." -ForegroundColor Red
+            exit 1
+        }
+        $simonText = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "" }
+        git add docs/codex/SIMON_DESIGN_REVIEW.md
+        $pendingSimonCommit = @(git diff --cached --name-only)
+        if ($pendingSimonCommit.Count -gt 0) {
+            git commit -m "Codex Simon design review batch $batch"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+        }
+        if ($simonText -match "(?is)## Verdict\s+RED\b" -or $simonText -match "(?i)stop for human design review") {
+            Write-Host "Simon requested a human design stop. Ending loop without merge." -ForegroundColor Yellow
+            break
         }
     }
 

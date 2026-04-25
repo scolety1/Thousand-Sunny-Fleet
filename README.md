@@ -21,6 +21,7 @@ cd C:\Dev\codex-fleet
 .\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
 .\visual-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\visual-inspect.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
+.\simon-design-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
 ```
@@ -37,12 +38,14 @@ cd C:\Dev\codex-fleet
 
 `visual-inspect.ps1` launches the site, opens desktop and mobile viewports, screenshots the page, and writes `docs/codex/VISUAL_BUGS.md` with suspicious layout issues such as horizontal overflow, clipped text, covered headings, console errors, and small tap targets.
 
+`simon-design-review.ps1` runs Simon, a sharp mission-driven design reviewer, and writes `docs/codex/SIMON_DESIGN_REVIEW.md` with a taste check, mission-fit review, visual problems, and the next five design tasks.
+
 ## Mission Checkpoint Loop
 
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -55,6 +58,7 @@ The checkpoint loop:
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
 - optionally writes visual bug reports with `-VisualInspectEvery N`
+- optionally runs Simon design reviews with `-SimonEvery N`
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
