@@ -467,8 +467,13 @@ Do not edit NIGHTLY_REPORT.md.
     }
 
     if ($PushCheckpoint) {
-        git push -u origin $branch
-        if ($LASTEXITCODE -ne 0) { exit 1 }
+        $originUrl = git remote get-url origin 2>$null
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($originUrl)) {
+            Write-Host "Push checkpoint requested, but no origin remote is configured. Skipping push." -ForegroundColor Yellow
+        } else {
+            git push -u origin $branch
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+        }
     }
 }
 
