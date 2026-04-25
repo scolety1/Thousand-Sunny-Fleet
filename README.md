@@ -84,7 +84,7 @@ Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-
 
 `fleet-morning-review.ps1` checks each configured project before you merge: branch, dirty state, unchecked tasks, changed files, recent report entries, and build result.
 
-`fleet-supervisor.ps1` writes `out/fleet-supervisor.md` and can stay open as an all-day dashboard. It shows each ship's branch, HEAD, dirty state, remaining tasks, checkpoint verdict, Simon verdict, Joey verdict, and latest report note.
+`fleet-supervisor.ps1` writes `out/fleet-supervisor.md` and `out/fleet-overnight-digest.md`, and can stay open as an all-day watchdog. It classifies each ship as progressing, ready, idle, blocked, looping, or over budget; shows active work pack, Simon improvement score, run lock state, task budgets, and safe recommendations; and gives safe restart guidance without deleting locks or killing active work.
 
 `prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, active-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
 

@@ -25,10 +25,10 @@ This roadmap defines what has to be true before Codex Fleet can be trusted for l
 
 ## Roadmap 4 - Long-Run Supervision
 
-- [ ] Upgrade `fleet-supervisor.ps1` from a dashboard into a watchdog that can classify ships as progressing, idle, blocked, or looping.
-- [ ] Add a safe restart path for planner/build/preview failures that does not touch active dirty work.
-- [ ] Add progress budgets so one ship cannot burn the whole night on repeated weak tasks.
-- [ ] Add morning digest grouping results by ship, work pack, commits, screenshots, and blockers.
+- [x] Upgrade `fleet-supervisor.ps1` from a dashboard into a watchdog that can classify ships as progressing, idle, blocked, or looping.
+- [x] Add a safe restart path for planner/build/preview failures that does not touch active dirty work.
+- [x] Add progress budgets so one ship cannot burn the whole night on repeated weak tasks.
+- [x] Add morning digest grouping results by ship, work pack, commits, screenshots, and blockers.
 
 ## Roadmap 5 - Sophisticated Software
 

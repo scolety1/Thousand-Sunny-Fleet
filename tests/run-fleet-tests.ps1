@@ -740,6 +740,27 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($readmeText -match 'prepare-magic-run\.ps1') -Message "README documents magic-run preflight"
 }
 
+function Test-LongRunSupervisorSupport {
+    $supervisorText = Get-Content (Join-Path $fleetRoot "fleet-supervisor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\TWELVE_HOUR_MAGIC_ROADMAP.md") -Raw
+
+    Assert-True -Condition ($supervisorText -match 'Resolve-SupervisorState') -Message "Supervisor classifies ship state"
+    Assert-True -Condition ($supervisorText -match 'ExcludeProject') -Message "Supervisor can exclude docked ships"
+    Assert-True -Condition ($supervisorText -match 'PROGRESSING') -Message "Supervisor reports progressing ships"
+    Assert-True -Condition ($supervisorText -match 'IDLE_RUNNING') -Message "Supervisor reports idle running ships"
+    Assert-True -Condition ($supervisorText -match 'BLOCKED_REVIEW') -Message "Supervisor reports blocked ships"
+    Assert-True -Condition ($supervisorText -match 'LOOPING_QUALITY') -Message "Supervisor reports looping quality ships"
+    Assert-True -Condition ($supervisorText -match 'MaxTaskCommits') -Message "Supervisor has task progress budgets"
+    Assert-True -Condition ($supervisorText -match 'MaxQuarantines') -Message "Supervisor has quarantine budgets"
+    Assert-True -Condition ($supervisorText -match 'MaxQualityStops') -Message "Supervisor has quality-stop budgets"
+    Assert-True -Condition ($supervisorText -match 'Write-OvernightDigest') -Message "Supervisor writes overnight digest"
+    Assert-True -Condition ($supervisorText -match 'request-safe-stop\.ps1') -Message "Supervisor recommends safe stop path"
+    Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
+    Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
+    Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -773,6 +794,7 @@ Test-JoeyStorageRules
 Test-DebuggerReportFileAllowance
 Test-ShipPreviewRefreshSupport
 Test-MagicRunSupport
+Test-LongRunSupervisorSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)
