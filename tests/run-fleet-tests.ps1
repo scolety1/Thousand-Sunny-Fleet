@@ -576,6 +576,7 @@ function Test-ReadOnlyDirtyGuard {
 function Test-RecoveryIncludesStagedFiles {
     $recoveryText = Get-Content (Join-Path $fleetRoot "recover-interrupted-task.ps1") -Raw
     Assert-True -Condition ($recoveryText -match 'git diff --cached --name-only') -Message "Interrupted-task recovery includes staged files"
+    Assert-True -Condition ($recoveryText -match 'foreach \(\$path in \$cleanPaths\)') -Message "Interrupted-task recovery stages paths one at a time"
 }
 
 function Test-CheckpointGateOrder {

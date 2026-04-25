@@ -175,7 +175,12 @@ function Stage-Files {
         return
     }
 
-    & git add -- @cleanPaths
+    foreach ($path in $cleanPaths) {
+        & git add -- $path
+        if ($LASTEXITCODE -ne 0) {
+            Stop-Recovery "Failed to stage path: $path"
+        }
+    }
 }
 
 $projectConfig = Get-ProjectConfig
