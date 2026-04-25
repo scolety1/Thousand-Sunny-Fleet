@@ -48,6 +48,23 @@ function Get-Projects {
     return $projects
 }
 
+function Get-ShipInt {
+    param(
+        [object]$Ship,
+        [string]$Name,
+        [int]$Default
+    )
+
+    if ($null -ne $Ship -and $Ship.PSObject.Properties[$Name]) {
+        $value = $Ship.PSObject.Properties[$Name].Value
+        if ($null -ne $value -and [int]$value -gt 0) {
+            return [int]$value
+        }
+    }
+
+    return $Default
+}
+
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
@@ -67,12 +84,18 @@ if (!$SkipDoctor) {
 }
 
 foreach ($ship in Get-Projects) {
+    $shipBatchSize = Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize
+    $shipMaxBatches = Get-ShipInt -Ship $ship -Name "overnightMaxBatches" -Default $MaxBatches
+    $shipVisualEvery = Get-ShipInt -Ship $ship -Name "overnightVisualInspectEvery" -Default 3
+    $shipSimonEvery = Get-ShipInt -Ship $ship -Name "overnightSimonEvery" -Default 3
+    $shipJoeyEvery = Get-ShipInt -Ship $ship -Name "overnightJoeyEvery" -Default 6
+
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -VisualInspectEvery 3 -SimonEvery 3 -JoeyEvery 6 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $shipBatchSize -MaxBatches $shipMaxBatches -VisualInspectEvery $shipVisualEvery -SimonEvery $shipSimonEvery -JoeyEvery $shipJoeyEvery -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching overnight run for $($ship.name): batch $BatchSize x $MaxBatches..." -ForegroundColor Cyan
+    Write-Host "Launching overnight run for $($ship.name): batch $shipBatchSize x $shipMaxBatches, Simon every $shipSimonEvery..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
     } else {

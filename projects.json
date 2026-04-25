@@ -9,6 +9,11 @@
         "buildCommand":  "npm.cmd run build",
         "profile":  "experimental-prototype",
         "branchPrefix":  "codex/cursor-pets",
+        "overnightBatchSize":  2,
+        "overnightMaxBatches":  10,
+        "overnightVisualInspectEvery":  2,
+        "overnightSimonEvery":  2,
+        "overnightJoeyEvery":  4,
         "visualPaths":  [
                             "/"
                         ]
@@ -67,7 +72,12 @@
                             "/easynotes",
                             "/easycalendar",
                             "/easyworkout"
-                        ]
+                        ],
+        "overnightBatchSize":  2,
+        "overnightMaxBatches":  16,
+        "overnightVisualInspectEvery":  2,
+        "overnightSimonEvery":  2,
+        "overnightJoeyEvery":  4
     },
     {
         "name":  "NinersDynastyWarRoom",
@@ -79,6 +89,11 @@
         "buildCommand":  "npm.cmd run build",
         "profile":  "experimental-prototype",
         "branchPrefix":  "codex/niners-war-room",
+        "overnightBatchSize":  2,
+        "overnightMaxBatches":  8,
+        "overnightVisualInspectEvery":  3,
+        "overnightSimonEvery":  3,
+        "overnightJoeyEvery":  6,
         "visualPaths":  [
                             "/"
                         ]
@@ -133,7 +148,12 @@
                      },
         "visualPaths":  [
                             "/"
-                        ]
+                        ],
+        "overnightBatchSize":  1,
+        "overnightMaxBatches":  3,
+        "overnightVisualInspectEvery":  2,
+        "overnightSimonEvery":  2,
+        "overnightJoeyEvery":  3
     },
     {
         "name":  "SpecialSauce",
@@ -145,6 +165,11 @@
         "buildCommand":  "npm.cmd run build",
         "profile":  "experimental-prototype",
         "branchPrefix":  "codex/special-sauce",
+        "overnightBatchSize":  2,
+        "overnightMaxBatches":  10,
+        "overnightVisualInspectEvery":  2,
+        "overnightSimonEvery":  2,
+        "overnightJoeyEvery":  4,
         "visualPaths":  [
                             "/"
                         ]
@@ -200,6 +225,11 @@
         "visualPaths":  [
                             "/",
                             "/wine.html"
-                        ]
+                        ],
+        "overnightBatchSize":  1,
+        "overnightMaxBatches":  2,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
+        "overnightJoeyEvery":  2
     }
 ]
