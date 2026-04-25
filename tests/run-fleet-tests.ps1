@@ -282,6 +282,8 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'scope:') -Message "Task contract parser recognizes scope metadata"
     Assert-True -Condition ($loopText -match 'accept:\(\.\+\?') -Message "Task contract parser recognizes acceptance commands"
     Assert-True -Condition ($loopText -match 'Test-TaskScope') -Message "Checkpoint loop enforces declared task scopes"
+    Assert-True -Condition ($loopText -match 'RUNTIME_VERIFICATION\.md') -Message "Task scope allows Fleet-generated runtime reports"
+    Assert-True -Condition ($loopText -match 'SENSITIVE_SYSTEMS_REVIEW\.md') -Message "Task scope allows Fleet-generated sensitive systems reports"
     Assert-True -Condition ($loopText -match 'Invoke-TaskAcceptanceChecks') -Message "Checkpoint loop runs task-specific acceptance checks"
     Assert-True -Condition ($loopText -match 'High/gated task requires approved architecture plan') -Message "Checkpoint loop blocks high/gated tasks without architecture approval"
     Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
@@ -324,6 +326,8 @@ function Test-PhaseFiveSensitiveSystemsSupport {
     Assert-True -Condition ($loopText -match 'Invoke-SensitiveSystemsReviewGate') -Message "Checkpoint loop runs sensitive systems review gate"
     Assert-True -Condition ($loopText -match 'Invoke-FleetCommit') -Message "Checkpoint loop centralizes commits behind sensitive systems gate"
     Assert-True -Condition ($loopText -match 'Test-SensitiveTaskApproval') -Message "Checkpoint loop checks auth/payment/integration task approvals"
+    Assert-True -Condition ($loopText -match 'Get-SensitiveIntentText') -Message "Checkpoint loop strips forbidden-scope text before sensitive task detection"
+    Assert-True -Condition ($loopText -match 'forbidden\\s\+scope') -Message "Sensitive task detection ignores forbidden scope guardrail text"
     Assert-True -Condition ($doctorText -match 'Get-SensitiveSystemsStatus') -Message "Fleet doctor reports sensitive systems status"
     Assert-True -Condition ($doctorText -match 'Phase 5 sensitive systems') -Message "Fleet doctor warns for missing or draft sensitive systems gates"
     Assert-True -Condition ($readmeText -match 'Phase 5 auth, payment, secrets') -Message "README documents Phase 5 sensitive systems safety"
@@ -564,6 +568,11 @@ function Test-ReadOnlyDirtyGuard {
     }
 }
 
+function Test-RecoveryIncludesStagedFiles {
+    $recoveryText = Get-Content (Join-Path $fleetRoot "recover-interrupted-task.ps1") -Raw
+    Assert-True -Condition ($recoveryText -match 'git diff --cached --name-only') -Message "Interrupted-task recovery includes staged files"
+}
+
 function Test-CheckpointGateOrder {
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $visualIndex = $loopText.IndexOf('if ($VisualInspectEvery -gt 0')
@@ -714,6 +723,7 @@ Test-MaintenanceDirtySkip
 Test-DebugCheckpoint
 Test-SafeStaging
 Test-ReadOnlyDirtyGuard
+Test-RecoveryIncludesStagedFiles
 Test-CheckpointGateOrder
 Test-TaskQuarantineSupport
 Test-DuplicateRunGuard

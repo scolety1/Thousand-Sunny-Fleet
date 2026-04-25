@@ -219,7 +219,7 @@ if ([string]::IsNullOrWhiteSpace($Task)) {
     Stop-Recovery "Working tree is dirty, but no unchecked task was found. Stop for human review."
 }
 
-$filesChanged = @(git diff --name-only; git ls-files --others --exclude-standard) | Sort-Object -Unique
+$filesChanged = @(git diff --name-only; git diff --cached --name-only; git ls-files --others --exclude-standard) | Sort-Object -Unique
 
 Write-Host "Interrupted task recovery candidate" -ForegroundColor Cyan
 Write-Host "Repo: $($repoPath.Path)"

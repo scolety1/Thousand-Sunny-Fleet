@@ -489,6 +489,17 @@ function Test-ApprovalFileForLoop {
     return ($text -match "(?im)^\s*Status:\s*APPROVED\s*$")
 }
 
+function Get-SensitiveIntentText {
+    param([string]$Summary)
+
+    if ([string]::IsNullOrWhiteSpace($Summary)) { return "" }
+
+    $text = [string]$Summary
+    $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s+scope\s*:.*$", "")
+    $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s*:.*$", "")
+    return $text
+}
+
 function Test-SensitiveTaskApproval {
     param([object]$Contract)
 
@@ -499,7 +510,7 @@ function Test-SensitiveTaskApproval {
         return $false
     }
 
-    $summary = [string]$Contract.summary
+    $summary = Get-SensitiveIntentText -Summary ([string]$Contract.summary)
     if ($summary -match "(?i)\bauth\b|\blogin\b|\boauth\b|\bpermission\b" -and !(Test-ApprovalFileForLoop -Path "docs/codex/AUTH_APPROVAL.md")) {
         Write-Host "Auth-related task requires approved AUTH_APPROVAL.md." -ForegroundColor Red
         return $false
@@ -524,7 +535,19 @@ function Test-TaskScope {
     }
 
     $allowed = @($Contract.scope | ForEach-Object { ([string]$_).Replace("\", "/").Trim("/") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
-    $alwaysAllowed = @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md")
+    $alwaysAllowed = @(
+        "docs/codex/TASK_QUEUE.md",
+        "docs/codex/NIGHTLY_REPORT.md",
+        "docs/codex/QUARANTINED_TASKS.md",
+        "docs/codex/RUNTIME_VERIFICATION.md",
+        "docs/codex/SENSITIVE_SYSTEMS_REVIEW.md",
+        "docs/codex/MIGRATION_REVIEW.md",
+        "docs/codex/CHECKPOINT_REVIEW.md",
+        "docs/codex/VISUAL_BUGS.md",
+        "docs/codex/SIMON_DESIGN_REVIEW.md",
+        "docs/codex/ROBIN_COPY_REVIEW.md",
+        "docs/codex/JOEY_SECURITY_REVIEW.md"
+    )
     $violations = @()
     foreach ($file in @($FilesChanged)) {
         $normalized = ([string]$file).Replace("\", "/").TrimStart("/")
