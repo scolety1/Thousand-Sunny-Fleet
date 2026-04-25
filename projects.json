@@ -10,11 +10,24 @@
     "buildCommand": "npm.cmd run build",
     "model": "gpt-5.5",
     "models": {
-      "implement": "gpt-5.5",
-      "review": "gpt-5.5",
-      "planner": "gpt-5.5",
-      "checkpoint": "gpt-5.5",
-      "simon": "gpt-5.5"
+      "implement": ["gpt-5.5", "gpt-5.3-codex", "gpt-5.4"],
+      "review": ["gpt-5.5", "gpt-5.4"],
+      "planner": ["gpt-5.5", "gpt-5.4"],
+      "checkpoint": ["gpt-5.5", "gpt-5.4"],
+      "simon": ["gpt-5.5", "gpt-5.4"]
+    },
+    "timeouts": {
+      "codex": 2400,
+      "implement": 2400,
+      "review": 1500,
+      "build": 900,
+      "planner": 900,
+      "checkpoint": 900,
+      "simon": 900,
+      "visual": 900,
+      "joey": 300,
+      "debug": 300,
+      "guardrails": 180
     },
     "visualPaths": [
       "/",
@@ -36,11 +49,24 @@
     "buildCommand": "npm.cmd run build",
     "model": "gpt-5.5",
     "models": {
-      "implement": "gpt-5.5",
-      "review": "gpt-5.5",
-      "planner": "gpt-5.5",
-      "checkpoint": "gpt-5.5",
-      "simon": "gpt-5.5"
+      "implement": ["gpt-5.5", "gpt-5.3-codex", "gpt-5.4"],
+      "review": ["gpt-5.5", "gpt-5.4"],
+      "planner": ["gpt-5.5", "gpt-5.4"],
+      "checkpoint": ["gpt-5.5", "gpt-5.4"],
+      "simon": ["gpt-5.5", "gpt-5.4"]
+    },
+    "timeouts": {
+      "codex": 1800,
+      "implement": 1800,
+      "review": 1200,
+      "build": 600,
+      "planner": 600,
+      "checkpoint": 600,
+      "simon": 600,
+      "visual": 900,
+      "joey": 300,
+      "debug": 300,
+      "guardrails": 180
     },
     "visualPaths": [
       "/"
@@ -57,11 +83,24 @@
     "profile": "frontend-static-demo",
     "model": "gpt-5.5",
     "models": {
-      "implement": "gpt-5.5",
-      "review": "gpt-5.5",
-      "planner": "gpt-5.5",
-      "checkpoint": "gpt-5.5",
-      "simon": "gpt-5.5"
+      "implement": ["gpt-5.5", "gpt-5.3-codex", "gpt-5.4"],
+      "review": ["gpt-5.5", "gpt-5.4"],
+      "planner": ["gpt-5.5", "gpt-5.4"],
+      "checkpoint": ["gpt-5.5", "gpt-5.4"],
+      "simon": ["gpt-5.5", "gpt-5.4"]
+    },
+    "timeouts": {
+      "codex": 1800,
+      "implement": 1800,
+      "review": 1200,
+      "build": 600,
+      "planner": 600,
+      "checkpoint": 600,
+      "simon": 600,
+      "visual": 900,
+      "joey": 300,
+      "debug": 300,
+      "guardrails": 180
     },
     "visualPaths": [
       "/",

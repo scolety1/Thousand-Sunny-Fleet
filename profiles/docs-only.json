@@ -6,11 +6,24 @@
   "maxChangedFiles": 12,
   "model": "gpt-5.5",
   "models": {
-    "implement": "gpt-5.5",
-    "review": "gpt-5.5",
-    "planner": "gpt-5.5",
-    "checkpoint": "gpt-5.5",
-    "simon": "gpt-5.5"
+    "implement": ["gpt-5.5", "gpt-5.4"],
+    "review": ["gpt-5.5", "gpt-5.4"],
+    "planner": ["gpt-5.5", "gpt-5.4"],
+    "checkpoint": ["gpt-5.5", "gpt-5.4"],
+    "simon": ["gpt-5.5", "gpt-5.4"]
+  },
+  "timeouts": {
+    "codex": 900,
+    "implement": 900,
+    "review": 600,
+    "build": 300,
+    "planner": 600,
+    "checkpoint": 600,
+    "simon": 600,
+    "visual": 600,
+    "joey": 300,
+    "debug": 300,
+    "guardrails": 120
   },
   "allowedPaths": [
     "docs/",

@@ -12,10 +12,24 @@ param(
 
     [switch]$SkipBuild,
 
-    [string]$Model = ""
+    [string]$Model = "",
+
+    [string[]]$Models = @(),
+
+    [int]$TimeoutSeconds = 600,
+
+    [int]$BuildTimeoutSeconds = 600
 )
 
 $ErrorActionPreference = "Continue"
+
+$fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$fleetRuntime = Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1"
+if (!(Test-Path $fleetRuntime)) {
+    Write-Host "Fleet runtime helper not found: $fleetRuntime" -ForegroundColor Red
+    exit 1
+}
+. $fleetRuntime
 
 function Invoke-ConfiguredBuild {
     if ($SkipBuild -or [string]::IsNullOrWhiteSpace($BuildCommand)) {
@@ -23,11 +37,19 @@ function Invoke-ConfiguredBuild {
     }
 
     $buildPath = if ([string]::IsNullOrWhiteSpace($BuildDirectory)) { "." } else { $BuildDirectory }
-    Push-Location $buildPath
-    Invoke-Expression $BuildCommand
-    $ok = $LASTEXITCODE -eq 0
-    Pop-Location
-    return $ok
+    $resolvedBuildPath = Resolve-Path $buildPath -ErrorAction SilentlyContinue
+    if (!$resolvedBuildPath) {
+        Write-Host "Build directory not found: $buildPath" -ForegroundColor Red
+        return $false
+    }
+
+    $logPath = Join-Path $repoPath.Path (Join-Path ".codex-logs" ("checkpoint-build-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss")))
+    $result = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $BuildCommand) -WorkingDirectory $resolvedBuildPath.Path -LogPath $logPath -TimeoutSeconds $BuildTimeoutSeconds
+    @($result.output | Select-Object -Last 80) | ForEach-Object { Write-Host $_ }
+    if ($result.timedOut) {
+        Write-Host "Checkpoint build timed out after $BuildTimeoutSeconds seconds." -ForegroundColor Red
+    }
+    return ($result.exitCode -eq 0)
 }
 
 $repoPath = Resolve-Path $Repo -ErrorAction SilentlyContinue
@@ -106,13 +128,13 @@ $($reportTail -join "`n")
 "@
 
 $tmp = New-TemporaryFile
-$codexArgs = @("exec")
-if (![string]::IsNullOrWhiteSpace($Model)) {
-    $codexArgs += @("-m", $Model)
+$modelChain = @(ConvertTo-FleetStringArray -Value $Models)
+if ($modelChain.Count -eq 0) {
+    $modelChain = @(ConvertTo-FleetStringArray -Value $Model)
 }
-$codexArgs += @("-", "-o", $tmp.FullName)
-$prompt | & codex @codexArgs
-$codexExit = $LASTEXITCODE
+$logPath = Join-Path $repoPath.Path (Join-Path ".codex-logs" ("checkpoint-review-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss")))
+$codexResult = Invoke-FleetCodexReadOnly -Prompt $prompt -Models $modelChain -OutputPath $tmp.FullName -WorkingDirectory $repoPath.Path -LogPath $logPath -TimeoutSeconds $TimeoutSeconds
+$codexExit = if ($null -eq $codexResult) { 1 } else { $codexResult.exitCode }
 
 if (!(Test-Path $tmp.FullName) -or ((Get-Item $tmp.FullName).Length -eq 0)) {
     Write-Host "Checkpoint reviewer produced no output." -ForegroundColor Red

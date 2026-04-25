@@ -8,10 +8,22 @@ param(
 
     [string]$OutFile = "docs/codex/NEXT_5_TASKS.md",
 
-    [string]$Model = ""
+    [string]$Model = "",
+
+    [string[]]$Models = @(),
+
+    [int]$TimeoutSeconds = 600
 )
 
 $ErrorActionPreference = "Continue"
+
+$fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$fleetRuntime = Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1"
+if (!(Test-Path $fleetRuntime)) {
+    Write-Host "Fleet runtime helper not found: $fleetRuntime" -ForegroundColor Red
+    exit 1
+}
+. $fleetRuntime
 
 $repoPath = Resolve-Path $Repo -ErrorAction SilentlyContinue
 if (!$repoPath) {
@@ -106,13 +118,13 @@ $($reportTail -join "`n")
 "@
 
 $tmp = New-TemporaryFile
-$codexArgs = @("exec")
-if (![string]::IsNullOrWhiteSpace($Model)) {
-    $codexArgs += @("-m", $Model)
+$modelChain = @(ConvertTo-FleetStringArray -Value $Models)
+if ($modelChain.Count -eq 0) {
+    $modelChain = @(ConvertTo-FleetStringArray -Value $Model)
 }
-$codexArgs += @("-", "-o", $tmp.FullName)
-$prompt | & codex @codexArgs
-$codexExit = $LASTEXITCODE
+$logPath = Join-Path $repoPath.Path (Join-Path ".codex-logs" ("nami-planner-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss")))
+$codexResult = Invoke-FleetCodexReadOnly -Prompt $prompt -Models $modelChain -OutputPath $tmp.FullName -WorkingDirectory $repoPath.Path -LogPath $logPath -TimeoutSeconds $TimeoutSeconds
+$codexExit = if ($null -eq $codexResult) { 1 } else { $codexResult.exitCode }
 
 if (!(Test-Path $tmp.FullName) -or ((Get-Item $tmp.FullName).Length -eq 0)) {
     Write-Host "Planner produced no output." -ForegroundColor Red

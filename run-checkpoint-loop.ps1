@@ -14,6 +14,22 @@ param(
 
     [int]$MaxCodexAttempts = 4,
 
+    [int]$CodexTimeoutSeconds = 1800,
+
+    [int]$BuildTimeoutSeconds = 600,
+
+    [int]$PlannerTimeoutSeconds = 600,
+
+    [int]$CheckpointTimeoutSeconds = 600,
+
+    [int]$SimonTimeoutSeconds = 600,
+
+    [int]$VisualTimeoutSeconds = 900,
+
+    [int]$JoeyTimeoutSeconds = 300,
+
+    [int]$DebugTimeoutSeconds = 300,
+
     [int]$VisualEvery = 0,
 
     [int]$VisualInspectEvery = 0,
@@ -35,6 +51,14 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+
+$fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$fleetRuntime = Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1"
+if (!(Test-Path $fleetRuntime)) {
+    Write-Host "Fleet runtime helper not found: $fleetRuntime" -ForegroundColor Red
+    exit 1
+}
+. $fleetRuntime
 
 function Stop-Usage {
     param([string]$Message)
@@ -76,6 +100,21 @@ if ($BatchSize -lt 1) {
 
 if ($MaxBatches -lt 1) {
     Stop-Usage "-MaxBatches must be at least 1."
+}
+
+foreach ($timeoutSpec in @(
+    @{ name = "CodexTimeoutSeconds"; value = $CodexTimeoutSeconds },
+    @{ name = "BuildTimeoutSeconds"; value = $BuildTimeoutSeconds },
+    @{ name = "PlannerTimeoutSeconds"; value = $PlannerTimeoutSeconds },
+    @{ name = "CheckpointTimeoutSeconds"; value = $CheckpointTimeoutSeconds },
+    @{ name = "SimonTimeoutSeconds"; value = $SimonTimeoutSeconds },
+    @{ name = "VisualTimeoutSeconds"; value = $VisualTimeoutSeconds },
+    @{ name = "JoeyTimeoutSeconds"; value = $JoeyTimeoutSeconds },
+    @{ name = "DebugTimeoutSeconds"; value = $DebugTimeoutSeconds }
+)) {
+    if ([int]$timeoutSpec.value -lt 1) {
+        Stop-Usage "-$($timeoutSpec.name) must be at least 1."
+    }
 }
 
 if ($VisualEvery -lt 0) {
@@ -173,44 +212,101 @@ function Get-ConfigArray {
     return @()
 }
 
-function Get-RoleModelFrom {
+function Get-RoleModelsFrom {
     param(
         [object]$ConfigObject,
         [string]$Role
     )
 
-    if ($null -eq $ConfigObject) { return "" }
+    if ($null -eq $ConfigObject) { return @() }
+
+    $results = @()
 
     $models = Get-ConfigPropertyValue -Object $ConfigObject -Name "models"
     if ($null -ne $models) {
         foreach ($key in @($Role, "${Role}Model")) {
             $value = Get-ConfigPropertyValue -Object $models -Name $key
-            if ($null -ne $value -and ![string]::IsNullOrWhiteSpace([string]$value)) {
-                return [string]$value
-            }
+            $results += ConvertTo-FleetStringArray -Value $value
         }
     }
 
     foreach ($key in @("${Role}Model", "model")) {
         $value = Get-ConfigPropertyValue -Object $ConfigObject -Name $key
-        if ($null -ne $value -and ![string]::IsNullOrWhiteSpace([string]$value)) {
-            return [string]$value
+        $results += ConvertTo-FleetStringArray -Value $value
+    }
+
+    return @($results | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+}
+
+function Get-ProjectModels {
+    param([string]$Role)
+
+    $projectModels = @(Get-RoleModelsFrom -ConfigObject $script:projectConfig -Role $Role)
+    if ($projectModels.Count -gt 0) { return $projectModels }
+
+    $profileModels = @(Get-RoleModelsFrom -ConfigObject $script:profileConfig -Role $Role)
+    if ($profileModels.Count -gt 0) { return $profileModels }
+
+    return @()
+}
+
+function Get-TimeoutSetting {
+    param(
+        [string]$Role,
+        [int]$Default
+    )
+
+    foreach ($source in @($script:projectConfig, $script:profileConfig)) {
+        if ($null -eq $source) { continue }
+
+        $timeouts = Get-ConfigPropertyValue -Object $source -Name "timeouts"
+        if ($null -ne $timeouts) {
+            $roleValue = Get-ConfigPropertyValue -Object $timeouts -Name $Role
+            if ($null -ne $roleValue -and [int]$roleValue -gt 0) {
+                return [int]$roleValue
+            }
+        }
+
+        foreach ($key in @("${Role}TimeoutSeconds", "${Role}Timeout")) {
+            $value = Get-ConfigPropertyValue -Object $source -Name $key
+            if ($null -ne $value -and [int]$value -gt 0) {
+                return [int]$value
+            }
         }
     }
 
-    return ""
+    return $Default
 }
 
-function Get-ProjectModel {
-    param([string]$Role)
+function Write-FleetOutputTail {
+    param(
+        [object]$Result,
+        [int]$LineCount = 80
+    )
 
-    $projectModel = Get-RoleModelFrom -ConfigObject $script:projectConfig -Role $Role
-    if (![string]::IsNullOrWhiteSpace($projectModel)) { return $projectModel }
+    if ($null -eq $Result -or $null -eq $Result.output) {
+        return
+    }
 
-    $profileModel = Get-RoleModelFrom -ConfigObject $script:profileConfig -Role $Role
-    if (![string]::IsNullOrWhiteSpace($profileModel)) { return $profileModel }
+    @($Result.output | Select-Object -Last $LineCount) | ForEach-Object { Write-Host $_ }
+}
 
-    return ""
+function Invoke-FleetPowerShell {
+    param(
+        [string[]]$Arguments,
+        [string]$LogName,
+        [int]$TimeoutSeconds,
+        [string]$WorkingDirectory = $repoPath,
+        [hashtable]$Environment = @{}
+    )
+
+    $logPath = Join-Path $script:RunLogRoot $LogName
+    $result = Invoke-FleetProcess -FilePath "powershell" -Arguments $Arguments -WorkingDirectory $WorkingDirectory -LogPath $logPath -TimeoutSeconds $TimeoutSeconds -Environment $Environment
+    Write-FleetOutputTail -Result $result
+    if ($result.timedOut) {
+        Write-Host "Fleet watchdog stopped timed-out process after $TimeoutSeconds seconds. Zoro cut the rope clean." -ForegroundColor Red
+    }
+    return $result.exitCode
 }
 
 function Stage-Files {
@@ -300,34 +396,63 @@ function Invoke-CodexExec {
     param(
         [string]$Prompt,
         [string]$LogPath,
-        [string]$Model = "",
-        [string]$ResponsePath = ""
+        [string[]]$Models = @(),
+        [string]$ResponsePath = "",
+        [int]$TimeoutSeconds = $CodexTimeoutSeconds
     )
 
-    for ($attempt = 1; $attempt -le $MaxCodexAttempts; $attempt++) {
-        Write-Host "Starting Codex run attempt $attempt of $MaxCodexAttempts" -ForegroundColor DarkCyan
-        $attemptLog = if ($attempt -eq 1) { $LogPath } else { $LogPath -replace "\.log$", "-attempt-$attempt.log" }
-        $codexArgs = @("exec", "--full-auto")
-        if (![string]::IsNullOrWhiteSpace($Model)) {
-            $codexArgs += @("-m", $Model)
-        }
-        if (![string]::IsNullOrWhiteSpace($ResponsePath)) {
-            $codexArgs += @("-o", $ResponsePath)
-        }
-        $codexArgs += "-"
-        $Prompt | & codex @codexArgs 2>&1 | Tee-Object -FilePath $attemptLog
-        $exitCode = $LASTEXITCODE
-        if ($exitCode -eq 0) { return 0 }
+    $modelChain = @(ConvertTo-FleetStringArray -Value $Models)
+    if ($modelChain.Count -eq 0) {
+        $modelChain = @("")
+    }
 
-        $statusText = (git status --porcelain) -join "`n"
-        if (![string]::IsNullOrWhiteSpace($statusText)) {
-            Write-Host "Codex exited nonzero after making changes; continuing to checks." -ForegroundColor Yellow
-            return $exitCode
+    foreach ($model in $modelChain) {
+        $modelLabel = if ([string]::IsNullOrWhiteSpace($model)) { "default" } else { $model }
+        $safeModel = ($modelLabel -replace "[^a-zA-Z0-9_.-]+", "-")
+
+        for ($attempt = 1; $attempt -le $MaxCodexAttempts; $attempt++) {
+            Write-Host "Starting Codex run with model $modelLabel, attempt $attempt of $MaxCodexAttempts" -ForegroundColor DarkCyan
+            $attemptLog = if ($attempt -eq 1 -and $modelChain.Count -eq 1) {
+                $LogPath
+            } else {
+                $LogPath -replace "\.log$", "-$safeModel-attempt-$attempt.log"
+            }
+
+            if (![string]::IsNullOrWhiteSpace($ResponsePath) -and (Test-Path $ResponsePath)) {
+                Remove-Item $ResponsePath -Force -ErrorAction SilentlyContinue
+            }
+
+            $codexArgs = @("exec", "--full-auto")
+            if (![string]::IsNullOrWhiteSpace($model)) {
+                $codexArgs += @("-m", $model)
+            }
+            if (![string]::IsNullOrWhiteSpace($ResponsePath)) {
+                $codexArgs += @("-o", $ResponsePath)
+            }
+            $codexArgs += "-"
+
+            $result = Invoke-FleetProcess -FilePath "codex" -Arguments $codexArgs -InputText $Prompt -WorkingDirectory $repoPath -LogPath $attemptLog -TimeoutSeconds $TimeoutSeconds
+            Write-FleetOutputTail -Result $result
+            $exitCode = $result.exitCode
+            if ($result.timedOut) {
+                Write-Host "Codex timed out after $TimeoutSeconds seconds on model $modelLabel." -ForegroundColor Yellow
+            }
+            if ($exitCode -eq 0) { return 0 }
+
+            $statusText = (git status --porcelain) -join "`n"
+            if (![string]::IsNullOrWhiteSpace($statusText)) {
+                Write-Host "Codex exited nonzero after making changes; continuing to checks." -ForegroundColor Yellow
+                return $exitCode
+            }
+
+            $sleepSeconds = [Math]::Min(300, 30 * $attempt)
+            Write-Host "Codex failed with no repo changes. Waiting $sleepSeconds seconds before retry." -ForegroundColor Yellow
+            Start-Sleep -Seconds $sleepSeconds
         }
 
-        $sleepSeconds = [Math]::Min(300, 30 * $attempt)
-        Write-Host "Codex failed with no repo changes. Waiting $sleepSeconds seconds before retry." -ForegroundColor Yellow
-        Start-Sleep -Seconds $sleepSeconds
+        if ($model -ne $modelChain[-1]) {
+            Write-Host "Model $modelLabel did not produce changes. Trying next configured model." -ForegroundColor Yellow
+        }
     }
 
     return 1
@@ -340,11 +465,20 @@ function Invoke-ExternalBuild {
     }
 
     $buildDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
-    Push-Location $buildDir
-    Invoke-Expression $buildCommand
-    $ok = $LASTEXITCODE -eq 0
-    Pop-Location
-    return $ok
+    $buildPath = Resolve-Path $buildDir -ErrorAction SilentlyContinue
+    if (!$buildPath) {
+        Write-Host "Build directory not found: $buildDir" -ForegroundColor Red
+        return $false
+    }
+
+    $buildTimeout = Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds
+    $buildLog = Join-Path $script:RunLogRoot ("build-{0}.log" -f (Get-Date -Format "HHmmssfff"))
+    $result = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $buildCommand) -WorkingDirectory $buildPath.Path -LogPath $buildLog -TimeoutSeconds $buildTimeout
+    Write-FleetOutputTail -Result $result
+    if ($result.timedOut) {
+        Write-Host "Build timed out after $buildTimeout seconds." -ForegroundColor Red
+    }
+    return ($result.exitCode -eq 0)
 }
 
 function Invoke-ProjectGuardrails {
@@ -352,12 +486,14 @@ function Invoke-ProjectGuardrails {
     if (!(Test-Path "scripts/codex-guardrails.ps1")) {
         return $true
     }
-    $previousTask = $env:CODEX_SELECTED_TASK
-    $env:CODEX_SELECTED_TASK = $Task
-    powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\codex-guardrails.ps1" -Stage $Stage
-    $passed = $LASTEXITCODE -eq 0
-    $env:CODEX_SELECTED_TASK = $previousTask
-    return $passed
+    $guardrailTimeout = Get-TimeoutSetting -Role "guardrails" -Default 120
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", ".\scripts\codex-guardrails.ps1",
+        "-Stage", $Stage
+    ) -LogName ("guardrails-{0}-{1}.log" -f $Stage, (Get-Date -Format "HHmmssfff")) -TimeoutSeconds $guardrailTimeout -Environment @{ CODEX_SELECTED_TASK = $Task }
+    return ($exitCode -eq 0)
 }
 
 function Import-NextTasks {
@@ -395,7 +531,6 @@ if ($repoMatches.Count -ne 1) {
 }
 $repoPath = $repoMatches[0].Path
 
-$fleetRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:profileConfig = $null
 $profileName = Get-ConfigPropertyValue -Object $script:projectConfig -Name "profile"
 if (![string]::IsNullOrWhiteSpace([string]$profileName)) {
@@ -420,6 +555,10 @@ if ($ValidateOnly) {
     Write-Host "Profile: $validateProfile"
     Write-Host "Build directory: $validateBuildDirectory"
     Write-Host "Build command: $validateBuildCommand"
+    Write-Host "Implement models: $((Get-ProjectModels -Role "implement") -join ', ')"
+    Write-Host "Review models: $((Get-ProjectModels -Role "review") -join ', ')"
+    Write-Host "Planner models: $((Get-ProjectModels -Role "planner") -join ', ')"
+    Write-Host "Timeouts: codex=$(Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)s build=$(Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)s planner=$(Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds)s visual=$(Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)s"
     exit 0
 }
 
@@ -445,6 +584,7 @@ if ($branch -eq $BaseBranch) {
 
 $logRoot = ".codex-logs\checkpoint-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
+$script:RunLogRoot = $logRoot
 
 for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     Write-Host ""
@@ -461,12 +601,15 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             "-BaseBranch", $BaseBranch,
             "-Count", $BatchSize
         )
-        $plannerModel = Get-ProjectModel -Role "planner"
-        if (![string]::IsNullOrWhiteSpace($plannerModel)) {
-            $plannerArgs += @("-Model", $plannerModel)
+        $plannerModels = @(Get-ProjectModels -Role "planner")
+        if ($plannerModels.Count -gt 0) {
+            $plannerArgs += @("-Models")
+            $plannerArgs += $plannerModels
         }
-        powershell @plannerArgs
-        if ($LASTEXITCODE -ne 0) { exit 1 }
+        $plannerTimeout = Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds
+        $plannerArgs += @("-TimeoutSeconds", $plannerTimeout)
+        $plannerExit = Invoke-FleetPowerShell -Arguments $plannerArgs -LogName "planner-batch-$batch.log" -TimeoutSeconds ($plannerTimeout + 120)
+        if ($plannerExit -ne 0) { exit 1 }
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
         Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
         git commit -m "Codex checkpoint planner tasks batch $batch"
@@ -496,7 +639,7 @@ Rules:
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
-        $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1 -Model (Get-ProjectModel -Role "implement")
+        $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1 -Models (Get-ProjectModels -Role "implement") -TimeoutSeconds (Get-TimeoutSetting -Role "implement" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds))
         $statusAfter = @(git status --porcelain)
         if ($exit -ne 0 -and $statusAfter.Count -eq 0) {
             Append-Report -Task $task -FilesChanged @() -BuildResult "Failed" -Risk "Codex command failed after retries and made no changes."
@@ -534,7 +677,7 @@ REVIEW_FINDING: P2: short description
 "@
         $log2 = Join-Path $logRoot "batch-$batch-task-$i-review.log"
         $reviewResponse = Join-Path $logRoot "batch-$batch-task-$i-review-response.md"
-        [void](Invoke-CodexExec -Prompt $reviewPrompt -LogPath $log2 -Model (Get-ProjectModel -Role "review") -ResponsePath $reviewResponse)
+        [void](Invoke-CodexExec -Prompt $reviewPrompt -LogPath $log2 -Models (Get-ProjectModels -Role "review") -ResponsePath $reviewResponse -TimeoutSeconds (Get-TimeoutSetting -Role "review" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)))
 
         if (Test-BlockingReviewOutput -Path $reviewResponse) {
             Append-Report -Task $task -FilesChanged @(git diff --name-only; git ls-files --others --exclude-standard) -BuildResult "Blocked" -Risk "Review reported an unresolved P1/P2 finding."
@@ -565,12 +708,19 @@ REVIEW_FINDING: P2: short description
         "-BuildDirectory", (Get-ConfigScalar -Name "buildDirectory" -Default "."),
         "-BuildCommand", (Get-ConfigScalar -Name "buildCommand" -Default "")
     )
-    $checkpointModel = Get-ProjectModel -Role "checkpoint"
-    if (![string]::IsNullOrWhiteSpace($checkpointModel)) {
-        $checkpointArgs += @("-Model", $checkpointModel)
+    $checkpointModels = @(Get-ProjectModels -Role "checkpoint")
+    if ($checkpointModels.Count -gt 0) {
+        $checkpointArgs += @("-Models")
+        $checkpointArgs += $checkpointModels
     }
-    powershell @checkpointArgs
-    if ($LASTEXITCODE -ne 0) { exit 1 }
+    $checkpointTimeout = Get-TimeoutSetting -Role "checkpoint" -Default $CheckpointTimeoutSeconds
+    $checkpointBuildTimeout = Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds
+    $checkpointArgs += @(
+        "-TimeoutSeconds", $checkpointTimeout,
+        "-BuildTimeoutSeconds", $checkpointBuildTimeout
+    )
+    $checkpointExit = Invoke-FleetPowerShell -Arguments $checkpointArgs -LogName "checkpoint-review-batch-$batch.log" -TimeoutSeconds ($checkpointTimeout + $checkpointBuildTimeout + 120)
+    if ($checkpointExit -ne 0) { exit 1 }
 
     $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
     Stage-Files -Paths @("docs/codex/CHECKPOINT_REVIEW.md")
@@ -587,8 +737,18 @@ REVIEW_FINDING: P2: short description
 
     if ($VisualEvery -gt 0 -and ($batch % $VisualEvery -eq 0)) {
         $serveDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-smoke.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir -Port (Get-FreeTcpPort) -ChromePort (Get-FreeTcpPort)
-        if ($LASTEXITCODE -ne 0) {
+        $visualSmokeArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "visual-smoke.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-ServeDirectory", $serveDir,
+            "-Port", (Get-FreeTcpPort),
+            "-ChromePort", (Get-FreeTcpPort)
+        )
+        $visualSmokeExit = Invoke-FleetPowerShell -Arguments $visualSmokeArgs -LogName "visual-smoke-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)
+        if ($visualSmokeExit -ne 0) {
             Write-Host "Visual smoke failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }
@@ -611,8 +771,8 @@ REVIEW_FINDING: P2: short description
             "-ChromePort", (Get-FreeTcpPort),
             "-Paths"
         ) + $visualPaths
-        powershell @visualArgs
-        $visualInspectPassed = $LASTEXITCODE -eq 0
+        $visualInspectExit = Invoke-FleetPowerShell -Arguments $visualArgs -LogName "visual-inspect-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)
+        $visualInspectPassed = $visualInspectExit -eq 0
         Stage-Files -Paths @("docs/codex/VISUAL_BUGS.md")
         $pendingVisualCommit = @(git diff --cached --name-only)
         if ($pendingVisualCommit.Count -gt 0) {
@@ -634,12 +794,15 @@ REVIEW_FINDING: P2: short description
             "-Project", $script:projectConfig.name,
             "-BaseBranch", $BaseBranch
         )
-        $simonModel = Get-ProjectModel -Role "simon"
-        if (![string]::IsNullOrWhiteSpace($simonModel)) {
-            $simonArgs += @("-Model", $simonModel)
+        $simonModels = @(Get-ProjectModels -Role "simon")
+        if ($simonModels.Count -gt 0) {
+            $simonArgs += @("-Models")
+            $simonArgs += $simonModels
         }
-        powershell @simonArgs
-        if ($LASTEXITCODE -ne 0) {
+        $simonTimeout = Get-TimeoutSetting -Role "simon" -Default $SimonTimeoutSeconds
+        $simonArgs += @("-TimeoutSeconds", $simonTimeout)
+        $simonExit = Invoke-FleetPowerShell -Arguments $simonArgs -LogName "simon-design-review-batch-$batch.log" -TimeoutSeconds ($simonTimeout + 120)
+        if ($simonExit -ne 0) {
             Write-Host "Simon design review failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }
@@ -657,8 +820,16 @@ REVIEW_FINDING: P2: short description
     }
 
     if ($JoeyEvery -gt 0 -and ($batch % $JoeyEvery -eq 0)) {
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "joey-security-review.ps1") -Repo $repoPath -Project $script:projectConfig.name -BaseBranch $BaseBranch
-        $joeyPassed = $LASTEXITCODE -eq 0
+        $joeyArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "joey-security-review.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-BaseBranch", $BaseBranch
+        )
+        $joeyExit = Invoke-FleetPowerShell -Arguments $joeyArgs -LogName "joey-security-review-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "joey" -Default $JoeyTimeoutSeconds)
+        $joeyPassed = $joeyExit -eq 0
         $joeyText = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "" }
         Stage-Files -Paths @("docs/codex/JOEY_SECURITY_REVIEW.md")
         $pendingJoeyCommit = @(git diff --cached --name-only)
@@ -687,8 +858,8 @@ REVIEW_FINDING: P2: short description
         if ($ContinueOnYellowCheckpoint) {
             $debugArgs += "-AllowYellowCheckpoint"
         }
-        powershell @debugArgs
-        if ($LASTEXITCODE -ne 0) {
+        $debugExit = Invoke-FleetPowerShell -Arguments $debugArgs -LogName "debug-checkpoint-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+        if ($debugExit -ne 0) {
             Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }

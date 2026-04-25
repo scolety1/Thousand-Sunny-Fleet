@@ -14,7 +14,9 @@ The fleet can already:
 - run Simon design reviews
 - run Joey security reviews
 - feed Simon, visual bugs, and Joey back into Nami's next-task planning
-- use per-ship model/profile config
+- use per-ship and per-role fallback model chains
+- use hard timeout watchdogs around Codex, build, planner, checkpoint, visual, Simon, Joey, debug, and guardrail steps
+- write per-step watchdog logs under `.codex-logs/`
 - use dynamic visual ports
 - avoid `git add .`
 - block unresolved P1/P2 review findings
@@ -24,7 +26,7 @@ The system is now useful, but it still needs stronger recovery and operator cont
 
 ## Priority 1 - Reliability
 
-### 1. Fallback model chain
+### 1. Fallback model chain - done
 
 Problem:
 Codex Fleet can choose a model per ship and bot, but it does not automatically fall back when the configured model is unavailable, overloaded, or returns a transient failure.
@@ -43,7 +45,7 @@ Support config such as:
 Expected behavior:
 Try the first model. If Codex exits without repo changes or useful output, retry with backoff, then try the fallback model.
 
-### 2. Hard timeout watchdog
+### 2. Hard timeout watchdog - done
 
 Problem:
 A stuck Codex call, build, dev server, visual inspect, or Chrome process can waste hours.
@@ -199,8 +201,8 @@ Use them to test fleet logic without risking real repos.
 ## Recommended Build Order
 
 1. `fleet-doctor.ps1` - done
-2. timeout watchdog
-3. fallback model chain
+2. timeout watchdog - done
+3. fallback model chain - done
 4. launch presets
 5. recover interrupted task helper - done
 6. merge readiness report

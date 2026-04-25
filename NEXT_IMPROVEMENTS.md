@@ -4,9 +4,9 @@
 
 - [x] Add retry/backoff handling to the reusable `templates/scripts/codex-night-loop.ps1` for transient Codex failures such as model capacity, plugin sync, analytics, or reconnect noise. A temporary model/service failure should not kill an overnight run when no repo changes were made.
 - [x] Add model/profile config for Codex CLI runs.
-- [ ] Add fallback model chains for Codex CLI runs, so the loop can retry with a configured fallback instead of stopping on selected-model capacity.
+- [x] Add fallback model chains for Codex CLI runs, so the loop can retry with a configured fallback instead of stopping on selected-model capacity.
 - [x] Add a max retry count per task in the reusable loop template.
-- [ ] Add hard timeout watchdogs for Codex, build, visual, Simon, Joey, Nami, and checkpoint steps.
+- [x] Add hard timeout watchdogs for Codex, build, visual, Simon, Joey, Nami, and checkpoint steps.
 - [x] Add `fleet-doctor.ps1` as the preflight command before school-day or overnight runs.
 
 ## Planner Handoff

@@ -78,7 +78,9 @@ The checkpoint loop:
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
-Each project can configure `profile`, `model`, role-specific `models`, and `visualPaths` in `projects.json`. The loop passes role models to Codex for implementation, review, planning, checkpoint review, and Simon. Visual checks use dynamic ports and project-specific paths when configured.
+Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, and Simon. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
+
+Long-running steps are wrapped by the fleet watchdog, including Codex implementation/review, external builds, Nami planning, checkpoint review, visual smoke/inspect, Simon, Joey, guardrails, and the checkpoint debugger. Timeouts are configurable per ship or profile; watchdog logs are written under `.codex-logs/`.
 
 `-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
