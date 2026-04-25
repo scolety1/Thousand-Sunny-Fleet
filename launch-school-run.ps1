@@ -4,6 +4,8 @@ param(
 
     [string]$Project = "",
 
+    [string[]]$ExcludeProject = @(),
+
     [int]$BatchSize = 3,
 
     [int]$MaxBatches = 10,
@@ -46,6 +48,10 @@ function Get-Projects {
             Stop-WithMessage "Project not found: $Project"
         }
     }
+    if ($ExcludeProject.Count -gt 0) {
+        $exclude = @($ExcludeProject | ForEach-Object { [string]$_ })
+        $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
+    }
 
     return $projects
 }
@@ -63,6 +69,11 @@ if (!$SkipDoctor) {
     $doctorArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $fleetRoot "fleet-doctor.ps1"), "-ConfigPath", $ConfigPath)
     if (![string]::IsNullOrWhiteSpace($Project)) {
         $doctorArgs += @("-Project", $Project)
+    }
+    foreach ($excluded in $ExcludeProject) {
+        if (![string]::IsNullOrWhiteSpace([string]$excluded)) {
+            $doctorArgs += @("-ExcludeProject", [string]$excluded)
+        }
     }
     & powershell @doctorArgs
     if ($LASTEXITCODE -ne 0) {

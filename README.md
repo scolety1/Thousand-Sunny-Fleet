@@ -48,7 +48,7 @@ cd C:\Dev\codex-fleet
 
 `fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon/Robin reports, and missing build directories block launch.
 
-`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, or `-DryRun` to print the commands without opening windows.
+`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows.
 
 Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-local/launches/`, including each ship command and PowerShell PID.
 
@@ -105,7 +105,7 @@ The checkpoint loop:
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
-Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, Simon, and Robin. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
+Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. `visualPaths` can include query strings such as `/easylist?visualQa=1` for dev-only visual QA access. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, Simon, and Robin. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
 
 If Codex output looks like a usage/rate-limit response, the loop waits for the configured rate-limit cooldown and retries without counting that wait as a normal implementation attempt. Defaults are one-hour cooldowns with caps per ship/profile, so a school-day run can survive a temporary limit reset without sleeping forever.
 

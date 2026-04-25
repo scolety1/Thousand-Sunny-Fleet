@@ -10,9 +10,9 @@
         "profile":  "experimental-prototype",
         "branchPrefix":  "codex/cursor-pets",
         "overnightBatchSize":  2,
-        "overnightMaxBatches":  10,
-        "overnightVisualInspectEvery":  2,
-        "overnightSimonEvery":  2,
+        "overnightMaxBatches":  5,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
         "overnightRobinEvery":  4,
         "overnightJoeyEvery":  4,
         "visualPaths":  [
@@ -74,15 +74,16 @@
                      },
         "visualPaths":  [
                             "/",
-                            "/easylist",
-                            "/easynotes",
-                            "/easycalendar",
-                            "/easyworkout"
+                            "/easylist?visualQa=1",
+                            "/easynotes?visualQa=1",
+                            "/easycalendar?visualQa=1",
+                            "/easyworkout?visualQa=1",
+                            "/settings?visualQa=1"
                         ],
         "overnightBatchSize":  2,
-        "overnightMaxBatches":  16,
-        "overnightVisualInspectEvery":  2,
-        "overnightSimonEvery":  2,
+        "overnightMaxBatches":  20,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
         "overnightRobinEvery":  4,
         "overnightJoeyEvery":  4
     },
@@ -162,11 +163,11 @@
         "visualPaths":  [
                             "/"
                         ],
-        "overnightBatchSize":  1,
-        "overnightMaxBatches":  3,
-        "overnightVisualInspectEvery":  2,
-        "overnightSimonEvery":  2,
-        "overnightRobinEvery":  2,
+        "overnightBatchSize":  2,
+        "overnightMaxBatches":  6,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
+        "overnightRobinEvery":  1,
         "overnightJoeyEvery":  3
     },
     {
@@ -180,9 +181,9 @@
         "profile":  "experimental-prototype",
         "branchPrefix":  "codex/shift-plate",
         "overnightBatchSize":  2,
-        "overnightMaxBatches":  10,
-        "overnightVisualInspectEvery":  2,
-        "overnightSimonEvery":  2,
+        "overnightMaxBatches":  8,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
         "overnightRobinEvery":  2,
         "overnightJoeyEvery":  4,
         "visualPaths":  [
@@ -247,7 +248,7 @@
                             "/wine.html"
                         ],
         "overnightBatchSize":  1,
-        "overnightMaxBatches":  2,
+        "overnightMaxBatches":  6,
         "overnightVisualInspectEvery":  1,
         "overnightSimonEvery":  1,
         "overnightRobinEvery":  1,

@@ -4,6 +4,8 @@ param(
 
     [string]$Project = "",
 
+    [string[]]$ExcludeProject = @(),
+
     [string]$OutFile = "out\fleet-doctor.md",
 
     [switch]$AllowDirty,
@@ -59,6 +61,10 @@ function Get-ProjectList {
             Write-Host "Project not found or ambiguous: $Project" -ForegroundColor Red
             exit 1
         }
+    }
+    if ($ExcludeProject.Count -gt 0) {
+        $exclude = @($ExcludeProject | ForEach-Object { [string]$_ })
+        $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
     }
 
     return $projects

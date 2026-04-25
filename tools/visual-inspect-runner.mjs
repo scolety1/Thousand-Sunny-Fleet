@@ -95,7 +95,10 @@ async function waitFor(check, timeoutMs = 20000, intervalMs = 250) {
 function joinUrl(base, route) {
   const url = new URL(base);
   const cleanRoute = String(route || "/");
-  url.pathname = cleanRoute.startsWith("/") ? cleanRoute : `/${cleanRoute}`;
+  const routeUrl = new URL(cleanRoute.startsWith("/") ? `http://fleet.local${cleanRoute}` : `http://fleet.local/${cleanRoute}`);
+  url.pathname = routeUrl.pathname;
+  url.search = routeUrl.search;
+  url.hash = routeUrl.hash;
   return url.toString();
 }
 

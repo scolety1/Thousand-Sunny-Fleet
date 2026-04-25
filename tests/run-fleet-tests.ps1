@@ -425,9 +425,17 @@ function Test-LaunchControlSupport {
         Assert-True -Condition ($launcher -match '-PassThru') -Message "$launcherName records launched PowerShell PIDs"
     }
 
+    foreach ($launcherName in @("launch-school-run.ps1", "launch-overnight-run.ps1")) {
+        $launcher = Get-Content (Join-Path $fleetRoot $launcherName) -Raw
+        Assert-True -Condition ($launcher -match 'ExcludeProject') -Message "$launcherName can exclude docked ships"
+    }
+
     $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
     Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
     Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
+
+    $visualRunner = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
+    Assert-True -Condition ($visualRunner -match 'routeUrl\.search') -Message "Visual inspect route URLs preserve query strings"
 }
 
 function Test-JoeyStorageRules {
