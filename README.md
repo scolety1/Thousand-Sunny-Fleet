@@ -28,6 +28,7 @@ cd C:\Dev\codex-fleet
 .\recover-interrupted-task.ps1 -Project EasyLife
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
+.\request-safe-stop.ps1 -Project EasyLife
 .\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
 .\visual-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\visual-inspect.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
@@ -39,9 +40,13 @@ cd C:\Dev\codex-fleet
 
 `run-fleet.ps1` starts each project loop in a separate PowerShell window. Keep rounds low until the reports feel boring and predictable.
 
+`request-safe-stop.ps1` is the cooperative stop button. It writes a local stop request under `.codex-local/stop-requests/`; checkpoint loops stop before the next task, batch, or planning step instead of killing in-progress work. Launchers refuse to start while matching safe stop requests are active unless `-AllowSafeStopRequests` is used.
+
 `fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon reports, and missing build directories block launch.
 
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, or `-DryRun` to print the commands without opening windows.
+
+Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-local/launches/`, including each ship command and PowerShell PID.
 
 `recover-interrupted-task.ps1` handles a half-finished task after an interrupted run. By default it does a dry run: changed files, first unchecked task, guardrails, and build. Add `-ConfirmRecovery` only when you want it to mark the task complete, append the report, and commit.
 

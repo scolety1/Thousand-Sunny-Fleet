@@ -22,6 +22,8 @@ param(
 
     [switch]$QuarantineFailedTasks,
 
+    [switch]$AllowSafeStopRequests,
+
     [switch]$DryRun
 )
 
@@ -74,6 +76,8 @@ if ($LaunchDelaySeconds -lt 0) { Stop-WithMessage "-LaunchDelaySeconds must be 0
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
+. (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1")
+Assert-NoFleetSafeStopRequests -FleetRoot $fleetRoot -ProjectFilter $Project -AllowSafeStopRequests:$AllowSafeStopRequests
 
 if (!$SkipDoctor) {
     $doctorArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $fleetRoot "fleet-doctor.ps1"), "-ConfigPath", $ConfigPath)
@@ -87,6 +91,7 @@ if (!$SkipDoctor) {
 }
 
 $shipsToLaunch = @(Get-Projects)
+$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "overnight" -ConfigPath $ConfigPath -ProjectFilter $Project
 for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     $ship = $shipsToLaunch[$shipIndex]
     $shipBatchSize = Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize
@@ -104,11 +109,15 @@ for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     Write-Host "Launching overnight run for $($ship.name): batch $shipBatchSize x $shipMaxBatches, Simon every $shipSimonEvery..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
+        Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun
     } else {
-        Start-Process powershell -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command)
+        $process = Start-Process powershell -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) -PassThru
+        Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -ProcessId $process.Id
         if ($shipIndex -lt ($shipsToLaunch.Count - 1) -and $shipLaunchDelay -gt 0) {
             Write-Host "Waiting $shipLaunchDelay seconds before launching the next ship..." -ForegroundColor DarkCyan
             Start-Sleep -Seconds $shipLaunchDelay
         }
     }
 }
+
+Write-FleetLaunchManifest -Manifest $manifest

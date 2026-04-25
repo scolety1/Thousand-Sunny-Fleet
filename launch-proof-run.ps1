@@ -16,6 +16,8 @@ param(
 
     [switch]$QuarantineFailedTasks,
 
+    [switch]$AllowSafeStopRequests,
+
     [switch]$DryRun
 )
 
@@ -46,6 +48,8 @@ function Get-Projects {
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
+. (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1")
+Assert-NoFleetSafeStopRequests -FleetRoot $fleetRoot -ProjectFilter $Project -AllowSafeStopRequests:$AllowSafeStopRequests
 
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 
@@ -60,7 +64,9 @@ if (!$SkipDoctor) {
     }
 }
 
-foreach ($ship in Get-Projects) {
+$shipsToLaunch = @(Get-Projects)
+$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "proof" -ConfigPath $ConfigPath -ProjectFilter $Project
+foreach ($ship in $shipsToLaunch) {
     $command = @(
         "Set-Location '$fleetRoot'",
         ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize 1 -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
@@ -69,7 +75,11 @@ foreach ($ship in Get-Projects) {
     Write-Host "Launching proof run for $($ship.name)..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
+        Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun
     } else {
-        Start-Process powershell -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command)
+        $process = Start-Process powershell -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) -PassThru
+        Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -ProcessId $process.Id
     }
 }
+
+Write-FleetLaunchManifest -Manifest $manifest

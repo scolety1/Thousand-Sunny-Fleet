@@ -1,7 +1,9 @@
 param(
     [string]$ConfigPath = ".\projects.json",
 
-    [switch]$SkipDoctor
+    [switch]$SkipDoctor,
+
+    [switch]$AllowSafeStopRequests
 )
 
 $ErrorActionPreference = "Continue"
@@ -12,6 +14,8 @@ if (!(Test-Path $ConfigPath)) {
 }
 
 $fleetRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1")
+Assert-NoFleetSafeStopRequests -FleetRoot $fleetRoot -AllowSafeStopRequests:$AllowSafeStopRequests
 
 if (!$SkipDoctor) {
     $doctorPath = Join-Path $fleetRoot "fleet-doctor.ps1"
@@ -25,6 +29,7 @@ if (!$SkipDoctor) {
 
 $parsedProjects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
 $projects = @($parsedProjects | ForEach-Object { $_ })
+$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "legacy-run-fleet" -ConfigPath $ConfigPath
 
 foreach ($project in $projects) {
     if (!(Test-Path $project.repo)) {
@@ -40,5 +45,8 @@ foreach ($project in $projects) {
 
     $command = "cd '$($project.repo)'; powershell -ExecutionPolicy Bypass -File '$loopPath' -Rounds $($project.rounds)"
     Write-Host "Starting $($project.name) for $($project.rounds) round(s)..." -ForegroundColor Cyan
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
+    $process = Start-Process powershell -ArgumentList "-NoExit", "-Command", $command -PassThru
+    Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $project.name -Command $command -ProcessId $process.Id
 }
+
+Write-FleetLaunchManifest -Manifest $manifest

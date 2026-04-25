@@ -160,3 +160,10 @@ cd C:\Dev\codex-fleet
 ```
 
 Safe stop is cooperative. It does not kill Codex, builds, or reviews mid-action; it stops the ship before the next task, batch, or planning step starts.
+
+Launch control:
+
+- Proof, school, overnight, and legacy fleet launchers refuse to start if matching safe stop requests are still active.
+- Use `-AllowSafeStopRequests` only when intentionally testing immediate stop behavior.
+- Launchers write `out/latest-launch.md` and raw JSON under `.codex-local/launches/` with ship commands and PowerShell PIDs.
+- `fleet-status.ps1` shows active safe stop requests, latest launch report, and per-ship run locks.

@@ -404,6 +404,27 @@ function Test-SafeStopSupport {
     Assert-True -Condition ($stopText -match '\[switch\]\$List') -Message "Safe stop script can list active requests"
 }
 
+function Test-LaunchControlSupport {
+    $launcherText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1") -Raw
+    Assert-True -Condition ($launcherText -match 'Assert-NoFleetSafeStopRequests') -Message "Shared launcher helper blocks stale safe stop requests"
+    Assert-True -Condition ($launcherText -match 'New-FleetLaunchManifest') -Message "Shared launcher helper creates launch manifests"
+    Assert-True -Condition ($launcherText -match 'out\\latest-launch\.md') -Message "Launch manifests update the latest-launch report"
+    Assert-True -Condition ($launcherText -match '\.codex-local\\launches') -Message "Launch manifests write raw local launch records"
+
+    foreach ($launcherName in @("launch-proof-run.ps1", "launch-school-run.ps1", "launch-overnight-run.ps1", "run-fleet.ps1")) {
+        $launcher = Get-Content (Join-Path $fleetRoot $launcherName) -Raw
+        Assert-True -Condition ($launcher -match 'codex-fleet-launcher\.ps1') -Message "$launcherName uses shared launcher helpers"
+        Assert-True -Condition ($launcher -match 'AllowSafeStopRequests') -Message "$launcherName exposes a safe-stop override"
+        Assert-True -Condition ($launcher -match 'Assert-NoFleetSafeStopRequests') -Message "$launcherName refuses accidental safe-stop launches"
+        Assert-True -Condition ($launcher -match 'Write-FleetLaunchManifest') -Message "$launcherName writes a launch manifest"
+        Assert-True -Condition ($launcher -match '-PassThru') -Message "$launcherName records launched PowerShell PIDs"
+    }
+
+    $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
+    Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
+    Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -420,6 +441,7 @@ Test-CheckpointGateOrder
 Test-TaskQuarantineSupport
 Test-DuplicateRunGuard
 Test-SafeStopSupport
+Test-LaunchControlSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)

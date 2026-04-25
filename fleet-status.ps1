@@ -3,6 +3,37 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+$fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+. (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1")
+
+function Test-FleetStatusProcessAlive {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return $false }
+    return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
+}
+
+function Get-FleetStatusLock {
+    param([string]$ProjectName)
+
+    $lockRoot = Join-Path $fleetRoot ".codex-local\locks"
+    $safeName = ConvertTo-FleetLaunchSafeName -Name $ProjectName
+    $lockPath = Join-Path $lockRoot "$safeName.lock.json"
+    if (!(Test-Path $lockPath)) {
+        return "none"
+    }
+
+    try {
+        $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
+        $lockPid = if ($null -ne $lock.pid) { [int]$lock.pid } else { 0 }
+        if (Test-FleetStatusProcessAlive -ProcessId $lockPid) {
+            return "active PID $lockPid"
+        }
+        return "stale PID $lockPid"
+    } catch {
+        return "unreadable"
+    }
+}
 
 if (!(Test-Path $ConfigPath)) {
     Write-Host "Config not found: $ConfigPath" -ForegroundColor Red
@@ -10,6 +41,22 @@ if (!(Test-Path $ConfigPath)) {
 }
 
 $projects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+$stopRequests = @(Get-FleetSafeStopRequests -FleetRoot $fleetRoot)
+
+Write-Host "===== Fleet Controls =====" -ForegroundColor Cyan
+if ($stopRequests.Count -eq 0) {
+    Write-Host "Safe stop requests: none" -ForegroundColor Green
+} else {
+    Write-Host "Safe stop requests: active" -ForegroundColor Yellow
+    foreach ($request in $stopRequests) {
+        Write-Host "  - $($request.target): $($request.path)" -ForegroundColor Yellow
+    }
+}
+
+$latestLaunch = Join-Path $fleetRoot "out\latest-launch.md"
+if (Test-Path $latestLaunch) {
+    Write-Host "Latest launch: $latestLaunch"
+}
 
 foreach ($project in $projects) {
     Write-Host ""
@@ -33,6 +80,7 @@ foreach ($project in $projects) {
     Write-Host "Branch: $branch"
     Write-Host "HEAD: $head"
     Write-Host "Unchecked tasks: $($unchecked.Count)"
+    Write-Host "Run lock: $(Get-FleetStatusLock -ProjectName $project.name)"
 
     if ($status.Count -eq 0) {
         Write-Host "Working tree: clean" -ForegroundColor Green
