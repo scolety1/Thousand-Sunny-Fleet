@@ -24,6 +24,8 @@ param(
 
     [int]$SimonTimeoutSeconds = 600,
 
+    [int]$RobinTimeoutSeconds = 600,
+
     [int]$VisualTimeoutSeconds = 900,
 
     [int]$JoeyTimeoutSeconds = 300,
@@ -41,6 +43,8 @@ param(
     [int]$VisualInspectEvery = 0,
 
     [int]$SimonEvery = 0,
+
+    [int]$RobinEvery = 0,
 
     [int]$JoeyEvery = 0,
 
@@ -130,6 +134,7 @@ foreach ($timeoutSpec in @(
     @{ name = "PlannerTimeoutSeconds"; value = $PlannerTimeoutSeconds },
     @{ name = "CheckpointTimeoutSeconds"; value = $CheckpointTimeoutSeconds },
     @{ name = "SimonTimeoutSeconds"; value = $SimonTimeoutSeconds },
+    @{ name = "RobinTimeoutSeconds"; value = $RobinTimeoutSeconds },
     @{ name = "VisualTimeoutSeconds"; value = $VisualTimeoutSeconds },
     @{ name = "JoeyTimeoutSeconds"; value = $JoeyTimeoutSeconds },
     @{ name = "DebugTimeoutSeconds"; value = $DebugTimeoutSeconds }
@@ -149,6 +154,10 @@ if ($VisualInspectEvery -lt 0) {
 
 if ($SimonEvery -lt 0) {
     Stop-Usage "-SimonEvery must be 0 or greater."
+}
+
+if ($RobinEvery -lt 0) {
+    Stop-Usage "-RobinEvery must be 0 or greater."
 }
 
 if ($JoeyEvery -lt 0) {
@@ -995,7 +1004,8 @@ if ($ValidateOnly) {
     Write-Host "Implement models: $((Get-ProjectModels -Role "implement") -join ', ')"
     Write-Host "Review models: $((Get-ProjectModels -Role "review") -join ', ')"
     Write-Host "Planner models: $((Get-ProjectModels -Role "planner") -join ', ')"
-    Write-Host "Timeouts: codex=$(Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)s build=$(Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)s planner=$(Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds)s visual=$(Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)s"
+    Write-Host "Robin models: $((Get-ProjectModels -Role "robin") -join ', ')"
+    Write-Host "Timeouts: codex=$(Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)s build=$(Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)s planner=$(Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds)s robin=$(Get-TimeoutSetting -Role "robin" -Default $RobinTimeoutSeconds)s visual=$(Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)s"
     Write-Host "Rate-limit cooldown: $(Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds))s, max cooldowns $(Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns)"
     $validateVisualPaths = @(Get-ConfigArray -Name "visualPaths")
     Write-Host "Visual paths: $(if ($validateVisualPaths.Count -gt 0) { $validateVisualPaths -join ', ' } else { 'none' })"
@@ -1288,6 +1298,47 @@ REVIEW_FINDING: P2: short description
             $stopAfterCheckpointExitCode = [Math]::Max($stopAfterCheckpointExitCode, 0)
             $stopAfterCheckpointReason = "Simon requested a human design stop."
             Write-Host "Simon requested a human design stop. A final checkpoint will be written before stopping." -ForegroundColor Yellow
+        }
+    }
+
+    if ($RobinEvery -gt 0 -and ($batch % $RobinEvery -eq 0)) {
+        $robinArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "robin-copy-review.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-BaseBranch", $BaseBranch
+        )
+        $robinModels = @(Get-ProjectModels -Role "robin")
+        if ($robinModels.Count -gt 0) {
+            $robinArgs = @(Add-FleetArrayArgument -Arguments $robinArgs -Name "-Models" -Values $robinModels)
+        }
+        $robinTimeout = Get-TimeoutSetting -Role "robin" -Default $RobinTimeoutSeconds
+        $robinRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
+        $robinRateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
+        $robinArgs += @(
+            "-TimeoutSeconds", $robinTimeout,
+            "-RateLimitCooldownSeconds", $robinRateLimitCooldown,
+            "-RateLimitMaxCooldowns", $robinRateLimitMaxCooldowns
+        )
+        $robinExit = Invoke-FleetPowerShell -Arguments $robinArgs -LogName "robin-copy-review-batch-$batch.log" -TimeoutSeconds ($robinTimeout + ($robinRateLimitCooldown * $robinRateLimitMaxCooldowns) + 120)
+        if ($robinExit -ne 0) {
+            Write-Host "Robin copy review failed. Ending loop without merge." -ForegroundColor Red
+            exit 1
+        }
+        $robinText = if (Test-Path "docs/codex/ROBIN_COPY_REVIEW.md") { Get-Content "docs/codex/ROBIN_COPY_REVIEW.md" -Raw } else { "" }
+        Stage-Files -Paths @("docs/codex/ROBIN_COPY_REVIEW.md")
+        $pendingRobinCommit = @(git diff --cached --name-only)
+        if ($pendingRobinCommit.Count -gt 0) {
+            git commit -m "Codex Robin copy review batch $batch"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+        }
+        if ($robinText -match "(?is)## Verdict\s+RED\b" -or $robinText -match "(?i)stop for human copy review") {
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = [Math]::Max($stopAfterCheckpointExitCode, 0)
+            $stopAfterCheckpointReason = "Robin requested a human copy stop."
+            Write-Host "Robin requested a human copy stop. A final checkpoint will be written before stopping." -ForegroundColor Yellow
         }
     }
 

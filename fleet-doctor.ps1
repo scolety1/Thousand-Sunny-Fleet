@@ -144,6 +144,7 @@ function Get-ShipDiagnosis {
             firstTask = ""
             checkpoint = "missing"
             simon = "missing"
+            robin = "missing"
             joey = "missing"
             launchReady = $false
             recommendedCommand = "Fix repo path before launch."
@@ -160,6 +161,7 @@ function Get-ShipDiagnosis {
     $firstTask = Get-FirstUncheckedTask
     $checkpoint = Get-MarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
     $simon = Get-MarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
+    $robin = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
     $joey = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
     $missionExists = Test-Path "docs/codex/MISSION.md"
     $taskQueueExists = Test-Path "docs/codex/TASK_QUEUE.md"
@@ -211,6 +213,7 @@ function Get-ShipDiagnosis {
     foreach ($verdict in @(
         @{ name = "checkpoint"; value = $checkpoint },
         @{ name = "Simon"; value = $simon },
+        @{ name = "Robin"; value = $robin },
         @{ name = "Joey"; value = $joey }
     )) {
         if ([string]$verdict.value -match "^RED\b") {
@@ -226,7 +229,7 @@ function Get-ShipDiagnosis {
 
     $failCount = @($findings | Where-Object { $_.level -eq "FAIL" }).Count
     $batchSize = if ($taskCount -eq 0) { 2 } else { [Math]::Min(3, [Math]::Max(1, $taskCount)) }
-    $recommended = ".\run-checkpoint-loop.ps1 -Project $name -BatchSize $batchSize -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint"
+    $recommended = ".\run-checkpoint-loop.ps1 -Project $name -BatchSize $batchSize -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint"
 
     return [pscustomobject]@{
         name = $name
@@ -238,6 +241,7 @@ function Get-ShipDiagnosis {
         firstTask = $firstTask
         checkpoint = $checkpoint
         simon = $simon
+        robin = $robin
         joey = $joey
         launchReady = ($failCount -eq 0)
         recommendedCommand = $recommended
@@ -254,13 +258,13 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "| Ship | Ready | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Joey |",
-    "| --- | --- | --- | --- | --- | ---: | --- | --- | --- |"
+    "| Ship | Ready | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
+    "| --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
 )
 
 foreach ($diagnosis in $diagnoses) {
     $ready = if ($diagnosis.launchReady) { "YES" } else { "NO" }
-    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.joey) |"
+    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
 }
 
 $lines += ""
@@ -291,7 +295,7 @@ if (!$Quiet) {
     foreach ($diagnosis in $diagnoses) {
         $color = if ($diagnosis.launchReady) { "Green" } else { "Red" }
         $status = if ($diagnosis.launchReady) { "healthy" } else { "not ready" }
-        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Joey $($diagnosis.joey)." -ForegroundColor $color
+        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
         if (!$diagnosis.launchReady) {
             $diagnosis.findings | Where-Object { $_.level -eq "FAIL" } | ForEach-Object {
                 Write-Host "  - $($_.message)" -ForegroundColor Red

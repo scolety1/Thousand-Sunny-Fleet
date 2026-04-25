@@ -75,7 +75,7 @@ $manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "school" -Config
 foreach ($ship in $shipsToLaunch) {
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -VisualInspectEvery 2 -SimonEvery 2 -JoeyEvery 4 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -VisualInspectEvery 2 -SimonEvery 2 -RobinEvery 2 -JoeyEvery 4 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
     Write-Host "Launching school run for $($ship.name): batch $BatchSize x $MaxBatches..." -ForegroundColor Cyan

@@ -7,7 +7,10 @@ Reusable local harness for running bounded Codex task loops across multiple proj
 Configured in `projects.json`:
 
 - EasyLife
+- NinersDynastyWarRoom
 - RestaurantDemo
+- ShiftPlate
+- CursorPets
 - UrbanKitchenWineList
 
 ## Commands
@@ -33,6 +36,7 @@ cd C:\Dev\codex-fleet
 .\visual-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\visual-inspect.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\simon-design-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
+.\robin-copy-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\joey-security-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
@@ -42,7 +46,7 @@ cd C:\Dev\codex-fleet
 
 `request-safe-stop.ps1` is the cooperative stop button. It writes a local stop request under `.codex-local/stop-requests/`; checkpoint loops stop before the next task, batch, or planning step instead of killing in-progress work. Launchers refuse to start while matching safe stop requests are active unless `-AllowSafeStopRequests` is used.
 
-`fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon reports, and missing build directories block launch.
+`fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon/Robin reports, and missing build directories block launch.
 
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, or `-DryRun` to print the commands without opening windows.
 
@@ -70,6 +74,8 @@ Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-
 
 `simon-design-review.ps1` runs Simon, a sharp mission-driven design reviewer, and writes `docs/codex/SIMON_DESIGN_REVIEW.md` with a taste check, mission-fit review, visual problems, and the next five design tasks.
 
+`robin-copy-review.ps1` runs Robin, the fleet voice editor, and writes `docs/codex/ROBIN_COPY_REVIEW.md` with mission-fit copy notes, delicate wording risks, rewrite opportunities, voice rules, and the next five copy tasks.
+
 `joey-security-review.ps1` runs Joey Tough Knuckles, a deterministic security guardrail reviewer, and writes `docs/codex/JOEY_SECURITY_REVIEW.md` with blocked file checks, sensitive added-line checks, and a security merge recommendation.
 
 ## Mission Checkpoint Loop
@@ -77,7 +83,7 @@ Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -87,28 +93,29 @@ The checkpoint loop:
 - runs external builds
 - commits each successful task
 - stages only the files it intentionally changed instead of using `git add .`
-- writes `docs/codex/CHECKPOINT_REVIEW.md` after fresh visual, Simon, and Joey gates
-- includes completed task, changed file, latest visual, latest Simon, latest Joey, and next-batch guidance in checkpoint reviews
+- writes `docs/codex/CHECKPOINT_REVIEW.md` after fresh visual, Simon, Robin, and Joey gates
+- includes completed task, changed file, latest visual, latest Simon, latest Robin, latest Joey, and next-batch guidance in checkpoint reviews
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
 - optionally writes visual bug reports with `-VisualInspectEvery N`
 - optionally runs Simon design reviews with `-SimonEvery N`
+- optionally runs Robin copy reviews with `-RobinEvery N`
 - optionally runs Joey security reviews with `-JoeyEvery N`
 - can continue through non-blocking YELLOW checkpoint reviews with `-ContinueOnYellowCheckpoint`
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
-Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, and Simon. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
+Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, Simon, and Robin. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
 
 If Codex output looks like a usage/rate-limit response, the loop waits for the configured rate-limit cooldown and retries without counting that wait as a normal implementation attempt. Defaults are one-hour cooldowns with caps per ship/profile, so a school-day run can survive a temporary limit reset without sleeping forever.
 
-Long-running steps are wrapped by the fleet watchdog, including Codex implementation/review, external builds, Nami planning, checkpoint review, visual smoke/inspect, Simon, Joey, guardrails, and the checkpoint debugger. Timeouts are configurable per ship or profile; watchdog logs are written under `.codex-logs/`.
+Long-running steps are wrapped by the fleet watchdog, including Codex implementation/review, external builds, Nami planning, checkpoint review, visual smoke/inspect, Simon, Robin, Joey, guardrails, and the checkpoint debugger. Timeouts are configurable per ship or profile; watchdog logs are written under `.codex-logs/`.
 
-`-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
+`-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, Robin RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
-Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Joey repair orders take priority over fresh feature work.
+Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Robin copy review, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Robin/Joey repair orders take priority over fresh feature work.
 
-Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, and Joey reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
+Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, and Joey reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 

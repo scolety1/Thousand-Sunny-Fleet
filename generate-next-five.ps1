@@ -56,6 +56,7 @@ $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RU
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
 $simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No Simon design review found." }
 $visualBugs = if (Test-Path "docs/codex/VISUAL_BUGS.md") { Get-Content "docs/codex/VISUAL_BUGS.md" -Raw } else { "No visual bug report found." }
+$robin = if (Test-Path "docs/codex/ROBIN_COPY_REVIEW.md") { Get-Content "docs/codex/ROBIN_COPY_REVIEW.md" -Raw } else { "No Robin copy review found." }
 $joey = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "No Joey security review found." }
 $reportTail = if (Test-Path "docs/codex/NIGHTLY_REPORT.md") { Get-Content "docs/codex/NIGHTLY_REPORT.md" -Tail 140 } else { @("No report found.") }
 $quarantineTail = if (Test-Path "docs/codex/QUARANTINED_TASKS.md") { Get-Content "docs/codex/QUARANTINED_TASKS.md" -Tail 140 } else { @("No quarantined tasks report found.") }
@@ -71,16 +72,20 @@ Rules:
 - Each task must be small enough for one Codex implementation round.
 - Each task must include explicit forbidden scope.
 - Prefer tasks that advance the mission and reduce obvious rough edges.
-- Treat Simon, Visual Bug Report, and Joey as active repair orders, not optional reading.
+- Treat Simon, Visual Bug Report, Robin, and Joey as active repair orders, not optional reading.
 - Priority order for next tasks:
   1. If Joey is RED or says stop for human security review, output one docs-only task to summarize the security stop-risk, then no more tasks.
   2. If Visual Bug Report has HIGH findings or suggested visual fix tasks, turn those into the first tasks.
   3. If Simon has a Priority Fix, Designer Handoff, What Not To Do Next, or Next 5 Design Tasks, use those to shape the next tasks before inventing unrelated work.
-  4. If Checkpoint Review says patch first, convert the patch concern into task(s).
-  5. Only after those repair orders are addressed, generate fresh mission-forward tasks.
+  4. If Robin is RED or says stop for human copy review, output one docs-only task to summarize the copy stop-risk, then no more tasks.
+  5. If Robin has a Priority Rewrite, Suggested Rewrites, Voice Rules, or Next 5 Copy Tasks, use those to shape copy/voice tasks before inventing unrelated work.
+  6. If Checkpoint Review says patch first, convert the patch concern into task(s).
+  7. Only after those repair orders are addressed, generate fresh mission-forward tasks.
 - If Simon says "continue but fix visual issues first", the next tasks must fix those visual issues first.
+- If Robin says "continue but fix copy first", the next tasks must fix those wording issues first.
 - Do not generate generic polish tasks when Simon or Visual Bug Report names a concrete issue.
-- Do not repeat recently completed tasks unless Simon, Visual Bug Report, Joey, or Checkpoint Review says the issue remains.
+- Do not generate generic copy polish tasks when Robin names a concrete rewrite.
+- Do not repeat recently completed tasks unless Simon, Visual Bug Report, Robin, Joey, or Checkpoint Review says the issue remains.
 - Do not repeat quarantined tasks. If a quarantined task still matters, propose a smaller safer version that avoids the failure reason.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
@@ -104,6 +109,9 @@ $simon
 
 Visual bug report:
 $visualBugs
+
+Robin copy review:
+$robin
 
 Joey security review:
 $joey
@@ -180,13 +188,18 @@ if ($vagueTasks.Count -gt 0) {
     exit 1
 }
 
-$repairContext = "$simon`n$visualBugs"
+$repairContext = "$simon`n$visualBugs`n$robin"
 $repairSignals = @(
     "Priority Fix",
     "Designer Handoff",
     "Visual Problems To Fix",
     "Suggested Task Queue Wording",
-    "continue but fix visual issues first"
+    "continue but fix visual issues first",
+    "Priority Rewrite",
+    "Suggested Rewrites",
+    "Voice Rules",
+    "Next 5 Copy Tasks",
+    "continue but fix copy first"
 )
 $hasRepairSignal = $false
 foreach ($signal in $repairSignals) {
@@ -213,7 +226,16 @@ if ($hasRepairSignal) {
         "badge",
         "typography",
         "truncat",
+        "copy",
+        "wording",
+        "voice",
+        "tone",
+        "rewrite",
+        "description",
+        "menu",
+        "wine",
         "Simon",
+        "Robin",
         "Walkthrough"
     )
     $mentionsRepair = $false
@@ -224,7 +246,7 @@ if ($hasRepairSignal) {
         }
     }
     if (-not $mentionsRepair) {
-        Write-Host "Planner ignored active Simon/visual repair signals." -ForegroundColor Red
+        Write-Host "Planner ignored active Simon/visual/Robin repair signals." -ForegroundColor Red
         Write-Host "Generated tasks:" -ForegroundColor Yellow
         $tasks | ForEach-Object { Write-Host "  $_" }
         exit 1

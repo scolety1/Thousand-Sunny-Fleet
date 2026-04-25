@@ -13,6 +13,7 @@
         "overnightMaxBatches":  10,
         "overnightVisualInspectEvery":  2,
         "overnightSimonEvery":  2,
+        "overnightRobinEvery":  4,
         "overnightJoeyEvery":  4,
         "visualPaths":  [
                             "/"
@@ -49,6 +50,10 @@
                        "simon":  [
                                      "gpt-5.5",
                                      "gpt-5.4"
+                                 ],
+                       "robin":  [
+                                     "gpt-5.5",
+                                     "gpt-5.4"
                                  ]
                    },
         "timeouts":  {
@@ -59,6 +64,7 @@
                          "planner":  900,
                          "checkpoint":  900,
                          "simon":  900,
+                         "robin":  900,
                          "visual":  900,
                          "joey":  300,
                          "debug":  300,
@@ -77,6 +83,7 @@
         "overnightMaxBatches":  16,
         "overnightVisualInspectEvery":  2,
         "overnightSimonEvery":  2,
+        "overnightRobinEvery":  4,
         "overnightJoeyEvery":  4
     },
     {
@@ -93,6 +100,7 @@
         "overnightMaxBatches":  8,
         "overnightVisualInspectEvery":  3,
         "overnightSimonEvery":  3,
+        "overnightRobinEvery":  4,
         "overnightJoeyEvery":  6,
         "visualPaths":  [
                             "/"
@@ -129,6 +137,10 @@
                        "simon":  [
                                      "gpt-5.5",
                                      "gpt-5.4"
+                                 ],
+                       "robin":  [
+                                     "gpt-5.5",
+                                     "gpt-5.4"
                                  ]
                    },
         "timeouts":  {
@@ -139,6 +151,7 @@
                          "planner":  600,
                          "checkpoint":  600,
                          "simon":  600,
+                         "robin":  600,
                          "visual":  900,
                          "joey":  300,
                          "debug":  300,
@@ -153,6 +166,7 @@
         "overnightMaxBatches":  3,
         "overnightVisualInspectEvery":  2,
         "overnightSimonEvery":  2,
+        "overnightRobinEvery":  2,
         "overnightJoeyEvery":  3
     },
     {
@@ -169,6 +183,7 @@
         "overnightMaxBatches":  10,
         "overnightVisualInspectEvery":  2,
         "overnightSimonEvery":  2,
+        "overnightRobinEvery":  2,
         "overnightJoeyEvery":  4,
         "visualPaths":  [
                             "/"
@@ -205,6 +220,10 @@
                        "simon":  [
                                      "gpt-5.5",
                                      "gpt-5.4"
+                                 ],
+                       "robin":  [
+                                     "gpt-5.5",
+                                     "gpt-5.4"
                                  ]
                    },
         "timeouts":  {
@@ -215,6 +234,7 @@
                          "planner":  600,
                          "checkpoint":  600,
                          "simon":  600,
+                         "robin":  600,
                          "visual":  900,
                          "joey":  300,
                          "debug":  300,
@@ -230,6 +250,7 @@
         "overnightMaxBatches":  2,
         "overnightVisualInspectEvery":  1,
         "overnightSimonEvery":  1,
+        "overnightRobinEvery":  1,
         "overnightJoeyEvery":  2
     }
 ]

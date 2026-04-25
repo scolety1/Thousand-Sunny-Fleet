@@ -340,14 +340,16 @@ function Test-CheckpointGateOrder {
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $visualIndex = $loopText.IndexOf('if ($VisualInspectEvery -gt 0')
     $simonIndex = $loopText.IndexOf('if ($SimonEvery -gt 0')
+    $robinIndex = $loopText.IndexOf('if ($RobinEvery -gt 0')
     $joeyIndex = $loopText.IndexOf('if ($JoeyEvery -gt 0')
     $checkpointIndex = $loopText.IndexOf('$checkpointText = Invoke-CheckpointReviewGate -Batch $batch')
     $debugIndex = $loopText.IndexOf('if (!$SkipDebug)')
 
     Assert-True -Condition ($visualIndex -ge 0) -Message "Checkpoint loop contains visual inspect gate"
     Assert-True -Condition ($simonIndex -gt $visualIndex) -Message "Simon runs after visual inspect"
-    Assert-True -Condition ($joeyIndex -gt $simonIndex) -Message "Joey runs after Simon"
-    Assert-True -Condition ($checkpointIndex -gt $joeyIndex) -Message "Final checkpoint runs after visual, Simon, and Joey"
+    Assert-True -Condition ($robinIndex -gt $simonIndex) -Message "Robin runs after Simon"
+    Assert-True -Condition ($joeyIndex -gt $robinIndex) -Message "Joey runs after Robin"
+    Assert-True -Condition ($checkpointIndex -gt $joeyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, and Joey"
     Assert-True -Condition ($debugIndex -gt $checkpointIndex) -Message "Debugger runs after final checkpoint"
 }
 
@@ -377,6 +379,8 @@ function Test-TaskQuarantineSupport {
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     Assert-True -Condition ($plannerText -match 'QUARANTINED_TASKS.md') -Message "Nami planner reads quarantined task report"
     Assert-True -Condition ($plannerText -match 'Do not repeat quarantined tasks') -Message "Nami planner is told not to repeat quarantined tasks"
+    Assert-True -Condition ($plannerText -match 'ROBIN_COPY_REVIEW.md') -Message "Nami planner reads Robin copy review"
+    Assert-True -Condition ($plannerText -match 'Priority Rewrite') -Message "Nami planner is told to prioritize Robin rewrite orders"
 }
 
 function Test-DuplicateRunGuard {

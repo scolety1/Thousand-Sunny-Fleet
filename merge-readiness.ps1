@@ -175,6 +175,7 @@ foreach ($projectConfig in $projects) {
             tasks = 0
             checkpoint = "missing"
             simon = "missing"
+            robin = "missing"
             joey = "missing"
             visual = "missing"
         }
@@ -201,6 +202,7 @@ foreach ($projectConfig in $projects) {
     $taskCount = Get-UncheckedTaskCount
     $checkpoint = Get-MarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
     $simon = Get-MarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
+    $robin = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
     $joey = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
     $visualHigh = Get-VisualFindingCount -Severity "High"
     $visualMedium = Get-VisualFindingCount -Severity "Medium"
@@ -216,6 +218,8 @@ foreach ($projectConfig in $projects) {
     if ($joey -eq "missing" -or $joey -eq "unknown") { Add-Reason -Reasons $warnings -Message "Joey security review is $joey." }
     if ($simon -eq "RED") { Add-Reason -Reasons $reasons -Message "Simon design review is RED." }
     if ($simon -eq "YELLOW") { Add-Reason -Reasons $warnings -Message "Simon design review is YELLOW; inspect visuals before merge." }
+    if ($robin -eq "RED") { Add-Reason -Reasons $reasons -Message "Robin copy review is RED." }
+    if ($robin -eq "YELLOW") { Add-Reason -Reasons $warnings -Message "Robin copy review is YELLOW; inspect copy before merge." }
     if ($visualHigh -gt 0) { Add-Reason -Reasons $reasons -Message "Visual bug report has $visualHigh high finding(s)." }
     if ($visualMedium -gt 0) { Add-Reason -Reasons $warnings -Message "Visual bug report has $visualMedium medium finding(s)." }
 
@@ -242,6 +246,7 @@ foreach ($projectConfig in $projects) {
         tasks = $taskCount
         checkpoint = $checkpoint
         simon = $simon
+        robin = $robin
         joey = $joey
         visual = $visual
     }
@@ -266,12 +271,12 @@ $lines = @(
     "",
     "Jimbei Harbor Master note: this report does not merge anything. It only tells the captain which ships are allowed near the dock.",
     "",
-    "| Ship | Status | Branch | HEAD | Commits | Build | Tasks | Checkpoint | Simon | Joey | Visual |",
-    "| --- | --- | --- | --- | ---: | --- | ---: | --- | --- | --- | --- |"
+    "| Ship | Status | Branch | HEAD | Commits | Build | Tasks | Checkpoint | Simon | Robin | Joey | Visual |",
+    "| --- | --- | --- | --- | ---: | --- | ---: | --- | --- | --- | --- | --- |"
 )
 
 foreach ($result in $results) {
-    $lines += "| $($result.ship) | $($result.status) | $($result.branch) | $($result.head) | $($result.commitsAhead) | $($result.build) | $($result.tasks) | $($result.checkpoint) | $($result.simon) | $($result.joey) | $($result.visual) |"
+    $lines += "| $($result.ship) | $($result.status) | $($result.branch) | $($result.head) | $($result.commitsAhead) | $($result.build) | $($result.tasks) | $($result.checkpoint) | $($result.simon) | $($result.robin) | $($result.joey) | $($result.visual) |"
 }
 
 foreach ($result in $results) {
@@ -321,7 +326,7 @@ Write-Host "Jimbei Harbor Master - $overall" -ForegroundColor $(if ($overall -eq
 Write-Host "Report: $OutFile"
 foreach ($result in $results) {
     $color = if ($result.status -eq "DO NOT MERGE") { "Red" } elseif ($result.status -eq "SAFE TO INSPECT") { "Yellow" } else { "Green" }
-    Write-Host ("{0}: {1} | branch {2} | build {3} | checkpoint {4} | Simon {5} | Joey {6}" -f $result.ship, $result.status, $result.branch, $result.build, $result.checkpoint, $result.simon, $result.joey) -ForegroundColor $color
+    Write-Host ("{0}: {1} | branch {2} | build {3} | checkpoint {4} | Simon {5} | Robin {6} | Joey {7}" -f $result.ship, $result.status, $result.branch, $result.build, $result.checkpoint, $result.simon, $result.robin, $result.joey) -ForegroundColor $color
 }
 
 if ($overall -eq "DO NOT MERGE") {

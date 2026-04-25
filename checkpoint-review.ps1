@@ -114,6 +114,8 @@ $reportTail = if (Test-Path "docs/codex/NIGHTLY_REPORT.md") { Get-Content "docs/
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
 $simonVerdict = Get-MarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
 $simonNextStep = Get-MarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Stop Or Continue"
+$robinVerdict = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
+$robinNextStep = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Stop Or Continue"
 $joeyVerdict = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
 $joeyNextStep = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Recommended Next Step"
 $visualSummary = Get-VisualSummary
@@ -146,7 +148,7 @@ Bullets:
 - queue status
 
 ## Follow-Up Gate Status
-Bullets for visual bug report, Simon design review, Joey security review, and whether they should influence the next tasks.
+Bullets for visual bug report, Simon design review, Robin copy review, Joey security review, and whether they should influence the next tasks.
 
 ## Recommended Next Step
 Choose one: continue, patch first, stop for human review.
@@ -169,6 +171,8 @@ Unchecked task count: $($uncheckedTasks.Count)
 Recent completed task count shown: $($completedTasks.Count)
 Simon verdict: $simonVerdict
 Simon stop/continue: $simonNextStep
+Robin verdict: $robinVerdict
+Robin stop/continue: $robinNextStep
 Joey verdict: $joeyVerdict
 Joey next step: $joeyNextStep
 Visual bug summary: $visualSummary

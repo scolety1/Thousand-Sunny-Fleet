@@ -67,13 +67,13 @@ function Write-SupervisorReport {
         "",
         "Generated: $timestamp",
         "",
-        "| Ship | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Joey | Last Report |",
-        "| --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
+        "| Ship | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey | Last Report |",
+        "| --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- |"
     )
 
     foreach ($project in $projects) {
         if (!(Test-Path $project.repo)) {
-            $lines += "| $($project.name) | missing repo | n/a | n/a | 0 | n/a | n/a | n/a | $($project.repo) |"
+            $lines += "| $($project.name) | missing repo | n/a | n/a | 0 | n/a | n/a | n/a | n/a | $($project.repo) |"
             continue
         }
 
@@ -86,6 +86,7 @@ function Write-SupervisorReport {
         $tasks = Get-UncheckedCount
         $checkpoint = Get-FirstMarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
         $simon = Get-FirstMarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
+        $robin = Get-FirstMarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
         $joey = Get-FirstMarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
         $lastReport = (Get-LastReportLine).Replace("|", "/")
         Pop-Location
@@ -98,11 +99,12 @@ function Write-SupervisorReport {
             tasks = $tasks
             checkpoint = $checkpoint
             simon = $simon
+            robin = $robin
             joey = $joey
             report = $lastReport
         }
 
-        $lines += "| $($project.name) | $branch | $head | $dirtyText | $tasks | $checkpoint | $simon | $joey | $lastReport |"
+        $lines += "| $($project.name) | $branch | $head | $dirtyText | $tasks | $checkpoint | $simon | $robin | $joey | $lastReport |"
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
@@ -112,8 +114,8 @@ function Write-SupervisorReport {
     Write-Host "Codex Fleet Supervisor - $timestamp" -ForegroundColor Cyan
     Write-Host "Report: $OutFile"
     foreach ($row in $rows) {
-        $color = if ($row.dirty -eq "clean" -and $row.checkpoint -notmatch "RED" -and $row.joey -notmatch "RED") { "Green" } else { "Yellow" }
-        Write-Host ("{0}: {1} {2} | {3} | tasks {4} | checkpoint {5} | Simon {6} | Joey {7}" -f $row.ship, $row.branch, $row.head, $row.dirty, $row.tasks, $row.checkpoint, $row.simon, $row.joey) -ForegroundColor $color
+        $color = if ($row.dirty -eq "clean" -and $row.checkpoint -notmatch "RED" -and $row.robin -notmatch "RED" -and $row.joey -notmatch "RED") { "Green" } else { "Yellow" }
+        Write-Host ("{0}: {1} {2} | {3} | tasks {4} | checkpoint {5} | Simon {6} | Robin {7} | Joey {8}" -f $row.ship, $row.branch, $row.head, $row.dirty, $row.tasks, $row.checkpoint, $row.simon, $row.robin, $row.joey) -ForegroundColor $color
     }
 }
 
