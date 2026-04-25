@@ -50,6 +50,7 @@ $changed = @(git diff --name-status "$BaseBranch..HEAD")
 $commits = @(git log --oneline "$BaseBranch..HEAD" -n 30)
 $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue | ForEach-Object { $_.Line.Trim() })
 $completed = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[x\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
+$quarantined = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[!\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
@@ -57,6 +58,7 @@ $simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/
 $visualBugs = if (Test-Path "docs/codex/VISUAL_BUGS.md") { Get-Content "docs/codex/VISUAL_BUGS.md" -Raw } else { "No visual bug report found." }
 $joey = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "No Joey security review found." }
 $reportTail = if (Test-Path "docs/codex/NIGHTLY_REPORT.md") { Get-Content "docs/codex/NIGHTLY_REPORT.md" -Tail 140 } else { @("No report found.") }
+$quarantineTail = if (Test-Path "docs/codex/QUARANTINED_TASKS.md") { Get-Content "docs/codex/QUARANTINED_TASKS.md" -Tail 140 } else { @("No quarantined tasks report found.") }
 
 $prompt = @"
 You are the mission planner for an unattended Codex branch.
@@ -79,6 +81,7 @@ Rules:
 - If Simon says "continue but fix visual issues first", the next tasks must fix those visual issues first.
 - Do not generate generic polish tasks when Simon or Visual Bug Report names a concrete issue.
 - Do not repeat recently completed tasks unless Simon, Visual Bug Report, Joey, or Checkpoint Review says the issue remains.
+- Do not repeat quarantined tasks. If a quarantined task still matters, propose a smaller safer version that avoids the failure reason.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
 
@@ -111,6 +114,9 @@ $(if ($unchecked.Count -eq 0) { "- None" } else { ($unchecked | ForEach-Object {
 Recently completed tasks:
 $(if ($completed.Count -eq 0) { "- None" } else { ($completed | ForEach-Object { "- $_" }) -join "`n" })
 
+Recently quarantined tasks:
+$(if ($quarantined.Count -eq 0) { "- None" } else { ($quarantined | ForEach-Object { "- $_" }) -join "`n" })
+
 Changed files since base:
 $(if ($changed.Count -eq 0) { "- None" } else { ($changed | ForEach-Object { "- $_" }) -join "`n" })
 
@@ -119,6 +125,9 @@ $(if ($commits.Count -eq 0) { "- None" } else { ($commits | ForEach-Object { "- 
 
 Nightly report tail:
 $($reportTail -join "`n")
+
+Quarantined task report tail:
+$($quarantineTail -join "`n")
 "@
 
 $tmp = New-TemporaryFile

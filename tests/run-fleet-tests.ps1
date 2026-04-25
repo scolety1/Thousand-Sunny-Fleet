@@ -357,11 +357,26 @@ function Test-TaskQuarantineSupport {
     Assert-True -Condition ($loopText -match '\[int\]\$MaxTaskQuarantines') -Message "Checkpoint loop exposes task quarantine limit"
     Assert-True -Condition ($loopText -match 'docs/codex/QUARANTINED_TASKS.md') -Message "Checkpoint loop writes a quarantine report"
     Assert-True -Condition ($loopText -match 'Restore-TaskChanges') -Message "Checkpoint loop restores failed task changes before continuing"
+    Assert-True -Condition ($loopText -match 'git restore --staged') -Message "Checkpoint loop unstages files before quarantine cleanup"
+    Assert-True -Condition ($loopText -match 'git restore --worktree') -Message "Checkpoint loop restores tracked worktree edits during quarantine cleanup"
+    Assert-True -Condition ($loopText -match 'Codex changed HEAD during implementation') -Message "Checkpoint loop stops if Codex commits during implementation"
     Assert-True -Condition ($loopText -match 'Codex quarantine failed task batch') -Message "Checkpoint loop commits quarantine notes separately"
 
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     Assert-True -Condition ($schoolText -match '-QuarantineFailedTasks') -Message "School launcher can pass quarantine mode to ships"
     Assert-True -Condition ($schoolText -match '-MaxTaskQuarantines') -Message "School launcher can pass quarantine limit to ships"
+
+    $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    Assert-True -Condition ($proofText -match '-QuarantineFailedTasks') -Message "Proof launcher can pass quarantine mode to ships"
+    Assert-True -Condition ($proofText -match '-MaxTaskQuarantines') -Message "Proof launcher can pass quarantine limit to ships"
+
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    Assert-True -Condition ($overnightText -match '-QuarantineFailedTasks') -Message "Overnight launcher can pass quarantine mode to ships"
+    Assert-True -Condition ($overnightText -match '-MaxTaskQuarantines') -Message "Overnight launcher can pass quarantine limit to ships"
+
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    Assert-True -Condition ($plannerText -match 'QUARANTINED_TASKS.md') -Message "Nami planner reads quarantined task report"
+    Assert-True -Condition ($plannerText -match 'Do not repeat quarantined tasks') -Message "Nami planner is told not to repeat quarantined tasks"
 }
 
 Set-Location $fleetRoot

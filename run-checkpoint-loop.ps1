@@ -489,19 +489,24 @@ function Restore-TaskChanges {
     }
 
     $repoFullPath = [System.IO.Path]::GetFullPath($repoPath)
-    $trackedPaths = @(
-        @(git diff --name-only)
-        @(git diff --cached --name-only)
-    ) | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
-    $untrackedPaths = @(git ls-files --others --exclude-standard)
+    $stagedPaths = @(git diff --cached --name-only) | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
 
-    if ($trackedPaths.Count -gt 0) {
-        & git restore --source $TaskBase --staged --worktree -- @trackedPaths
+    if ($stagedPaths.Count -gt 0) {
+        & git restore --staged -- @stagedPaths
         if ($LASTEXITCODE -ne 0) {
             return $false
         }
     }
 
+    $worktreePaths = @(git diff --name-only) | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
+    if ($worktreePaths.Count -gt 0) {
+        & git restore --worktree -- @worktreePaths
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+    }
+
+    $untrackedPaths = @(git ls-files --others --exclude-standard)
     foreach ($path in $untrackedPaths) {
         if ([string]::IsNullOrWhiteSpace($path)) { continue }
         $target = [System.IO.Path]::GetFullPath((Join-Path $repoFullPath $path))
@@ -851,6 +856,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
         Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
         git commit -m "Codex checkpoint planner tasks batch $batch"
+        if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 
     for ($i = 1; $i -le $BatchSize; $i++) {
@@ -883,6 +889,16 @@ Rules:
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
         $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1 -Models (Get-ProjectModels -Role "implement") -TimeoutSeconds (Get-TimeoutSetting -Role "implement" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds))
+        $headAfterImplement = (git rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($headAfterImplement)) {
+            Write-Host "Could not determine HEAD after implementation." -ForegroundColor Red
+            exit 1
+        }
+        if ($headAfterImplement.Trim() -ne $taskBase.Trim()) {
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Codex changed git history or committed during implementation. Stop for human review."
+            Write-Host "Codex changed HEAD during implementation. Ending loop for human review instead of quarantining." -ForegroundColor Red
+            exit 1
+        }
         $statusAfter = @(git status --porcelain)
         if ($exit -ne 0 -and $statusAfter.Count -eq 0) {
             if (Invoke-TaskQuarantine -Task $task -Reason "Codex command failed after retries and made no changes." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
