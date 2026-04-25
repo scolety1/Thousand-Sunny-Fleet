@@ -61,13 +61,32 @@ $blockedPathPatterns = @(
 
 $securityPatterns = @(
     "(?i)(api[_ -]?key|secret|private[_ -]?key|bearer token|access token|password|credential)",
-    "(?i)(process\.env|import\.meta\.env|localStorage\.setItem|sessionStorage\.setItem)",
+    "(?i)(process\.env|import\.meta\.env)",
     "(?i)(stripe|checkout|payment|billing)",
     "(?i)(firebase functions|httpsCallable|cloud function|firestore\.rules|auth provider)",
     "(?i)(google analytics|gtag|meta pixel|hotjar|tracking|analytics)",
     "(?i)(innerHTML\s*=|dangerouslySetInnerHTML|eval\(|new Function\()",
     "(?i)(fetch\(|XMLHttpRequest|axios\.)"
 )
+
+$storageSetPattern = "(?i)\b(window\.)?(localStorage|sessionStorage)\.setItem\s*\("
+$storageSensitivePattern = "(?i)(api[_ -]?key|secret|private[_ -]?key|bearer|access[_ -]?token|refresh[_ -]?token|password|credential|auth|jwt|stripe|checkout|payment|billing)"
+
+function Test-SensitiveAddedLine {
+    param([string]$Line)
+
+    foreach ($pattern in $securityPatterns) {
+        if ($Line -match $pattern) {
+            return $true
+        }
+    }
+
+    if ($Line -match $storageSetPattern -and $Line -match $storageSensitivePattern) {
+        return $true
+    }
+
+    return $false
+}
 
 $blockedFiles = @()
 foreach ($file in $changed) {
@@ -88,13 +107,10 @@ foreach ($line in $diffLines) {
         continue
     }
     if ($line -match "^\+" -and $line -notmatch "^\+\+\+" -and $currentFile -notmatch "^docs/codex/") {
-        foreach ($pattern in $securityPatterns) {
-            if ($line -match $pattern) {
-                $addedHits += [pscustomobject]@{
-                    file = $currentFile
-                    line = $line.Substring(1).Trim()
-                }
-                break
+        if (Test-SensitiveAddedLine -Line $line) {
+            $addedHits += [pscustomobject]@{
+                file = $currentFile
+                line = $line.Substring(1).Trim()
             }
         }
     }
@@ -180,6 +196,7 @@ $lines += $nextStep
 $lines += ""
 $lines += "## Notes"
 $lines += "- Joey is a guardrail reviewer, not a full penetration test."
+$lines += "- Local storage is allowed for harmless local-only UI state, but still blocked when it appears to store auth, payment, token, credential, or secret data."
 $lines += "- A GREEN result means no obvious unattended security regression was detected."
 $lines += "- Human review is still required before merge."
 

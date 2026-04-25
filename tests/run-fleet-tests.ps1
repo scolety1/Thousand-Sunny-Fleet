@@ -425,6 +425,13 @@ function Test-LaunchControlSupport {
     Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
 }
 
+function Test-JoeyStorageRules {
+    $joeyText = Get-Content (Join-Path $fleetRoot "joey-security-review.ps1") -Raw
+    Assert-True -Condition ($joeyText -match 'Test-SensitiveAddedLine') -Message "Joey centralizes sensitive added-line detection"
+    Assert-True -Condition ($joeyText -match 'storageSensitivePattern') -Message "Joey treats local storage as sensitive only for risky data names"
+    Assert-False -Condition ($joeyText -match 'process\\.env\|import\\.meta\\.env\|localStorage\\.setItem') -Message "Joey does not blanket-block harmless localStorage writes"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -442,6 +449,7 @@ Test-TaskQuarantineSupport
 Test-DuplicateRunGuard
 Test-SafeStopSupport
 Test-LaunchControlSupport
+Test-JoeyStorageRules
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)
