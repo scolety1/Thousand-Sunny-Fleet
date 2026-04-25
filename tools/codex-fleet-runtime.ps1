@@ -232,7 +232,11 @@ function ConvertTo-FleetStringArray {
     }
 
     if ($Value -is [System.Collections.IEnumerable]) {
-        return @($Value | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        $items = @()
+        foreach ($item in $Value) {
+            $items += @(ConvertTo-FleetStringArray -Value $item)
+        }
+        return @($items | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     }
 
     return @([string]$Value)
