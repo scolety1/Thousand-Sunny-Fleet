@@ -22,6 +22,7 @@ cd C:\Dev\codex-fleet
 .\visual-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\visual-inspect.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\simon-design-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
+.\joey-security-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
 ```
@@ -40,12 +41,14 @@ cd C:\Dev\codex-fleet
 
 `simon-design-review.ps1` runs Simon, a sharp mission-driven design reviewer, and writes `docs/codex/SIMON_DESIGN_REVIEW.md` with a taste check, mission-fit review, visual problems, and the next five design tasks.
 
+`joey-security-review.ps1` runs Joey Tough Knuckles, a deterministic security guardrail reviewer, and writes `docs/codex/JOEY_SECURITY_REVIEW.md` with blocked file checks, sensitive added-line checks, and a security merge recommendation.
+
 ## Mission Checkpoint Loop
 
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -59,6 +62,7 @@ The checkpoint loop:
 - optionally runs visual smoke checks with `-VisualEvery N`
 - optionally writes visual bug reports with `-VisualInspectEvery N`
 - optionally runs Simon design reviews with `-SimonEvery N`
+- optionally runs Joey security reviews with `-JoeyEvery N`
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 

@@ -20,6 +20,8 @@ param(
 
     [int]$SimonEvery = 0,
 
+    [int]$JoeyEvery = 0,
+
     [switch]$PushCheckpoint,
 
     [switch]$SkipDebug,
@@ -84,6 +86,10 @@ if ($VisualInspectEvery -lt 0) {
 
 if ($SimonEvery -lt 0) {
     Stop-Usage "-SimonEvery must be 0 or greater."
+}
+
+if ($JoeyEvery -lt 0) {
+    Stop-Usage "-JoeyEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -429,6 +435,22 @@ Do not edit NIGHTLY_REPORT.md.
         if ($simonText -match "(?is)## Verdict\s+RED\b" -or $simonText -match "(?i)stop for human design review") {
             Write-Host "Simon requested a human design stop. Ending loop without merge." -ForegroundColor Yellow
             break
+        }
+    }
+
+    if ($JoeyEvery -gt 0 -and ($batch % $JoeyEvery -eq 0)) {
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "joey-security-review.ps1") -Repo $repoPath -Project $script:projectConfig.name -BaseBranch $BaseBranch
+        $joeyPassed = $LASTEXITCODE -eq 0
+        $joeyText = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "" }
+        git add docs/codex/JOEY_SECURITY_REVIEW.md
+        $pendingJoeyCommit = @(git diff --cached --name-only)
+        if ($pendingJoeyCommit.Count -gt 0) {
+            git commit -m "Codex Joey security review batch $batch"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+        }
+        if (-not $joeyPassed -or $joeyText -match "(?is)## Verdict\s+RED\b" -or $joeyText -match "(?i)stop for human security review") {
+            Write-Host "Joey requested a human security stop. Ending loop without merge." -ForegroundColor Red
+            exit 1
         }
     }
 
