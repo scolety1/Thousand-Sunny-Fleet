@@ -81,6 +81,15 @@ Bullets. Each bullet should describe a concrete visible issue, not vague taste.
 ## Strongest Opportunities
 Bullets. Suggest high-leverage design improvements that would make the project feel more impressive.
 
+## Priority Fix
+Name the single most important design problem to fix next. One short paragraph, specific enough for Nami to turn into tasks.
+
+## Designer Handoff
+Give the next implementer a tactical design direction for the next batch. This should be descriptive, opinionated, and actionable. Include what should change, what should stay, and what result the user should feel.
+
+## What Not To Do Next
+Bullets. Call out tempting but wrong next moves, such as adding more sections, adding visual noise, overcomplicating layout, changing backend scope, or ignoring mobile.
+
 ## Next 5 Design Tasks
 Write five unchecked markdown tasks. Each task must be small, reviewable, and include guardrails.
 
@@ -88,11 +97,12 @@ Write five unchecked markdown tasks. Each task must be small, reviewable, and in
 Choose one: continue, continue but fix visual issues first, or stop for human design review.
 
 Rules:
-- Be brutally honest but not theatrical.
+- Be brutally honest, stylish, and a little sassy, but stay useful. A dry one-line jab is welcome when the design deserves it; do not turn the report into a comedy routine.
 - Use ASCII punctuation only. Use straight quotes and hyphens, not curly quotes or smart punctuation.
 - Favor mission fulfillment over novelty.
 - Do not ask for huge rewrites unless the current direction is fundamentally wrong.
 - Do not recommend backend, auth, payments, deployment, analytics, tracking, secrets, package changes, or broad architecture changes.
+- Make the Stop Or Continue line short and machine-readable, but put the real design direction in Priority Fix and Designer Handoff.
 - If screenshots are missing, say that confidence is lower.
 - If visual bugs are reported, use them as evidence, but also judge the design quality.
 
