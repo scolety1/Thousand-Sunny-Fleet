@@ -129,6 +129,10 @@ function Test-RuntimeHelpers {
     $modelArgs = @(Add-FleetArrayArgument -Arguments @("-File", "planner.ps1") -Name "-Models" -Values @("gpt-5.5", "gpt-5.4"))
     Assert-Equal -Actual ($modelArgs -join "|") -Expected "-File|planner.ps1|-Models|gpt-5.5,gpt-5.4" -Message "Runtime passes array arguments as one CLI value"
 
+    $singleChangedFile = @(@("src/app.txt") | Sort-Object -Unique)
+    $combinedStageList = @($singleChangedFile + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md"))
+    Assert-Equal -Actual $combinedStageList.Count -Expected 3 -Message "Single-file change lists stay arrays before staging"
+
     $shimRoot = Join-Path $env:TEMP ("fleet shim test " + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
     $ps1Shim = Join-Path $shimRoot "sample-tool.ps1"

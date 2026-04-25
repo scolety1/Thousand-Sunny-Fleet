@@ -741,7 +741,7 @@ REVIEW_FINDING: P2: short description
             exit 1
         }
 
-        $filesChanged = @(git diff --name-only; git ls-files --others --exclude-standard) | Sort-Object -Unique
+        $filesChanged = @(@(git diff --name-only; git ls-files --others --exclude-standard) | Sort-Object -Unique)
         Mark-FirstUncheckedTaskComplete
         Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build passed and checkpoint loop review completed."
         Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md"))
