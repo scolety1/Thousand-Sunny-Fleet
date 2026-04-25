@@ -16,6 +16,8 @@ param(
 
     [int]$VisualEvery = 0,
 
+    [int]$VisualInspectEvery = 0,
+
     [switch]$PushCheckpoint,
 
     [switch]$SkipDebug,
@@ -72,6 +74,10 @@ if ($MaxBatches -lt 1) {
 
 if ($VisualEvery -lt 0) {
     Stop-Usage "-VisualEvery must be 0 or greater."
+}
+
+if ($VisualInspectEvery -lt 0) {
+    Stop-Usage "-VisualInspectEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -381,6 +387,22 @@ Do not edit NIGHTLY_REPORT.md.
         powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-smoke.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Visual smoke failed. Ending loop without merge." -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    if ($VisualInspectEvery -gt 0 -and ($batch % $VisualInspectEvery -eq 0)) {
+        $serveDir = if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildDirectory)) { "." } else { $script:projectConfig.buildDirectory }
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-inspect.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir
+        $visualInspectPassed = $LASTEXITCODE -eq 0
+        git add docs/codex/VISUAL_BUGS.md
+        $pendingVisualCommit = @(git diff --cached --name-only)
+        if ($pendingVisualCommit.Count -gt 0) {
+            git commit -m "Codex visual inspect batch $batch"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+        }
+        if (-not $visualInspectPassed) {
+            Write-Host "Visual inspect found blocking issues. Ending loop without merge." -ForegroundColor Red
             exit 1
         }
     }

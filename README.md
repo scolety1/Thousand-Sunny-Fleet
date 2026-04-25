@@ -20,6 +20,7 @@ cd C:\Dev\codex-fleet
 .\fleet-morning-review.ps1
 .\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
 .\visual-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
+.\visual-inspect.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
 ```
@@ -34,12 +35,14 @@ cd C:\Dev\codex-fleet
 
 `visual-smoke.ps1` launches the site, opens Chrome/Edge headless, checks key text/anchors on desktop and mobile, records console issues, and saves screenshots under `.codex-logs/visual-*`.
 
+`visual-inspect.ps1` launches the site, opens desktop and mobile viewports, screenshots the page, and writes `docs/codex/VISUAL_BUGS.md` with suspicious layout issues such as horizontal overflow, clipped text, covered headings, console errors, and small tap targets.
+
 ## Mission Checkpoint Loop
 
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -51,6 +54,7 @@ The checkpoint loop:
 - writes `docs/codex/CHECKPOINT_REVIEW.md`
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
+- optionally writes visual bug reports with `-VisualInspectEvery N`
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
