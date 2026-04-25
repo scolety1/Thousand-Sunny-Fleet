@@ -19,6 +19,8 @@ cd C:\Dev\codex-fleet
 .\fleet-doctor.ps1
 .\fleet-status.ps1
 .\fleet-supervisor.ps1 -Once
+.\merge-readiness.ps1
+.\visual-gallery.ps1
 .\recover-interrupted-task.ps1 -Project EasyLife
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
@@ -42,6 +44,10 @@ cd C:\Dev\codex-fleet
 `fleet-morning-review.ps1` checks each configured project before you merge: branch, dirty state, unchecked tasks, changed files, recent report entries, and build result.
 
 `fleet-supervisor.ps1` writes `out/fleet-supervisor.md` and can stay open as an all-day dashboard. It shows each ship's branch, HEAD, dirty state, remaining tasks, checkpoint verdict, Simon verdict, Joey verdict, and latest report note.
+
+`merge-readiness.ps1` runs Jimbei Harbor Master and writes `out/merge-readiness.md`. It gives each ship one of three answers: `DO NOT MERGE`, `SAFE TO INSPECT`, or `SAFE TO MERGE AFTER HUMAN REVIEW`.
+
+`visual-gallery.ps1` writes `out/visual-gallery.html`, a local screenshot gallery for the latest visual smoke and visual inspection runs across the fleet.
 
 `debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes.
 
@@ -69,6 +75,7 @@ The checkpoint loop:
 - commits each successful task
 - stages only the files it intentionally changed instead of using `git add .`
 - writes `docs/codex/CHECKPOINT_REVIEW.md`
+- includes completed task, changed file, visual, Simon, Joey, and next-batch guidance in checkpoint reviews
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
 - optionally writes visual bug reports with `-VisualInspectEvery N`

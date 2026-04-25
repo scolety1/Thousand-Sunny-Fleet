@@ -21,6 +21,9 @@ The fleet can already:
 - avoid `git add .`
 - block unresolved P1/P2 review findings
 - write a basic supervisor report
+- write a merge-readiness report with one merge/no-merge answer per ship
+- write a local visual screenshot gallery for faster morning inspection
+- include visual, Simon, Joey, changed-file, completed-task, and next-batch guidance in checkpoint reviews
 
 The system is now useful, but it still needs stronger recovery and operator controls before it is truly comfortable for all-day unattended runs.
 
@@ -85,7 +88,7 @@ Checks:
 
 ## Priority 2 - Review Quality
 
-### 4. Merge readiness report
+### 4. Merge readiness report - done
 
 Problem:
 Morning review still requires jumping between reports.
@@ -101,7 +104,7 @@ Output:
 
 Reasons should include build result, dirty state, blocked files, Joey verdict, visual bugs, Simon verdict, checkpoint verdict, and branch divergence.
 
-### 5. Screenshot gallery
+### 5. Screenshot gallery - done
 
 Problem:
 Visual artifacts exist, but reviewing them is clunky.
@@ -112,7 +115,7 @@ Generate `out/visual-gallery.html` or `docs/codex/VISUAL_GALLERY.md` with links/
 Expected behavior:
 One morning file shows the latest screenshots for each ship.
 
-### 6. Better checkpoint summaries
+### 6. Better checkpoint summaries - done
 
 Problem:
 Checkpoint reports are useful but not always decisive.

@@ -18,8 +18,9 @@
 ## Review And Recovery
 
 - [x] Add `recover-interrupted-task.ps1` for clean interrupted-run recovery.
-- [ ] Add `merge-readiness.ps1` for a single morning merge/no-merge answer.
-- [ ] Add a latest screenshot gallery for visual review.
+- [x] Add `merge-readiness.ps1` for a single morning merge/no-merge answer.
+- [x] Add a latest screenshot gallery for visual review.
+- [x] Improve checkpoint summaries with completed tasks, changed files, visual/Simon/Joey status, and next-batch guidance.
 - [ ] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
 
 More detail: `docs/FLEET_IMPROVEMENT_GAMEPLAN.md`.
