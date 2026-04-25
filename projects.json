@@ -1,5 +1,19 @@
 ﻿[
     {
+        "name":  "CursorPets",
+        "repo":  "C:\\Dev\\cursor-pets",
+        "rounds":  99,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  ".",
+        "buildCommand":  "npm.cmd run build",
+        "profile":  "experimental-prototype",
+        "branchPrefix":  "codex/cursor-pets",
+        "visualPaths":  [
+                            "/"
+                        ]
+    },
+    {
         "name":  "EasyLife",
         "repo":  "C:\\Dev\\easylifehq.github.io",
         "rounds":  99,
@@ -118,6 +132,20 @@
                          "rateLimitCooldownSeconds":  3600,
                          "rateLimitMaxCooldowns":  4
                      },
+        "visualPaths":  [
+                            "/"
+                        ]
+    },
+    {
+        "name":  "SpecialSauce",
+        "repo":  "C:\\Dev\\special-sauce",
+        "rounds":  99,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  ".",
+        "buildCommand":  "npm.cmd run build",
+        "profile":  "experimental-prototype",
+        "branchPrefix":  "codex/special-sauce",
         "visualPaths":  [
                             "/"
                         ]
