@@ -80,7 +80,7 @@ function New-FleetLaunchManifest {
         [string]$ProjectFilter = ""
     )
 
-    $launchId = Get-Date -Format "yyyyMMdd-HHmmss"
+    $launchId = "{0}-{1}" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"), ([guid]::NewGuid().ToString("N").Substring(0, 6))
     $launchRoot = Join-Path $FleetRoot ".codex-local\launches"
     New-Item -ItemType Directory -Force -Path $launchRoot | Out-Null
     New-Item -ItemType Directory -Force -Path (Join-Path $FleetRoot "out") | Out-Null
