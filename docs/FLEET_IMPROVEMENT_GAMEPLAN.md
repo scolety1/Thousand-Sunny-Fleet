@@ -198,11 +198,11 @@ Use them to test fleet logic without risking real repos.
 
 ## Recommended Build Order
 
-1. `fleet-doctor.ps1`
+1. `fleet-doctor.ps1` - done
 2. timeout watchdog
 3. fallback model chain
 4. launch presets
-5. recover interrupted task helper
+5. recover interrupted task helper - done
 6. merge readiness report
 7. screenshot gallery
 8. script-level tests

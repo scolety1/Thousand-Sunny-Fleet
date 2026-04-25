@@ -16,8 +16,10 @@ Configured in `projects.json`:
 cd C:\Dev\codex-fleet
 
 .\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
+.\fleet-doctor.ps1
 .\fleet-status.ps1
 .\fleet-supervisor.ps1 -Once
+.\recover-interrupted-task.ps1 -Project EasyLife
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
 .\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
@@ -30,6 +32,10 @@ cd C:\Dev\codex-fleet
 ```
 
 `run-fleet.ps1` starts each project loop in a separate PowerShell window. Keep rounds low until the reports feel boring and predictable.
+
+`fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon reports, and missing build directories block launch.
+
+`recover-interrupted-task.ps1` handles a half-finished task after an interrupted run. By default it does a dry run: changed files, first unchecked task, guardrails, and build. Add `-ConfirmRecovery` only when you want it to mark the task complete, append the report, and commit.
 
 `make-context-bundles.ps1` writes paste-ready ChatGPT Pro context bundles into `out/`.
 

@@ -1,5 +1,7 @@
 param(
-    [string]$ConfigPath = ".\projects.json"
+    [string]$ConfigPath = ".\projects.json",
+
+    [switch]$SkipDoctor
 )
 
 $ErrorActionPreference = "Continue"
@@ -9,7 +11,20 @@ if (!(Test-Path $ConfigPath)) {
     exit 1
 }
 
-$projects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+$fleetRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+if (!$SkipDoctor) {
+    $doctorPath = Join-Path $fleetRoot "fleet-doctor.ps1"
+    powershell -NoProfile -ExecutionPolicy Bypass -File $doctorPath -ConfigPath $ConfigPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Fleet launch refused. Chopper found at least one ship that is not ready to sail." -ForegroundColor Red
+        Write-Host "Fix the report findings or rerun with -SkipDoctor if you are intentionally bypassing preflight." -ForegroundColor Yellow
+        exit 1
+    }
+}
+
+$parsedProjects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+$projects = @($parsedProjects | ForEach-Object { $_ })
 
 foreach ($project in $projects) {
     if (!(Test-Path $project.repo)) {

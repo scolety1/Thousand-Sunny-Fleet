@@ -7,7 +7,7 @@
 - [ ] Add fallback model chains for Codex CLI runs, so the loop can retry with a configured fallback instead of stopping on selected-model capacity.
 - [x] Add a max retry count per task in the reusable loop template.
 - [ ] Add hard timeout watchdogs for Codex, build, visual, Simon, Joey, Nami, and checkpoint steps.
-- [ ] Add `fleet-doctor.ps1` as the preflight command before school-day or overnight runs.
+- [x] Add `fleet-doctor.ps1` as the preflight command before school-day or overnight runs.
 
 ## Planner Handoff
 
@@ -17,7 +17,7 @@
 
 ## Review And Recovery
 
-- [ ] Add `recover-interrupted-task.ps1` for clean interrupted-run recovery.
+- [x] Add `recover-interrupted-task.ps1` for clean interrupted-run recovery.
 - [ ] Add `merge-readiness.ps1` for a single morning merge/no-merge answer.
 - [ ] Add a latest screenshot gallery for visual review.
 - [ ] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
