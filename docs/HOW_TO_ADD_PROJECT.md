@@ -16,6 +16,18 @@ Profiles:
 - `docs-only`
 - `experimental-prototype`
 
+Phase 0 intake fields are recorded in `projects.json` when a ship joins the fleet. Profiles provide conservative defaults, and you can override them during intake:
+
+```powershell
+.\add-project.ps1 -Name YourApi -Repo C:\Dev\your-api -Profile real-product -ProjectType full-stack-web -RiskTier staging -Capability edit-backend-code
+```
+
+Supported project types: `marketing-site`, `full-stack-web`, `desktop-app`, `cli-tool`, `library`, `data-pipeline`, `ai-workflow`, `mobile-app`, `game`, `documentation`, `sandbox-prototype`.
+
+Supported risk tiers: `sandbox`, `local-only`, `staging`, `production-adjacent`, `production`.
+
+Supported capabilities: `edit-package-files`, `add-dependencies`, `edit-backend-code`, `edit-migrations`, `edit-auth-policy`, `edit-deployment-config`, `use-network-apis`, `open-pull-requests`, `deploy`.
+
 For EasyLife-style repos where the app lives in a subfolder:
 
 ```powershell
@@ -25,6 +37,49 @@ For EasyLife-style repos where the app lives in a subfolder:
 If the repo already has uncommitted changes, commit them first. Use `-Force` only when you intentionally want to install/register despite a dirty tree.
 
 ## 2. Edit the task queue
+
+For serious software ships, create the Phase 1 architecture pack before broad implementation:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\fleet-plan.ps1 -Project YourProject -Template
+```
+
+Review the generated files in `docs/codex/`, then change `docs/codex/ARCHITECTURE_APPROVAL.md` to `Status: APPROVED` only after human review. Check the gate with:
+
+```powershell
+.\fleet-plan.ps1 -Project YourProject -ValidateOnly
+```
+
+After architecture approval, use the Phase 2 scaffold gate for new codebases:
+
+```powershell
+.\scaffold-project.ps1 -Repo C:\Dev\your-project -ScaffoldType vite-react -Register
+```
+
+Allowed scaffold types: `vite-react`, `next-js`, `express-api`, `electron-desktop`, `python-cli`, `library-js`, `test-harness`.
+
+Scaffolds that add package dependencies also create `docs/codex/DEPENDENCY_PROPOSAL.md` and `docs/codex/DEPENDENCY_APPROVAL.md` with `Status: DRAFT`. Keep dependency work gated until human review changes the approval file to `Status: APPROVED`.
+
+When the ship is mature enough for recurring maintenance, install the Phase 8 maintenance templates:
+
+```powershell
+.\fleet-maintenance.ps1 -Project YourProject -Template
+```
+
+The regular maintenance report is read-only:
+
+```powershell
+.\fleet-maintenance.ps1 -Project YourProject
+```
+
+Before any limited business autopilot lane is allowed, create and review the Phase 9 policy templates:
+
+```powershell
+.\fleet-autopilot-policy.ps1 -Project YourProject -Template
+```
+
+Keep `AUTOPILOT_APPROVAL.md` in `Status: DRAFT` until the safe lanes, spending limit, customer-data rules, and escalation rules have human approval.
 
 Open:
 

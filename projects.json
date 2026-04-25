@@ -17,7 +17,20 @@
         "overnightJoeyEvery":  4,
         "visualPaths":  [
                             "/"
-                        ]
+                        ],
+        "projectType":  "sandbox-prototype",
+        "riskTier":  "sandbox",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
     },
     {
         "name":  "EasyLife",
@@ -85,7 +98,20 @@
         "overnightVisualInspectEvery":  1,
         "overnightSimonEvery":  1,
         "overnightRobinEvery":  4,
-        "overnightJoeyEvery":  4
+        "overnightJoeyEvery":  4,
+        "projectType":  "full-stack-web",
+        "riskTier":  "production-adjacent",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
     },
     {
         "name":  "NinersDynastyWarRoom",
@@ -105,7 +131,20 @@
         "overnightJoeyEvery":  6,
         "visualPaths":  [
                             "/"
-                        ]
+                        ],
+        "projectType":  "sandbox-prototype",
+        "riskTier":  "sandbox",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
     },
     {
         "name":  "RestaurantDemo",
@@ -168,7 +207,20 @@
         "overnightVisualInspectEvery":  1,
         "overnightSimonEvery":  1,
         "overnightRobinEvery":  1,
-        "overnightJoeyEvery":  3
+        "overnightJoeyEvery":  3,
+        "projectType":  "marketing-site",
+        "riskTier":  "local-only",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
     },
     {
         "name":  "ShiftPlate",
@@ -188,7 +240,20 @@
         "overnightJoeyEvery":  4,
         "visualPaths":  [
                             "/"
-                        ]
+                        ],
+        "projectType":  "sandbox-prototype",
+        "riskTier":  "sandbox",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
     },
     {
         "name":  "UrbanKitchenWineList",
@@ -252,6 +317,19 @@
         "overnightVisualInspectEvery":  1,
         "overnightSimonEvery":  1,
         "overnightRobinEvery":  1,
-        "overnightJoeyEvery":  2
+        "overnightJoeyEvery":  2,
+        "projectType":  "marketing-site",
+        "riskTier":  "local-only",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
     }
 ]

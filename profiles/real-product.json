@@ -1,6 +1,19 @@
 {
   "name": "real-product",
   "description": "Strict profile for real product repositories.",
+  "projectType": "full-stack-web",
+  "riskTier": "production-adjacent",
+  "capabilities": {
+    "canEditPackageFiles": false,
+    "canAddDependencies": false,
+    "canEditBackendCode": false,
+    "canEditMigrations": false,
+    "canEditAuthPolicy": false,
+    "canEditDeploymentConfig": false,
+    "canUseNetworkApis": false,
+    "canOpenPullRequests": false,
+    "canDeploy": false
+  },
   "defaultRounds": 6,
   "branchPrefix": "codex/product",
   "maxChangedFiles": 8,

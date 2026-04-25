@@ -20,6 +20,15 @@ cd C:\Dev\codex-fleet
 
 .\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
 .\fleet-doctor.ps1
+.\fleet-plan.ps1 -Project EasyLife -Template
+.\fleet-plan.ps1 -Project EasyLife -ValidateOnly
+.\scaffold-project.ps1 -Repo C:\Dev\my-project -ScaffoldType vite-react -Register
+.\migration-review.ps1 -Repo C:\Dev\my-project
+.\sensitive-systems-review.ps1 -Repo C:\Dev\my-project
+.\runtime-verify.ps1 -Repo C:\Dev\my-project -Template
+.\release-readiness.ps1 -Project EasyLife
+.\fleet-maintenance.ps1
+.\fleet-autopilot-policy.ps1
 .\launch-proof-run.ps1 -Project RestaurantDemo
 .\launch-school-run.ps1
 .\launch-overnight-run.ps1 -Project EasyLife
@@ -46,7 +55,23 @@ cd C:\Dev\codex-fleet
 
 `request-safe-stop.ps1` is the cooperative stop button. It writes a local stop request under `.codex-local/stop-requests/`; checkpoint loops stop before the next task, batch, or planning step instead of killing in-progress work. Launchers refuse to start while matching safe stop requests are active unless `-AllowSafeStopRequests` is used.
 
-`fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon/Robin reports, and missing build directories block launch.
+`fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, invalid Phase 0 intake metadata, RED Joey/checkpoint/Simon/Robin reports, and missing build directories block launch.
+
+`fleet-plan.ps1` is the Phase 1 Architect gate. It writes or validates `docs/codex/ARCHITECTURE.md`, `docs/codex/ENGINEERING_PLAN.md`, `docs/codex/RISK_REGISTER.md`, and `docs/codex/ARCHITECTURE_APPROVAL.md`. Use `-Template` for local templates, or run without `-Template` to ask Codex Architect for a planning pack. `-ValidateOnly` passes only when the approval file says `Status: APPROVED`.
+
+`scaffold-project.ps1` is the Phase 2 scaffold and dependency gate. It supports allowlisted scaffolds (`vite-react`, `next-js`, `express-api`, `electron-desktop`, `python-cli`, `library-js`, `test-harness`) and refuses to scaffold until `ARCHITECTURE_APPROVAL.md` says `Status: APPROVED`. Scaffolds with package dependencies write `docs/codex/DEPENDENCY_PROPOSAL.md` and `docs/codex/DEPENDENCY_APPROVAL.md` in DRAFT status for human review.
+
+`migration-review.ps1` is the Phase 4 migration safety gate. Migration tasks require `docs/codex/MIGRATION_PROPOSAL.md` with summary, reversibility, data impact, affected tables/collections, local run evidence, and rollback plan, plus `docs/codex/MIGRATION_APPROVAL.md` with `Status: APPROVED`.
+
+`sensitive-systems-review.ps1` is the Phase 5 auth, payment, secrets, and external-service gate. It scans staged diffs for common secret patterns and validates `EXTERNAL_SERVICES.md`, `AUTH_POLICY.md`/`AUTH_APPROVAL.md`, and `PAYMENT_RISK.md`/`PAYMENT_APPROVAL.md` when those sensitive areas are in play. The checkpoint loop runs this gate before every Fleet commit.
+
+`runtime-verify.ps1` is the Phase 6 runtime verification gate. It reads `docs/codex/RUNTIME_CHECKS.md` and writes `docs/codex/RUNTIME_VERIFICATION.md`. Checks can be `command: ...`, `url: ...`, or `text: file => expected text`. Integration/performance tasks and tasks with `accept:` commands trigger runtime verification during the checkpoint loop.
+
+`release-readiness.ps1` is the Phase 7 release and operations gate. It writes `out/release-readiness.md` with build status, commits, changed files, checkpoint/security/runtime/migration/sensitive-system gates, deployment plan status, post-deploy smoke plan status, rollback plan status, and release approval status. It never deploys.
+
+`fleet-maintenance.ps1` is the Phase 8 autonomous maintenance intake lane. It scans existing local reports for issue intake, bug triage, flaky-test/performance/dependency/debt signals, and writes `out/fleet-maintenance.md` without editing ships. Dirty ships are skipped by default so active work is not inspected; use `-IncludeDirty` only for an approved rescue or review. Use `-Template` to install `MAINTENANCE_QUEUE.md`, `MAINTENANCE_WINDOWS.md`, and `TECH_DEBT.md` when a ship is ready for recurring maintenance.
+
+`fleet-autopilot-policy.ps1` is the Phase 9 limited business autopilot gate. It validates `AUTOPILOT_POLICY.md` and `AUTOPILOT_APPROVAL.md`, requires explicit rules for spending limits, customer-data handling, and escalation, writes an audit log under `.codex-local/audit/`, and never spends money, deploys, emails customers, changes auth/payments, edits legal text, or touches customer data.
 
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows.
 
@@ -103,9 +128,10 @@ The checkpoint loop:
 - optionally runs Joey security reviews with `-JoeyEvery N`
 - can continue through non-blocking YELLOW checkpoint reviews with `-ContinueOnYellowCheckpoint`
 - generates/imports the next five tasks when the queue is empty
+- refreshes `out/ship-previews.html` and `out/ship-previews.json` when a loop finishes, unless `-SkipShipPreviewRefresh` is passed
 - never merges to `main`
 
-Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. `visualPaths` can include query strings such as `/easylist?visualQa=1` for dev-only visual QA access. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, Simon, and Robin. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
+Each project can configure `profile`, Phase 0 `projectType`, `riskTier`, `capabilities`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. `visualPaths` can include query strings such as `/easylist?visualQa=1` for dev-only visual QA access. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, Simon, and Robin. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
 
 If Codex output looks like a usage/rate-limit response, the loop waits for the configured rate-limit cooldown and retries without counting that wait as a normal implementation attempt. Defaults are one-hour cooldowns with caps per ship/profile, so a school-day run can survive a temporary limit reset without sleeping forever.
 
@@ -114,6 +140,22 @@ Long-running steps are wrapped by the fleet watchdog, including Codex implementa
 `-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, Robin RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
 Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Robin copy review, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Robin/Joey repair orders take priority over fresh feature work.
+
+Phase 3 task contracts can be added to task lines when a task needs tighter implementation controls:
+
+```md
+- [ ] Add API health smoke test. [class:test risk:medium scope:tests/,src/ accept:npm.cmd test]
+```
+
+Supported classes are `feature`, `bugfix`, `refactor`, `test`, `docs`, `design`, `copy`, `backend`, `migration`, `integration`, and `performance`. Supported risks are `low`, `medium`, `high`, and `gated`; `high` and `gated` tasks require an approved Phase 1 architecture plan. `scope:` limits changed files to path prefixes, and `accept:` runs task-specific checks in addition to the normal external build.
+
+Backend and migration task classes are additionally gated. `class:backend` requires approved architecture. `class:migration` requires approved architecture plus the Phase 4 migration proposal and approval gate.
+
+Sensitive tasks are gated too. `class:integration` requires `docs/codex/EXTERNAL_SERVICES.md`; auth-related tasks require approved `AUTH_APPROVAL.md`; payment-related tasks require approved `PAYMENT_APPROVAL.md`. Production credentials and payment activation remain human-controlled.
+
+Phase 8 maintenance is an intake lane, not a repair bot. `fleet-maintenance.ps1` looks at existing Fleet reports and maintenance docs, classifies likely bugs, dependency-review items, performance regressions, flaky-test signals, and technical debt, then leaves the resulting queue for the checkpoint loop and human approval gates.
+
+Phase 9 limited autopilot is policy-first. `fleet-autopilot-policy.ps1` can prepare templates and validate whether a ship has approved safe lanes, zero spending, customer-data rules, escalation rules, and explicit human approval for reputation, money, auth, payments, legal text, mass email, data deletion, and production deploy decisions.
 
 Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, and Joey reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
@@ -128,6 +170,14 @@ Add a new repo to the fleet:
 ```powershell
 .\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
 ```
+
+Phase 0 intake metadata is recorded for every ship:
+
+- `projectType`: `marketing-site`, `full-stack-web`, `desktop-app`, `cli-tool`, `library`, `data-pipeline`, `ai-workflow`, `mobile-app`, `game`, `documentation`, or `sandbox-prototype`
+- `riskTier`: `sandbox`, `local-only`, `staging`, `production-adjacent`, or `production`
+- `capabilities`: explicit permission flags for package files, dependencies, backend code, migrations, auth policy, deployment config, network APIs, pull requests, and deploys
+
+Profiles provide conservative defaults. Use `add-project.ps1 -ProjectType ... -RiskTier ... -Capability ...` only when a ship needs a more specific intake classification.
 
 Then prove it with one small task:
 

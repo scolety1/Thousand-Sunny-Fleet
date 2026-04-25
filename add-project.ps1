@@ -10,6 +10,15 @@ param(
     [ValidateSet("real-product", "frontend-static-demo", "docs-only", "experimental-prototype")]
     [string]$Profile = "frontend-static-demo",
 
+    [ValidateSet("", "marketing-site", "full-stack-web", "desktop-app", "cli-tool", "library", "data-pipeline", "ai-workflow", "mobile-app", "game", "documentation", "sandbox-prototype")]
+    [string]$ProjectType = "",
+
+    [ValidateSet("", "sandbox", "local-only", "staging", "production-adjacent", "production")]
+    [string]$RiskTier = "",
+
+    [ValidateSet("edit-package-files", "add-dependencies", "edit-backend-code", "edit-migrations", "edit-auth-policy", "edit-deployment-config", "use-network-apis", "open-pull-requests", "deploy")]
+    [string[]]$Capability = @(),
+
     [string]$BuildDirectory,
 
     [string]$BuildCommand,
@@ -51,6 +60,53 @@ function Add-LocalExclude {
     }
 }
 
+function Get-ObjectPropertyValue {
+    param(
+        [object]$Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) { return $null }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+
+function New-CapabilityObject {
+    param(
+        [object]$DefaultCapabilities,
+        [string[]]$EnabledCapabilities
+    )
+
+    $capabilities = [ordered]@{
+        canEditPackageFiles = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canEditPackageFiles")
+        canAddDependencies = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canAddDependencies")
+        canEditBackendCode = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canEditBackendCode")
+        canEditMigrations = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canEditMigrations")
+        canEditAuthPolicy = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canEditAuthPolicy")
+        canEditDeploymentConfig = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canEditDeploymentConfig")
+        canUseNetworkApis = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canUseNetworkApis")
+        canOpenPullRequests = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canOpenPullRequests")
+        canDeploy = [bool](Get-ObjectPropertyValue -Object $DefaultCapabilities -Name "canDeploy")
+    }
+
+    foreach ($item in @($EnabledCapabilities)) {
+        switch ($item) {
+            "edit-package-files" { $capabilities.canEditPackageFiles = $true }
+            "add-dependencies" { $capabilities.canAddDependencies = $true }
+            "edit-backend-code" { $capabilities.canEditBackendCode = $true }
+            "edit-migrations" { $capabilities.canEditMigrations = $true }
+            "edit-auth-policy" { $capabilities.canEditAuthPolicy = $true }
+            "edit-deployment-config" { $capabilities.canEditDeploymentConfig = $true }
+            "use-network-apis" { $capabilities.canUseNetworkApis = $true }
+            "open-pull-requests" { $capabilities.canOpenPullRequests = $true }
+            "deploy" { $capabilities.canDeploy = $true }
+        }
+    }
+
+    return [pscustomobject]$capabilities
+}
+
 $fleetRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $fleetRoot "projects.json"
 $profilePath = Join-Path $fleetRoot "profiles\$Profile.json"
@@ -81,6 +137,14 @@ if ($status.Count -gt 0 -and !$Force) {
 Pop-Location
 
 $profileData = Get-Content $profilePath -Raw | ConvertFrom-Json
+if ([string]::IsNullOrWhiteSpace($ProjectType)) {
+    $ProjectType = if ($profileData.projectType) { [string]$profileData.projectType } else { "marketing-site" }
+}
+if ([string]::IsNullOrWhiteSpace($RiskTier)) {
+    $RiskTier = if ($profileData.riskTier) { [string]$profileData.riskTier } else { "local-only" }
+}
+$capabilityPolicy = New-CapabilityObject -DefaultCapabilities $profileData.capabilities -EnabledCapabilities $Capability
+
 if ([string]::IsNullOrWhiteSpace($BuildDirectory)) {
     $BuildDirectory = if ($profileData.buildDirectory) { [string]$profileData.buildDirectory } else { "." }
 }
@@ -126,6 +190,9 @@ $projectEntry = [pscustomobject]@{
     buildDirectory = $BuildDirectory
     buildCommand = $BuildCommand
     profile = $Profile
+    projectType = $ProjectType
+    riskTier = $RiskTier
+    capabilities = $capabilityPolicy
 }
 
 $existing = @($projects | Where-Object { $_.name -eq $Name -or $_.repo -eq $repoPath })
@@ -162,6 +229,8 @@ Write-Host ""
 Write-Host "Project joined the fleet: $Name" -ForegroundColor Green
 Write-Host "Repo: $repoPath"
 Write-Host "Profile: $Profile"
+Write-Host "Project type: $ProjectType"
+Write-Host "Risk tier: $RiskTier"
 Write-Host "Build directory: $BuildDirectory"
 Write-Host "Build command: $BuildCommand"
 Write-Host ""

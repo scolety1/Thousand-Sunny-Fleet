@@ -1,0 +1,421 @@
+# Autonomous Software Roadmap
+
+This roadmap describes how Codex Fleet can grow from a guarded task runner into a staged autonomous software organization for full websites, full-stack products, desktop apps, developer tools, data systems, AI workflows, and other sophisticated software.
+
+The goal is not blind production autopilot. The goal is an increasingly capable system where Fleet does routine engineering independently, asks for approval at high-risk gates, and produces reviewable evidence before anything reaches users.
+
+## North Star
+
+Fleet should eventually be able to take a product mission and return with:
+
+- a planned architecture
+- a working local implementation
+- tests and build evidence
+- screenshots or runtime evidence where relevant
+- security, design, copy, and maintainability reviews
+- migration and deployment plans
+- a clean branch or pull request
+- clear human approval requests for risk-bearing decisions
+
+Fleet should not silently spend money, expose secrets, change production data, weaken auth, alter payment behavior, or deploy user-facing production changes without explicit policy and approval.
+
+## Operating Model
+
+Fleet needs phases, gates, and role-specific reviewers.
+
+### Phase 0 - Intake
+
+Purpose: Decide what kind of software this ship is and what Fleet is allowed to do.
+
+Status: started. Fleet profiles and project registrations now carry `projectType`, `riskTier`, and `capabilities`; `add-project.ps1` can record them during intake, and `fleet-doctor.ps1` validates and reports them before launch.
+
+Required upgrades:
+
+- Add project type profiles beyond web demos:
+  - `marketing-site`
+  - `full-stack-web`
+  - `desktop-app`
+  - `cli-tool`
+  - `library`
+  - `data-pipeline`
+  - `ai-workflow`
+  - `mobile-app`
+  - `game`
+- Add risk tier per ship:
+  - `sandbox`
+  - `local-only`
+  - `staging`
+  - `production-adjacent`
+  - `production`
+- Add capability permissions:
+  - can edit package files
+  - can add dependencies
+  - can edit backend code
+  - can edit migrations
+  - can edit auth policy
+  - can edit deployment config
+  - can use network APIs
+  - can open PRs
+  - can deploy
+
+Exit criteria:
+
+- Fleet can classify a new ship and refuse unsafe launch settings before work begins.
+
+### Phase 1 - Product And Architecture Planning
+
+Purpose: Let Fleet design before it codes.
+
+Status: started. `fleet-plan.ps1` now creates or validates the Phase 1 architecture pack (`ARCHITECTURE.md`, `ENGINEERING_PLAN.md`, `RISK_REGISTER.md`, and `ARCHITECTURE_APPROVAL.md`), and Fleet Doctor reports whether serious ships are missing, draft, or approved.
+
+Required upgrades:
+
+- Add an Architect role that creates:
+  - product brief
+  - user flows
+  - system architecture
+  - data model
+  - API contracts
+  - dependency proposal
+  - test strategy
+  - security model
+  - deployment model
+- Add architecture review gates:
+  - architecture sanity review
+  - security design review
+  - cost and dependency review
+  - human approval checkpoint
+- Store approved plans in `docs/codex/ARCHITECTURE.md`, `docs/codex/ENGINEERING_PLAN.md`, and `docs/codex/RISK_REGISTER.md`.
+
+Exit criteria:
+
+- Fleet cannot scaffold or make broad changes until the architecture plan is accepted.
+
+### Phase 2 - Scaffold And Dependency Gate
+
+Purpose: Build new projects safely, including package files when approved.
+
+Status: started. `scaffold-project.ps1` now supports allowlisted scaffolds, refuses to scaffold before architecture approval, and writes dependency proposal/approval files when package dependencies are introduced. Fleet Doctor reports dependency approval status for package/dependency-capable ships.
+
+Required upgrades:
+
+- Add a `scaffold-project.ps1` flow.
+- Add allowlisted scaffolds:
+  - Vite/React
+  - Next.js
+  - Express/Fastify API
+  - Electron/Tauri desktop
+  - Python CLI/package
+  - library/package skeleton
+  - test harness only
+- Add dependency proposal files before package edits:
+  - dependency name
+  - purpose
+  - license
+  - maintenance status
+  - known risks
+  - alternatives
+- Add a dependency approval gate that permits package changes only for the approved task.
+
+Exit criteria:
+
+- Fleet can create a real new codebase without treating package edits as normal unattended work.
+
+### Phase 3 - Local Implementation Loop
+
+Purpose: Extend the current checkpoint loop into serious implementation work.
+
+Status: started. The checkpoint loop now parses Phase 3 task contracts from task lines, reports task class/risk/scope/acceptance in nightly reports, blocks high/gated work without approved architecture, enforces declared file scopes, and runs task-specific acceptance commands in addition to the normal external build.
+
+Required upgrades:
+
+- Add task classes:
+  - feature
+  - bugfix
+  - refactor
+  - test
+  - docs
+  - design
+  - copy
+  - backend
+  - migration
+  - integration
+  - performance
+- Add task risk levels and allowed file scopes.
+- Add per-task acceptance tests.
+- Add automatic test selection:
+  - unit tests
+  - integration tests
+  - type checks
+  - lint checks
+  - build
+  - smoke tests
+  - visual checks
+- Add larger-change handling:
+  - plan first
+  - implement in slices
+  - checkpoint after each slice
+  - summarize unresolved work
+
+Exit criteria:
+
+- Fleet can build real features across frontend, backend, and shared code while still staying inside approved scope.
+
+### Phase 4 - Backend, Data, And Migration Safety
+
+Purpose: Allow serious backend work without risking production data.
+
+Status: started. `migration-review.ps1` now validates migration proposals and approvals, the checkpoint loop gates backend and migration task classes behind approved architecture, and migration tasks require approved migration evidence before passing.
+
+Required upgrades:
+
+- Add backend profiles for local-only and staging-only work.
+- Add migration reviewer role.
+- Add migration safety checks:
+  - reversible or forward-only justification
+  - data-loss detection
+  - table/collection impact summary
+  - local migration run evidence
+  - rollback plan
+- Add API contract tests.
+- Add local seed data and fixture generation.
+- Add policy that production migrations require human approval.
+
+Exit criteria:
+
+- Fleet can build backend systems locally and propose production changes with evidence.
+
+### Phase 5 - Auth, Secrets, Payments, And External Services
+
+Purpose: Treat sensitive systems as gated capabilities, not permanent blockers.
+
+Status: started. `sensitive-systems-review.ps1` now scans staged diffs for common secret patterns and validates external-service, auth, and payment approval artifacts. The checkpoint loop runs the sensitive systems review before every Fleet commit and blocks integration/auth/payment tasks without the required Phase 5 artifacts.
+
+Required upgrades:
+
+- Add secret scanner before every commit.
+- Add auth policy reviewer.
+- Add payment risk reviewer.
+- Add external service registry:
+  - service name
+  - environment variables
+  - scopes
+  - cost risk
+  - data sent
+  - approval status
+- Add mock-first integration workflow.
+- Add staging-only live integration workflow.
+- Keep production credentials and payment activation human-controlled.
+
+Exit criteria:
+
+- Fleet can write auth/payment/integration code behind explicit approvals, with tests and mocks first.
+
+### Phase 6 - Runtime Verification
+
+Purpose: Move beyond "build passed" into "software works."
+
+Status: started. `runtime-verify.ps1` now runs configured command, URL, and text checks from `RUNTIME_CHECKS.md`, writes `RUNTIME_VERIFICATION.md`, and the checkpoint loop invokes runtime verification for integration/performance tasks or task-specific acceptance work.
+
+Required upgrades:
+
+- Add app-specific smoke scenarios.
+- Add Playwright or equivalent browser flows for web apps.
+- Add CLI command tests for CLI tools.
+- Add API endpoint tests for services.
+- Add desktop app launch checks.
+- Add performance budgets.
+- Add accessibility checks.
+- Add screenshot galleries for every relevant UI route.
+- Add log and console issue summarization.
+
+Exit criteria:
+
+- Fleet can prove core workflows work, not just compile.
+
+### Phase 7 - Release And Operations Gate
+
+Purpose: Let Fleet prepare releases while keeping production control explicit.
+
+Status: started. `release-readiness.ps1` now generates a release evidence package with build, commits, changed files, checkpoint/security/runtime/migration/sensitive gates, deployment plan, post-deploy smoke plan, rollback plan, and human release approval status. It never deploys.
+
+Required upgrades:
+
+- Add release readiness report:
+  - changed files
+  - commits
+  - tests
+  - visual evidence
+  - security findings
+  - migration status
+  - rollback plan
+  - known risks
+- Add deployment plan generation.
+- Add staging deploy support before production.
+- Add production deploy approval gate.
+- Add post-deploy smoke plan.
+- Add rollback command documentation.
+
+Exit criteria:
+
+- Fleet can hand you a release package that is boring to review.
+
+### Phase 8 - Autonomous Maintenance
+
+Purpose: Let Fleet keep mature software healthy.
+
+Status: started. `fleet-maintenance.ps1` now provides a Phase 8 intake lane that scans existing local reports for bugs, dependency-review signals, flaky-test/performance regression signals, and technical debt, writes `out/fleet-maintenance.md`, and can install maintenance queue/window templates when a ship is ready.
+
+Required upgrades:
+
+- Add issue intake from logs, CI, local reports, and human notes.
+- Add bug triage role.
+- Add dependency update lane with changelog and test evidence.
+- Add recurring maintenance windows.
+- Add flaky test detection.
+- Add performance regression detection.
+- Add technical debt queue.
+
+Exit criteria:
+
+- Fleet can maintain sophisticated software continuously without turning every change into a product sprint.
+
+### Phase 9 - Limited Business Autopilot
+
+Purpose: Automate low-risk business operations while preserving human control over reputation, money, and user trust.
+
+Status: started. `fleet-autopilot-policy.ps1` now validates limited-autopilot policy and approval artifacts, requires spending limits, customer-data handling rules, escalation rules, and explicit human approval for sensitive business actions, and writes an audit log for each policy review.
+
+Required upgrades:
+
+- Add policy engine for what can happen automatically.
+- Add spending limits.
+- Add customer-data handling rules.
+- Add escalation rules.
+- Add audit log for every autonomous decision.
+- Add safe automatic lanes:
+  - content typo fixes
+  - docs updates
+  - non-sensitive UI polish
+  - test-backed bug fixes
+  - staging deploys
+  - report generation
+- Keep these human-approved:
+  - pricing changes
+  - production deploys for sensitive apps
+  - payment behavior
+  - auth or permission changes
+  - mass emails
+  - deletion of user data
+  - legal or compliance text
+
+Exit criteria:
+
+- Fleet can operate low-risk lanes overnight and produce a morning business report, while sensitive decisions wait for approval.
+
+## Reviewer Roles To Add
+
+Existing roles cover checkpoint, design, copy, and security. Sophisticated software needs more reviewers.
+
+- Architect: system design, boundaries, data model, dependencies.
+- Test Lead: test plan, coverage risk, missing workflow tests.
+- Backend Reviewer: API behavior, persistence, error handling, observability.
+- Migration Reviewer: data safety and rollback.
+- Dependency Reviewer: package risk, license, maintenance.
+- Performance Reviewer: load time, runtime cost, query cost, bundle size.
+- Accessibility Reviewer: keyboard, screen reader, contrast, motion.
+- Release Manager: deployment plan and rollback.
+- Product Manager: task priority and user-value fit.
+- Operator: logs, alerts, incident readiness, maintenance.
+
+## Core Code Changes Needed
+
+These are the practical Fleet upgrades that unlock the roadmap.
+
+1. Add phase metadata to `projects.json`.
+2. Add permission flags and risk tiers to profiles.
+3. Add a gated approval file format under `.codex-local/approvals/`.
+4. Add `fleet-plan.ps1` for architecture and implementation planning.
+5. Add `scaffold-project.ps1` for approved new-project creation.
+6. Add task classes and risk levels to task parsing.
+7. Add allowed file scopes per task, not just per profile.
+8. Add dependency proposal and dependency approval checks.
+9. Add migration proposal and migration approval checks.
+10. Add test matrix config per ship.
+11. Add workflow smoke tests per ship.
+12. Add release readiness reports.
+13. Add audit logs for autonomous decisions.
+14. Add staging deploy support as a separate gate from production deploy.
+15. Add policy-driven autopilot lanes.
+
+## Milestones
+
+### Milestone A - Full Website Builder
+
+Fleet can create and evolve complete marketing sites and rich frontend apps.
+
+Must have:
+
+- project intake
+- architecture plan
+- scaffold gate
+- visual workflow tests
+- release readiness
+
+### Milestone B - Full-Stack App Builder
+
+Fleet can build local full-stack products with APIs, persistence, and tests.
+
+Must have:
+
+- backend profile
+- API contract tests
+- local database workflow
+- migration proposal gate
+- integration smoke tests
+
+### Milestone C - Sophisticated Software Builder
+
+Fleet can handle CLIs, desktop apps, libraries, data systems, and AI workflows.
+
+Must have:
+
+- project type profiles
+- runtime-specific test adapters
+- dependency review
+- architecture review
+- release packages
+
+### Milestone D - Production-Adjacent Operator
+
+Fleet can prepare deploys and run staging operations.
+
+Must have:
+
+- staging deploy gate
+- post-deploy smoke tests
+- rollback plans
+- audit log
+- incident report template
+
+### Milestone E - Limited Autopilot
+
+Fleet can run safe business and engineering lanes overnight.
+
+Must have:
+
+- policy engine
+- spending limits
+- approval queues
+- escalation rules
+- morning operator report
+
+## Practical Next Step
+
+The best first upgrade is Phase 0 plus Phase 1:
+
+1. Add richer profiles and risk tiers.
+2. Add an architecture planning command.
+3. Add a human approval gate before scaffold, dependency, backend, auth, payment, migration, or deploy work.
+
+That turns Fleet from a careful task runner into the beginning of a real autonomous software shop.

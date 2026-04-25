@@ -208,6 +208,205 @@ function Test-FixtureGeneration {
     Assert-Equal -Actual $projects.Count -Expected 3 -Message "Fixture config contains three ships"
 }
 
+function Test-PhaseZeroIntakeSupport {
+    $allowedProjectTypes = @("marketing-site", "full-stack-web", "desktop-app", "cli-tool", "library", "data-pipeline", "ai-workflow", "mobile-app", "game", "documentation", "sandbox-prototype")
+    $allowedRiskTiers = @("sandbox", "local-only", "staging", "production-adjacent", "production")
+    $capabilityNames = @("canEditPackageFiles", "canAddDependencies", "canEditBackendCode", "canEditMigrations", "canEditAuthPolicy", "canEditDeploymentConfig", "canUseNetworkApis", "canOpenPullRequests", "canDeploy")
+
+    foreach ($profilePath in @(Get-ChildItem (Join-Path $fleetRoot "profiles") -Filter "*.json")) {
+        $profile = Get-Content $profilePath.FullName -Raw | ConvertFrom-Json
+        Assert-True -Condition ($allowedProjectTypes -contains [string]$profile.projectType) -Message "$($profile.name) profile has a valid projectType"
+        Assert-True -Condition ($allowedRiskTiers -contains [string]$profile.riskTier) -Message "$($profile.name) profile has a valid riskTier"
+        foreach ($capabilityName in $capabilityNames) {
+            Assert-True -Condition ($null -ne $profile.capabilities.PSObject.Properties[$capabilityName]) -Message "$($profile.name) profile declares $capabilityName"
+        }
+    }
+
+    $addProjectText = Get-Content (Join-Path $fleetRoot "add-project.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition ($addProjectText -match '\[string\]\$ProjectType') -Message "add-project accepts project type intake metadata"
+    Assert-True -Condition ($addProjectText -match '\[string\]\$RiskTier') -Message "add-project accepts risk tier intake metadata"
+    Assert-True -Condition ($addProjectText -match '\[string\[\]\]\$Capability') -Message "add-project accepts capability intake metadata"
+    Assert-True -Condition ($doctorText -match 'Resolve-IntakeMetadata') -Message "Fleet doctor resolves Phase 0 intake metadata"
+    Assert-True -Condition ($doctorText -match 'Unknown projectType') -Message "Fleet doctor blocks unknown project types"
+    Assert-True -Condition ($doctorText -match 'Unknown riskTier') -Message "Fleet doctor blocks unknown risk tiers"
+    Assert-True -Condition ($readmeText -match 'Phase 0 intake metadata') -Message "README documents Phase 0 intake metadata"
+}
+
+function Test-PhaseOneArchitectureSupport {
+    $planText = Get-Content (Join-Path $fleetRoot "fleet-plan.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-plan.ps1")) -Message "Fleet exposes Phase 1 architecture planning script"
+    Assert-True -Condition ($planText -match '\[switch\]\$Template') -Message "fleet-plan can write architecture templates"
+    Assert-True -Condition ($planText -match '\[switch\]\$ValidateOnly') -Message "fleet-plan can validate architecture approval"
+    Assert-True -Condition ($planText -match 'ARCHITECTURE\.md') -Message "fleet-plan manages ARCHITECTURE.md"
+    Assert-True -Condition ($planText -match 'ENGINEERING_PLAN\.md') -Message "fleet-plan manages ENGINEERING_PLAN.md"
+    Assert-True -Condition ($planText -match 'RISK_REGISTER\.md') -Message "fleet-plan manages RISK_REGISTER.md"
+    Assert-True -Condition ($planText -match 'ARCHITECTURE_APPROVAL\.md') -Message "fleet-plan manages ARCHITECTURE_APPROVAL.md"
+    Assert-True -Condition ($planText -match 'Status:\s*APPROVED') -Message "fleet-plan validates human approval status"
+    Assert-True -Condition ($doctorText -match 'Get-ArchitecturePlanStatus') -Message "Fleet doctor reports architecture planning status"
+    Assert-True -Condition ($doctorText -match 'Phase 1 architecture planning pack') -Message "Fleet doctor warns when serious ships lack architecture planning"
+    Assert-True -Condition ($readmeText -match 'Phase 1 Architect gate') -Message "README documents the Phase 1 Architect gate"
+}
+
+function Test-PhaseTwoScaffoldSupport {
+    $scaffoldText = Get-Content (Join-Path $fleetRoot "scaffold-project.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "scaffold-project.ps1")) -Message "Fleet exposes Phase 2 scaffold script"
+    foreach ($scaffoldType in @("vite-react", "next-js", "express-api", "electron-desktop", "python-cli", "library-js", "test-harness")) {
+        Assert-True -Condition ($scaffoldText -match [regex]::Escape($scaffoldType)) -Message "scaffold-project supports $scaffoldType"
+    }
+    Assert-True -Condition ($scaffoldText -match 'Test-ArchitectureApproved') -Message "scaffold-project gates scaffolding on architecture approval"
+    Assert-True -Condition ($scaffoldText -match 'DEPENDENCY_PROPOSAL\.md') -Message "scaffold-project writes dependency proposals"
+    Assert-True -Condition ($scaffoldText -match 'DEPENDENCY_APPROVAL\.md') -Message "scaffold-project writes dependency approvals"
+    Assert-True -Condition ($scaffoldText -match 'Status:\s*DRAFT') -Message "dependency approval starts as draft"
+    Assert-True -Condition ($doctorText -match 'Get-DependencyApprovalStatus') -Message "Fleet doctor reports dependency approval status"
+    Assert-True -Condition ($doctorText -match 'Phase 2 dependency proposal') -Message "Fleet doctor warns for missing or draft dependency gates"
+    Assert-True -Condition ($readmeText -match 'Phase 2 scaffold and dependency gate') -Message "README documents the Phase 2 scaffold gate"
+}
+
+function Test-PhaseThreeTaskContractSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition ($loopText -match 'Resolve-TaskContract') -Message "Checkpoint loop parses Phase 3 task contracts"
+    Assert-True -Condition ($loopText -match 'class:') -Message "Task contract parser recognizes class metadata"
+    Assert-True -Condition ($loopText -match 'risk:') -Message "Task contract parser recognizes risk metadata"
+    Assert-True -Condition ($loopText -match 'scope:') -Message "Task contract parser recognizes scope metadata"
+    Assert-True -Condition ($loopText -match 'accept:\(\.\+\?') -Message "Task contract parser recognizes acceptance commands"
+    Assert-True -Condition ($loopText -match 'Test-TaskScope') -Message "Checkpoint loop enforces declared task scopes"
+    Assert-True -Condition ($loopText -match 'Invoke-TaskAcceptanceChecks') -Message "Checkpoint loop runs task-specific acceptance checks"
+    Assert-True -Condition ($loopText -match 'High/gated task requires approved architecture plan') -Message "Checkpoint loop blocks high/gated tasks without architecture approval"
+    Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
+    Assert-True -Condition ($plannerText -match 'Supported classes') -Message "Nami planner is taught task classes"
+    Assert-True -Condition ($plannerText -match 'Supported risks') -Message "Nami planner is taught task risks"
+    Assert-True -Condition ($readmeText -match 'Phase 3 task contracts') -Message "README documents Phase 3 task contracts"
+}
+
+function Test-PhaseFourMigrationSupport {
+    $migrationText = Get-Content (Join-Path $fleetRoot "migration-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "migration-review.ps1")) -Message "Fleet exposes Phase 4 migration review script"
+    Assert-True -Condition ($migrationText -match 'MIGRATION_PROPOSAL\.md') -Message "Migration review requires migration proposal"
+    Assert-True -Condition ($migrationText -match 'MIGRATION_APPROVAL\.md') -Message "Migration review requires migration approval"
+    foreach ($heading in @("Reversibility", "Data Impact", "Affected Tables Or Collections", "Local Run Evidence", "Rollback Plan")) {
+        Assert-True -Condition ($migrationText -match [regex]::Escape($heading)) -Message "Migration review checks $heading"
+    }
+    Assert-True -Condition ($loopText -match 'Invoke-MigrationReviewGate') -Message "Checkpoint loop runs migration review gate"
+    Assert-True -Condition ($loopText -match 'class -in @\("backend", "migration"\)') -Message "Checkpoint loop gates backend and migration classes on architecture approval"
+    Assert-True -Condition ($loopText -match 'Get-MigrationApprovalStatusForLoop') -Message "Checkpoint loop checks migration approval status"
+    Assert-True -Condition ($doctorText -match 'Get-MigrationApprovalStatus') -Message "Fleet doctor reports migration approval status"
+    Assert-True -Condition ($doctorText -match 'Phase 4 migration proposal') -Message "Fleet doctor warns for missing or draft migration gates"
+    Assert-True -Condition ($readmeText -match 'Phase 4 migration safety gate') -Message "README documents Phase 4 migration safety"
+}
+
+function Test-PhaseFiveSensitiveSystemsSupport {
+    $sensitiveText = Get-Content (Join-Path $fleetRoot "sensitive-systems-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "sensitive-systems-review.ps1")) -Message "Fleet exposes Phase 5 sensitive systems review script"
+    Assert-True -Condition ($sensitiveText -match 'EXTERNAL_SERVICES\.md') -Message "Sensitive systems review validates external service registry"
+    Assert-True -Condition ($sensitiveText -match 'AUTH_POLICY\.md') -Message "Sensitive systems review recognizes auth policy"
+    Assert-True -Condition ($sensitiveText -match 'PAYMENT_RISK\.md') -Message "Sensitive systems review recognizes payment risk"
+    Assert-True -Condition ($sensitiveText -match 'sk-\[A-Za-z0-9_-\]') -Message "Sensitive systems review scans staged diffs for secret-like tokens"
+    Assert-True -Condition ($loopText -match 'Invoke-SensitiveSystemsReviewGate') -Message "Checkpoint loop runs sensitive systems review gate"
+    Assert-True -Condition ($loopText -match 'Invoke-FleetCommit') -Message "Checkpoint loop centralizes commits behind sensitive systems gate"
+    Assert-True -Condition ($loopText -match 'Test-SensitiveTaskApproval') -Message "Checkpoint loop checks auth/payment/integration task approvals"
+    Assert-True -Condition ($doctorText -match 'Get-SensitiveSystemsStatus') -Message "Fleet doctor reports sensitive systems status"
+    Assert-True -Condition ($doctorText -match 'Phase 5 sensitive systems') -Message "Fleet doctor warns for missing or draft sensitive systems gates"
+    Assert-True -Condition ($readmeText -match 'Phase 5 auth, payment, secrets') -Message "README documents Phase 5 sensitive systems safety"
+}
+
+function Test-PhaseSixRuntimeVerificationSupport {
+    $runtimeText = Get-Content (Join-Path $fleetRoot "runtime-verify.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "runtime-verify.ps1")) -Message "Fleet exposes Phase 6 runtime verification script"
+    Assert-True -Condition ($runtimeText -match 'RUNTIME_CHECKS\.md') -Message "Runtime verifier reads runtime checks"
+    Assert-True -Condition ($runtimeText -match 'RUNTIME_VERIFICATION\.md') -Message "Runtime verifier writes runtime report"
+    Assert-True -Condition ($runtimeText -match 'command\|url\|text') -Message "Runtime verifier supports command, url, and text checks"
+    Assert-True -Condition ($loopText -match 'Invoke-RuntimeVerificationGate') -Message "Checkpoint loop runs runtime verification gate"
+    Assert-True -Condition ($loopText -match 'integration", "performance"') -Message "Runtime gate is triggered for integration and performance tasks"
+    Assert-True -Condition ($doctorText -match 'Get-RuntimeVerificationStatus') -Message "Fleet doctor reports runtime verification status"
+    Assert-True -Condition ($doctorText -match 'Phase 6 runtime verification') -Message "Fleet doctor warns on failed runtime verification"
+    Assert-True -Condition ($readmeText -match 'Phase 6 runtime verification gate') -Message "README documents Phase 6 runtime verification"
+}
+
+function Test-PhaseSevenReleaseSupport {
+    $releaseText = Get-Content (Join-Path $fleetRoot "release-readiness.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "release-readiness.ps1")) -Message "Fleet exposes Phase 7 release readiness script"
+    Assert-True -Condition ($releaseText -match 'DEPLOYMENT_PLAN\.md') -Message "Release readiness checks deployment plan"
+    Assert-True -Condition ($releaseText -match 'POST_DEPLOY_SMOKE\.md') -Message "Release readiness checks post-deploy smoke plan"
+    Assert-True -Condition ($releaseText -match 'ROLLBACK_PLAN\.md') -Message "Release readiness checks rollback plan"
+    Assert-True -Condition ($releaseText -match 'RELEASE_APPROVAL\.md') -Message "Release readiness checks human release approval"
+    Assert-True -Condition ($releaseText -match 'RUNTIME_VERIFICATION\.md') -Message "Release readiness includes runtime evidence"
+    Assert-True -Condition ($releaseText -match 'MIGRATION_REVIEW\.md') -Message "Release readiness includes migration evidence"
+    Assert-True -Condition ($releaseText -match 'SENSITIVE_SYSTEMS_REVIEW\.md') -Message "Release readiness includes sensitive systems evidence"
+    Assert-True -Condition ($releaseText -match 'This report never deploys') -Message "Release readiness explicitly does not deploy"
+    Assert-True -Condition ($readmeText -match 'Phase 7 release and operations gate') -Message "README documents Phase 7 release readiness"
+}
+
+function Test-PhaseEightMaintenanceSupport {
+    $maintenanceText = Get-Content (Join-Path $fleetRoot "fleet-maintenance.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-maintenance.ps1")) -Message "Fleet exposes Phase 8 maintenance script"
+    Assert-True -Condition ($maintenanceText -match 'MAINTENANCE_QUEUE\.md') -Message "Maintenance lane manages a maintenance queue"
+    Assert-True -Condition ($maintenanceText -match 'MAINTENANCE_WINDOWS\.md') -Message "Maintenance lane manages maintenance windows"
+    Assert-True -Condition ($maintenanceText -match 'TECH_DEBT\.md') -Message "Maintenance lane tracks technical debt"
+    Assert-True -Condition ($maintenanceText -match '\[switch\]\$IncludeDirty') -Message "Maintenance lane requires an explicit opt-in to scan dirty ships"
+    Assert-True -Condition ($maintenanceText -match 'SKIPPED DIRTY') -Message "Maintenance lane skips dirty ships by default"
+    foreach ($signal in @("dependency-review", "performance-regression", "flaky", "bug-triage", "issue-intake")) {
+        Assert-True -Condition ($maintenanceText -match [regex]::Escape($signal)) -Message "Maintenance lane handles $signal signals"
+    }
+    Assert-True -Condition ($maintenanceText -match 'This report does not edit ships') -Message "Maintenance report is read-only by default"
+    Assert-True -Condition ($doctorText -match 'Get-MaintenanceStatus') -Message "Fleet doctor reports maintenance status"
+    Assert-True -Condition ($doctorText -match 'Phase 8 maintenance') -Message "Fleet doctor warns for missing maintenance lane"
+    Assert-True -Condition ($readmeText -match 'Phase 8 autonomous maintenance intake lane') -Message "README documents Phase 8 maintenance"
+    Assert-True -Condition ($roadmapText -match 'Status: started') -Message "Roadmap marks Phase 8 as started"
+}
+
+function Test-PhaseNineAutopilotSupport {
+    $autopilotText = Get-Content (Join-Path $fleetRoot "fleet-autopilot-policy.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-autopilot-policy.ps1")) -Message "Fleet exposes Phase 9 autopilot policy script"
+    Assert-True -Condition ($autopilotText -match 'AUTOPILOT_POLICY\.md') -Message "Autopilot gate validates policy artifact"
+    Assert-True -Condition ($autopilotText -match 'AUTOPILOT_APPROVAL\.md') -Message "Autopilot gate validates approval artifact"
+    Assert-True -Condition ($autopilotText -match 'Spending Limit') -Message "Autopilot gate requires spending limits"
+    Assert-True -Condition ($autopilotText -match 'Customer Data') -Message "Autopilot gate requires customer-data rules"
+    Assert-True -Condition ($autopilotText -match 'Escalation') -Message "Autopilot gate requires escalation rules"
+    foreach ($blocked in @("pricing", "production deploy", "payment", "auth", "mass email", "data deletion", "legal")) {
+        Assert-True -Condition ($autopilotText -match [regex]::Escape($blocked)) -Message "Autopilot gate checks human approval for $blocked"
+    }
+    Assert-True -Condition ($autopilotText -match '\.codex-local\\audit') -Message "Autopilot gate writes an audit log"
+    Assert-True -Condition ($autopilotText -match 'does not spend money, deploy, email customers') -Message "Autopilot report states sensitive actions are not performed"
+    Assert-True -Condition ($doctorText -match 'Get-AutopilotStatus') -Message "Fleet doctor reports autopilot status"
+    Assert-True -Condition ($doctorText -match 'Phase 9 limited autopilot') -Message "Fleet doctor warns for missing autopilot policy"
+    Assert-True -Condition ($readmeText -match 'Phase 9 limited business autopilot gate') -Message "README documents Phase 9 autopilot gate"
+    Assert-True -Condition ($roadmapText -match 'fleet-autopilot-policy\.ps1') -Message "Roadmap marks Phase 9 as started"
+}
+
 function Test-ConfigResolution {
     foreach ($name in @("FixtureStaticDemo", "FixtureDocsOnly", "FixtureRealProduct")) {
         $result = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -245,6 +444,35 @@ function Test-DoctorAndReadiness {
     )
     Assert-Equal -Actual $readiness.exitCode -Expected 0 -Message "Merge readiness passes fixture ships in skip-build mode"
     Assert-True -Condition (($readiness.output -join "`n") -match "SAFE TO MERGE AFTER HUMAN REVIEW") -Message "Merge readiness can produce a green overall result"
+}
+
+function Test-MaintenanceDirtySkip {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    $outFile = Join-Path $fixtureRoot "maintenance-dirty-skip.md"
+
+    Push-Location $project.repo
+    try {
+        Set-Content -Path "dirty-maintenance-fixture.txt" -Value "active work"
+    } finally {
+        Pop-Location
+    }
+
+    try {
+        $maintenance = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "fleet-maintenance.ps1"),
+            "-ConfigPath", $fixtureConfig,
+            "-Project", "FixtureStaticDemo",
+            "-OutFile", $outFile
+        )
+        Assert-Equal -Actual $maintenance.exitCode -Expected 0 -Message "Maintenance report succeeds when fixture ship is dirty"
+        $report = Get-Content $outFile -Raw
+        Assert-True -Condition ($report -match "SKIPPED DIRTY") -Message "Maintenance report skips dirty ships by default"
+        Assert-True -Condition ($report -match "Use -IncludeDirty") -Message "Maintenance report explains dirty-scan opt-in"
+    } finally {
+        Remove-Item -LiteralPath (Join-Path $project.repo "dirty-maintenance-fixture.txt") -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Test-DebugCheckpoint {
@@ -452,6 +680,17 @@ function Test-DebuggerReportFileAllowance {
     Assert-True -Condition ($debugText -match 'Too many non-report files changed') -Message "Debugger batch limit message distinguishes report-file overhead"
 }
 
+function Test-ShipPreviewRefreshSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition ($loopText -match '\[switch\]\$SkipShipPreviewRefresh') -Message "Checkpoint loop exposes ship preview refresh override"
+    Assert-True -Condition ($loopText -match 'Update-ShipPreviewDashboard') -Message "Checkpoint loop refreshes ship preview dashboard on completion"
+    Assert-True -Condition ($loopText -match 'open-ship-previews\.ps1') -Message "Checkpoint loop uses the ship preview script for refreshes"
+    Assert-True -Condition ($loopText -match '-NoOpen') -Message "Checkpoint loop refreshes previews without opening browser windows"
+    Assert-True -Condition ($readmeText -match 'SkipShipPreviewRefresh') -Message "README documents the ship preview refresh behavior"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -459,8 +698,19 @@ Test-PowerShellParsing
 Test-TaskParsing
 Test-RuntimeHelpers
 Test-FixtureGeneration
+Test-PhaseZeroIntakeSupport
+Test-PhaseOneArchitectureSupport
+Test-PhaseTwoScaffoldSupport
+Test-PhaseThreeTaskContractSupport
+Test-PhaseFourMigrationSupport
+Test-PhaseFiveSensitiveSystemsSupport
+Test-PhaseSixRuntimeVerificationSupport
+Test-PhaseSevenReleaseSupport
+Test-PhaseEightMaintenanceSupport
+Test-PhaseNineAutopilotSupport
 Test-ConfigResolution
 Test-DoctorAndReadiness
+Test-MaintenanceDirtySkip
 Test-DebugCheckpoint
 Test-SafeStaging
 Test-ReadOnlyDirtyGuard
@@ -471,6 +721,7 @@ Test-SafeStopSupport
 Test-LaunchControlSupport
 Test-JoeyStorageRules
 Test-DebuggerReportFileAllowance
+Test-ShipPreviewRefreshSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)

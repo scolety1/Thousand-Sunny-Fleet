@@ -127,6 +127,202 @@ function Test-ProfileExists {
     return "missing:$profileName"
 }
 
+function Get-ShipProfileData {
+    param([object]$Ship)
+
+    $profileName = Get-ConfigPropertyValue -Object $Ship -Name "profile"
+    if ([string]::IsNullOrWhiteSpace([string]$profileName)) {
+        return $null
+    }
+
+    $profilePath = Join-Path $script:FleetRoot "profiles\$profileName.json"
+    if (!(Test-Path $profilePath)) {
+        return $null
+    }
+
+    try {
+        return Get-Content $profilePath -Raw | ConvertFrom-Json
+    } catch {
+        return $null
+    }
+}
+
+function New-DefaultCapabilityObject {
+    return [pscustomobject]@{
+        canEditPackageFiles = $false
+        canAddDependencies = $false
+        canEditBackendCode = $false
+        canEditMigrations = $false
+        canEditAuthPolicy = $false
+        canEditDeploymentConfig = $false
+        canUseNetworkApis = $false
+        canOpenPullRequests = $false
+        canDeploy = $false
+    }
+}
+
+function Resolve-IntakeMetadata {
+    param(
+        [object]$Ship,
+        [object]$ProfileData
+    )
+
+    $projectType = Get-ConfigPropertyValue -Object $Ship -Name "projectType"
+    if ([string]::IsNullOrWhiteSpace([string]$projectType)) {
+        $projectType = Get-ConfigPropertyValue -Object $ProfileData -Name "projectType"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$projectType)) {
+        $projectType = "unknown"
+    }
+
+    $riskTier = Get-ConfigPropertyValue -Object $Ship -Name "riskTier"
+    if ([string]::IsNullOrWhiteSpace([string]$riskTier)) {
+        $riskTier = Get-ConfigPropertyValue -Object $ProfileData -Name "riskTier"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$riskTier)) {
+        $riskTier = "unknown"
+    }
+
+    $capabilities = Get-ConfigPropertyValue -Object $Ship -Name "capabilities"
+    if ($null -eq $capabilities) {
+        $capabilities = Get-ConfigPropertyValue -Object $ProfileData -Name "capabilities"
+    }
+    if ($null -eq $capabilities) {
+        $capabilities = New-DefaultCapabilityObject
+    }
+
+    return [pscustomobject]@{
+        projectType = [string]$projectType
+        riskTier = [string]$riskTier
+        capabilities = $capabilities
+    }
+}
+
+function Get-EnabledCapabilityNames {
+    param([object]$Capabilities)
+
+    $labels = [ordered]@{
+        canEditPackageFiles = "package-files"
+        canAddDependencies = "dependencies"
+        canEditBackendCode = "backend-code"
+        canEditMigrations = "migrations"
+        canEditAuthPolicy = "auth-policy"
+        canEditDeploymentConfig = "deployment-config"
+        canUseNetworkApis = "network-apis"
+        canOpenPullRequests = "pull-requests"
+        canDeploy = "deploy"
+    }
+
+    $enabled = @()
+    foreach ($key in $labels.Keys) {
+        if ([bool](Get-ConfigPropertyValue -Object $Capabilities -Name $key)) {
+            $enabled += $labels[$key]
+        }
+    }
+
+    if ($enabled.Count -eq 0) {
+        return "none"
+    }
+
+    return ($enabled -join ", ")
+}
+
+function Get-ArchitecturePlanStatus {
+    if (!(Test-Path "docs/codex/ARCHITECTURE.md") -or !(Test-Path "docs/codex/ENGINEERING_PLAN.md") -or !(Test-Path "docs/codex/RISK_REGISTER.md")) {
+        return "missing"
+    }
+
+    if (!(Test-Path "docs/codex/ARCHITECTURE_APPROVAL.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/ARCHITECTURE_APPROVAL.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Get-DependencyApprovalStatus {
+    if (!(Test-Path "docs/codex/DEPENDENCY_PROPOSAL.md")) {
+        return "missing"
+    }
+
+    if (!(Test-Path "docs/codex/DEPENDENCY_APPROVAL.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/DEPENDENCY_APPROVAL.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Get-MigrationApprovalStatus {
+    if (!(Test-Path "docs/codex/MIGRATION_PROPOSAL.md")) {
+        return "missing"
+    }
+
+    if (!(Test-Path "docs/codex/MIGRATION_APPROVAL.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/MIGRATION_APPROVAL.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Get-SensitiveSystemsStatus {
+    $hasRegistry = Test-Path "docs/codex/EXTERNAL_SERVICES.md"
+    $authOk = (!(Test-Path "docs/codex/AUTH_POLICY.md") -or (Test-ApprovedStatus -Path "docs/codex/AUTH_APPROVAL.md"))
+    $paymentOk = (!(Test-Path "docs/codex/PAYMENT_RISK.md") -or (Test-ApprovedStatus -Path "docs/codex/PAYMENT_APPROVAL.md"))
+
+    if ($hasRegistry -and $authOk -and $paymentOk) { return "ready" }
+    if ($hasRegistry -or (Test-Path "docs/codex/AUTH_POLICY.md") -or (Test-Path "docs/codex/PAYMENT_RISK.md")) { return "draft" }
+    return "missing"
+}
+
+function Get-RuntimeVerificationStatus {
+    if (!(Test-Path "docs/codex/RUNTIME_VERIFICATION.md")) {
+        if (Test-Path "docs/codex/RUNTIME_CHECKS.md") { return "missing" }
+        return "not-configured"
+    }
+
+    $report = Get-Content "docs/codex/RUNTIME_VERIFICATION.md" -Raw
+    if ($report -match "(?is)## Verdict\s+GREEN\b") { return "green" }
+    if ($report -match "(?is)## Verdict\s+RED\b") { return "red" }
+    return "yellow"
+}
+
+function Get-MaintenanceStatus {
+    $hasQueue = Test-Path "docs/codex/MAINTENANCE_QUEUE.md"
+    $hasWindows = Test-Path "docs/codex/MAINTENANCE_WINDOWS.md"
+
+    if ($hasQueue -and $hasWindows) { return "configured" }
+    if ($hasQueue -or $hasWindows) { return "partial" }
+    return "missing"
+}
+
+function Get-AutopilotStatus {
+    if (!(Test-Path "docs/codex/AUTOPILOT_POLICY.md")) { return "missing" }
+    if (!(Test-Path "docs/codex/AUTOPILOT_APPROVAL.md")) { return "draft" }
+    if (Test-ApprovedStatus -Path "docs/codex/AUTOPILOT_APPROVAL.md") { return "approved-limited" }
+    return "draft"
+}
+
+function Test-ApprovedStatus {
+    param([string]$Path)
+    if (!(Test-Path $Path)) { return $false }
+    $text = Get-Content $Path -Raw
+    return ($text -match "(?im)^\s*Status:\s*APPROVED\s*$")
+}
+
 function Get-ShipDiagnosis {
     param([object]$Ship)
 
@@ -172,12 +368,23 @@ function Get-ShipDiagnosis {
     $missionExists = Test-Path "docs/codex/MISSION.md"
     $taskQueueExists = Test-Path "docs/codex/TASK_QUEUE.md"
     $runPolicyExists = Test-Path "docs/codex/RUN_POLICY.md"
+    $architectureStatus = Get-ArchitecturePlanStatus
+    $dependencyStatus = Get-DependencyApprovalStatus
+    $migrationStatus = Get-MigrationApprovalStatus
+    $sensitiveStatus = Get-SensitiveSystemsStatus
+    $runtimeStatus = Get-RuntimeVerificationStatus
+    $maintenanceStatus = Get-MaintenanceStatus
+    $autopilotStatus = Get-AutopilotStatus
     Pop-Location
 
     $profileStatus = Test-ProfileExists -Ship $Ship
+    $profileData = Get-ShipProfileData -Ship $Ship
+    $intake = Resolve-IntakeMetadata -Ship $Ship -ProfileData $profileData
     $buildCommand = Get-ConfigPropertyValue -Object $Ship -Name "buildCommand"
     $buildDirectory = Get-ConfigPropertyValue -Object $Ship -Name "buildDirectory"
     $visualPaths = Get-ConfigPropertyValue -Object $Ship -Name "visualPaths"
+    $allowedProjectTypes = @("marketing-site", "full-stack-web", "desktop-app", "cli-tool", "library", "data-pipeline", "ai-workflow", "mobile-app", "game", "documentation", "sandbox-prototype")
+    $allowedRiskTiers = @("sandbox", "local-only", "staging", "production-adjacent", "production")
 
     if ($dirty.Count -gt 0 -and !$AllowDirty) {
         Add-Finding -Findings $findings -Level "FAIL" -Message "Working tree is dirty: $($dirty.Count) file(s)."
@@ -197,6 +404,96 @@ function Get-ShipDiagnosis {
         Add-Finding -Findings $findings -Level "FAIL" -Message "Configured profile file not found: $($profileStatus.Substring(8))."
     } else {
         Add-Finding -Findings $findings -Level "OK" -Message "Profile configured: $profileStatus."
+    }
+
+    if ($allowedProjectTypes -notcontains $intake.projectType) {
+        Add-Finding -Findings $findings -Level "FAIL" -Message "Unknown projectType: $($intake.projectType)."
+    } else {
+        Add-Finding -Findings $findings -Level "OK" -Message "Project type classified: $($intake.projectType)."
+    }
+
+    if ($allowedRiskTiers -notcontains $intake.riskTier) {
+        Add-Finding -Findings $findings -Level "FAIL" -Message "Unknown riskTier: $($intake.riskTier)."
+    } else {
+        Add-Finding -Findings $findings -Level "OK" -Message "Risk tier classified: $($intake.riskTier)."
+    }
+
+    $enabledCapabilities = Get-EnabledCapabilityNames -Capabilities $intake.capabilities
+    if ($intake.riskTier -eq "production" -and $enabledCapabilities -match "\bdeploy\b") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Production deploy capability is enabled; require explicit captain approval before launch."
+    } else {
+        Add-Finding -Findings $findings -Level "OK" -Message "Capability policy loaded: $enabledCapabilities."
+    }
+
+    $seriousShip = (
+        $intake.projectType -in @("full-stack-web", "desktop-app", "cli-tool", "library", "data-pipeline", "ai-workflow", "mobile-app", "game") -or
+        $intake.riskTier -in @("staging", "production-adjacent", "production") -or
+        $enabledCapabilities -ne "none"
+    )
+    if ($seriousShip -and $architectureStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 1 architecture planning pack is missing; run fleet-plan.ps1 before broad work."
+    } elseif ($seriousShip -and $architectureStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 1 architecture planning pack is still DRAFT."
+    } elseif ($seriousShip) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 1 architecture planning pack is approved."
+    }
+
+    $dependencyGateNeeded = (
+        [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canEditPackageFiles") -or
+        [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canAddDependencies")
+    )
+    if ($dependencyGateNeeded -and $dependencyStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 2 dependency proposal is missing for package/dependency-capable ship."
+    } elseif ($dependencyGateNeeded -and $dependencyStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 2 dependency proposal is still DRAFT."
+    } elseif ($dependencyGateNeeded) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 2 dependency proposal is approved."
+    }
+
+    $migrationGateNeeded = [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canEditMigrations")
+    if ($migrationGateNeeded -and $migrationStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 4 migration proposal is missing for migration-capable ship."
+    } elseif ($migrationGateNeeded -and $migrationStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 4 migration proposal is still DRAFT."
+    } elseif ($migrationGateNeeded) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 4 migration proposal is approved."
+    }
+
+    $sensitiveGateNeeded = (
+        [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canEditAuthPolicy") -or
+        [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canUseNetworkApis") -or
+        [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canDeploy")
+    )
+    if ($sensitiveGateNeeded -and $sensitiveStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 5 sensitive systems registry is missing."
+    } elseif ($sensitiveGateNeeded -and $sensitiveStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 5 sensitive systems policy is still DRAFT."
+    } elseif ($sensitiveGateNeeded) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 5 sensitive systems policy is ready."
+    }
+
+    if ($runtimeStatus -eq "red") {
+        Add-Finding -Findings $findings -Level "FAIL" -Message "Phase 6 runtime verification is RED."
+    } elseif ($runtimeStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 6 runtime checks are configured but no verification report exists."
+    } elseif ($runtimeStatus -eq "green") {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 6 runtime verification is GREEN."
+    }
+
+    if ($maintenanceStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 8 maintenance queue is missing; run fleet-maintenance.ps1 -Template when the ship is ready for recurring maintenance."
+    } elseif ($maintenanceStatus -eq "partial") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 8 maintenance lane is partially configured."
+    } else {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 8 maintenance lane is configured."
+    }
+
+    if ($autopilotStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 9 limited autopilot policy is missing; run fleet-autopilot-policy.ps1 -Template before any business autopilot."
+    } elseif ($autopilotStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 9 limited autopilot policy is still DRAFT."
+    } else {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 9 limited autopilot policy is approved."
     }
 
     if ([string]::IsNullOrWhiteSpace([string]$buildCommand)) {
@@ -243,6 +540,16 @@ function Get-ShipDiagnosis {
         branch = $branch
         head = $head
         dirty = if ($dirty.Count -eq 0) { "clean" } else { "dirty $($dirty.Count)" }
+        projectType = $intake.projectType
+        riskTier = $intake.riskTier
+        capabilities = $enabledCapabilities
+        architecture = $architectureStatus
+        dependencies = $dependencyStatus
+        migrations = $migrationStatus
+        sensitiveSystems = $sensitiveStatus
+        runtime = $runtimeStatus
+        maintenance = $maintenanceStatus
+        autopilot = $autopilotStatus
         uncheckedTasks = $taskCount
         firstTask = $firstTask
         checkpoint = $checkpoint
@@ -264,13 +571,13 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "| Ship | Ready | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
-    "| --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
+    "| Ship | Ready | Type | Risk | Architecture | Dependencies | Migrations | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
 )
 
 foreach ($diagnosis in $diagnoses) {
     $ready = if ($diagnosis.launchReady) { "YES" } else { "NO" }
-    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
+    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
 }
 
 $lines += ""
@@ -283,6 +590,16 @@ foreach ($diagnosis in $diagnoses) {
     $lines += ""
     $lines += "- Repo: $($diagnosis.repo)"
     $lines += "- Ready: $readyText"
+    $lines += "- Project type: $($diagnosis.projectType)"
+    $lines += "- Risk tier: $($diagnosis.riskTier)"
+    $lines += "- Enabled capabilities: $($diagnosis.capabilities)"
+    $lines += "- Architecture: $($diagnosis.architecture)"
+    $lines += "- Dependencies: $($diagnosis.dependencies)"
+    $lines += "- Migrations: $($diagnosis.migrations)"
+    $lines += "- Sensitive systems: $($diagnosis.sensitiveSystems)"
+    $lines += "- Runtime verification: $($diagnosis.runtime)"
+    $lines += "- Maintenance lane: $($diagnosis.maintenance)"
+    $lines += "- Limited autopilot: $($diagnosis.autopilot)"
     $lines += "- First unchecked task: $firstTaskText"
     $lines += "- Recommended command: $($diagnosis.recommendedCommand)"
     $lines += "- Findings:"
@@ -301,7 +618,7 @@ if (!$Quiet) {
     foreach ($diagnosis in $diagnoses) {
         $color = if ($diagnosis.launchReady) { "Green" } else { "Red" }
         $status = if ($diagnosis.launchReady) { "healthy" } else { "not ready" }
-        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
+        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
         if (!$diagnosis.launchReady) {
             $diagnosis.findings | Where-Object { $_.level -eq "FAIL" } | ForEach-Object {
                 Write-Host "  - $($_.message)" -ForegroundColor Red

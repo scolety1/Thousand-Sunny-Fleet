@@ -58,6 +58,8 @@ param(
 
     [switch]$AllowDuplicateRun,
 
+    [switch]$SkipShipPreviewRefresh,
+
     [switch]$ValidateOnly,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -404,6 +406,256 @@ function Get-FirstUncheckedTask {
     return $null
 }
 
+function Resolve-TaskContract {
+    param([string]$Task)
+
+    $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "design", "copy", "backend", "migration", "integration", "performance")
+    $allowedRisks = @("low", "medium", "high", "gated")
+    $taskClass = "feature"
+    $risk = "low"
+    $scope = @()
+    $acceptance = @()
+    $summary = $Task
+
+    $metadataMatches = [regex]::Matches($Task, "\[([^\]]+)\]")
+    foreach ($match in $metadataMatches) {
+        $metadata = $match.Groups[1].Value
+        $classMatch = [regex]::Match($metadata, "(?:^|\s)class:([^\s]+)")
+        if ($classMatch.Success) {
+            $candidate = $classMatch.Groups[1].Value.Trim().ToLowerInvariant()
+            if ($allowedClasses -contains $candidate) { $taskClass = $candidate }
+        }
+
+        $riskMatch = [regex]::Match($metadata, "(?:^|\s)risk:([^\s]+)")
+        if ($riskMatch.Success) {
+            $candidate = $riskMatch.Groups[1].Value.Trim().ToLowerInvariant()
+            if ($allowedRisks -contains $candidate) { $risk = $candidate }
+        }
+
+        $scopeMatch = [regex]::Match($metadata, "(?:^|\s)scope:([^\s]+)")
+        if ($scopeMatch.Success) {
+            $scope = @($scopeMatch.Groups[1].Value.Split(",") | ForEach-Object { $_.Trim().Replace("\", "/").Trim("/") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        }
+
+        $acceptMatch = [regex]::Match($metadata, "(?:^|\s)accept:(.+?)(?=\s+(class|risk|scope):|$)")
+        if ($acceptMatch.Success) {
+            $acceptance = @($acceptMatch.Groups[1].Value.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        }
+    }
+
+    $summary = ($summary -replace "\s*\[[^\]]+\]\s*", " ").Trim()
+    if ([string]::IsNullOrWhiteSpace($summary)) { $summary = $Task }
+
+    return [pscustomobject]@{
+        summary = $summary
+        class = $taskClass
+        risk = $risk
+        scope = $scope
+        acceptance = $acceptance
+    }
+}
+
+function Get-ArchitecturePlanStatusForLoop {
+    if (!(Test-Path "docs/codex/ARCHITECTURE_APPROVAL.md")) {
+        return "missing"
+    }
+
+    $approval = Get-Content "docs/codex/ARCHITECTURE_APPROVAL.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Get-MigrationApprovalStatusForLoop {
+    if (!(Test-Path "docs/codex/MIGRATION_APPROVAL.md")) {
+        return "missing"
+    }
+
+    $approval = Get-Content "docs/codex/MIGRATION_APPROVAL.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Test-ApprovalFileForLoop {
+    param([string]$Path)
+
+    if (!(Test-Path $Path)) { return $false }
+    $text = Get-Content $Path -Raw
+    return ($text -match "(?im)^\s*Status:\s*APPROVED\s*$")
+}
+
+function Test-SensitiveTaskApproval {
+    param([object]$Contract)
+
+    if ($null -eq $Contract) { return $true }
+    $taskClass = [string]$Contract.class
+    if ($taskClass -eq "integration" -and !(Test-Path "docs/codex/EXTERNAL_SERVICES.md")) {
+        Write-Host "Integration task requires docs/codex/EXTERNAL_SERVICES.md." -ForegroundColor Red
+        return $false
+    }
+
+    $summary = [string]$Contract.summary
+    if ($summary -match "(?i)\bauth\b|\blogin\b|\boauth\b|\bpermission\b" -and !(Test-ApprovalFileForLoop -Path "docs/codex/AUTH_APPROVAL.md")) {
+        Write-Host "Auth-related task requires approved AUTH_APPROVAL.md." -ForegroundColor Red
+        return $false
+    }
+
+    if ($summary -match "(?i)\bpayment\b|\bstripe\b|\bcheckout\b|\bbilling\b" -and !(Test-ApprovalFileForLoop -Path "docs/codex/PAYMENT_APPROVAL.md")) {
+        Write-Host "Payment-related task requires approved PAYMENT_APPROVAL.md." -ForegroundColor Red
+        return $false
+    }
+
+    return $true
+}
+
+function Test-TaskScope {
+    param(
+        [object]$Contract,
+        [string[]]$FilesChanged
+    )
+
+    if ($null -eq $Contract -or $Contract.scope.Count -eq 0) {
+        return @()
+    }
+
+    $allowed = @($Contract.scope | ForEach-Object { ([string]$_).Replace("\", "/").Trim("/") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    $alwaysAllowed = @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md")
+    $violations = @()
+    foreach ($file in @($FilesChanged)) {
+        $normalized = ([string]$file).Replace("\", "/").TrimStart("/")
+        if ($alwaysAllowed -contains $normalized) { continue }
+
+        $matched = $false
+        foreach ($prefix in $allowed) {
+            if ($normalized -eq $prefix -or $normalized.StartsWith("$prefix/", [System.StringComparison]::OrdinalIgnoreCase)) {
+                $matched = $true
+                break
+            }
+        }
+        if (!$matched) {
+            $violations += $file
+        }
+    }
+
+    return $violations
+}
+
+function Invoke-TaskAcceptanceChecks {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or $Contract.acceptance.Count -eq 0) {
+        return $true
+    }
+
+    $index = 0
+    foreach ($command in @($Contract.acceptance)) {
+        $index++
+        Write-Host "Running task acceptance check ${index}: $command" -ForegroundColor DarkCyan
+        $logPath = Join-Path $script:RunLogRoot ("acceptance-{0}-{1}.log" -f $index, (Get-Date -Format "HHmmssfff"))
+        $result = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) -WorkingDirectory (Get-Location).Path -LogPath $logPath -TimeoutSeconds (Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)
+        if ($result.exitCode -ne 0) {
+            Write-Host "Task acceptance check failed: $command" -ForegroundColor Red
+            Write-Host "Log: $logPath" -ForegroundColor Yellow
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Invoke-MigrationReviewGate {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or $Contract.class -ne "migration") {
+        return $true
+    }
+
+    if ((Get-MigrationApprovalStatusForLoop) -ne "approved") {
+        Write-Host "Migration task requires approved MIGRATION_APPROVAL.md." -ForegroundColor Red
+        return $false
+    }
+
+    $reviewScript = Join-Path $fleetRoot "migration-review.ps1"
+    if (!(Test-Path -LiteralPath $reviewScript)) {
+        Write-Host "Migration review script not found: $reviewScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $reviewScript,
+        "-Repo", (Get-Location).Path
+    ) -LogName ("migration-review-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    Stage-Files -Paths @("docs/codex/MIGRATION_REVIEW.md")
+    return ($exitCode -eq 0)
+}
+
+function Invoke-SensitiveSystemsReviewGate {
+    $reviewScript = Join-Path $fleetRoot "sensitive-systems-review.ps1"
+    if (!(Test-Path -LiteralPath $reviewScript)) {
+        Write-Host "Sensitive systems review script not found: $reviewScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $reviewScript,
+        "-Repo", (Get-Location).Path
+    ) -LogName ("sensitive-systems-review-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "joey" -Default $JoeyTimeoutSeconds)
+
+    Stage-Files -Paths @("docs/codex/SENSITIVE_SYSTEMS_REVIEW.md")
+    return ($exitCode -eq 0)
+}
+
+function Invoke-RuntimeVerificationGate {
+    param([object]$Contract)
+
+    $needsRuntime = $false
+    if ($null -ne $Contract) {
+        $needsRuntime = ($Contract.class -in @("integration", "performance") -or $Contract.acceptance.Count -gt 0)
+    }
+    if (!$needsRuntime -and !(Test-Path "docs/codex/RUNTIME_CHECKS.md")) {
+        return $true
+    }
+
+    $runtimeScript = Join-Path $fleetRoot "runtime-verify.ps1"
+    if (!(Test-Path -LiteralPath $runtimeScript)) {
+        Write-Host "Runtime verification script not found: $runtimeScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $runtimeScript,
+        "-Repo", (Get-Location).Path,
+        "-TimeoutSeconds", (Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)
+    ) -LogName ("runtime-verification-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)
+
+    Stage-Files -Paths @("docs/codex/RUNTIME_VERIFICATION.md")
+    return ($exitCode -eq 0)
+}
+
+function Invoke-FleetCommit {
+    param([string]$Message)
+
+    if (-not (Invoke-SensitiveSystemsReviewGate)) {
+        Write-Host "Sensitive systems review failed before commit." -ForegroundColor Red
+        return $false
+    }
+
+    git commit -m $Message
+    return ($LASTEXITCODE -eq 0)
+}
+
 function Mark-FirstUncheckedTaskComplete {
     $path = "docs/codex/TASK_QUEUE.md"
     $updated = $false
@@ -433,7 +685,7 @@ function Mark-FirstUncheckedTaskQuarantined {
 }
 
 function Append-Report {
-    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk)
+    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null)
     if (!(Test-Path "docs/codex/NIGHTLY_REPORT.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
         "# Codex Nightly Report`n" | Set-Content "docs/codex/NIGHTLY_REPORT.md"
@@ -441,11 +693,19 @@ function Append-Report {
 
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $files = if ($FilesChanged.Count -gt 0) { ($FilesChanged | ForEach-Object { "- $_" }) -join "`n" } else { "- None" }
+    $contractLines = @()
+    if ($null -ne $Contract) {
+        $contractLines += "- Task class: $($Contract.class)"
+        $contractLines += "- Task risk: $($Contract.risk)"
+        $contractLines += "- Allowed scope: $(if ($Contract.scope.Count -gt 0) { $Contract.scope -join ', ' } else { 'profile/default' })"
+        $contractLines += "- Acceptance checks: $(if ($Contract.acceptance.Count -gt 0) { $Contract.acceptance -join ', ' } else { 'external build only' })"
+    }
     Add-Content "docs/codex/NIGHTLY_REPORT.md" @"
 
 ## $date
 
 - Task attempted: $Task
+$($contractLines -join "`n")
 - Build result: $BuildResult
 - Files changed:
 $files
@@ -568,8 +828,7 @@ function Invoke-TaskQuarantine {
     Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md")
     $pendingQuarantineCommit = @(git diff --cached --name-only)
     if ($pendingQuarantineCommit.Count -gt 0) {
-        git commit -m "Codex quarantine failed task batch $Batch task $TaskIndex"
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Invoke-FleetCommit -Message "Codex quarantine failed task batch $Batch task $TaskIndex")) {
             return $false
         }
     }
@@ -744,8 +1003,7 @@ function Invoke-CheckpointReviewGate {
     Stage-Files -Paths @("docs/codex/CHECKPOINT_REVIEW.md")
     $pendingCheckpointCommit = @(git diff --cached --name-only)
     if ($pendingCheckpointCommit.Count -gt 0) {
-        git commit -m "Codex checkpoint review batch $Batch"
-        if ($LASTEXITCODE -ne 0) { exit 1 }
+        if (-not (Invoke-FleetCommit -Message "Codex checkpoint review batch $Batch")) { exit 1 }
     }
 
     return $checkpointText
@@ -909,6 +1167,29 @@ function Acquire-FleetRunLock {
 function Release-FleetRunLock {
     if (![string]::IsNullOrWhiteSpace([string]$script:FleetRunLockPath) -and (Test-Path $script:FleetRunLockPath)) {
         Remove-Item -LiteralPath $script:FleetRunLockPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Update-ShipPreviewDashboard {
+    if ($SkipShipPreviewRefresh) {
+        Write-Host "Skipping ship preview refresh." -ForegroundColor DarkGray
+        return
+    }
+
+    $previewScript = Join-Path $fleetRoot "open-ship-previews.ps1"
+    if (!(Test-Path -LiteralPath $previewScript)) {
+        Write-Host "Ship preview refresh skipped; script not found: $previewScript" -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "Refreshing ship preview dashboard..." -ForegroundColor DarkCyan
+    try {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $previewScript -NoOpen
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Ship preview refresh exited with code $LASTEXITCODE." -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "Ship preview refresh failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -1085,8 +1366,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         if ($plannerExit -ne 0) { exit 1 }
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
         Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
-        git commit -m "Codex checkpoint planner tasks batch $batch"
-        if ($LASTEXITCODE -ne 0) { exit 1 }
+        if (-not (Invoke-FleetCommit -Message "Codex checkpoint planner tasks batch $batch")) { exit 1 }
     }
 
     for ($i = 1; $i -le $BatchSize; $i++) {
@@ -1098,6 +1378,28 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host ""
         Write-Host "----- TASK $i of $BatchSize -----" -ForegroundColor Cyan
         Write-Host "Selected task: $task" -ForegroundColor Cyan
+        $taskContract = Resolve-TaskContract -Task $task
+        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        if ($taskContract.risk -in @("high", "gated") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present." -Contract $taskContract
+            Write-Host "High/gated task requires approved architecture plan. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
+        if ($taskContract.class -in @("backend", "migration") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "$($taskContract.class) task requires approved Phase 1 architecture." -Contract $taskContract
+            Write-Host "$($taskContract.class) task requires approved architecture plan. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
+        if ($taskContract.class -eq "migration" -and (Get-MigrationApprovalStatusForLoop) -ne "approved") {
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Migration task requires approved Phase 4 migration proposal." -Contract $taskContract
+            Write-Host "Migration task requires approved migration proposal. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
+        if (-not (Test-SensitiveTaskApproval -Contract $taskContract)) {
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Sensitive-system task requires approved Phase 5 policy/registry artifacts." -Contract $taskContract
+            Write-Host "Sensitive-system task requires approved Phase 5 artifacts. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
         $taskBase = (git rev-parse HEAD 2>$null)
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($taskBase)) {
             Write-Host "Could not determine task base commit before implementation." -ForegroundColor Red
@@ -1109,6 +1411,13 @@ Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, and 
 
 Implement only this selected task:
 $task
+
+Task contract:
+- Class: $($taskContract.class)
+- Risk: $($taskContract.risk)
+- Summary: $($taskContract.summary)
+- Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
+- Acceptance checks: $(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ", " } else { "External build only." })
 
 Rules:
 1. Make a small reviewable change.
@@ -1127,19 +1436,27 @@ Rules:
             exit 1
         }
         if ($headAfterImplement.Trim() -ne $taskBase.Trim()) {
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Codex changed git history or committed during implementation. Stop for human review."
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Codex changed git history or committed during implementation. Stop for human review." -Contract $taskContract
             Write-Host "Codex changed HEAD during implementation. Ending loop for human review instead of quarantining." -ForegroundColor Red
             exit 1
         }
         $statusAfter = @(git status --porcelain)
         if ($exit -ne 0 -and $statusAfter.Count -eq 0) {
             if (Invoke-TaskQuarantine -Task $task -Reason "Codex command failed after retries and made no changes." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Failed" -Risk "Codex command failed after retries and made no changes."
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Failed" -Risk "Codex command failed after retries and made no changes." -Contract $taskContract
             exit 1
         }
         if ($statusAfter.Count -eq 0) {
             if (Invoke-TaskQuarantine -Task $task -Reason "Codex made no changes." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Skipped" -Risk "Codex made no changes."
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Skipped" -Risk "Codex made no changes." -Contract $taskContract
+            exit 1
+        }
+
+        $changedAfterImplement = @(Get-TaskChangedFiles)
+        $scopeViolations = @(Test-TaskScope -Contract $taskContract -FilesChanged $changedAfterImplement)
+        if ($scopeViolations.Count -gt 0) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Task changed files outside declared scope: $($scopeViolations -join ', ')." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $changedAfterImplement -BuildResult "Blocked" -Risk "Task changed files outside declared scope: $($scopeViolations -join ', ')." -Contract $taskContract
             exit 1
         }
 
@@ -1150,13 +1467,37 @@ Rules:
         if (-not (Invoke-ExternalBuild)) {
             $failedFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "External build failed after implementation." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
-            Append-Report -Task $task -FilesChanged $failedFiles -BuildResult "Failed" -Risk "External build failed."
+            Append-Report -Task $task -FilesChanged $failedFiles -BuildResult "Failed" -Risk "External build failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-TaskAcceptanceChecks -Contract $taskContract)) {
+            $acceptanceFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Task-specific acceptance check failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $acceptanceFailedFiles -BuildResult "Failed" -Risk "Task-specific acceptance check failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-MigrationReviewGate -Contract $taskContract)) {
+            $migrationFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Migration review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $migrationFailedFiles -BuildResult "Blocked" -Risk "Migration review gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-RuntimeVerificationGate -Contract $taskContract)) {
+            $runtimeFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Runtime verification gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $runtimeFailedFiles -BuildResult "Failed" -Risk "Runtime verification gate failed." -Contract $taskContract
             exit 1
         }
 
         $reviewPrompt = @"
 Review the current git diff for only this selected task:
 $task
+
+Task contract:
+- Class: $($taskContract.class)
+- Risk: $($taskContract.risk)
+- Summary: $($taskContract.summary)
+- Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 
 Fix only clear issues caused by this task.
 Do not broaden scope.
@@ -1180,8 +1521,16 @@ REVIEW_FINDING: P2: short description
         if (Test-BlockingReviewOutput -Path $reviewResponse) {
             $blockedFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "Review reported an unresolved P1/P2 finding." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
-            Append-Report -Task $task -FilesChanged $blockedFiles -BuildResult "Blocked" -Risk "Review reported an unresolved P1/P2 finding."
+            Append-Report -Task $task -FilesChanged $blockedFiles -BuildResult "Blocked" -Risk "Review reported an unresolved P1/P2 finding." -Contract $taskContract
             Write-Host "Review reported an unresolved P1/P2 finding. Ending loop without marking task complete." -ForegroundColor Red
+            exit 1
+        }
+
+        $changedAfterReview = @(Get-TaskChangedFiles)
+        $reviewScopeViolations = @(Test-TaskScope -Contract $taskContract -FilesChanged $changedAfterReview)
+        if ($reviewScopeViolations.Count -gt 0) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Review changed files outside declared scope: $($reviewScopeViolations -join ', ')." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $changedAfterReview -BuildResult "Blocked" -Risk "Review changed files outside declared scope: $($reviewScopeViolations -join ', ')." -Contract $taskContract
             exit 1
         }
 
@@ -1192,16 +1541,39 @@ REVIEW_FINDING: P2: short description
         if (-not (Invoke-ExternalBuild)) {
             $finalFailedFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "Final external build failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
-            Append-Report -Task $task -FilesChanged $finalFailedFiles -BuildResult "Failed" -Risk "Final external build failed."
+            Append-Report -Task $task -FilesChanged $finalFailedFiles -BuildResult "Failed" -Risk "Final external build failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-TaskAcceptanceChecks -Contract $taskContract)) {
+            $finalAcceptanceFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final task-specific acceptance check failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalAcceptanceFiles -BuildResult "Failed" -Risk "Final task-specific acceptance check failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-MigrationReviewGate -Contract $taskContract)) {
+            $finalMigrationFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final migration review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalMigrationFiles -BuildResult "Blocked" -Risk "Final migration review gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-RuntimeVerificationGate -Contract $taskContract)) {
+            $finalRuntimeFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final runtime verification gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalRuntimeFiles -BuildResult "Failed" -Risk "Final runtime verification gate failed." -Contract $taskContract
             exit 1
         }
 
         $filesChanged = @(@(git diff --name-only; git ls-files --others --exclude-standard) | Sort-Object -Unique)
+        $finalScopeViolations = @(Test-TaskScope -Contract $taskContract -FilesChanged $filesChanged)
+        if ($finalScopeViolations.Count -gt 0) {
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final changed files are outside declared scope: $($finalScopeViolations -join ', ')." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Blocked" -Risk "Final changed files are outside declared scope: $($finalScopeViolations -join ', ')." -Contract $taskContract
+            exit 1
+        }
         Mark-FirstUncheckedTaskComplete
-        Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build passed and checkpoint loop review completed."
+        Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract
         Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md"))
-        git commit -m "Codex checkpoint batch $batch task $i"
-        if ($LASTEXITCODE -ne 0) { exit 1 }
+        if (-not (Invoke-FleetCommit -Message "Codex checkpoint batch $batch task $i")) { exit 1 }
     }
 
     $stopAfterCheckpoint = $false
@@ -1249,8 +1621,7 @@ REVIEW_FINDING: P2: short description
         Stage-Files -Paths @("docs/codex/VISUAL_BUGS.md")
         $pendingVisualCommit = @(git diff --cached --name-only)
         if ($pendingVisualCommit.Count -gt 0) {
-            git commit -m "Codex visual inspect batch $batch"
-            if ($LASTEXITCODE -ne 0) { exit 1 }
+            if (-not (Invoke-FleetCommit -Message "Codex visual inspect batch $batch")) { exit 1 }
         }
         if (-not $visualInspectPassed) {
             $stopAfterCheckpoint = $true
@@ -1290,8 +1661,7 @@ REVIEW_FINDING: P2: short description
         Stage-Files -Paths @("docs/codex/SIMON_DESIGN_REVIEW.md")
         $pendingSimonCommit = @(git diff --cached --name-only)
         if ($pendingSimonCommit.Count -gt 0) {
-            git commit -m "Codex Simon design review batch $batch"
-            if ($LASTEXITCODE -ne 0) { exit 1 }
+            if (-not (Invoke-FleetCommit -Message "Codex Simon design review batch $batch")) { exit 1 }
         }
         if ($simonText -match "(?is)## Verdict\s+RED\b" -or $simonText -match "(?i)stop for human design review") {
             $stopAfterCheckpoint = $true
@@ -1331,8 +1701,7 @@ REVIEW_FINDING: P2: short description
         Stage-Files -Paths @("docs/codex/ROBIN_COPY_REVIEW.md")
         $pendingRobinCommit = @(git diff --cached --name-only)
         if ($pendingRobinCommit.Count -gt 0) {
-            git commit -m "Codex Robin copy review batch $batch"
-            if ($LASTEXITCODE -ne 0) { exit 1 }
+            if (-not (Invoke-FleetCommit -Message "Codex Robin copy review batch $batch")) { exit 1 }
         }
         if ($robinText -match "(?is)## Verdict\s+RED\b" -or $robinText -match "(?i)stop for human copy review") {
             $stopAfterCheckpoint = $true
@@ -1357,8 +1726,7 @@ REVIEW_FINDING: P2: short description
         Stage-Files -Paths @("docs/codex/JOEY_SECURITY_REVIEW.md")
         $pendingJoeyCommit = @(git diff --cached --name-only)
         if ($pendingJoeyCommit.Count -gt 0) {
-            git commit -m "Codex Joey security review batch $batch"
-            if ($LASTEXITCODE -ne 0) { exit 1 }
+            if (-not (Invoke-FleetCommit -Message "Codex Joey security review batch $batch")) { exit 1 }
         }
         if (-not $joeyPassed -or $joeyText -match "(?is)## Verdict\s+RED\b" -or $joeyText -match "(?i)stop for human security review") {
             $stopAfterCheckpoint = $true
@@ -1422,6 +1790,7 @@ REVIEW_FINDING: P2: short description
 }
 
 Release-FleetRunLock
+Update-ShipPreviewDashboard
 
 Write-Host ""
 Write-Host "Checkpoint loop finished on branch $branch" -ForegroundColor Green
