@@ -48,7 +48,7 @@ cd C:\Dev\codex-fleet
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -63,8 +63,11 @@ The checkpoint loop:
 - optionally writes visual bug reports with `-VisualInspectEvery N`
 - optionally runs Simon design reviews with `-SimonEvery N`
 - optionally runs Joey security reviews with `-JoeyEvery N`
+- can continue through non-blocking YELLOW checkpoint reviews with `-ContinueOnYellowCheckpoint`
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
+
+`-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
 ## Reusable Harness
 

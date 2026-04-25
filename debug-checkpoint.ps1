@@ -11,6 +11,8 @@ param(
 
     [switch]$AllowMain,
 
+    [switch]$AllowYellowCheckpoint,
+
     [switch]$Json
 )
 
@@ -160,7 +162,9 @@ if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") {
     $review = Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw
     $verdictMatch = [regex]::Match($review, "(?im)^## Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)\s*$")
     $verdict = if ($verdictMatch.Success) { $verdictMatch.Groups[1].Value.ToUpperInvariant() } else { "" }
-    if ($verdict -ne "GREEN") {
+    if ($verdict -eq "YELLOW" -and $AllowYellowCheckpoint) {
+        Add-Issue "WARN" "Checkpoint verdict is YELLOW; allowed to continue after follow-up gates."
+    } elseif ($verdict -ne "GREEN") {
         Add-Issue "FAIL" "Checkpoint verdict is not GREEN."
     }
     if ($review -match "(?im)^## Recommended Next Step\s*\r?\n\s*stop for human review\s*$") {

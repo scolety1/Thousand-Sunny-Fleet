@@ -26,6 +26,8 @@ param(
 
     [switch]$SkipDebug,
 
+    [switch]$ContinueOnYellowCheckpoint,
+
     [switch]$ValidateOnly,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -386,14 +388,6 @@ Do not edit NIGHTLY_REPORT.md.
         break
     }
 
-    if (!$SkipDebug) {
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "debug-checkpoint.ps1") -Repo $repoPath -BaseBranch $BaseBranch
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
-            exit 1
-        }
-    }
-
     if ($VisualEvery -gt 0 -and ($batch % $VisualEvery -eq 0)) {
         $serveDir = if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildDirectory)) { "." } else { $script:projectConfig.buildDirectory }
         powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-smoke.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir
@@ -450,6 +444,24 @@ Do not edit NIGHTLY_REPORT.md.
         }
         if (-not $joeyPassed -or $joeyText -match "(?is)## Verdict\s+RED\b" -or $joeyText -match "(?i)stop for human security review") {
             Write-Host "Joey requested a human security stop. Ending loop without merge." -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    if (!$SkipDebug) {
+        $debugArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "debug-checkpoint.ps1"),
+            "-Repo", $repoPath,
+            "-BaseBranch", $BaseBranch
+        )
+        if ($ContinueOnYellowCheckpoint) {
+            $debugArgs += "-AllowYellowCheckpoint"
+        }
+        powershell @debugArgs
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }
     }
