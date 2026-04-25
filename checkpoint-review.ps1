@@ -18,7 +18,11 @@ param(
 
     [int]$TimeoutSeconds = 600,
 
-    [int]$BuildTimeoutSeconds = 600
+    [int]$BuildTimeoutSeconds = 600,
+
+    [int]$RateLimitCooldownSeconds = 3600,
+
+    [int]$RateLimitMaxCooldowns = 4
 )
 
 $ErrorActionPreference = "Continue"
@@ -200,7 +204,7 @@ if ($modelChain.Count -eq 0) {
     $modelChain = @(ConvertTo-FleetStringArray -Value $Model)
 }
 $logPath = Join-Path $repoPath.Path (Join-Path ".codex-logs" ("checkpoint-review-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss")))
-$codexResult = Invoke-FleetCodexReadOnly -Prompt $prompt -Models $modelChain -OutputPath $tmp.FullName -WorkingDirectory $repoPath.Path -LogPath $logPath -TimeoutSeconds $TimeoutSeconds
+$codexResult = Invoke-FleetCodexReadOnly -Prompt $prompt -Models $modelChain -OutputPath $tmp.FullName -WorkingDirectory $repoPath.Path -LogPath $logPath -TimeoutSeconds $TimeoutSeconds -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns
 $codexExit = if ($null -eq $codexResult) { 1 } else { $codexResult.exitCode }
 
 if (!(Test-Path $tmp.FullName) -or ((Get-Item $tmp.FullName).Length -eq 0)) {

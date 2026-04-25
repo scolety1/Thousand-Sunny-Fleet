@@ -7,6 +7,7 @@
 - [x] Add fallback model chains for Codex CLI runs, so the loop can retry with a configured fallback instead of stopping on selected-model capacity.
 - [x] Add a max retry count per task in the reusable loop template.
 - [x] Add hard timeout watchdogs for Codex, build, visual, Simon, Joey, Nami, and checkpoint steps.
+- [x] Add rate-limit cooldown handling so Codex usage-limit failures can wait and retry instead of killing long unattended runs.
 - [x] Add `fleet-doctor.ps1` as the preflight command before school-day or overnight runs.
 
 ## Planner Handoff
@@ -21,6 +22,7 @@
 - [x] Add `merge-readiness.ps1` for a single morning merge/no-merge answer.
 - [x] Add a latest screenshot gallery for visual review.
 - [x] Improve checkpoint summaries with completed tasks, changed files, visual/Simon/Joey status, and next-batch guidance.
+- [x] Add launch presets for proof, school-day, and overnight runs.
 - [ ] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
 
 More detail: `docs/FLEET_IMPROVEMENT_GAMEPLAN.md`.

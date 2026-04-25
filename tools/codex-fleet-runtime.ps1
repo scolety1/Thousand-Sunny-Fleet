@@ -171,6 +171,65 @@ function ConvertTo-FleetStringArray {
     return @([string]$Value)
 }
 
+function Test-FleetRateLimitOutput {
+    param([object]$Output)
+
+    $text = ((ConvertTo-FleetStringArray -Value $Output) -join "`n")
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $false
+    }
+
+    $patterns = @(
+        "(?i)\brate\s*limit\b",
+        "(?i)\busage\s*limit\b",
+        "(?i)\blimit\s*reached\b",
+        "(?i)\bquota\b",
+        "(?i)\btoo\s*many\s*requests\b",
+        "(?i)\btry\s*again\s*later\b",
+        "(?i)\btry\s*again\s*in\b",
+        "(?i)\bresets?\s*in\b",
+        "(?i)\b5\s*-?\s*hour\s*limit\b",
+        "(?i)\bfive\s*-?\s*hour\s*limit\b"
+    )
+
+    foreach ($pattern in $patterns) {
+        if ($text -match $pattern) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Get-FleetRateLimitDelaySeconds {
+    param(
+        [object]$Output,
+        [int]$DefaultSeconds = 3600
+    )
+
+    $text = ((ConvertTo-FleetStringArray -Value $Output) -join "`n")
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $DefaultSeconds
+    }
+
+    $match = [regex]::Match($text, "(?i)(try\s*again\s*in|resets?\s*in|reset\s*time\s*:?)\s*(\d+)\s*(seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h)\b")
+    if ($match.Success) {
+        $amount = [int]$match.Groups[2].Value
+        $unit = $match.Groups[3].Value.ToLowerInvariant()
+        $seconds = if ($unit -match "^s") {
+            $amount
+        } elseif ($unit -match "^m") {
+            $amount * 60
+        } else {
+            $amount * 3600
+        }
+
+        return [Math]::Max(60, $seconds + 60)
+    }
+
+    return $DefaultSeconds
+}
+
 function Invoke-FleetCodexReadOnly {
     param(
         [Parameter(Mandatory = $true)]
@@ -185,7 +244,11 @@ function Invoke-FleetCodexReadOnly {
 
         [string]$LogPath = "",
 
-        [int]$TimeoutSeconds = 600
+        [int]$TimeoutSeconds = 600,
+
+        [int]$RateLimitCooldownSeconds = 3600,
+
+        [int]$RateLimitMaxCooldowns = 4
     )
 
     $modelChain = @(ConvertTo-FleetStringArray -Value $Models)
@@ -194,32 +257,49 @@ function Invoke-FleetCodexReadOnly {
     }
 
     $lastResult = $null
+    $cooldownsUsed = 0
     foreach ($model in $modelChain) {
         $modelLabel = if ([string]::IsNullOrWhiteSpace($model)) { "default" } else { $model }
         $safeModel = ($modelLabel -replace "[^a-zA-Z0-9_.-]+", "-")
-        $modelLogPath = $LogPath
-        if ($modelChain.Count -gt 1 -and ![string]::IsNullOrWhiteSpace($LogPath)) {
-            $modelLogPath = $LogPath -replace "\.log$", "-$safeModel.log"
-        }
 
-        if (Test-Path $OutputPath) {
-            Clear-Content -Path $OutputPath -ErrorAction SilentlyContinue
-        }
+        while ($true) {
+            $suffix = if ($cooldownsUsed -eq 0) { "" } else { "-cooldown-$cooldownsUsed" }
+            $modelLogPath = $LogPath
+            if (!([string]::IsNullOrWhiteSpace($LogPath))) {
+                if ($modelChain.Count -gt 1 -or $cooldownsUsed -gt 0) {
+                    $modelLogPath = $LogPath -replace "\.log$", "-$safeModel$suffix.log"
+                }
+            }
 
-        $codexArgs = @("exec")
-        if (![string]::IsNullOrWhiteSpace($model)) {
-            $codexArgs += @("-m", $model)
-        }
-        $codexArgs += @("-o", $OutputPath, "-")
+            if (Test-Path $OutputPath) {
+                Clear-Content -Path $OutputPath -ErrorAction SilentlyContinue
+            }
 
-        Write-Host "Starting read-only Codex run with model $modelLabel" -ForegroundColor DarkCyan
-        $lastResult = Invoke-FleetProcess -FilePath "codex" -Arguments $codexArgs -InputText $Prompt -WorkingDirectory $WorkingDirectory -LogPath $modelLogPath -TimeoutSeconds $TimeoutSeconds
-        if ($lastResult.timedOut) {
-            Write-Host "Read-only Codex run timed out after $TimeoutSeconds seconds on model $modelLabel." -ForegroundColor Yellow
-        }
+            $codexArgs = @("exec")
+            if (![string]::IsNullOrWhiteSpace($model)) {
+                $codexArgs += @("-m", $model)
+            }
+            $codexArgs += @("-o", $OutputPath, "-")
 
-        if ((Test-Path $OutputPath) -and ((Get-Item $OutputPath).Length -gt 0)) {
-            return $lastResult
+            Write-Host "Starting read-only Codex run with model $modelLabel" -ForegroundColor DarkCyan
+            $lastResult = Invoke-FleetProcess -FilePath "codex" -Arguments $codexArgs -InputText $Prompt -WorkingDirectory $WorkingDirectory -LogPath $modelLogPath -TimeoutSeconds $TimeoutSeconds
+            if ($lastResult.timedOut) {
+                Write-Host "Read-only Codex run timed out after $TimeoutSeconds seconds on model $modelLabel." -ForegroundColor Yellow
+            }
+
+            if ((Test-Path $OutputPath) -and ((Get-Item $OutputPath).Length -gt 0)) {
+                return $lastResult
+            }
+
+            if (Test-FleetRateLimitOutput -Output $lastResult.output -and $cooldownsUsed -lt $RateLimitMaxCooldowns) {
+                $cooldownsUsed++
+                $sleepSeconds = Get-FleetRateLimitDelaySeconds -Output $lastResult.output -DefaultSeconds $RateLimitCooldownSeconds
+                Write-Host "Codex appears rate-limited. Waiting $sleepSeconds seconds before retry $cooldownsUsed of $RateLimitMaxCooldowns." -ForegroundColor Yellow
+                Start-Sleep -Seconds $sleepSeconds
+                continue
+            }
+
+            break
         }
 
         if ($model -ne $modelChain[-1]) {

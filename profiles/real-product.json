@@ -23,7 +23,9 @@
     "visual": 900,
     "joey": 300,
     "debug": 300,
-    "guardrails": 180
+    "guardrails": 180,
+    "rateLimitCooldownSeconds": 3600,
+    "rateLimitMaxCooldowns": 6
   },
   "visualPaths": [
     "/"

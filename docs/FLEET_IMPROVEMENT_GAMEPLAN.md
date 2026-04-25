@@ -16,6 +16,7 @@ The fleet can already:
 - feed Simon, visual bugs, and Joey back into Nami's next-task planning
 - use per-ship and per-role fallback model chains
 - use hard timeout watchdogs around Codex, build, planner, checkpoint, visual, Simon, Joey, debug, and guardrail steps
+- detect likely Codex usage/rate-limit responses and wait for a configured cooldown before retrying
 - write per-step watchdog logs under `.codex-logs/`
 - use dynamic visual ports
 - avoid `git add .`
@@ -134,7 +135,7 @@ Make checkpoint reports include:
 
 ## Priority 3 - Launch Experience
 
-### 7. Launch presets
+### 7. Launch presets - done
 
 Problem:
 The best commands are too long to remember.
@@ -147,6 +148,14 @@ Create preset scripts:
 - `launch-overnight-run.ps1`
 
 Each preset should call `fleet-doctor.ps1` first and refuse unsafe launches unless explicitly overridden.
+
+Implemented presets:
+
+- `launch-proof-run.ps1`
+- `launch-school-run.ps1`
+- `launch-overnight-run.ps1`
+
+Each preset launches checkpoint loops, not legacy ship-local loops, and passes rate-limit cooldown settings through to the loop.
 
 ### 8. Ship recovery helper
 
@@ -206,7 +215,7 @@ Use them to test fleet logic without risking real repos.
 1. `fleet-doctor.ps1` - done
 2. timeout watchdog - done
 3. fallback model chain - done
-4. launch presets
+4. launch presets - done
 5. recover interrupted task helper - done
 6. merge readiness report
 7. screenshot gallery

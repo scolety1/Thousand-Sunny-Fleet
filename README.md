@@ -17,6 +17,9 @@ cd C:\Dev\codex-fleet
 
 .\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
 .\fleet-doctor.ps1
+.\launch-proof-run.ps1 -Project RestaurantDemo
+.\launch-school-run.ps1
+.\launch-overnight-run.ps1 -Project EasyLife
 .\fleet-status.ps1
 .\fleet-supervisor.ps1 -Once
 .\merge-readiness.ps1
@@ -36,6 +39,8 @@ cd C:\Dev\codex-fleet
 `run-fleet.ps1` starts each project loop in a separate PowerShell window. Keep rounds low until the reports feel boring and predictable.
 
 `fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, RED Joey/checkpoint/Simon reports, and missing build directories block launch.
+
+`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, or `-DryRun` to print the commands without opening windows.
 
 `recover-interrupted-task.ps1` handles a half-finished task after an interrupted run. By default it does a dry run: changed files, first unchecked task, guardrails, and build. Add `-ConfirmRecovery` only when you want it to mark the task complete, append the report, and commit.
 
@@ -86,6 +91,8 @@ The checkpoint loop:
 - never merges to `main`
 
 Each project can configure `profile`, `model`, role-specific fallback `models`, `timeouts`, and `visualPaths` in `projects.json`. The loop passes role model chains to Codex for implementation, review, planning, checkpoint review, and Simon. If the first model fails without useful work, the fleet retries with backoff and then moves down the configured chain.
+
+If Codex output looks like a usage/rate-limit response, the loop waits for the configured rate-limit cooldown and retries without counting that wait as a normal implementation attempt. Defaults are one-hour cooldowns with caps per ship/profile, so a school-day run can survive a temporary limit reset without sleeping forever.
 
 Long-running steps are wrapped by the fleet watchdog, including Codex implementation/review, external builds, Nami planning, checkpoint review, visual smoke/inspect, Simon, Joey, guardrails, and the checkpoint debugger. Timeouts are configurable per ship or profile; watchdog logs are written under `.codex-logs/`.
 

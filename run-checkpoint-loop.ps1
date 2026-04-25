@@ -30,6 +30,10 @@ param(
 
     [int]$DebugTimeoutSeconds = 300,
 
+    [int]$RateLimitCooldownSeconds = 3600,
+
+    [int]$RateLimitMaxCooldowns = 4,
+
     [int]$VisualEvery = 0,
 
     [int]$VisualInspectEvery = 0,
@@ -100,6 +104,14 @@ if ($BatchSize -lt 1) {
 
 if ($MaxBatches -lt 1) {
     Stop-Usage "-MaxBatches must be at least 1."
+}
+
+if ($RateLimitCooldownSeconds -lt 60) {
+    Stop-Usage "-RateLimitCooldownSeconds must be at least 60."
+}
+
+if ($RateLimitMaxCooldowns -lt 0) {
+    Stop-Usage "-RateLimitMaxCooldowns must be 0 or greater."
 }
 
 foreach ($timeoutSpec in @(
@@ -278,6 +290,32 @@ function Get-TimeoutSetting {
     return $Default
 }
 
+function Get-ConfigInt {
+    param(
+        [string]$Name,
+        [int]$Default
+    )
+
+    foreach ($source in @($script:projectConfig, $script:profileConfig)) {
+        if ($null -eq $source) { continue }
+
+        $value = Get-ConfigPropertyValue -Object $source -Name $Name
+        if ($null -ne $value -and [int]$value -gt 0) {
+            return [int]$value
+        }
+
+        $timeouts = Get-ConfigPropertyValue -Object $source -Name "timeouts"
+        if ($null -ne $timeouts) {
+            $timeoutValue = Get-ConfigPropertyValue -Object $timeouts -Name $Name
+            if ($null -ne $timeoutValue -and [int]$timeoutValue -gt 0) {
+                return [int]$timeoutValue
+            }
+        }
+    }
+
+    return $Default
+}
+
 function Write-FleetOutputTail {
     param(
         [object]$Result,
@@ -406,11 +444,16 @@ function Invoke-CodexExec {
         $modelChain = @("")
     }
 
+    $rateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
+    $rateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
+    $rateLimitCooldownsUsed = 0
+
     foreach ($model in $modelChain) {
         $modelLabel = if ([string]::IsNullOrWhiteSpace($model)) { "default" } else { $model }
         $safeModel = ($modelLabel -replace "[^a-zA-Z0-9_.-]+", "-")
 
-        for ($attempt = 1; $attempt -le $MaxCodexAttempts; $attempt++) {
+        $attempt = 1
+        while ($attempt -le $MaxCodexAttempts) {
             Write-Host "Starting Codex run with model $modelLabel, attempt $attempt of $MaxCodexAttempts" -ForegroundColor DarkCyan
             $attemptLog = if ($attempt -eq 1 -and $modelChain.Count -eq 1) {
                 $LogPath
@@ -445,9 +488,18 @@ function Invoke-CodexExec {
                 return $exitCode
             }
 
+            if (Test-FleetRateLimitOutput -Output $result.output -and $rateLimitCooldownsUsed -lt $rateLimitMaxCooldowns) {
+                $rateLimitCooldownsUsed++
+                $sleepSeconds = Get-FleetRateLimitDelaySeconds -Output $result.output -DefaultSeconds $rateLimitCooldown
+                Write-Host "Codex appears rate-limited. Waiting $sleepSeconds seconds before retry $rateLimitCooldownsUsed of $rateLimitMaxCooldowns. This does not count as a normal attempt." -ForegroundColor Yellow
+                Start-Sleep -Seconds $sleepSeconds
+                continue
+            }
+
             $sleepSeconds = [Math]::Min(300, 30 * $attempt)
             Write-Host "Codex failed with no repo changes. Waiting $sleepSeconds seconds before retry." -ForegroundColor Yellow
             Start-Sleep -Seconds $sleepSeconds
+            $attempt++
         }
 
         if ($model -ne $modelChain[-1]) {
@@ -559,6 +611,7 @@ if ($ValidateOnly) {
     Write-Host "Review models: $((Get-ProjectModels -Role "review") -join ', ')"
     Write-Host "Planner models: $((Get-ProjectModels -Role "planner") -join ', ')"
     Write-Host "Timeouts: codex=$(Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)s build=$(Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)s planner=$(Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds)s visual=$(Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)s"
+    Write-Host "Rate-limit cooldown: $(Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds))s, max cooldowns $(Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns)"
     exit 0
 }
 
@@ -607,8 +660,14 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             $plannerArgs += $plannerModels
         }
         $plannerTimeout = Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds
-        $plannerArgs += @("-TimeoutSeconds", $plannerTimeout)
-        $plannerExit = Invoke-FleetPowerShell -Arguments $plannerArgs -LogName "planner-batch-$batch.log" -TimeoutSeconds ($plannerTimeout + 120)
+        $plannerRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
+        $plannerRateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
+        $plannerArgs += @(
+            "-TimeoutSeconds", $plannerTimeout,
+            "-RateLimitCooldownSeconds", $plannerRateLimitCooldown,
+            "-RateLimitMaxCooldowns", $plannerRateLimitMaxCooldowns
+        )
+        $plannerExit = Invoke-FleetPowerShell -Arguments $plannerArgs -LogName "planner-batch-$batch.log" -TimeoutSeconds ($plannerTimeout + ($plannerRateLimitCooldown * $plannerRateLimitMaxCooldowns) + 120)
         if ($plannerExit -ne 0) { exit 1 }
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
         Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
@@ -715,11 +774,15 @@ REVIEW_FINDING: P2: short description
     }
     $checkpointTimeout = Get-TimeoutSetting -Role "checkpoint" -Default $CheckpointTimeoutSeconds
     $checkpointBuildTimeout = Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds
+    $checkpointRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
+    $checkpointRateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
     $checkpointArgs += @(
         "-TimeoutSeconds", $checkpointTimeout,
-        "-BuildTimeoutSeconds", $checkpointBuildTimeout
+        "-BuildTimeoutSeconds", $checkpointBuildTimeout,
+        "-RateLimitCooldownSeconds", $checkpointRateLimitCooldown,
+        "-RateLimitMaxCooldowns", $checkpointRateLimitMaxCooldowns
     )
-    $checkpointExit = Invoke-FleetPowerShell -Arguments $checkpointArgs -LogName "checkpoint-review-batch-$batch.log" -TimeoutSeconds ($checkpointTimeout + $checkpointBuildTimeout + 120)
+    $checkpointExit = Invoke-FleetPowerShell -Arguments $checkpointArgs -LogName "checkpoint-review-batch-$batch.log" -TimeoutSeconds ($checkpointTimeout + $checkpointBuildTimeout + ($checkpointRateLimitCooldown * $checkpointRateLimitMaxCooldowns) + 120)
     if ($checkpointExit -ne 0) { exit 1 }
 
     $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
@@ -800,8 +863,14 @@ REVIEW_FINDING: P2: short description
             $simonArgs += $simonModels
         }
         $simonTimeout = Get-TimeoutSetting -Role "simon" -Default $SimonTimeoutSeconds
-        $simonArgs += @("-TimeoutSeconds", $simonTimeout)
-        $simonExit = Invoke-FleetPowerShell -Arguments $simonArgs -LogName "simon-design-review-batch-$batch.log" -TimeoutSeconds ($simonTimeout + 120)
+        $simonRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
+        $simonRateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
+        $simonArgs += @(
+            "-TimeoutSeconds", $simonTimeout,
+            "-RateLimitCooldownSeconds", $simonRateLimitCooldown,
+            "-RateLimitMaxCooldowns", $simonRateLimitMaxCooldowns
+        )
+        $simonExit = Invoke-FleetPowerShell -Arguments $simonArgs -LogName "simon-design-review-batch-$batch.log" -TimeoutSeconds ($simonTimeout + ($simonRateLimitCooldown * $simonRateLimitMaxCooldowns) + 120)
         if ($simonExit -ne 0) {
             Write-Host "Simon design review failed. Ending loop without merge." -ForegroundColor Red
             exit 1
