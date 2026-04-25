@@ -14,6 +14,8 @@ param(
 
     [int]$MaxTaskQuarantines = 5,
 
+    [int]$LaunchDelaySeconds = 90,
+
     [switch]$SkipDoctor,
 
     [switch]$PushCheckpoint,
@@ -68,6 +70,7 @@ function Get-ShipInt {
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
+if ($LaunchDelaySeconds -lt 0) { Stop-WithMessage "-LaunchDelaySeconds must be 0 or greater." }
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
@@ -83,12 +86,15 @@ if (!$SkipDoctor) {
     }
 }
 
-foreach ($ship in Get-Projects) {
+$shipsToLaunch = @(Get-Projects)
+for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
+    $ship = $shipsToLaunch[$shipIndex]
     $shipBatchSize = Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize
     $shipMaxBatches = Get-ShipInt -Ship $ship -Name "overnightMaxBatches" -Default $MaxBatches
     $shipVisualEvery = Get-ShipInt -Ship $ship -Name "overnightVisualInspectEvery" -Default 3
     $shipSimonEvery = Get-ShipInt -Ship $ship -Name "overnightSimonEvery" -Default 3
     $shipJoeyEvery = Get-ShipInt -Ship $ship -Name "overnightJoeyEvery" -Default 6
+    $shipLaunchDelay = Get-ShipInt -Ship $ship -Name "launchDelaySeconds" -Default $LaunchDelaySeconds
 
     $command = @(
         "Set-Location '$fleetRoot'",
@@ -100,5 +106,9 @@ foreach ($ship in Get-Projects) {
         Write-Host $command
     } else {
         Start-Process powershell -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command)
+        if ($shipIndex -lt ($shipsToLaunch.Count - 1) -and $shipLaunchDelay -gt 0) {
+            Write-Host "Waiting $shipLaunchDelay seconds before launching the next ship..." -ForegroundColor DarkCyan
+            Start-Sleep -Seconds $shipLaunchDelay
+        }
     }
 }
