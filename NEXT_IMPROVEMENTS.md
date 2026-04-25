@@ -3,10 +3,23 @@
 ## Must Fix
 
 - [x] Add retry/backoff handling to the reusable `templates/scripts/codex-night-loop.ps1` for transient Codex failures such as model capacity, plugin sync, analytics, or reconnect noise. A temporary model/service failure should not kill an overnight run when no repo changes were made.
-- [ ] Add optional fallback model/profile support for Codex CLI runs, so the loop can retry with a configured fallback instead of stopping on selected-model capacity.
+- [x] Add model/profile config for Codex CLI runs.
+- [ ] Add fallback model chains for Codex CLI runs, so the loop can retry with a configured fallback instead of stopping on selected-model capacity.
 - [x] Add a max retry count per task in the reusable loop template.
+- [ ] Add hard timeout watchdogs for Codex, build, visual, Simon, Joey, Nami, and checkpoint steps.
+- [ ] Add `fleet-doctor.ps1` as the preflight command before school-day or overnight runs.
 
 ## Planner Handoff
 
 - [x] Add `prepare-next-task-request.ps1` to generate a planner prompt after each project run.
 - [x] Add `import-next-tasks.ps1` to validate planner-proposed tasks before appending them to `docs/codex/TASK_QUEUE.md`.
+- [x] Feed Simon, visual bugs, and Joey into Nami's next-task generation.
+
+## Review And Recovery
+
+- [ ] Add `recover-interrupted-task.ps1` for clean interrupted-run recovery.
+- [ ] Add `merge-readiness.ps1` for a single morning merge/no-merge answer.
+- [ ] Add a latest screenshot gallery for visual review.
+- [ ] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
+
+More detail: `docs/FLEET_IMPROVEMENT_GAMEPLAN.md`.
