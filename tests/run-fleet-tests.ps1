@@ -433,6 +433,13 @@ function Test-JoeyStorageRules {
     Assert-False -Condition ($joeyText -match 'process\\.env\|import\\.meta\\.env\|localStorage\\.setItem') -Message "Joey does not blanket-block harmless localStorage writes"
 }
 
+function Test-DebuggerReportFileAllowance {
+    $debugText = Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw
+    Assert-True -Condition ($debugText -match 'expectedReportFilePattern') -Message "Debugger identifies expected Codex report files"
+    Assert-True -Condition ($debugText -match 'batchChangedForLimit') -Message "Debugger uses a non-report file count for hard batch limits"
+    Assert-True -Condition ($debugText -match 'Too many non-report files changed') -Message "Debugger batch limit message distinguishes report-file overhead"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -451,6 +458,7 @@ Test-DuplicateRunGuard
 Test-SafeStopSupport
 Test-LaunchControlSupport
 Test-JoeyStorageRules
+Test-DebuggerReportFileAllowance
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)

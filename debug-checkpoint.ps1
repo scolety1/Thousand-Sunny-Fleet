@@ -92,6 +92,8 @@ $changed = @(git diff --name-only $branchDiffRange 2>$null | ForEach-Object { No
 $changedStatus = @(git diff --name-status $branchDiffRange 2>$null)
 $batchChanged = @(git diff --name-only $batchDiffRange 2>$null | ForEach-Object { Normalize-Path $_ })
 $batchChangedStatus = @(git diff --name-status $batchDiffRange 2>$null)
+$expectedReportFilePattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS)\.md$"
+$batchChangedForLimit = @($batchChanged | Where-Object { $_ -notmatch $expectedReportFilePattern })
 $addedAppLines = @()
 $currentDiffFile = ""
 foreach ($line in @(git diff --unified=0 $batchDiffRange 2>$null)) {
@@ -122,8 +124,8 @@ if ($hasBatchBase) {
     if ($batchChanged.Count -eq 0) {
         Add-Issue "WARN" "No files changed in current batch compared with $($resolvedBatchBase.Substring(0, 7))."
     }
-    if ($batchChanged.Count -gt $MaxBatchChangedFiles) {
-        Add-Issue "FAIL" "Too many files changed in current batch: $($batchChanged.Count), max $MaxBatchChangedFiles."
+    if ($batchChangedForLimit.Count -gt $MaxBatchChangedFiles) {
+        Add-Issue "FAIL" "Too many non-report files changed in current batch: $($batchChangedForLimit.Count), max $MaxBatchChangedFiles. Total files including expected reports: $($batchChanged.Count)."
     }
     if ($changed.Count -gt $MaxChangedFiles) {
         Add-Issue "WARN" "Whole branch changed file count is high compared with ${BaseBranch}: $($changed.Count), warning threshold $MaxChangedFiles."
@@ -275,6 +277,7 @@ if ($Json) {
     if ($hasBatchBase) {
         Write-Host "Batch base: $($resolvedBatchBase.Substring(0, 7))"
         Write-Host "Changed files in current batch: $($batchChanged.Count)"
+        Write-Host "Changed non-report files in current batch: $($batchChangedForLimit.Count)"
     }
     if ($script:Issues.Count -gt 0) {
         Write-Host ""
