@@ -52,6 +52,8 @@ param(
 
     [switch]$QuarantineFailedTasks,
 
+    [switch]$AllowDuplicateRun,
+
     [switch]$ValidateOnly,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -751,6 +753,146 @@ function Ensure-LogExclude {
     }
 }
 
+function Get-FleetRunLockPath {
+    param(
+        [string]$ProjectName,
+        [string]$RepoFullPath
+    )
+
+    $lockRoot = Join-Path $fleetRoot ".codex-local\locks"
+    New-Item -ItemType Directory -Force -Path $lockRoot | Out-Null
+    $safeName = if ([string]::IsNullOrWhiteSpace($ProjectName)) { Split-Path -Leaf $RepoFullPath } else { $ProjectName }
+    $safeName = ([string]$safeName) -replace "[^a-zA-Z0-9_.-]+", "-"
+    $safeName = $safeName.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeName)) {
+        $safeName = "project"
+    }
+    return Join-Path $lockRoot "$safeName.lock.json"
+}
+
+function Test-FleetProcessAlive {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) {
+        return $false
+    }
+
+    $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    return ($null -ne $process)
+}
+
+function Get-ExistingFleetRunProcesses {
+    param(
+        [string]$ProjectName,
+        [string]$RepoFullPath
+    )
+
+    $needles = @("run-checkpoint-loop.ps1")
+    if (![string]::IsNullOrWhiteSpace($ProjectName)) {
+        $needles += [string]$ProjectName
+    }
+    if (![string]::IsNullOrWhiteSpace($RepoFullPath)) {
+        $needles += [string]$RepoFullPath
+    }
+
+    try {
+        return @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            $isMatch = $true
+            if ([int]$_.ProcessId -eq [int]$PID) { $isMatch = $false }
+            $commandLine = [string]$_.CommandLine
+            if ([string]::IsNullOrWhiteSpace($commandLine)) { $isMatch = $false }
+            if ($isMatch -and $commandLine.IndexOf("run-checkpoint-loop.ps1", [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { $isMatch = $false }
+
+            if ($isMatch) {
+                $containsProjectOrRepo = $false
+                foreach ($needle in $needles) {
+                    if ([string]::IsNullOrWhiteSpace($needle)) { continue }
+                    if ($commandLine.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                        $containsProjectOrRepo = $true
+                        break
+                    }
+                }
+                $isMatch = $containsProjectOrRepo
+            }
+            $isMatch
+        })
+    } catch {
+        return @()
+    }
+}
+
+function Assert-NoDuplicateFleetRun {
+    param(
+        [string]$ProjectName,
+        [string]$RepoFullPath
+    )
+
+    $existingProcesses = @(Get-ExistingFleetRunProcesses -ProjectName $ProjectName -RepoFullPath $RepoFullPath)
+    if ($existingProcesses.Count -gt 0) {
+        Write-Host "Duplicate fleet run refused for $ProjectName." -ForegroundColor Red
+        Write-Host "Another run-checkpoint-loop process appears active for this ship:" -ForegroundColor Yellow
+        $existingProcesses | Select-Object -First 5 | ForEach-Object {
+            Write-Host ("- PID {0}: {1}" -f $_.ProcessId, $_.CommandLine) -ForegroundColor Yellow
+        }
+        Write-Host "Wait for that window to finish, or pass -AllowDuplicateRun if you are intentionally doing something risky." -ForegroundColor Yellow
+        exit 1
+    }
+}
+
+function Acquire-FleetRunLock {
+    param(
+        [string]$ProjectName,
+        [string]$RepoFullPath
+    )
+
+    $lockPath = Get-FleetRunLockPath -ProjectName $ProjectName -RepoFullPath $RepoFullPath
+    $lockInfo = [pscustomobject]@{
+        project = $ProjectName
+        repo = $RepoFullPath
+        pid = $PID
+        startedAt = (Get-Date).ToString("o")
+        command = $MyInvocation.Line
+    }
+
+    if (Test-Path $lockPath) {
+        $existing = $null
+        try {
+            $existing = Get-Content $lockPath -Raw | ConvertFrom-Json
+        } catch {
+            $existing = $null
+        }
+
+        $existingPid = if ($null -ne $existing -and $null -ne $existing.pid) { [int]$existing.pid } else { 0 }
+        if (Test-FleetProcessAlive -ProcessId $existingPid) {
+            Write-Host "Duplicate fleet run refused for $ProjectName." -ForegroundColor Red
+            Write-Host "Active lock: $lockPath" -ForegroundColor Yellow
+            Write-Host "Lock owner PID: $existingPid" -ForegroundColor Yellow
+            Write-Host "Wait for that run to finish, or pass -AllowDuplicateRun if you are intentionally doing something risky." -ForegroundColor Yellow
+            exit 1
+        }
+
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+    }
+
+    $json = $lockInfo | ConvertTo-Json -Depth 4
+    try {
+        $stream = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        try {
+            $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($json)
+            $stream.Write($bytes, 0, $bytes.Length)
+        } finally {
+            $stream.Dispose()
+        }
+    } catch {
+        Write-Host "Could not acquire fleet run lock for $ProjectName at $lockPath." -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Yellow
+        exit 1
+    }
+
+    Write-Host "Fleet run lock acquired: $lockPath" -ForegroundColor DarkCyan
+    $script:FleetRunLockPath = $lockPath
+}
+
 $script:projectConfig = Get-ProjectConfig
 $repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -791,6 +933,11 @@ if ($ValidateOnly) {
     $validateVisualPaths = @(Get-ConfigArray -Name "visualPaths")
     Write-Host "Visual paths: $(if ($validateVisualPaths.Count -gt 0) { $validateVisualPaths -join ', ' } else { 'none' })"
     exit 0
+}
+
+if (!$AllowDuplicateRun) {
+    Assert-NoDuplicateFleetRun -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
+    Acquire-FleetRunLock -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
 }
 
 $status = @(git status --porcelain)
