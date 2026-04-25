@@ -5,7 +5,7 @@ param(
 
     [string]$BaseBranch = "main",
 
-    [int]$MaxChangedFiles = 30,
+    [int]$MaxChangedFiles = 60,
 
     [int]$MaxCssDeltaKb = 80,
 

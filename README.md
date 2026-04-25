@@ -71,6 +71,8 @@ The checkpoint loop:
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 
+For larger real-product sprints, the checkpoint debugger allows up to 60 changed files before stopping for review. Keep `BatchSize` modest and increase `MaxBatches` when a ship needs more work.
+
 ## Reusable Harness
 
 Add a new repo to the fleet:
