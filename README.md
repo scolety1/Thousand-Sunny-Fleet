@@ -149,6 +149,8 @@ Nami's task planner reads the mission, run policy, checkpoint review, Simon desi
 
 When present, Nami also reads `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`. Those files turn overnight planning from isolated polish tasks into coherent work-pack progress: one product direction, one active pack, and a memory of weak or blocked slices to avoid. If `WORK_PACK_STATUS.md` names an active pack, planner output must mention that active pack before the tasks can be imported.
 
+Phase 3 Devil Fruit quality memory adds before/after visual evidence to `MAGIC_SCORECARD.md`, asks Simon for a required `Magic Improvement Score`, and writes `QUALITY_QUARANTINE.md` when Simon says the active pack is flat, regressed, or scoring too weakly to continue unattended. Nami reads that quarantine as a repair order before planning fresh work.
+
 Phase 3 task contracts can be added to task lines when a task needs tighter implementation controls:
 
 ```md

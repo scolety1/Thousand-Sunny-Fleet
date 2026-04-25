@@ -48,6 +48,10 @@ $status = @(git status --short)
 $changed = @(git diff --name-status "$BaseBranch..HEAD")
 $commits = @(git log --oneline "$BaseBranch..HEAD" -12)
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
+$magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
+$workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
+$workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
+$magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $runPolicy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy file found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
 $visualBugs = if (Test-Path "docs/codex/VISUAL_BUGS.md") { Get-Content "docs/codex/VISUAL_BUGS.md" -Raw } else { "No visual bug report found." }
@@ -102,6 +106,9 @@ Bullets. Suggest high-leverage design improvements that would make the project f
 ## Priority Fix
 Name the single most important design problem to fix next. One short paragraph, specific enough for Nami to turn into tasks.
 
+## Magic Improvement Score
+Write one line in this exact shape: SCORE: 1-5; DIRECTION: improved, flat, or regressed; ACTIVE_PACK: pack name; REASON: short reason.
+
 ## Designer Handoff
 Give the next implementer a tactical design direction for the next batch. This should be descriptive, opinionated, and actionable. Include what should change, what should stay, and what result the user should feel.
 
@@ -123,6 +130,8 @@ Rules:
 - Make the Stop Or Continue line short and machine-readable, but put the real design direction in Priority Fix and Designer Handoff.
 - If screenshots are missing, say that confidence is lower.
 - If visual bugs are reported, use them as evidence, but also judge the design quality.
+- Use MAGIC_MISSION.md, WORK_PACKS.md, WORK_PACK_STATUS.md, and MAGIC_SCORECARD.md to judge whether the current branch is advancing the active work pack or merely changing things.
+- A score of 1 means actively worse, 2 means weak or mostly cosmetic, 3 means small improvement, 4 means clearly better, and 5 means morning-review impressive.
 
 Repository: $($repoPath.Path)
 Project: $Project
@@ -144,6 +153,18 @@ $(if ($screenshots.Count -eq 0) { "- None found" } else { ($screenshots | ForEac
 
 Mission:
 $mission
+
+Magic mission:
+$magicMission
+
+Work packs:
+$workPacks
+
+Work pack status:
+$workPackStatus
+
+Magic scorecard tail:
+$($magicScorecard -join "`n")
 
 Run policy:
 $runPolicy

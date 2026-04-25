@@ -758,6 +758,10 @@ function Append-MagicScorecard {
     $taskClass = if ($null -ne $Contract) { [string]$Contract.class } else { "unknown" }
     $taskRisk = if ($null -ne $Contract) { [string]$Contract.risk } else { "unknown" }
     $activePack = Get-ActiveWorkPackForLoop
+    $beforeEvidence = if ($null -ne $script:CurrentTaskBeforeVisualEvidence -and $script:CurrentTaskBeforeVisualEvidence.Count -gt 0) { ($script:CurrentTaskBeforeVisualEvidence | ForEach-Object { "- $_" }) -join "`n" } else { "- None recorded before task." }
+    $afterEvidenceItems = @(Get-LatestVisualEvidenceForLoop)
+    $afterEvidence = if ($afterEvidenceItems.Count -gt 0) { ($afterEvidenceItems | ForEach-Object { "- $_" }) -join "`n" } else { "- None recorded after task." }
+    $simonScore = Get-SimonImprovementScoreForLoop
     Add-Content "docs/codex/MAGIC_SCORECARD.md" @"
 
 ## $date
@@ -769,6 +773,11 @@ function Append-MagicScorecard {
 - Task class: $taskClass
 - Task risk: $taskRisk
 - Changed files: $changedCount
+- Simon improvement score: $simonScore
+- Before visual evidence:
+$beforeEvidence
+- After visual evidence:
+$afterEvidence
 - Follow-up: $Risk
 "@
 }
@@ -789,6 +798,114 @@ function Get-ActiveWorkPackForLoop {
     }
 
     return "unknown"
+}
+
+function Get-LatestVisualEvidenceForLoop {
+    $results = [System.Collections.Generic.List[string]]::new()
+
+    if (Test-Path "docs/codex/VISUAL_BUGS.md") {
+        $visualText = Get-Content "docs/codex/VISUAL_BUGS.md" -Raw
+        $artifactMatch = [regex]::Match($visualText, "(?im)^Artifacts:\s*(.+)$")
+        if ($artifactMatch.Success) {
+            $results.Add("Visual report artifacts: $($artifactMatch.Groups[1].Value.Trim())") | Out-Null
+        }
+    }
+
+    $latestVisualDir = @(Get-ChildItem ".codex-logs" -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match "^visual(-inspect)?-" } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1)
+
+    foreach ($dir in $latestVisualDir) {
+        $screenshots = @(Get-ChildItem $dir.FullName -Filter "*.png" -File -ErrorAction SilentlyContinue |
+            Sort-Object Name |
+            Select-Object -First 4)
+        foreach ($screenshot in $screenshots) {
+            $results.Add("Screenshot: $($screenshot.FullName)") | Out-Null
+        }
+    }
+
+    return @($results)
+}
+
+function Get-SimonImprovementScoreForLoop {
+    if (!(Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md")) {
+        return "not-reviewed"
+    }
+
+    $text = Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw
+    $section = [regex]::Match($text, "(?ims)^##\s+Magic Improvement Score\s*\r?\n(.+?)(?=^##\s+|\z)")
+    if ($section.Success) {
+        $line = (($section.Groups[1].Value -split "\r?\n") | Where-Object { ![string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
+        if (![string]::IsNullOrWhiteSpace($line)) {
+            return $line.Trim()
+        }
+    }
+
+    $verdict = [regex]::Match($text, "(?im)^##\s+Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)")
+    if ($verdict.Success) {
+        return "legacy-simon-verdict: $($verdict.Groups[1].Value)"
+    }
+
+    return "unknown"
+}
+
+function Get-SimonQualityStopReasonForLoop {
+    param([string]$SimonText)
+
+    if ([string]::IsNullOrWhiteSpace($SimonText)) {
+        return ""
+    }
+
+    $section = [regex]::Match($SimonText, "(?ims)^##\s+Magic Improvement Score\s*\r?\n(.+?)(?=^##\s+|\z)")
+    if (!$section.Success) {
+        return ""
+    }
+
+    $scoreLine = (($section.Groups[1].Value -split "\r?\n") | Where-Object { ![string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
+    if ([string]::IsNullOrWhiteSpace($scoreLine)) {
+        return ""
+    }
+
+    $scoreMatch = [regex]::Match($scoreLine, "(?i)SCORE:\s*([1-5])")
+    $directionMatch = [regex]::Match($scoreLine, "(?i)DIRECTION:\s*(improved|flat|regressed)")
+    $score = if ($scoreMatch.Success) { [int]$scoreMatch.Groups[1].Value } else { 0 }
+    $direction = if ($directionMatch.Success) { $directionMatch.Groups[1].Value.ToLowerInvariant() } else { "" }
+
+    if ($score -gt 0 -and $score -le 2) {
+        return "Simon gave a weak Magic Improvement Score: $scoreLine"
+    }
+    if ($direction -in @("flat", "regressed")) {
+        return "Simon says the active work pack is $direction`: $scoreLine"
+    }
+
+    return ""
+}
+
+function Append-QualityQuarantineReport {
+    param(
+        [string]$Reason,
+        [int]$Batch,
+        [string]$SimonScore
+    )
+
+    if (!(Test-Path "docs/codex/QUALITY_QUARANTINE.md")) {
+        New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+        "# Quality Quarantine`n" | Set-Content "docs/codex/QUALITY_QUARANTINE.md"
+    }
+
+    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $activePack = Get-ActiveWorkPackForLoop
+    Add-Content "docs/codex/QUALITY_QUARANTINE.md" @"
+
+## $date
+
+- Batch: $Batch
+- Active work pack: $activePack
+- Simon score: $SimonScore
+- Reason: $Reason
+- Next step: Nami must generate a smaller repair task for this active pack before fresh feature or polish work.
+"@
 }
 
 function Append-QuarantineReport {
@@ -1483,6 +1600,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             Write-Host "Could not determine task base commit before implementation." -ForegroundColor Red
             exit 1
         }
+        $script:CurrentTaskBeforeVisualEvidence = @(Get-LatestVisualEvidenceForLoop)
 
         $prompt = @"
 Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, and docs/codex/TASK_QUEUE.md.
@@ -1746,6 +1864,19 @@ REVIEW_FINDING: P2: short description
             $stopAfterCheckpointExitCode = [Math]::Max($stopAfterCheckpointExitCode, 0)
             $stopAfterCheckpointReason = "Simon requested a human design stop."
             Write-Host "Simon requested a human design stop. A final checkpoint will be written before stopping." -ForegroundColor Yellow
+        }
+        $simonQualityStopReason = Get-SimonQualityStopReasonForLoop -SimonText $simonText
+        if (![string]::IsNullOrWhiteSpace($simonQualityStopReason)) {
+            Append-QualityQuarantineReport -Reason $simonQualityStopReason -Batch $batch -SimonScore (Get-SimonImprovementScoreForLoop)
+            Stage-Files -Paths @("docs/codex/QUALITY_QUARANTINE.md")
+            $pendingQualityCommit = @(git diff --cached --name-only)
+            if ($pendingQualityCommit.Count -gt 0) {
+                if (-not (Invoke-FleetCommit -Message "Codex quality quarantine batch $batch")) { exit 1 }
+            }
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = [Math]::Max($stopAfterCheckpointExitCode, 0)
+            $stopAfterCheckpointReason = $simonQualityStopReason
+            Write-Host "$simonQualityStopReason. A final checkpoint will be written before stopping." -ForegroundColor Yellow
         }
     }
 

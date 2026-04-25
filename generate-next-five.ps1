@@ -56,6 +56,7 @@ $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
+$qualityQuarantine = if (Test-Path "docs/codex/QUALITY_QUARANTINE.md") { Get-Content "docs/codex/QUALITY_QUARANTINE.md" -Tail 120 } else { @("No quality quarantine found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
 $simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No Simon design review found." }
@@ -120,6 +121,7 @@ Rules:
 - If WORK_PACK_STATUS.md names an active pack, every fresh mission-forward task must mention that active pack label, for example "Pack 1 - Product Spine".
 - Do not move to a later pack until WORK_PACK_STATUS.md marks the current pack DONE.
 - Use MAGIC_SCORECARD.md to avoid work that previously scored as weak, blocked, or repetitive.
+- If QUALITY_QUARANTINE.md exists, treat it like an active repair order. The next task must be a smaller repair task for the named active work pack.
 - Every task should make the next screenshot, workflow, or user-facing product state measurably better.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
@@ -143,6 +145,9 @@ $workPackStatus
 
 Magic scorecard tail:
 $($magicScorecard -join "`n")
+
+Quality quarantine tail:
+$($qualityQuarantine -join "`n")
 
 Run policy:
 $policy

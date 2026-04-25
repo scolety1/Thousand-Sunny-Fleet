@@ -19,9 +19,9 @@ This roadmap defines what has to be true before Codex Fleet can be trusted for l
 ## Roadmap 3 - Before/After Quality Memory
 
 - [x] Append `MAGIC_SCORECARD.md` after checkpoint-loop task outcomes.
-- [ ] Add screenshot before/after links to scorecard entries.
-- [ ] Ask Simon to grade whether the latest task improved the active work pack.
-- [ ] Auto-quarantine tasks that repeatedly fail the same Simon or visual finding.
+- [x] Add screenshot before/after links to scorecard entries.
+- [x] Ask Simon to grade whether the latest task improved the active work pack.
+- [x] Auto-quarantine weak quality loops that fail Simon's active-pack score.
 
 ## Roadmap 4 - Long-Run Supervision
 
