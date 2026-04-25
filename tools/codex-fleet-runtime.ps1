@@ -19,6 +19,39 @@ function Join-FleetArguments {
     return (($Arguments | ForEach-Object { ConvertTo-FleetArgument -Value ([string]$_) }) -join " ")
 }
 
+function Resolve-FleetProcessFilePath {
+    param([Parameter(Mandatory = $true)][string]$FilePath)
+
+    $candidate = $FilePath
+    if (Test-Path $FilePath) {
+        $candidate = (Resolve-Path $FilePath).Path
+    } else {
+        $command = Get-Command $FilePath -ErrorAction SilentlyContinue
+        if ($command) {
+            if (![string]::IsNullOrWhiteSpace($command.Source)) {
+                $candidate = $command.Source
+            } elseif (![string]::IsNullOrWhiteSpace($command.Path)) {
+                $candidate = $command.Path
+            }
+        }
+    }
+
+    $extension = [System.IO.Path]::GetExtension($candidate)
+    if ($extension -ieq ".ps1") {
+        $cmdShim = [System.IO.Path]::ChangeExtension($candidate, ".cmd")
+        if (Test-Path $cmdShim) {
+            return (Resolve-Path $cmdShim).Path
+        }
+
+        $exeShim = [System.IO.Path]::ChangeExtension($candidate, ".exe")
+        if (Test-Path $exeShim) {
+            return (Resolve-Path $exeShim).Path
+        }
+    }
+
+    return $candidate
+}
+
 function Stop-FleetProcessTree {
     param([int]$ProcessId)
 
@@ -48,9 +81,27 @@ function Invoke-FleetProcess {
         [hashtable]$Environment = @{}
     )
 
+    $resolvedFilePath = Resolve-FleetProcessFilePath -FilePath $FilePath
+    $resolvedExtension = [System.IO.Path]::GetExtension($resolvedFilePath)
+    $joinedArguments = Join-FleetArguments -Arguments $Arguments
+
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = $FilePath
-    $startInfo.Arguments = Join-FleetArguments -Arguments $Arguments
+    if ($resolvedExtension -ieq ".cmd" -or $resolvedExtension -ieq ".bat") {
+        $startInfo.FileName = "cmd.exe"
+        $startInfo.Arguments = "/d /c " + (ConvertTo-FleetArgument -Value $resolvedFilePath)
+        if (![string]::IsNullOrWhiteSpace($joinedArguments)) {
+            $startInfo.Arguments += " $joinedArguments"
+        }
+    } elseif ($resolvedExtension -ieq ".ps1") {
+        $startInfo.FileName = "powershell.exe"
+        $startInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -File " + (ConvertTo-FleetArgument -Value $resolvedFilePath)
+        if (![string]::IsNullOrWhiteSpace($joinedArguments)) {
+            $startInfo.Arguments += " $joinedArguments"
+        }
+    } else {
+        $startInfo.FileName = $resolvedFilePath
+        $startInfo.Arguments = $joinedArguments
+    }
     if (![string]::IsNullOrWhiteSpace($WorkingDirectory)) {
         $startInfo.WorkingDirectory = $WorkingDirectory
     }
@@ -59,6 +110,16 @@ function Invoke-FleetProcess {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $true
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    if ($startInfo.GetType().GetProperty("StandardInputEncoding")) {
+        $startInfo.StandardInputEncoding = $utf8NoBom
+    }
+    if ($startInfo.GetType().GetProperty("StandardOutputEncoding")) {
+        $startInfo.StandardOutputEncoding = $utf8NoBom
+    }
+    if ($startInfo.GetType().GetProperty("StandardErrorEncoding")) {
+        $startInfo.StandardErrorEncoding = $utf8NoBom
+    }
 
     foreach ($key in $Environment.Keys) {
         $startInfo.Environment[$key] = [string]$Environment[$key]
@@ -81,7 +142,9 @@ function Invoke-FleetProcess {
         $stderrTask = $process.StandardError.ReadToEndAsync()
 
         if (![string]::IsNullOrEmpty($InputText)) {
-            $process.StandardInput.Write($InputText)
+            $inputBytes = $utf8NoBom.GetBytes($InputText)
+            $process.StandardInput.BaseStream.Write($inputBytes, 0, $inputBytes.Length)
+            $process.StandardInput.BaseStream.Flush()
         }
         $process.StandardInput.Close()
 
@@ -131,6 +194,7 @@ function Invoke-FleetProcess {
         }
         $header = @(
             "Command: $FilePath $(Join-FleetArguments -Arguments $Arguments)",
+            "Resolved command: $($startInfo.FileName) $($startInfo.Arguments)",
             "Working directory: $(if ([string]::IsNullOrWhiteSpace($WorkingDirectory)) { Get-Location } else { $WorkingDirectory })",
             "Timeout seconds: $TimeoutSeconds",
             "Timed out: $timedOut",
@@ -161,7 +225,10 @@ function ConvertTo-FleetStringArray {
         if ([string]::IsNullOrWhiteSpace($Value)) {
             return @()
         }
-        return @($Value)
+        if ($Value -match "[,;]") {
+            return @($Value -split "[,;]" | ForEach-Object { $_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        }
+        return @($Value.Trim())
     }
 
     if ($Value -is [System.Collections.IEnumerable]) {
@@ -169,6 +236,21 @@ function ConvertTo-FleetStringArray {
     }
 
     return @([string]$Value)
+}
+
+function Add-FleetArrayArgument {
+    param(
+        [string[]]$Arguments = @(),
+        [Parameter(Mandatory = $true)][string]$Name,
+        [object]$Values
+    )
+
+    $items = @(ConvertTo-FleetStringArray -Value $Values)
+    if ($items.Count -eq 0) {
+        return @($Arguments)
+    }
+
+    return @($Arguments + @($Name, ($items -join ",")))
 }
 
 function Test-FleetRateLimitOutput {

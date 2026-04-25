@@ -648,8 +648,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         )
         $plannerModels = @(Get-ProjectModels -Role "planner")
         if ($plannerModels.Count -gt 0) {
-            $plannerArgs += @("-Models")
-            $plannerArgs += $plannerModels
+            $plannerArgs = @(Add-FleetArrayArgument -Arguments $plannerArgs -Name "-Models" -Values $plannerModels)
         }
         $plannerTimeout = Get-TimeoutSetting -Role "planner" -Default $PlannerTimeoutSeconds
         $plannerRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
@@ -761,8 +760,7 @@ REVIEW_FINDING: P2: short description
     )
     $checkpointModels = @(Get-ProjectModels -Role "checkpoint")
     if ($checkpointModels.Count -gt 0) {
-        $checkpointArgs += @("-Models")
-        $checkpointArgs += $checkpointModels
+        $checkpointArgs = @(Add-FleetArrayArgument -Arguments $checkpointArgs -Name "-Models" -Values $checkpointModels)
     }
     $checkpointTimeout = Get-TimeoutSetting -Role "checkpoint" -Default $CheckpointTimeoutSeconds
     $checkpointBuildTimeout = Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds
@@ -851,8 +849,7 @@ REVIEW_FINDING: P2: short description
         )
         $simonModels = @(Get-ProjectModels -Role "simon")
         if ($simonModels.Count -gt 0) {
-            $simonArgs += @("-Models")
-            $simonArgs += $simonModels
+            $simonArgs = @(Add-FleetArrayArgument -Arguments $simonArgs -Name "-Models" -Values $simonModels)
         }
         $simonTimeout = Get-TimeoutSetting -Role "simon" -Default $SimonTimeoutSeconds
         $simonRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)

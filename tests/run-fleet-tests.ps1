@@ -122,6 +122,46 @@ function Test-RuntimeHelpers {
     Assert-True -Condition (Test-FleetBlockingReviewOutput -Text "::code-comment{priority=2 file='x'}") -Message "Review parser blocks priority 2 inline comments"
     Assert-False -Condition (Test-FleetBlockingReviewOutput -Text "REVIEW_STATUS: PASS") -Message "Review parser allows clean pass"
 
+    $splitModels = @(ConvertTo-FleetStringArray -Value "gpt-5.5,gpt-5.4")
+    Assert-Equal -Actual $splitModels.Count -Expected 2 -Message "Runtime splits delimited model chains"
+    Assert-Equal -Actual $splitModels[1] -Expected "gpt-5.4" -Message "Runtime preserves model chain order"
+
+    $modelArgs = @(Add-FleetArrayArgument -Arguments @("-File", "planner.ps1") -Name "-Models" -Values @("gpt-5.5", "gpt-5.4"))
+    Assert-Equal -Actual ($modelArgs -join "|") -Expected "-File|planner.ps1|-Models|gpt-5.5,gpt-5.4" -Message "Runtime passes array arguments as one CLI value"
+
+    $shimRoot = Join-Path $env:TEMP ("fleet shim test " + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+    $ps1Shim = Join-Path $shimRoot "sample-tool.ps1"
+    $cmdShim = Join-Path $shimRoot "sample-tool.cmd"
+    Set-Content -Path $ps1Shim -Value "Write-Output 'ps1-shim'"
+    Set-Content -Path $cmdShim -Value @("@echo off", "echo cmd-shim %1")
+    try {
+        $resolvedShim = Resolve-FleetProcessFilePath -FilePath $ps1Shim
+        Assert-Equal -Actual $resolvedShim -Expected $cmdShim -Message "Runtime prefers adjacent cmd shim for ps1 tools"
+
+        $shimResult = Invoke-FleetProcess -FilePath $ps1Shim -Arguments @("ok") -TimeoutSeconds 10
+        Assert-Equal -Actual $shimResult.exitCode -Expected 0 -Message "Invoke-FleetProcess executes cmd shims"
+        Assert-True -Condition (($shimResult.output -join "`n") -match "cmd-shim ok") -Message "Invoke-FleetProcess passes arguments to cmd shims"
+
+        $nodeCommand = Get-Command "node" -ErrorAction SilentlyContinue
+        if ($nodeCommand) {
+            $nodeScript = Join-Path $shimRoot "read-utf8.js"
+            Set-Content -Path $nodeScript -Encoding UTF8 -Value "const chunks=[];process.stdin.on('data', b=>chunks.push(b));process.stdin.on('end',()=>{const b=Buffer.concat(chunks);if(!b.includes(Buffer.from([0xc3,0xa9]))){process.exit(2);}console.log(b.toString('utf8'));});"
+            $accentedText = "caf" + [char]0x00E9
+            $utf8Result = Invoke-FleetProcess -FilePath "node" -Arguments @($nodeScript) -InputText $accentedText -TimeoutSeconds 10
+            Assert-Equal -Actual $utf8Result.exitCode -Expected 0 -Message "Invoke-FleetProcess writes stdin as UTF-8"
+            Assert-True -Condition (($utf8Result.output -join "`n") -match $accentedText) -Message "Invoke-FleetProcess preserves UTF-8 stdin text"
+        }
+    } finally {
+        Remove-Item -LiteralPath $shimRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $codexCommand = Get-Command "codex.cmd" -ErrorAction SilentlyContinue
+    if ($codexCommand) {
+        $resolvedCodex = Resolve-FleetProcessFilePath -FilePath "codex"
+        Assert-True -Condition ($resolvedCodex -like "*.cmd") -Message "Runtime resolves codex to executable cmd shim on Windows"
+    }
+
     $normal = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-Command", "Write-Output fixture-ok") -TimeoutSeconds 10
     Assert-Equal -Actual $normal.exitCode -Expected 0 -Message "Invoke-FleetProcess captures successful exit code"
     Assert-True -Condition (($normal.output -join "`n") -match "fixture-ok") -Message "Invoke-FleetProcess captures output"
