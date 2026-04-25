@@ -148,3 +148,15 @@ Morning review:
 cd C:\Dev\codex-fleet
 .\fleet-morning-review.ps1
 ```
+
+Safe stop requests:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\request-safe-stop.ps1 -Project EasyLife
+.\request-safe-stop.ps1 -All
+.\request-safe-stop.ps1 -List
+.\request-safe-stop.ps1 -Project EasyLife -Clear
+```
+
+Safe stop is cooperative. It does not kill Codex, builds, or reviews mid-action; it stops the ship before the next task, batch, or planning step starts.

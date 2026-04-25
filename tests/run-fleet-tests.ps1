@@ -390,6 +390,20 @@ function Test-DuplicateRunGuard {
     Assert-True -Condition ($loopText -match 'Duplicate fleet run refused') -Message "Checkpoint loop reports duplicate run refusal clearly"
 }
 
+function Test-SafeStopSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $stopText = Get-Content (Join-Path $fleetRoot "request-safe-stop.ps1") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "request-safe-stop.ps1")) -Message "Fleet exposes a safe stop request script"
+    Assert-True -Condition ($loopText -match 'Invoke-FleetSafeStopCheck') -Message "Checkpoint loop checks safe stop requests"
+    Assert-True -Condition ($loopText -match '\.codex-local\\stop-requests') -Message "Safe stop requests live under local runtime state"
+    Assert-True -Condition ($loopText -match 'before task \$i in batch \$batch') -Message "Checkpoint loop checks safe stop before starting each task"
+    Assert-True -Condition ($loopText -match 'before Nami task planning') -Message "Checkpoint loop checks safe stop before planning new tasks"
+    Assert-True -Condition ($stopText -match '\[switch\]\$All') -Message "Safe stop script can target all ships"
+    Assert-True -Condition ($stopText -match '\[switch\]\$Clear') -Message "Safe stop script can clear requests"
+    Assert-True -Condition ($stopText -match '\[switch\]\$List') -Message "Safe stop script can list active requests"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -405,6 +419,7 @@ Test-ReadOnlyDirtyGuard
 Test-CheckpointGateOrder
 Test-TaskQuarantineSupport
 Test-DuplicateRunGuard
+Test-SafeStopSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)

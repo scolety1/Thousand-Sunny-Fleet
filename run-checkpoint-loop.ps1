@@ -897,6 +897,69 @@ function Acquire-FleetRunLock {
     $script:FleetRunLockPath = $lockPath
 }
 
+function Release-FleetRunLock {
+    if (![string]::IsNullOrWhiteSpace([string]$script:FleetRunLockPath) -and (Test-Path $script:FleetRunLockPath)) {
+        Remove-Item -LiteralPath $script:FleetRunLockPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function ConvertTo-FleetSafeStopName {
+    param([string]$Name)
+
+    $safeName = if ([string]::IsNullOrWhiteSpace($Name)) { "ALL" } else { ([string]$Name) -replace "[^a-zA-Z0-9_-]+", "-" }
+    $safeName = $safeName.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeName)) { return "ALL" }
+    return $safeName
+}
+
+function Get-FleetSafeStopRoot {
+    $stopRoot = Join-Path $fleetRoot ".codex-local\stop-requests"
+    New-Item -ItemType Directory -Force -Path $stopRoot | Out-Null
+    return $stopRoot
+}
+
+function Get-FleetSafeStopRequest {
+    param([string]$ProjectName)
+
+    $stopRoot = Get-FleetSafeStopRoot
+    $safeProject = ConvertTo-FleetSafeStopName -Name $ProjectName
+    $candidatePaths = @(
+        (Join-Path $stopRoot "ALL.stop.json"),
+        (Join-Path $stopRoot "$safeProject.stop.json")
+    )
+
+    foreach ($path in $candidatePaths) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    return ""
+}
+
+function Invoke-FleetSafeStopCheck {
+    param(
+        [string]$ProjectName,
+        [string]$Moment
+    )
+
+    $stopPath = Get-FleetSafeStopRequest -ProjectName $ProjectName
+    if (![string]::IsNullOrWhiteSpace($stopPath)) {
+        Write-Host ""
+        Write-Host "Safe stop requested for $ProjectName at $Moment." -ForegroundColor Yellow
+        Write-Host "No new task will be started. Current committed work is left on the practice branch." -ForegroundColor Yellow
+        Write-Host "Request file: $stopPath" -ForegroundColor DarkYellow
+        Write-Host "Clear it from C:\Dev\codex-fleet with:" -ForegroundColor Cyan
+        if ((Split-Path $stopPath -Leaf) -eq "ALL.stop.json") {
+            Write-Host "  .\request-safe-stop.ps1 -All -Clear" -ForegroundColor Cyan
+        } else {
+            Write-Host "  .\request-safe-stop.ps1 -Project $ProjectName -Clear" -ForegroundColor Cyan
+        }
+        Release-FleetRunLock
+        exit 0
+    }
+}
+
 $script:projectConfig = Get-ProjectConfig
 $repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -944,6 +1007,8 @@ if (!$AllowDuplicateRun) {
     Acquire-FleetRunLock -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
 }
 
+Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "startup"
+
 $status = @(git status --porcelain)
 if ($status.Count -gt 0) {
     Write-Host "Repo is dirty. Commit, restore, or stash before starting checkpoint loop." -ForegroundColor Red
@@ -970,6 +1035,8 @@ $script:RunLogRoot = $logRoot
 $script:TaskQuarantineCount = 0
 
 for ($batch = 1; $batch -le $MaxBatches; $batch++) {
+    Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before checkpoint batch $batch"
+
     Write-Host ""
     Write-Host "===== CHECKPOINT BATCH $batch of $MaxBatches =====" -ForegroundColor Cyan
 
@@ -981,6 +1048,8 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
 
     $task = Get-FirstUncheckedTask
     if ([string]::IsNullOrWhiteSpace($task)) {
+        Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before Nami task planning for batch $batch"
+
         Write-Host "No unchecked tasks. Generating next $BatchSize from mission." -ForegroundColor Cyan
         $plannerArgs = @(
             "-NoProfile",
@@ -1011,6 +1080,8 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     }
 
     for ($i = 1; $i -le $BatchSize; $i++) {
+        Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before task $i in batch $batch"
+
         $task = Get-FirstUncheckedTask
         if ([string]::IsNullOrWhiteSpace($task)) { break }
 
@@ -1298,6 +1369,8 @@ REVIEW_FINDING: P2: short description
         }
     }
 }
+
+Release-FleetRunLock
 
 Write-Host ""
 Write-Host "Checkpoint loop finished on branch $branch" -ForegroundColor Green
