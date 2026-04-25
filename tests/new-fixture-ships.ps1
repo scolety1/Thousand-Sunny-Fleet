@@ -2,7 +2,9 @@
 param(
     [string]$OutputRoot = ".codex-local\fixtures",
 
-    [switch]$Force
+    [switch]$Force,
+
+    [switch]$UseRealModels
 )
 
 $ErrorActionPreference = "Stop"
@@ -153,6 +155,24 @@ function New-FixtureRepo {
     Invoke-Git -Repo $repo -Arguments @("add", "--", "docs/codex/NIGHTLY_REPORT.md")
     Invoke-Git -Repo $repo -Arguments @("commit", "-m", "fixture branch update")
 
+    $models = if ($UseRealModels) {
+        [pscustomobject]@{
+            implement = @("gpt-5.5", "gpt-5.4")
+            review = @("gpt-5.5", "gpt-5.4")
+            planner = @("gpt-5.5", "gpt-5.4")
+            checkpoint = @("gpt-5.5", "gpt-5.4")
+            simon = @("gpt-5.5", "gpt-5.4")
+        }
+    } else {
+        [pscustomobject]@{
+            implement = @("gpt-fixture-primary", "gpt-fixture-fallback")
+            review = @("gpt-fixture-review")
+            planner = @("gpt-fixture-planner")
+            checkpoint = @("gpt-fixture-checkpoint")
+            simon = @("gpt-fixture-simon")
+        }
+    }
+
     return [pscustomobject]@{
         name = $Name
         repo = $repo
@@ -162,13 +182,7 @@ function New-FixtureRepo {
         profile = $Profile
         buildDirectory = $BuildDirectory
         buildCommand = $BuildCommand
-        models = [pscustomobject]@{
-            implement = @("gpt-fixture-primary", "gpt-fixture-fallback")
-            review = @("gpt-fixture-review")
-            planner = @("gpt-fixture-planner")
-            checkpoint = @("gpt-fixture-checkpoint")
-            simon = @("gpt-fixture-simon")
-        }
+        models = $models
         timeouts = [pscustomobject]@{
             codex = 60
             implement = 60
