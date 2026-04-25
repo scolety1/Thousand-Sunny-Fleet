@@ -82,8 +82,8 @@ The checkpoint loop:
 - runs external builds
 - commits each successful task
 - stages only the files it intentionally changed instead of using `git add .`
-- writes `docs/codex/CHECKPOINT_REVIEW.md`
-- includes completed task, changed file, visual, Simon, Joey, and next-batch guidance in checkpoint reviews
+- writes `docs/codex/CHECKPOINT_REVIEW.md` after fresh visual, Simon, and Joey gates
+- includes completed task, changed file, latest visual, latest Simon, latest Joey, and next-batch guidance in checkpoint reviews
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
 - optionally writes visual bug reports with `-VisualInspectEvery N`
@@ -103,7 +103,7 @@ Long-running steps are wrapped by the fleet watchdog, including Codex implementa
 
 Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Joey repair orders take priority over fresh feature work.
 
-Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
+Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, and Joey reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 

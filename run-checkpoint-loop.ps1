@@ -554,6 +554,46 @@ function Import-NextTasks {
     return $true
 }
 
+function Invoke-CheckpointReviewGate {
+    param([int]$Batch)
+
+    $checkpointArgs = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "checkpoint-review.ps1"),
+        "-Repo", $repoPath,
+        "-BaseBranch", $BaseBranch,
+        "-BuildDirectory", (Get-ConfigScalar -Name "buildDirectory" -Default "."),
+        "-BuildCommand", (Get-ConfigScalar -Name "buildCommand" -Default "")
+    )
+    $checkpointModels = @(Get-ProjectModels -Role "checkpoint")
+    if ($checkpointModels.Count -gt 0) {
+        $checkpointArgs = @(Add-FleetArrayArgument -Arguments $checkpointArgs -Name "-Models" -Values $checkpointModels)
+    }
+    $checkpointTimeout = Get-TimeoutSetting -Role "checkpoint" -Default $CheckpointTimeoutSeconds
+    $checkpointBuildTimeout = Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds
+    $checkpointRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
+    $checkpointRateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
+    $checkpointArgs += @(
+        "-TimeoutSeconds", $checkpointTimeout,
+        "-BuildTimeoutSeconds", $checkpointBuildTimeout,
+        "-RateLimitCooldownSeconds", $checkpointRateLimitCooldown,
+        "-RateLimitMaxCooldowns", $checkpointRateLimitMaxCooldowns
+    )
+    $checkpointExit = Invoke-FleetPowerShell -Arguments $checkpointArgs -LogName "checkpoint-review-batch-$Batch.log" -TimeoutSeconds ($checkpointTimeout + $checkpointBuildTimeout + ($checkpointRateLimitCooldown * $checkpointRateLimitMaxCooldowns) + 120)
+    if ($checkpointExit -ne 0) { exit 1 }
+
+    $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
+    Stage-Files -Paths @("docs/codex/CHECKPOINT_REVIEW.md")
+    $pendingCheckpointCommit = @(git diff --cached --name-only)
+    if ($pendingCheckpointCommit.Count -gt 0) {
+        git commit -m "Codex checkpoint review batch $Batch"
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+    }
+
+    return $checkpointText
+}
+
 function Ensure-LogExclude {
     if (!(Test-Path ".git\info\exclude")) {
         New-Item -ItemType File -Path ".git\info\exclude" -Force | Out-Null
@@ -755,44 +795,9 @@ REVIEW_FINDING: P2: short description
         if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 
-    $checkpointArgs = @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-File", (Join-Path $fleetRoot "checkpoint-review.ps1"),
-        "-Repo", $repoPath,
-        "-BaseBranch", $BaseBranch,
-        "-BuildDirectory", (Get-ConfigScalar -Name "buildDirectory" -Default "."),
-        "-BuildCommand", (Get-ConfigScalar -Name "buildCommand" -Default "")
-    )
-    $checkpointModels = @(Get-ProjectModels -Role "checkpoint")
-    if ($checkpointModels.Count -gt 0) {
-        $checkpointArgs = @(Add-FleetArrayArgument -Arguments $checkpointArgs -Name "-Models" -Values $checkpointModels)
-    }
-    $checkpointTimeout = Get-TimeoutSetting -Role "checkpoint" -Default $CheckpointTimeoutSeconds
-    $checkpointBuildTimeout = Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds
-    $checkpointRateLimitCooldown = Get-ConfigInt -Name "rateLimitCooldownSeconds" -Default (Get-ConfigInt -Name "rateLimitCooldown" -Default $RateLimitCooldownSeconds)
-    $checkpointRateLimitMaxCooldowns = Get-ConfigInt -Name "rateLimitMaxCooldowns" -Default $RateLimitMaxCooldowns
-    $checkpointArgs += @(
-        "-TimeoutSeconds", $checkpointTimeout,
-        "-BuildTimeoutSeconds", $checkpointBuildTimeout,
-        "-RateLimitCooldownSeconds", $checkpointRateLimitCooldown,
-        "-RateLimitMaxCooldowns", $checkpointRateLimitMaxCooldowns
-    )
-    $checkpointExit = Invoke-FleetPowerShell -Arguments $checkpointArgs -LogName "checkpoint-review-batch-$batch.log" -TimeoutSeconds ($checkpointTimeout + $checkpointBuildTimeout + ($checkpointRateLimitCooldown * $checkpointRateLimitMaxCooldowns) + 120)
-    if ($checkpointExit -ne 0) { exit 1 }
-
-    $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
-    Stage-Files -Paths @("docs/codex/CHECKPOINT_REVIEW.md")
-    $pendingCheckpointCommit = @(git diff --cached --name-only)
-    if ($pendingCheckpointCommit.Count -gt 0) {
-        git commit -m "Codex checkpoint review batch $batch"
-        if ($LASTEXITCODE -ne 0) { exit 1 }
-    }
-
-    if ($checkpointText -match "(?is)## Verdict\s+RED\b" -or $checkpointText -match "(?i)stop for human review") {
-        Write-Host "Checkpoint review requested a human stop. Ending loop without merge." -ForegroundColor Yellow
-        break
-    }
+    $stopAfterCheckpoint = $false
+    $stopAfterCheckpointExitCode = 0
+    $stopAfterCheckpointReason = ""
 
     if ($VisualEvery -gt 0 -and ($batch % $VisualEvery -eq 0)) {
         $serveDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
@@ -839,8 +844,10 @@ REVIEW_FINDING: P2: short description
             if ($LASTEXITCODE -ne 0) { exit 1 }
         }
         if (-not $visualInspectPassed) {
-            Write-Host "Visual inspect found blocking issues. Ending loop without merge." -ForegroundColor Red
-            exit 1
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = 1
+            $stopAfterCheckpointReason = "Visual inspect found blocking issues."
+            Write-Host "Visual inspect found blocking issues. A final checkpoint will be written before stopping." -ForegroundColor Red
         }
     }
 
@@ -878,8 +885,10 @@ REVIEW_FINDING: P2: short description
             if ($LASTEXITCODE -ne 0) { exit 1 }
         }
         if ($simonText -match "(?is)## Verdict\s+RED\b" -or $simonText -match "(?i)stop for human design review") {
-            Write-Host "Simon requested a human design stop. Ending loop without merge." -ForegroundColor Yellow
-            break
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = [Math]::Max($stopAfterCheckpointExitCode, 0)
+            $stopAfterCheckpointReason = "Simon requested a human design stop."
+            Write-Host "Simon requested a human design stop. A final checkpoint will be written before stopping." -ForegroundColor Yellow
         }
     }
 
@@ -902,9 +911,26 @@ REVIEW_FINDING: P2: short description
             if ($LASTEXITCODE -ne 0) { exit 1 }
         }
         if (-not $joeyPassed -or $joeyText -match "(?is)## Verdict\s+RED\b" -or $joeyText -match "(?i)stop for human security review") {
-            Write-Host "Joey requested a human security stop. Ending loop without merge." -ForegroundColor Red
-            exit 1
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = 1
+            $stopAfterCheckpointReason = "Joey requested a human security stop."
+            Write-Host "Joey requested a human security stop. A final checkpoint will be written before stopping." -ForegroundColor Red
         }
+    }
+
+    $checkpointText = Invoke-CheckpointReviewGate -Batch $batch
+
+    if ($stopAfterCheckpoint) {
+        Write-Host "$stopAfterCheckpointReason Ending loop without merge." -ForegroundColor $(if ($stopAfterCheckpointExitCode -ne 0) { "Red" } else { "Yellow" })
+        if ($stopAfterCheckpointExitCode -ne 0) {
+            exit $stopAfterCheckpointExitCode
+        }
+        break
+    }
+
+    if ($checkpointText -match "(?is)## Verdict\s+RED\b" -or $checkpointText -match "(?i)stop for human review") {
+        Write-Host "Checkpoint review requested a human stop. Ending loop without merge." -ForegroundColor Yellow
+        break
     }
 
     if (!$SkipDebug) {

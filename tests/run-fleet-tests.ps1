@@ -323,6 +323,21 @@ function Test-ReadOnlyDirtyGuard {
     }
 }
 
+function Test-CheckpointGateOrder {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $visualIndex = $loopText.IndexOf('if ($VisualInspectEvery -gt 0')
+    $simonIndex = $loopText.IndexOf('if ($SimonEvery -gt 0')
+    $joeyIndex = $loopText.IndexOf('if ($JoeyEvery -gt 0')
+    $checkpointIndex = $loopText.IndexOf('$checkpointText = Invoke-CheckpointReviewGate -Batch $batch')
+    $debugIndex = $loopText.IndexOf('if (!$SkipDebug)')
+
+    Assert-True -Condition ($visualIndex -ge 0) -Message "Checkpoint loop contains visual inspect gate"
+    Assert-True -Condition ($simonIndex -gt $visualIndex) -Message "Simon runs after visual inspect"
+    Assert-True -Condition ($joeyIndex -gt $simonIndex) -Message "Joey runs after Simon"
+    Assert-True -Condition ($checkpointIndex -gt $joeyIndex) -Message "Final checkpoint runs after visual, Simon, and Joey"
+    Assert-True -Condition ($debugIndex -gt $checkpointIndex) -Message "Debugger runs after final checkpoint"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -335,6 +350,7 @@ Test-DoctorAndReadiness
 Test-DebugCheckpoint
 Test-SafeStaging
 Test-ReadOnlyDirtyGuard
+Test-CheckpointGateOrder
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)
