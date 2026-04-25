@@ -156,7 +156,7 @@
         "overnightJoeyEvery":  3
     },
     {
-        "name":  "SpecialSauce",
+        "name":  "ShiftPlate",
         "repo":  "C:\\Dev\\special-sauce",
         "rounds":  99,
         "briefScript":  "scripts\\codex-brief.ps1",
@@ -164,7 +164,7 @@
         "buildDirectory":  ".",
         "buildCommand":  "npm.cmd run build",
         "profile":  "experimental-prototype",
-        "branchPrefix":  "codex/special-sauce",
+        "branchPrefix":  "codex/shift-plate",
         "overnightBatchSize":  2,
         "overnightMaxBatches":  10,
         "overnightVisualInspectEvery":  2,
