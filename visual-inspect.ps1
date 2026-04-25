@@ -28,6 +28,14 @@ param(
 
 $ErrorActionPreference = "Continue"
 
+$Paths = @($Paths |
+    ForEach-Object { ([string]$_) -split "," } |
+    ForEach-Object { $_.Trim() } |
+    Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+if ($Paths.Count -eq 0) {
+    $Paths = @("/")
+}
+
 function Find-Chrome {
     $candidates = @(
         "C:\Program Files\Google\Chrome\Application\chrome.exe",

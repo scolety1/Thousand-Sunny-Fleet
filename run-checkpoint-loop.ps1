@@ -827,9 +827,9 @@ REVIEW_FINDING: P2: short description
             "-Project", $script:projectConfig.name,
             "-ServeDirectory", $serveDir,
             "-Port", (Get-FreeTcpPort),
-            "-ChromePort", (Get-FreeTcpPort),
-            "-Paths"
-        ) + $visualPaths
+            "-ChromePort", (Get-FreeTcpPort)
+        )
+        $visualArgs = @(Add-FleetArrayArgument -Arguments $visualArgs -Name "-Paths" -Values $visualPaths)
         $visualInspectExit = Invoke-FleetPowerShell -Arguments $visualArgs -LogName "visual-inspect-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)
         $visualInspectPassed = $visualInspectExit -eq 0
         Stage-Files -Paths @("docs/codex/VISUAL_BUGS.md")
