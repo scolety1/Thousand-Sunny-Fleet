@@ -4,6 +4,17 @@
   "defaultRounds": 12,
   "branchPrefix": "codex/static-demo",
   "maxChangedFiles": 16,
+  "model": "gpt-5.5",
+  "models": {
+    "implement": "gpt-5.5",
+    "review": "gpt-5.5",
+    "planner": "gpt-5.5",
+    "checkpoint": "gpt-5.5",
+    "simon": "gpt-5.5"
+  },
+  "visualPaths": [
+    "/"
+  ],
   "allowedPaths": [
     "src/",
     "docs/codex/",

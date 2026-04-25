@@ -5,8 +5,25 @@
     "rounds": 99,
     "briefScript": "scripts\\codex-brief.ps1",
     "loopScript": "scripts\\codex-night-loop.ps1",
+    "profile": "real-product",
     "buildDirectory": "app-vNext",
-    "buildCommand": "npm.cmd run build"
+    "buildCommand": "npm.cmd run build",
+    "model": "gpt-5.5",
+    "models": {
+      "implement": "gpt-5.5",
+      "review": "gpt-5.5",
+      "planner": "gpt-5.5",
+      "checkpoint": "gpt-5.5",
+      "simon": "gpt-5.5"
+    },
+    "visualPaths": [
+      "/",
+      "/easylist",
+      "/easynotes",
+      "/easycalendar",
+      "/easyworkout",
+      "/settings"
+    ]
   },
   {
     "name": "RestaurantDemo",
@@ -14,8 +31,20 @@
     "rounds": 99,
     "briefScript": "scripts\\codex-brief.ps1",
     "loopScript": "scripts\\codex-night-loop.ps1",
+    "profile": "frontend-static-demo",
     "buildDirectory": ".",
-    "buildCommand": "npm.cmd run build"
+    "buildCommand": "npm.cmd run build",
+    "model": "gpt-5.5",
+    "models": {
+      "implement": "gpt-5.5",
+      "review": "gpt-5.5",
+      "planner": "gpt-5.5",
+      "checkpoint": "gpt-5.5",
+      "simon": "gpt-5.5"
+    },
+    "visualPaths": [
+      "/"
+    ]
   },
   {
     "name": "UrbanKitchenWineList",
@@ -25,6 +54,18 @@
     "loopScript": "scripts\\codex-night-loop.ps1",
     "buildDirectory": ".",
     "buildCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
-    "profile": "frontend-static-demo"
+    "profile": "frontend-static-demo",
+    "model": "gpt-5.5",
+    "models": {
+      "implement": "gpt-5.5",
+      "review": "gpt-5.5",
+      "planner": "gpt-5.5",
+      "checkpoint": "gpt-5.5",
+      "simon": "gpt-5.5"
+    },
+    "visualPaths": [
+      "/",
+      "/wine.html"
+    ]
   }
 ]

@@ -11,11 +11,11 @@ param(
 
     [string[]]$Paths = @("/"),
 
-    [int]$Port = 4199,
+    [int]$Port = 0,
 
     [string]$BaseUrl = "",
 
-    [int]$ChromePort = 9242,
+    [int]$ChromePort = 0,
 
     [string]$ChromePath = "",
 
@@ -67,6 +67,14 @@ function Stop-Tree {
     if ($ProcessId -gt 0) {
         cmd.exe /c "taskkill /PID $ProcessId /T /F" | Out-Null
     }
+}
+
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), 0)
+    $listener.Start()
+    $port = $listener.LocalEndpoint.Port
+    $listener.Stop()
+    return $port
 }
 
 function Get-DefaultServeCommand {
@@ -151,6 +159,13 @@ $repoPath = $repoMatches[0].Path
 
 if ([string]::IsNullOrWhiteSpace($Project)) {
     $Project = Split-Path -Leaf $repoPath
+}
+
+if ($Port -le 0) {
+    $Port = Get-FreeTcpPort
+}
+if ($ChromePort -le 0) {
+    $ChromePort = Get-FreeTcpPort
 }
 
 if ([string]::IsNullOrWhiteSpace($BaseUrl)) {

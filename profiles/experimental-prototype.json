@@ -4,6 +4,17 @@
   "defaultRounds": 8,
   "branchPrefix": "codex/experiment",
   "maxChangedFiles": 14,
+  "model": "gpt-5.5",
+  "models": {
+    "implement": "gpt-5.5",
+    "review": "gpt-5.5",
+    "planner": "gpt-5.5",
+    "checkpoint": "gpt-5.5",
+    "simon": "gpt-5.5"
+  },
+  "visualPaths": [
+    "/"
+  ],
   "allowedPaths": [
     "src/",
     "app-vNext/src/features/experiments/",

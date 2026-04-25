@@ -126,6 +126,132 @@ function Get-ProjectConfig {
     return $match[0]
 }
 
+function Get-ConfigPropertyValue {
+    param(
+        [object]$Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) { return $null }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+
+function Get-ConfigScalar {
+    param(
+        [string]$Name,
+        [string]$Default = ""
+    )
+
+    $projectValue = Get-ConfigPropertyValue -Object $script:projectConfig -Name $Name
+    if ($null -ne $projectValue -and ![string]::IsNullOrWhiteSpace([string]$projectValue)) {
+        return [string]$projectValue
+    }
+
+    $profileValue = Get-ConfigPropertyValue -Object $script:profileConfig -Name $Name
+    if ($null -ne $profileValue -and ![string]::IsNullOrWhiteSpace([string]$profileValue)) {
+        return [string]$profileValue
+    }
+
+    return $Default
+}
+
+function Get-ConfigArray {
+    param([string]$Name)
+
+    $projectValue = Get-ConfigPropertyValue -Object $script:projectConfig -Name $Name
+    if ($null -ne $projectValue) {
+        return @($projectValue | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    }
+
+    $profileValue = Get-ConfigPropertyValue -Object $script:profileConfig -Name $Name
+    if ($null -ne $profileValue) {
+        return @($profileValue | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    }
+
+    return @()
+}
+
+function Get-RoleModelFrom {
+    param(
+        [object]$ConfigObject,
+        [string]$Role
+    )
+
+    if ($null -eq $ConfigObject) { return "" }
+
+    $models = Get-ConfigPropertyValue -Object $ConfigObject -Name "models"
+    if ($null -ne $models) {
+        foreach ($key in @($Role, "${Role}Model")) {
+            $value = Get-ConfigPropertyValue -Object $models -Name $key
+            if ($null -ne $value -and ![string]::IsNullOrWhiteSpace([string]$value)) {
+                return [string]$value
+            }
+        }
+    }
+
+    foreach ($key in @("${Role}Model", "model")) {
+        $value = Get-ConfigPropertyValue -Object $ConfigObject -Name $key
+        if ($null -ne $value -and ![string]::IsNullOrWhiteSpace([string]$value)) {
+            return [string]$value
+        }
+    }
+
+    return ""
+}
+
+function Get-ProjectModel {
+    param([string]$Role)
+
+    $projectModel = Get-RoleModelFrom -ConfigObject $script:projectConfig -Role $Role
+    if (![string]::IsNullOrWhiteSpace($projectModel)) { return $projectModel }
+
+    $profileModel = Get-RoleModelFrom -ConfigObject $script:profileConfig -Role $Role
+    if (![string]::IsNullOrWhiteSpace($profileModel)) { return $profileModel }
+
+    return ""
+}
+
+function Stage-Files {
+    param([string[]]$Paths)
+
+    $cleanPaths = @($Paths |
+        Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } |
+        ForEach-Object { ([string]$_).Replace("\", "/") } |
+        Sort-Object -Unique)
+
+    if ($cleanPaths.Count -eq 0) {
+        return
+    }
+
+    & git add -- @cleanPaths
+}
+
+function Test-BlockingReviewOutput {
+    param([string]$Path)
+
+    if (!(Test-Path $Path)) {
+        return $false
+    }
+
+    $text = Get-Content $Path -Raw
+    return (
+        $text -match "(?im)^\s*REVIEW_STATUS:\s*BLOCKED\b" -or
+        $text -match "(?im)^\s*REVIEW_FINDING:\s*P[12]\b" -or
+        $text -match "(?im)^\s*\[?P[12]\]?\s*[:\-]" -or
+        $text -match "::code-comment\{[^}]*priority=(1|2)\b"
+    )
+}
+
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), 0)
+    $listener.Start()
+    $port = $listener.LocalEndpoint.Port
+    $listener.Stop()
+    return $port
+}
+
 function Get-FirstUncheckedTask {
     foreach ($line in Get-Content "docs/codex/TASK_QUEUE.md" -ErrorAction SilentlyContinue) {
         if ($line -match "^\s*-\s+\[ \]\s+(.+)$") {
@@ -171,12 +297,25 @@ $files
 }
 
 function Invoke-CodexExec {
-    param([string]$Prompt, [string]$LogPath)
+    param(
+        [string]$Prompt,
+        [string]$LogPath,
+        [string]$Model = "",
+        [string]$ResponsePath = ""
+    )
 
     for ($attempt = 1; $attempt -le $MaxCodexAttempts; $attempt++) {
         Write-Host "Starting Codex run attempt $attempt of $MaxCodexAttempts" -ForegroundColor DarkCyan
         $attemptLog = if ($attempt -eq 1) { $LogPath } else { $LogPath -replace "\.log$", "-attempt-$attempt.log" }
-        $Prompt | & codex exec --full-auto - 2>&1 | Tee-Object -FilePath $attemptLog
+        $codexArgs = @("exec", "--full-auto")
+        if (![string]::IsNullOrWhiteSpace($Model)) {
+            $codexArgs += @("-m", $Model)
+        }
+        if (![string]::IsNullOrWhiteSpace($ResponsePath)) {
+            $codexArgs += @("-o", $ResponsePath)
+        }
+        $codexArgs += "-"
+        $Prompt | & codex @codexArgs 2>&1 | Tee-Object -FilePath $attemptLog
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0) { return 0 }
 
@@ -195,13 +334,14 @@ function Invoke-CodexExec {
 }
 
 function Invoke-ExternalBuild {
-    if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildCommand)) {
+    $buildCommand = Get-ConfigScalar -Name "buildCommand" -Default ""
+    if ([string]::IsNullOrWhiteSpace($buildCommand)) {
         return $true
     }
 
-    $buildDir = if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildDirectory)) { "." } else { $script:projectConfig.buildDirectory }
+    $buildDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
     Push-Location $buildDir
-    Invoke-Expression $script:projectConfig.buildCommand
+    Invoke-Expression $buildCommand
     $ok = $LASTEXITCODE -eq 0
     Pop-Location
     return $ok
@@ -256,6 +396,17 @@ if ($repoMatches.Count -ne 1) {
 $repoPath = $repoMatches[0].Path
 
 $fleetRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$script:profileConfig = $null
+$profileName = Get-ConfigPropertyValue -Object $script:projectConfig -Name "profile"
+if (![string]::IsNullOrWhiteSpace([string]$profileName)) {
+    $profilePath = Join-Path $fleetRoot "profiles\$profileName.json"
+    if (Test-Path $profilePath) {
+        $script:profileConfig = Get-Content $profilePath -Raw | ConvertFrom-Json
+    } else {
+        Write-Host "Project profile not found: $profilePath" -ForegroundColor Red
+        exit 1
+    }
+}
 Set-Location $repoPath
 Ensure-LogExclude
 
@@ -263,8 +414,12 @@ if ($ValidateOnly) {
     Write-Host "Project resolved successfully." -ForegroundColor Green
     Write-Host "Project: $($script:projectConfig.name)"
     Write-Host "Repo: $repoPath"
-    Write-Host "Build directory: $($script:projectConfig.buildDirectory)"
-    Write-Host "Build command: $($script:projectConfig.buildCommand)"
+    $validateProfile = Get-ConfigScalar -Name "profile" -Default "none"
+    $validateBuildDirectory = Get-ConfigScalar -Name "buildDirectory" -Default "."
+    $validateBuildCommand = Get-ConfigScalar -Name "buildCommand" -Default ""
+    Write-Host "Profile: $validateProfile"
+    Write-Host "Build directory: $validateBuildDirectory"
+    Write-Host "Build command: $validateBuildCommand"
     exit 0
 }
 
@@ -280,7 +435,8 @@ if ($branch -eq $BaseBranch) {
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $safeProject = if ([string]::IsNullOrWhiteSpace($script:projectConfig.name)) { "project" } else { ([string]$script:projectConfig.name) -replace "[^a-zA-Z0-9_-]+", "-" }
     $safeProject = $safeProject.Trim("-")
-    $branch = "codex/mission-$safeProject-$timestamp"
+    $branchPrefix = Get-ConfigScalar -Name "branchPrefix" -Default "codex/mission"
+    $branch = "$branchPrefix-$safeProject-$timestamp"
     git checkout -b $branch
     if ($LASTEXITCODE -ne 0) { exit 1 }
 } else {
@@ -297,10 +453,22 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     $task = Get-FirstUncheckedTask
     if ([string]::IsNullOrWhiteSpace($task)) {
         Write-Host "No unchecked tasks. Generating next $BatchSize from mission." -ForegroundColor Cyan
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "generate-next-five.ps1") -Repo $repoPath -BaseBranch $BaseBranch -Count $BatchSize
+        $plannerArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "generate-next-five.ps1"),
+            "-Repo", $repoPath,
+            "-BaseBranch", $BaseBranch,
+            "-Count", $BatchSize
+        )
+        $plannerModel = Get-ProjectModel -Role "planner"
+        if (![string]::IsNullOrWhiteSpace($plannerModel)) {
+            $plannerArgs += @("-Model", $plannerModel)
+        }
+        powershell @plannerArgs
         if ($LASTEXITCODE -ne 0) { exit 1 }
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
-        git add docs/codex/TASK_QUEUE.md docs/codex/NEXT_5_TASKS.md
+        Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
         git commit -m "Codex checkpoint planner tasks batch $batch"
     }
 
@@ -328,7 +496,7 @@ Rules:
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
-        $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1
+        $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1 -Model (Get-ProjectModel -Role "implement")
         $statusAfter = @(git status --porcelain)
         if ($exit -ne 0 -and $statusAfter.Count -eq 0) {
             Append-Report -Task $task -FilesChanged @() -BuildResult "Failed" -Risk "Codex command failed after retries and made no changes."
@@ -354,9 +522,25 @@ Do not broaden scope.
 Do not run build commands.
 Do not mark tasks complete.
 Do not edit NIGHTLY_REPORT.md.
+
+After fixing clear issues, end your response with exactly one of these machine-readable status lines:
+REVIEW_STATUS: PASS
+REVIEW_STATUS: BLOCKED
+
+Use REVIEW_STATUS: BLOCKED only when a P1/P2 issue remains unresolved after your fixes, and include one line like:
+REVIEW_FINDING: P1: short description
+or
+REVIEW_FINDING: P2: short description
 "@
         $log2 = Join-Path $logRoot "batch-$batch-task-$i-review.log"
-        [void](Invoke-CodexExec -Prompt $reviewPrompt -LogPath $log2)
+        $reviewResponse = Join-Path $logRoot "batch-$batch-task-$i-review-response.md"
+        [void](Invoke-CodexExec -Prompt $reviewPrompt -LogPath $log2 -Model (Get-ProjectModel -Role "review") -ResponsePath $reviewResponse)
+
+        if (Test-BlockingReviewOutput -Path $reviewResponse) {
+            Append-Report -Task $task -FilesChanged @(git diff --name-only; git ls-files --others --exclude-standard) -BuildResult "Blocked" -Risk "Review reported an unresolved P1/P2 finding."
+            Write-Host "Review reported an unresolved P1/P2 finding. Ending loop without marking task complete." -ForegroundColor Red
+            exit 1
+        }
 
         if (-not (Invoke-ProjectGuardrails -Task $task -Stage "review")) { exit 1 }
         if (-not (Invoke-ExternalBuild)) {
@@ -367,16 +551,29 @@ Do not edit NIGHTLY_REPORT.md.
         $filesChanged = @(git diff --name-only; git ls-files --others --exclude-standard) | Sort-Object -Unique
         Mark-FirstUncheckedTaskComplete
         Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build passed and checkpoint loop review completed."
-        git add .
+        Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md"))
         git commit -m "Codex checkpoint batch $batch task $i"
         if ($LASTEXITCODE -ne 0) { exit 1 }
     }
 
-    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "checkpoint-review.ps1") -Repo $repoPath -BaseBranch $BaseBranch -BuildDirectory $script:projectConfig.buildDirectory -BuildCommand $script:projectConfig.buildCommand
+    $checkpointArgs = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "checkpoint-review.ps1"),
+        "-Repo", $repoPath,
+        "-BaseBranch", $BaseBranch,
+        "-BuildDirectory", (Get-ConfigScalar -Name "buildDirectory" -Default "."),
+        "-BuildCommand", (Get-ConfigScalar -Name "buildCommand" -Default "")
+    )
+    $checkpointModel = Get-ProjectModel -Role "checkpoint"
+    if (![string]::IsNullOrWhiteSpace($checkpointModel)) {
+        $checkpointArgs += @("-Model", $checkpointModel)
+    }
+    powershell @checkpointArgs
     if ($LASTEXITCODE -ne 0) { exit 1 }
 
     $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
-    git add docs/codex/CHECKPOINT_REVIEW.md
+    Stage-Files -Paths @("docs/codex/CHECKPOINT_REVIEW.md")
     $pendingCheckpointCommit = @(git diff --cached --name-only)
     if ($pendingCheckpointCommit.Count -gt 0) {
         git commit -m "Codex checkpoint review batch $batch"
@@ -389,8 +586,8 @@ Do not edit NIGHTLY_REPORT.md.
     }
 
     if ($VisualEvery -gt 0 -and ($batch % $VisualEvery -eq 0)) {
-        $serveDir = if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildDirectory)) { "." } else { $script:projectConfig.buildDirectory }
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-smoke.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir
+        $serveDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
+        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-smoke.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir -Port (Get-FreeTcpPort) -ChromePort (Get-FreeTcpPort)
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Visual smoke failed. Ending loop without merge." -ForegroundColor Red
             exit 1
@@ -398,10 +595,25 @@ Do not edit NIGHTLY_REPORT.md.
     }
 
     if ($VisualInspectEvery -gt 0 -and ($batch % $VisualInspectEvery -eq 0)) {
-        $serveDir = if ([string]::IsNullOrWhiteSpace($script:projectConfig.buildDirectory)) { "." } else { $script:projectConfig.buildDirectory }
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "visual-inspect.ps1") -Repo $repoPath -Project $script:projectConfig.name -ServeDirectory $serveDir
+        $serveDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
+        $visualPaths = Get-ConfigArray -Name "visualPaths"
+        if ($visualPaths.Count -eq 0) {
+            $visualPaths = @("/")
+        }
+        $visualArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "visual-inspect.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-ServeDirectory", $serveDir,
+            "-Port", (Get-FreeTcpPort),
+            "-ChromePort", (Get-FreeTcpPort),
+            "-Paths"
+        ) + $visualPaths
+        powershell @visualArgs
         $visualInspectPassed = $LASTEXITCODE -eq 0
-        git add docs/codex/VISUAL_BUGS.md
+        Stage-Files -Paths @("docs/codex/VISUAL_BUGS.md")
         $pendingVisualCommit = @(git diff --cached --name-only)
         if ($pendingVisualCommit.Count -gt 0) {
             git commit -m "Codex visual inspect batch $batch"
@@ -414,13 +626,25 @@ Do not edit NIGHTLY_REPORT.md.
     }
 
     if ($SimonEvery -gt 0 -and ($batch % $SimonEvery -eq 0)) {
-        powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "simon-design-review.ps1") -Repo $repoPath -Project $script:projectConfig.name -BaseBranch $BaseBranch
+        $simonArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "simon-design-review.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-BaseBranch", $BaseBranch
+        )
+        $simonModel = Get-ProjectModel -Role "simon"
+        if (![string]::IsNullOrWhiteSpace($simonModel)) {
+            $simonArgs += @("-Model", $simonModel)
+        }
+        powershell @simonArgs
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Simon design review failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }
         $simonText = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "" }
-        git add docs/codex/SIMON_DESIGN_REVIEW.md
+        Stage-Files -Paths @("docs/codex/SIMON_DESIGN_REVIEW.md")
         $pendingSimonCommit = @(git diff --cached --name-only)
         if ($pendingSimonCommit.Count -gt 0) {
             git commit -m "Codex Simon design review batch $batch"
@@ -436,7 +660,7 @@ Do not edit NIGHTLY_REPORT.md.
         powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "joey-security-review.ps1") -Repo $repoPath -Project $script:projectConfig.name -BaseBranch $BaseBranch
         $joeyPassed = $LASTEXITCODE -eq 0
         $joeyText = if (Test-Path "docs/codex/JOEY_SECURITY_REVIEW.md") { Get-Content "docs/codex/JOEY_SECURITY_REVIEW.md" -Raw } else { "" }
-        git add docs/codex/JOEY_SECURITY_REVIEW.md
+        Stage-Files -Paths @("docs/codex/JOEY_SECURITY_REVIEW.md")
         $pendingJoeyCommit = @(git diff --cached --name-only)
         if ($pendingJoeyCommit.Count -gt 0) {
             git commit -m "Codex Joey security review batch $batch"
@@ -456,6 +680,10 @@ Do not edit NIGHTLY_REPORT.md.
             "-Repo", $repoPath,
             "-BaseBranch", $BaseBranch
         )
+        $maxChangedFiles = Get-ConfigScalar -Name "maxChangedFiles" -Default ""
+        if (![string]::IsNullOrWhiteSpace($maxChangedFiles)) {
+            $debugArgs += @("-MaxChangedFiles", [int]$maxChangedFiles)
+        }
         if ($ContinueOnYellowCheckpoint) {
             $debugArgs += "-AllowYellowCheckpoint"
         }

@@ -4,6 +4,14 @@
   "defaultRounds": 10,
   "branchPrefix": "codex/docs",
   "maxChangedFiles": 12,
+  "model": "gpt-5.5",
+  "models": {
+    "implement": "gpt-5.5",
+    "review": "gpt-5.5",
+    "planner": "gpt-5.5",
+    "checkpoint": "gpt-5.5",
+    "simon": "gpt-5.5"
+  },
   "allowedPaths": [
     "docs/",
     "README.md"

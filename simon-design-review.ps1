@@ -7,7 +7,9 @@ param(
 
     [string]$Project = "",
 
-    [string]$OutFile = "docs/codex/SIMON_DESIGN_REVIEW.md"
+    [string]$OutFile = "docs/codex/SIMON_DESIGN_REVIEW.md",
+
+    [string]$Model = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -141,7 +143,12 @@ $($reportTail -join "`n")
 "@
 
 $tmp = New-TemporaryFile
-$prompt | codex exec - -o $tmp.FullName
+$codexArgs = @("exec")
+if (![string]::IsNullOrWhiteSpace($Model)) {
+    $codexArgs += @("-m", $Model)
+}
+$codexArgs += @("-", "-o", $tmp.FullName)
+$prompt | & codex @codexArgs
 $codexExit = $LASTEXITCODE
 
 if (!(Test-Path $tmp.FullName) -or ((Get-Item $tmp.FullName).Length -eq 0)) {

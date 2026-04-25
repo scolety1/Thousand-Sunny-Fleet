@@ -8,6 +8,7 @@ Configured in `projects.json`:
 
 - EasyLife
 - RestaurantDemo
+- UrbanKitchenWineList
 
 ## Commands
 
@@ -16,6 +17,7 @@ cd C:\Dev\codex-fleet
 
 .\add-project.ps1 -Name MyProject -Repo C:\Dev\my-project -Profile frontend-static-demo -BuildDirectory . -BuildCommand "npm.cmd run build"
 .\fleet-status.ps1
+.\fleet-supervisor.ps1 -Once
 .\fleet-brief.ps1
 .\fleet-morning-review.ps1
 .\debug-checkpoint.ps1 -Repo C:\Dev\restaurant-automation-demo
@@ -32,6 +34,8 @@ cd C:\Dev\codex-fleet
 `make-context-bundles.ps1` writes paste-ready ChatGPT Pro context bundles into `out/`.
 
 `fleet-morning-review.ps1` checks each configured project before you merge: branch, dirty state, unchecked tasks, changed files, recent report entries, and build result.
+
+`fleet-supervisor.ps1` writes `out/fleet-supervisor.md` and can stay open as an all-day dashboard. It shows each ship's branch, HEAD, dirty state, remaining tasks, checkpoint verdict, Simon verdict, Joey verdict, and latest report note.
 
 `debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes.
 
@@ -57,6 +61,7 @@ The checkpoint loop:
 - implements tasks one at a time
 - runs external builds
 - commits each successful task
+- stages only the files it intentionally changed instead of using `git add .`
 - writes `docs/codex/CHECKPOINT_REVIEW.md`
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
@@ -67,9 +72,13 @@ The checkpoint loop:
 - generates/imports the next five tasks when the queue is empty
 - never merges to `main`
 
+Each project can configure `profile`, `model`, role-specific `models`, and `visualPaths` in `projects.json`. The loop passes role models to Codex for implementation, review, planning, checkpoint review, and Simon. Visual checks use dynamic ports and project-specific paths when configured.
+
 `-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
 Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Joey repair orders take priority over fresh feature work.
+
+Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 

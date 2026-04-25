@@ -9,7 +9,7 @@ param(
 
     [string]$ServeCommand = "npm.cmd run dev -- --host 127.0.0.1 --port {PORT}",
 
-    [int]$Port = 4179,
+    [int]$Port = 0,
 
     [string[]]$RequiredText = @(),
 
@@ -17,7 +17,7 @@ param(
 
     [string]$BaseUrl = "",
 
-    [int]$ChromePort = 9222,
+    [int]$ChromePort = 0,
 
     [string]$ChromePath = "",
 
@@ -69,6 +69,14 @@ function Stop-Tree {
     }
 }
 
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), 0)
+    $listener.Start()
+    $port = $listener.LocalEndpoint.Port
+    $listener.Stop()
+    return $port
+}
+
 $repoMatches = @(Resolve-Path $Repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
     Write-Host "Repo not found or ambiguous: $Repo" -ForegroundColor Red
@@ -78,6 +86,13 @@ $repoPath = $repoMatches[0].Path
 
 if ([string]::IsNullOrWhiteSpace($Project)) {
     $Project = Split-Path -Leaf $repoPath
+}
+
+if ($Port -le 0) {
+    $Port = Get-FreeTcpPort
+}
+if ($ChromePort -le 0) {
+    $ChromePort = Get-FreeTcpPort
 }
 
 if ([string]::IsNullOrWhiteSpace($BaseUrl)) {

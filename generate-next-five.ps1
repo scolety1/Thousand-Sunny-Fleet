@@ -6,7 +6,9 @@ param(
 
     [int]$Count = 5,
 
-    [string]$OutFile = "docs/codex/NEXT_5_TASKS.md"
+    [string]$OutFile = "docs/codex/NEXT_5_TASKS.md",
+
+    [string]$Model = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -18,6 +20,13 @@ if (!$repoPath) {
 }
 
 Set-Location $repoPath.Path
+
+$preStatus = @(git status --porcelain)
+if ($preStatus.Count -gt 0) {
+    Write-Host "Nami requires a clean working tree before planning tasks." -ForegroundColor Red
+    $preStatus | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
 
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD
@@ -97,7 +106,12 @@ $($reportTail -join "`n")
 "@
 
 $tmp = New-TemporaryFile
-$prompt | codex exec --full-auto - -o $tmp.FullName
+$codexArgs = @("exec")
+if (![string]::IsNullOrWhiteSpace($Model)) {
+    $codexArgs += @("-m", $Model)
+}
+$codexArgs += @("-", "-o", $tmp.FullName)
+$prompt | & codex @codexArgs
 $codexExit = $LASTEXITCODE
 
 if (!(Test-Path $tmp.FullName) -or ((Get-Item $tmp.FullName).Length -eq 0)) {
@@ -110,6 +124,19 @@ $outPath = Join-Path $repoPath.Path $OutFile
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outPath) | Out-Null
 Copy-Item $tmp.FullName $outPath -Force
 Remove-Item $tmp.FullName -Force
+
+$allowedPath = $OutFile.Replace("\", "/")
+$dirtyAfter = @(git status --porcelain)
+$unexpected = @($dirtyAfter | Where-Object {
+    $line = [string]$_
+    $path = $line.Substring([Math]::Min(3, $line.Length)).Replace("\", "/")
+    $path -ne $allowedPath
+})
+if ($unexpected.Count -gt 0) {
+    Write-Host "Nami changed files outside $OutFile. Stop for human review." -ForegroundColor Red
+    $unexpected | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
 
 $tasks = @(Get-Content $outPath | Where-Object { $_ -match "^\s*-\s+\[ \]\s+.+" })
 if ($tasks.Count -eq 0) {
