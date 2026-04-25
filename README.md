@@ -57,7 +57,7 @@ cd C:\Dev\codex-fleet
 
 `tests\run-fleet-tests.ps1` runs deterministic fleet tests without touching real ships. It generates disposable fixture repos under `.codex-local/fixtures/`, validates parsing/config/guardrail helpers, and removes fixtures when it finishes unless `-KeepFixtures` is passed.
 
-`debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes.
+`debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes. During checkpoint loops, the current batch diff is the hard file-count gate; the whole branch diff is still reported as a warning when it grows large.
 
 `visual-smoke.ps1` launches the site, opens Chrome/Edge headless, checks key text/anchors on desktop and mobile, records console issues, and saves screenshots under `.codex-logs/visual-*`.
 
@@ -107,7 +107,7 @@ Nami and the checkpoint reviewer run in read-only Codex mode and fail if they di
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 
-For larger real-product sprints, the checkpoint debugger allows up to 60 changed files before stopping for review. Keep `BatchSize` modest and increase `MaxBatches` when a ship needs more work.
+For larger sprints, keep `BatchSize` modest and increase `MaxBatches` when a ship needs more work. Profile `maxBatchChangedFiles` controls the hard per-batch debugger limit; `maxChangedFiles` controls the whole-branch warning threshold.
 
 ## Reusable Harness
 

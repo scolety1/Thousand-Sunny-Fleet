@@ -240,6 +240,40 @@ function Test-DebugCheckpoint {
     )
     Assert-Equal -Actual $debug.exitCode -Expected 0 -Message "Checkpoint debugger passes clean fixture branch"
     Assert-True -Condition (($debug.output -join "`n") -match '"result"\s*:\s*"PASS"') -Message "Checkpoint debugger JSON reports PASS"
+
+    Push-Location $project.repo
+    try {
+        foreach ($index in 1..5) {
+            Set-Content -Path "preexisting-$index.txt" -Value "older branch work $index"
+        }
+        & git add -- preexisting-*.txt
+        & git commit -m "fixture accumulated branch work" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits accumulated branch work"
+
+        $batchBase = (git rev-parse HEAD).Trim()
+        Set-Content -Path "current-batch.txt" -Value "current batch"
+        & git add -- current-batch.txt
+        & git commit -m "fixture current batch work" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits current batch work"
+    } finally {
+        Pop-Location
+    }
+
+    $batchDebug = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "debug-checkpoint.ps1"),
+        "-Repo", $project.repo,
+        "-BaseBranch", "main",
+        "-BatchBase", $batchBase,
+        "-MaxChangedFiles", "2",
+        "-MaxBatchChangedFiles", "2",
+        "-Json"
+    )
+    $batchOutput = $batchDebug.output -join "`n"
+    Assert-Equal -Actual $batchDebug.exitCode -Expected 0 -Message "Checkpoint debugger allows small current batch on accumulated branch"
+    Assert-True -Condition ($batchOutput -match '"result"\s*:\s*"WARN"') -Message "Checkpoint debugger warns for oversized whole branch"
+    Assert-True -Condition ($batchOutput -match '"batchChangedFileCount"\s*:\s*1') -Message "Checkpoint debugger reports current batch file count"
 }
 
 function Test-SafeStaging {

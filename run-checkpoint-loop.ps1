@@ -635,6 +635,12 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     Write-Host ""
     Write-Host "===== CHECKPOINT BATCH $batch of $MaxBatches =====" -ForegroundColor Cyan
 
+    $batchBase = (git rev-parse HEAD 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($batchBase)) {
+        Write-Host "Could not determine batch base commit before starting checkpoint batch." -ForegroundColor Red
+        exit 1
+    }
+
     $task = Get-FirstUncheckedTask
     if ([string]::IsNullOrWhiteSpace($task)) {
         Write-Host "No unchecked tasks. Generating next $BatchSize from mission." -ForegroundColor Cyan
@@ -907,11 +913,16 @@ REVIEW_FINDING: P2: short description
             "-ExecutionPolicy", "Bypass",
             "-File", (Join-Path $fleetRoot "debug-checkpoint.ps1"),
             "-Repo", $repoPath,
-            "-BaseBranch", $BaseBranch
+            "-BaseBranch", $BaseBranch,
+            "-BatchBase", $batchBase
         )
         $maxChangedFiles = Get-ConfigScalar -Name "maxChangedFiles" -Default ""
         if (![string]::IsNullOrWhiteSpace($maxChangedFiles)) {
             $debugArgs += @("-MaxChangedFiles", [int]$maxChangedFiles)
+        }
+        $maxBatchChangedFiles = Get-ConfigScalar -Name "maxBatchChangedFiles" -Default $maxChangedFiles
+        if (![string]::IsNullOrWhiteSpace($maxBatchChangedFiles)) {
+            $debugArgs += @("-MaxBatchChangedFiles", [int]$maxBatchChangedFiles)
         }
         if ($ContinueOnYellowCheckpoint) {
             $debugArgs += "-AllowYellowCheckpoint"

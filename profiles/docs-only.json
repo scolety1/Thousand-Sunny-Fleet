@@ -4,6 +4,7 @@
   "defaultRounds": 10,
   "branchPrefix": "codex/docs",
   "maxChangedFiles": 12,
+  "maxBatchChangedFiles": 12,
   "model": "gpt-5.5",
   "models": {
     "implement": ["gpt-5.5", "gpt-5.4"],

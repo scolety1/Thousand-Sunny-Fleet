@@ -7,6 +7,10 @@ param(
 
     [int]$MaxChangedFiles = 60,
 
+    [string]$BatchBase = "",
+
+    [int]$MaxBatchChangedFiles = 0,
+
     [int]$MaxCssDeltaKb = 80,
 
     [switch]$AllowMain,
@@ -66,12 +70,31 @@ Push-Location $repoPath
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD 2>$null
 $dirty = @(git status --short)
-$changed = @(git diff --name-only "$BaseBranch..HEAD" 2>$null | ForEach-Object { Normalize-Path $_ })
-$changedStatus = @(git diff --name-status "$BaseBranch..HEAD" 2>$null)
-$addedLines = @(git diff --unified=0 "$BaseBranch..HEAD" 2>$null | Where-Object { $_ -match "^\+" -and $_ -notmatch "^\+\+\+" })
+
+$branchDiffRange = "$BaseBranch..HEAD"
+$hasBatchBase = ![string]::IsNullOrWhiteSpace($BatchBase)
+$batchDiffRange = $branchDiffRange
+$resolvedBatchBase = ""
+if ($hasBatchBase) {
+    $resolvedBatchBase = (git rev-parse --verify "$BatchBase^{commit}" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($resolvedBatchBase)) {
+        Add-Issue "FAIL" "Batch base is not a valid commit: $BatchBase."
+        $hasBatchBase = $false
+    } else {
+        $batchDiffRange = "$resolvedBatchBase..HEAD"
+    }
+}
+if ($MaxBatchChangedFiles -le 0) {
+    $MaxBatchChangedFiles = $MaxChangedFiles
+}
+
+$changed = @(git diff --name-only $branchDiffRange 2>$null | ForEach-Object { Normalize-Path $_ })
+$changedStatus = @(git diff --name-status $branchDiffRange 2>$null)
+$batchChanged = @(git diff --name-only $batchDiffRange 2>$null | ForEach-Object { Normalize-Path $_ })
+$batchChangedStatus = @(git diff --name-status $batchDiffRange 2>$null)
 $addedAppLines = @()
 $currentDiffFile = ""
-foreach ($line in @(git diff --unified=0 "$BaseBranch..HEAD" 2>$null)) {
+foreach ($line in @(git diff --unified=0 $batchDiffRange 2>$null)) {
     if ($line -match "^\+\+\+ b/(.+)$") {
         $currentDiffFile = Normalize-Path $Matches[1]
         continue
@@ -95,7 +118,17 @@ if ($changed.Count -eq 0) {
     Add-Issue "WARN" "No files changed compared with $BaseBranch."
 }
 
-if ($changed.Count -gt $MaxChangedFiles) {
+if ($hasBatchBase) {
+    if ($batchChanged.Count -eq 0) {
+        Add-Issue "WARN" "No files changed in current batch compared with $($resolvedBatchBase.Substring(0, 7))."
+    }
+    if ($batchChanged.Count -gt $MaxBatchChangedFiles) {
+        Add-Issue "FAIL" "Too many files changed in current batch: $($batchChanged.Count), max $MaxBatchChangedFiles."
+    }
+    if ($changed.Count -gt $MaxChangedFiles) {
+        Add-Issue "WARN" "Whole branch changed file count is high compared with ${BaseBranch}: $($changed.Count), warning threshold $MaxChangedFiles."
+    }
+} elseif ($changed.Count -gt $MaxChangedFiles) {
     Add-Issue "FAIL" "Too many files changed compared with ${BaseBranch}: $($changed.Count), max $MaxChangedFiles."
 }
 
@@ -195,22 +228,22 @@ if (Test-Path "docs/codex/NEXT_5_TASKS.md") {
     }
 }
 
-$cssFiles = @($changed | Where-Object { $_ -match "\.css$" })
+$cssFiles = @($batchChanged | Where-Object { $_ -match "\.css$" })
 foreach ($cssFile in $cssFiles) {
-    $delta = git diff --numstat "$BaseBranch..HEAD" -- $cssFile
+    $delta = git diff --numstat $batchDiffRange -- $cssFile
     if ($delta -match "^(\d+)\s+(\d+)\s+") {
         $added = [int]$Matches[1]
         $removed = [int]$Matches[2]
         $roughKb = [Math]::Round((($added - $removed) * 60) / 1024, 1)
         if ($roughKb -gt $MaxCssDeltaKb) {
-            Add-Issue "WARN" "Large CSS growth estimate in ${cssFile}: about ${roughKb}KB."
+            Add-Issue "WARN" "Large CSS growth estimate in current batch for ${cssFile}: about ${roughKb}KB."
         }
     }
 }
 
-$deletedFiles = @($changedStatus | Where-Object { $_ -match "^D\s+" })
+$deletedFiles = @($batchChangedStatus | Where-Object { $_ -match "^D\s+" })
 if ($deletedFiles.Count -gt 0) {
-    Add-Issue "WARN" "Deleted files detected: $($deletedFiles -join '; ')"
+    Add-Issue "WARN" "Deleted files detected in current batch: $($deletedFiles -join '; ')"
 }
 
 $failCount = @($script:Issues | Where-Object { $_.level -eq "FAIL" }).Count
@@ -225,6 +258,9 @@ $summary = [pscustomobject]@{
     baseBranch = $BaseBranch
     changedFileCount = $changed.Count
     changedFiles = $changed
+    batchBase = if ($hasBatchBase) { $resolvedBatchBase } else { "" }
+    batchChangedFileCount = $batchChanged.Count
+    batchChangedFiles = $batchChanged
     issues = $script:Issues
 }
 
@@ -236,6 +272,10 @@ if ($Json) {
     Write-Host "Branch: $branch"
     Write-Host "HEAD: $head"
     Write-Host "Changed files vs ${BaseBranch}: $($changed.Count)"
+    if ($hasBatchBase) {
+        Write-Host "Batch base: $($resolvedBatchBase.Substring(0, 7))"
+        Write-Host "Changed files in current batch: $($batchChanged.Count)"
+    }
     if ($script:Issues.Count -gt 0) {
         Write-Host ""
         Write-Host "Issues:"
