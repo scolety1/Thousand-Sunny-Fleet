@@ -787,12 +787,16 @@ function Get-ExistingFleetRunProcesses {
         [string]$RepoFullPath
     )
 
-    $needles = @("run-checkpoint-loop.ps1")
+    $needles = @()
     if (![string]::IsNullOrWhiteSpace($ProjectName)) {
         $needles += [string]$ProjectName
     }
     if (![string]::IsNullOrWhiteSpace($RepoFullPath)) {
         $needles += [string]$RepoFullPath
+    }
+
+    if ($needles.Count -eq 0) {
+        return @()
     }
 
     try {
