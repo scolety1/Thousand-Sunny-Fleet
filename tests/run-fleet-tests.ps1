@@ -232,6 +232,7 @@ function Test-PhaseZeroIntakeSupport {
     Assert-True -Condition ($doctorText -match 'Resolve-IntakeMetadata') -Message "Fleet doctor resolves Phase 0 intake metadata"
     Assert-True -Condition ($doctorText -match 'Unknown projectType') -Message "Fleet doctor blocks unknown project types"
     Assert-True -Condition ($doctorText -match 'Unknown riskTier') -Message "Fleet doctor blocks unknown risk tiers"
+    Assert-True -Condition ($doctorText -match '-split ","') -Message "Fleet doctor accepts comma-packed project exclusions"
     Assert-True -Condition ($readmeText -match 'Phase 0 intake metadata') -Message "README documents Phase 0 intake metadata"
 }
 
@@ -616,6 +617,8 @@ function Test-TaskQuarantineSupport {
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
     Assert-True -Condition ($overnightText -match '-QuarantineFailedTasks') -Message "Overnight launcher can pass quarantine mode to ships"
     Assert-True -Condition ($overnightText -match '-MaxTaskQuarantines') -Message "Overnight launcher can pass quarantine limit to ships"
+    Assert-True -Condition ($overnightText -match '\[int\]\$SimonEvery') -Message "Overnight launcher can override Simon cadence"
+    Assert-True -Condition ($overnightText -match '\[int\]\$VisualInspectEvery') -Message "Overnight launcher can override visual inspection cadence"
 
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     Assert-True -Condition ($plannerText -match 'QUARANTINED_TASKS.md') -Message "Nami planner reads quarantined task report"
@@ -669,6 +672,8 @@ function Test-LaunchControlSupport {
     foreach ($launcherName in @("launch-school-run.ps1", "launch-overnight-run.ps1")) {
         $launcher = Get-Content (Join-Path $fleetRoot $launcherName) -Raw
         Assert-True -Condition ($launcher -match 'ExcludeProject') -Message "$launcherName can exclude docked ships"
+        Assert-True -Condition ($launcher -match 'doctorExclusions') -Message "$launcherName forwards multiple doctor exclusions together"
+        Assert-True -Condition ($launcher -match '-join ","') -Message "$launcherName comma-packs doctor exclusions for child PowerShell"
     }
 
     $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw

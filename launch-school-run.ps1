@@ -70,10 +70,9 @@ if (!$SkipDoctor) {
     if (![string]::IsNullOrWhiteSpace($Project)) {
         $doctorArgs += @("-Project", $Project)
     }
-    foreach ($excluded in $ExcludeProject) {
-        if (![string]::IsNullOrWhiteSpace([string]$excluded)) {
-            $doctorArgs += @("-ExcludeProject", [string]$excluded)
-        }
+    $doctorExclusions = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    if ($doctorExclusions.Count -gt 0) {
+        $doctorArgs += @("-ExcludeProject", ($doctorExclusions -join ","))
     }
     & powershell @doctorArgs
     if ($LASTEXITCODE -ne 0) {

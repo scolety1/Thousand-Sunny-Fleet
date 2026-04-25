@@ -63,7 +63,10 @@ function Get-ProjectList {
         }
     }
     if ($ExcludeProject.Count -gt 0) {
-        $exclude = @($ExcludeProject | ForEach-Object { [string]$_ })
+        $exclude = @($ExcludeProject |
+            ForEach-Object { ([string]$_) -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) })
         $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
     }
 

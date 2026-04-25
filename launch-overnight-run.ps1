@@ -18,6 +18,14 @@ param(
 
     [int]$LaunchDelaySeconds = 90,
 
+    [int]$VisualInspectEvery = 0,
+
+    [int]$SimonEvery = 0,
+
+    [int]$RobinEvery = 0,
+
+    [int]$JoeyEvery = 0,
+
     [switch]$SkipDoctor,
 
     [switch]$PushCheckpoint,
@@ -79,6 +87,10 @@ if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 if ($LaunchDelaySeconds -lt 0) { Stop-WithMessage "-LaunchDelaySeconds must be 0 or greater." }
+if ($VisualInspectEvery -lt 0) { Stop-WithMessage "-VisualInspectEvery must be 0 or greater." }
+if ($SimonEvery -lt 0) { Stop-WithMessage "-SimonEvery must be 0 or greater." }
+if ($RobinEvery -lt 0) { Stop-WithMessage "-RobinEvery must be 0 or greater." }
+if ($JoeyEvery -lt 0) { Stop-WithMessage "-JoeyEvery must be 0 or greater." }
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
@@ -90,10 +102,9 @@ if (!$SkipDoctor) {
     if (![string]::IsNullOrWhiteSpace($Project)) {
         $doctorArgs += @("-Project", $Project)
     }
-    foreach ($excluded in $ExcludeProject) {
-        if (![string]::IsNullOrWhiteSpace([string]$excluded)) {
-            $doctorArgs += @("-ExcludeProject", [string]$excluded)
-        }
+    $doctorExclusions = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    if ($doctorExclusions.Count -gt 0) {
+        $doctorArgs += @("-ExcludeProject", ($doctorExclusions -join ","))
     }
     & powershell @doctorArgs
     if ($LASTEXITCODE -ne 0) {
@@ -107,10 +118,10 @@ for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     $ship = $shipsToLaunch[$shipIndex]
     $shipBatchSize = Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize
     $shipMaxBatches = Get-ShipInt -Ship $ship -Name "overnightMaxBatches" -Default $MaxBatches
-    $shipVisualEvery = Get-ShipInt -Ship $ship -Name "overnightVisualInspectEvery" -Default 3
-    $shipSimonEvery = Get-ShipInt -Ship $ship -Name "overnightSimonEvery" -Default 3
-    $shipRobinEvery = Get-ShipInt -Ship $ship -Name "overnightRobinEvery" -Default $shipSimonEvery
-    $shipJoeyEvery = Get-ShipInt -Ship $ship -Name "overnightJoeyEvery" -Default 6
+    $shipVisualEvery = if ($VisualInspectEvery -gt 0) { $VisualInspectEvery } else { Get-ShipInt -Ship $ship -Name "overnightVisualInspectEvery" -Default 3 }
+    $shipSimonEvery = if ($SimonEvery -gt 0) { $SimonEvery } else { Get-ShipInt -Ship $ship -Name "overnightSimonEvery" -Default 3 }
+    $shipRobinEvery = if ($RobinEvery -gt 0) { $RobinEvery } else { Get-ShipInt -Ship $ship -Name "overnightRobinEvery" -Default $shipSimonEvery }
+    $shipJoeyEvery = if ($JoeyEvery -gt 0) { $JoeyEvery } else { Get-ShipInt -Ship $ship -Name "overnightJoeyEvery" -Default 6 }
     $shipLaunchDelay = Get-ShipInt -Ship $ship -Name "launchDelaySeconds" -Default $LaunchDelaySeconds
 
     $command = @(
