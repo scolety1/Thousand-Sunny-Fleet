@@ -202,6 +202,12 @@
         "visualPaths":  [
                             "/"
                         ],
+        "schoolBatchSize":  1,
+        "schoolMaxBatches":  6,
+        "schoolVisualInspectEvery":  1,
+        "schoolSimonEvery":  1,
+        "schoolRobinEvery":  1,
+        "schoolJoeyEvery":  3,
         "overnightBatchSize":  2,
         "overnightMaxBatches":  6,
         "overnightVisualInspectEvery":  1,

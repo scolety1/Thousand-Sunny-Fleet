@@ -56,6 +56,23 @@ function Get-Projects {
     return $projects
 }
 
+function Get-ShipInt {
+    param(
+        [object]$Ship,
+        [string]$Name,
+        [int]$Default
+    )
+
+    if ($null -ne $Ship -and $Ship.PSObject.Properties[$Name]) {
+        $value = $Ship.PSObject.Properties[$Name].Value
+        if ($null -ne $value -and [int]$value -gt 0) {
+            return [int]$value
+        }
+    }
+
+    return $Default
+}
+
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
@@ -83,12 +100,19 @@ if (!$SkipDoctor) {
 $shipsToLaunch = @(Get-Projects)
 $manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "school" -ConfigPath $ConfigPath -ProjectFilter $Project
 foreach ($ship in $shipsToLaunch) {
+    $shipBatchSize = Get-ShipInt -Ship $ship -Name "schoolBatchSize" -Default $BatchSize
+    $shipMaxBatches = Get-ShipInt -Ship $ship -Name "schoolMaxBatches" -Default $MaxBatches
+    $shipVisualEvery = Get-ShipInt -Ship $ship -Name "schoolVisualInspectEvery" -Default 2
+    $shipSimonEvery = Get-ShipInt -Ship $ship -Name "schoolSimonEvery" -Default 2
+    $shipRobinEvery = Get-ShipInt -Ship $ship -Name "schoolRobinEvery" -Default 2
+    $shipJoeyEvery = Get-ShipInt -Ship $ship -Name "schoolJoeyEvery" -Default 4
+
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -VisualInspectEvery 2 -SimonEvery 2 -RobinEvery 2 -JoeyEvery 4 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $shipBatchSize -MaxBatches $shipMaxBatches -VisualInspectEvery $shipVisualEvery -SimonEvery $shipSimonEvery -RobinEvery $shipRobinEvery -JoeyEvery $shipJoeyEvery -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching school run for $($ship.name): batch $BatchSize x $MaxBatches..." -ForegroundColor Cyan
+    Write-Host "Launching school run for $($ship.name): batch $shipBatchSize x $shipMaxBatches..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
         Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun
