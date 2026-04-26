@@ -147,6 +147,45 @@
                          }
     },
     {
+        "name":  "NinersWarRoom",
+        "repo":  "C:\\Dev\\niners-war-room",
+        "rounds":  99,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  ".",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
+        "profile":  "real-product",
+        "branchPrefix":  "codex/niners-war-room",
+        "visualPaths":  [
+                            "/",
+                            "/Import_Review",
+                            "/Team",
+                            "/War_Board",
+                            "/Trade_Central",
+                            "/Draft_Room",
+                            "/League_Intel"
+                        ],
+        "overnightBatchSize":  1,
+        "overnightMaxBatches":  4,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  2,
+        "overnightRobinEvery":  2,
+        "overnightJoeyEvery":  2,
+        "projectType":  "full-stack-web",
+        "riskTier":  "production-adjacent",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
+    },
+    {
         "name":  "RestaurantDemo",
         "repo":  "C:\\Dev\\restaurant-automation-demo",
         "rounds":  99,
