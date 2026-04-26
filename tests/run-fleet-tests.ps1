@@ -331,6 +331,8 @@ function Test-PhaseFiveSensitiveSystemsSupport {
     Assert-True -Condition ($loopText -match 'Test-SensitiveTaskApproval') -Message "Checkpoint loop checks auth/payment/integration task approvals"
     Assert-True -Condition ($loopText -match 'Get-SensitiveIntentText') -Message "Checkpoint loop strips forbidden-scope text before sensitive task detection"
     Assert-True -Condition ($loopText -match 'forbidden\\s\+scope') -Message "Sensitive task detection ignores forbidden scope guardrail text"
+    Assert-True -Condition ($loopText -match 'forbid\|forbids\|forbidden') -Message "Sensitive task detection ignores forbid/forbidden guardrail language"
+    Assert-True -Condition ($loopText -match 'preserv\(\?:e\|ing\)') -Message "Sensitive task detection ignores preserve-boundary guardrail language"
     Assert-True -Condition ($doctorText -match 'Get-SensitiveSystemsStatus') -Message "Fleet doctor reports sensitive systems status"
     Assert-True -Condition ($doctorText -match 'Phase 5 sensitive systems') -Message "Fleet doctor warns for missing or draft sensitive systems gates"
     Assert-True -Condition ($readmeText -match 'Phase 5 auth, payment, secrets') -Message "README documents Phase 5 sensitive systems safety"
