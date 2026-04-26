@@ -13,6 +13,34 @@ function Test-FleetStatusProcessAlive {
     return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
 }
 
+function Test-FleetStatusRunActive {
+    param(
+        [int]$ProcessId,
+        [int]$IdleShellGraceSeconds = 120
+    )
+
+    if ($ProcessId -le 0) { return $false }
+
+    $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if ($null -eq $process) { return $false }
+
+    try {
+        if (((Get-Date) - $process.StartTime).TotalSeconds -lt $IdleShellGraceSeconds) {
+            return $true
+        }
+    } catch {
+        return $true
+    }
+
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ProcessId" -ErrorAction SilentlyContinue)
+    $activeChildren = @($children | Where-Object {
+        $name = [string]$_.Name
+        ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+    })
+
+    return ($activeChildren.Count -gt 0)
+}
+
 function Get-FleetStatusLock {
     param([string]$ProjectName)
 
@@ -26,8 +54,11 @@ function Get-FleetStatusLock {
     try {
         $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
         $lockPid = if ($null -ne $lock.pid) { [int]$lock.pid } else { 0 }
-        if (Test-FleetStatusProcessAlive -ProcessId $lockPid) {
+        if (Test-FleetStatusRunActive -ProcessId $lockPid) {
             return "active PID $lockPid"
+        }
+        if (Test-FleetStatusProcessAlive -ProcessId $lockPid) {
+            return "idle shell PID $lockPid"
         }
         return "stale PID $lockPid"
     } catch {

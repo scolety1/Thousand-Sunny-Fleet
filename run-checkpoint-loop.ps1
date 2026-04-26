@@ -1392,6 +1392,39 @@ function Test-FleetProcessAlive {
     return ($null -ne $process)
 }
 
+function Test-FleetRunProcessActive {
+    param(
+        [int]$ProcessId,
+        [int]$IdleShellGraceSeconds = 120
+    )
+
+    if ($ProcessId -le 0) {
+        return $false
+    }
+
+    $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if ($null -eq $process) {
+        return $false
+    }
+
+    try {
+        $ageSeconds = ((Get-Date) - $process.StartTime).TotalSeconds
+        if ($ageSeconds -lt $IdleShellGraceSeconds) {
+            return $true
+        }
+    } catch {
+        return $true
+    }
+
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ProcessId" -ErrorAction SilentlyContinue)
+    $activeChildren = @($children | Where-Object {
+        $name = [string]$_.Name
+        ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+    })
+
+    return ($activeChildren.Count -gt 0)
+}
+
 function Get-ExistingFleetRunProcesses {
     param(
         [string]$ProjectName,
@@ -1451,7 +1484,7 @@ function Assert-NoDuplicateFleetRun {
                 $existingLock = Get-Content $lockPath -Raw | ConvertFrom-Json
                 if ($null -ne $existingLock -and $null -ne $existingLock.pid) {
                     $candidatePid = [int]$existingLock.pid
-                    if (Test-FleetProcessAlive -ProcessId $candidatePid) {
+                    if (Test-FleetRunProcessActive -ProcessId $candidatePid) {
                         $activeLockPid = $candidatePid
                     }
                 }
@@ -1502,7 +1535,7 @@ function Acquire-FleetRunLock {
         }
 
         $existingPid = if ($null -ne $existing -and $null -ne $existing.pid) { [int]$existing.pid } else { 0 }
-        if (Test-FleetProcessAlive -ProcessId $existingPid) {
+        if (Test-FleetRunProcessActive -ProcessId $existingPid) {
             Write-Host "Duplicate fleet run refused for $ProjectName." -ForegroundColor Red
             Write-Host "Active lock: $lockPath" -ForegroundColor Yellow
             Write-Host "Lock owner PID: $existingPid" -ForegroundColor Yellow
@@ -1510,6 +1543,9 @@ function Acquire-FleetRunLock {
             exit 1
         }
 
+        if (Test-FleetProcessAlive -ProcessId $existingPid) {
+            Write-Host "Clearing idle fleet run lock for $ProjectName; lock owner PID $existingPid has no active child work." -ForegroundColor DarkYellow
+        }
         Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
     }
 

@@ -177,8 +177,29 @@ function Get-RunLockStatus {
     try {
         $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
         $pidValue = [int]$lock.pid
-        if ($pidValue -gt 0 -and (Get-Process -Id $pidValue -ErrorAction SilentlyContinue)) {
-            return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
+        $process = if ($pidValue -gt 0) { Get-Process -Id $pidValue -ErrorAction SilentlyContinue } else { $null }
+        if ($null -ne $process) {
+            try {
+                if (((Get-Date) - $process.StartTime).TotalSeconds -lt 120) {
+                    return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
+                }
+            } catch {
+                return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
+            }
+
+            $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$pidValue" -ErrorAction SilentlyContinue)
+            $activeChildren = @($children | Where-Object {
+                $name = [string]$_.Name
+                ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+            })
+            if ($activeChildren.Count -gt 0) {
+                return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
+            }
+
+            return [pscustomobject]@{ text = "idle shell PID $pidValue"; active = $false; stale = $true; path = $lockPath }
+        }
+        if ($pidValue -gt 0) {
+            return [pscustomobject]@{ text = "stale PID $pidValue"; active = $false; stale = $true; path = $lockPath }
         }
         return [pscustomobject]@{ text = "stale PID $pidValue"; active = $false; stale = $true; path = $lockPath }
     } catch {
