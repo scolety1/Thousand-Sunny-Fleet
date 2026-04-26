@@ -64,6 +64,55 @@ function Get-RunLockState {
     }
 }
 
+function Get-RepoDirtyFiles {
+    param([string]$Repo)
+
+    Push-Location $Repo
+    try {
+        return @(git status --short 2>$null | ForEach-Object {
+            $line = [string]$_
+            if ($line.Length -le 3) { return }
+            $line.Substring(3).Trim().Replace("\", "/")
+        } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    } finally {
+        Pop-Location
+    }
+}
+
+function Test-ReportOnlyDirtyFiles {
+    param([string[]]$Files)
+
+    if ($Files.Count -eq 0) { return $false }
+    foreach ($file in $Files) {
+        if ($file -notmatch "^docs/codex/(NIGHTLY_REPORT|MAGIC_SCORECARD|RUNTIME_VERIFICATION|SENSITIVE_SYSTEMS_REVIEW|CHECKPOINT_REVIEW|VISUAL_BUGS|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|QUARANTINED_TASKS|QUALITY_QUARANTINE)\.md$") {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Save-ReportOnlyDirtyFiles {
+    param(
+        [string]$ProjectName,
+        [string]$Repo,
+        [string[]]$Files
+    )
+
+    if (!(Test-ReportOnlyDirtyFiles -Files $Files)) { return $false }
+
+    Push-Location $Repo
+    try {
+        git add -- @Files
+        if ($LASTEXITCODE -ne 0) { return $false }
+        $pending = @(git diff --cached --name-only)
+        if ($pending.Count -eq 0) { return $true }
+        git commit -m "Codex save report-only overnight state for $ProjectName"
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        Pop-Location
+    }
+}
+
 Write-ScheduledLog "Selected overnight run '$RunLabel' checking projects: $($Project -join ', ')"
 
 $projectsJson = @(Get-Content ".\projects.json" -Raw | ConvertFrom-Json | ForEach-Object { $_ })
@@ -79,12 +128,17 @@ foreach ($projectName in $Project) {
         continue
     }
 
-    Push-Location ([string]$projectConfig.repo)
-    $dirty = @(git status --short 2>$null)
-    Pop-Location
+    $dirtyFiles = @(Get-RepoDirtyFiles -Repo ([string]$projectConfig.repo))
     $lock = Get-RunLockState -ProjectName $projectName
-    if ($dirty.Count -gt 0) {
-        $blocking += "$projectName dirty ($($dirty.Count) files)"
+    if ($dirtyFiles.Count -gt 0) {
+        if (Test-ReportOnlyDirtyFiles -Files $dirtyFiles) {
+            Write-ScheduledLog "$projectName has report-only dirty files; saving them before launch."
+            if (-not (Save-ReportOnlyDirtyFiles -ProjectName $projectName -Repo ([string]$projectConfig.repo) -Files $dirtyFiles)) {
+                $blocking += "$projectName report-only dirty files could not be saved"
+            }
+        } else {
+            $blocking += "$projectName dirty ($($dirtyFiles.Count) files)"
+        }
     }
     if ($lock -match "^active") {
         $blocking += "$projectName already running ($lock)"
@@ -112,6 +166,7 @@ $launchArgs = @(
     "-ExecutionPolicy", "Bypass",
     "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
     "-ExcludeProject", ($exclude -join ","),
+    "-ExpectedProject", ($Project -join ","),
     "-BatchSize", "1",
     "-MaxBatches", "6",
     "-VisualInspectEvery", "1",

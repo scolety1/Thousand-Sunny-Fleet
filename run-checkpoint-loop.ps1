@@ -1087,6 +1087,41 @@ $files
 "@
 }
 
+function Invoke-PreImplementationQuarantine {
+    param(
+        [string]$Task,
+        [string]$Reason,
+        [int]$Batch,
+        [int]$TaskIndex,
+        [object]$Contract = $null
+    )
+
+    if (!$QuarantineFailedTasks) {
+        return $false
+    }
+
+    if ($script:TaskQuarantineCount -ge $MaxTaskQuarantines) {
+        Write-Host "Task quarantine limit reached ($MaxTaskQuarantines). Ending loop for human review." -ForegroundColor Red
+        return $false
+    }
+
+    $script:TaskQuarantineCount++
+    Write-Host "Quarantining blocked task $script:TaskQuarantineCount of $MaxTaskQuarantines and continuing." -ForegroundColor Yellow
+    Mark-FirstUncheckedTaskQuarantined
+    Append-Report -Task $Task -FilesChanged @() -BuildResult "Quarantined" -Risk $Reason -Contract $Contract
+    Append-QuarantineReport -Task $Task -Reason $Reason -Batch $Batch -TaskIndex $TaskIndex -FilesChanged @()
+
+    Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/QUARANTINED_TASKS.md", "docs/codex/MAGIC_SCORECARD.md")
+    $pendingQuarantineCommit = @(git diff --cached --name-only)
+    if ($pendingQuarantineCommit.Count -gt 0) {
+        if (-not (Invoke-FleetCommit -Message "Codex quarantine blocked task batch $Batch task $TaskIndex")) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Get-TaskChangedFiles {
     $changed = @(
         @(git diff --name-only)
@@ -1785,27 +1820,37 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         $taskContract = Resolve-TaskContract -Task $task
         Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
         if ($taskContract.risk -in @("high", "gated") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present." -Contract $taskContract
+            $blockReason = "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
             Write-Host "High/gated task requires approved architecture plan. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
         if ($taskContract.class -in @("backend", "migration") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "$($taskContract.class) task requires approved Phase 1 architecture." -Contract $taskContract
+            $blockReason = "$($taskContract.class) task requires approved Phase 1 architecture."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
             Write-Host "$($taskContract.class) task requires approved architecture plan. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
         if ($taskContract.class -eq "migration" -and (Get-MigrationApprovalStatusForLoop) -ne "approved") {
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Migration task requires approved Phase 4 migration proposal." -Contract $taskContract
+            $blockReason = "Migration task requires approved Phase 4 migration proposal."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
             Write-Host "Migration task requires approved migration proposal. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
         if (-not (Test-SensitiveTaskApproval -Contract $taskContract)) {
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Sensitive-system task requires approved Phase 5 policy/registry artifacts." -Contract $taskContract
+            $blockReason = "Sensitive-system task requires approved Phase 5 policy/registry artifacts."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
             Write-Host "Sensitive-system task requires approved Phase 5 artifacts. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
         if (-not (Test-SoftwareFeatureModeApproval -Contract $taskContract)) {
-            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk "Feature-pack mode requires approved architecture, feature plan, runtime checks, scope, and acceptance commands." -Contract $taskContract
+            $blockReason = "Feature-pack mode requires approved architecture, feature plan, runtime checks, scope, and acceptance commands."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
             Write-Host "Feature-pack task is not approved for autonomous implementation. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
