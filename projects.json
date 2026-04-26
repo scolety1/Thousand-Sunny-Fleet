@@ -262,6 +262,43 @@
                          }
     },
     {
+        "name":  "Tree",
+        "repo":  "C:\\Dev\\Tree",
+        "rounds":  99,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  ".",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
+        "profile":  "real-product",
+        "branchPrefix":  "codex/tree",
+        "visualPaths":  [
+                            "/",
+                            "/signin",
+                            "/dashboard",
+                            "/tree",
+                            "/search"
+                        ],
+        "overnightBatchSize":  1,
+        "overnightMaxBatches":  4,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
+        "overnightRobinEvery":  1,
+        "overnightJoeyEvery":  2,
+        "projectType":  "full-stack-web",
+        "riskTier":  "production-adjacent",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
+    },
+    {
         "name":  "UrbanKitchenWineList",
         "repo":  "C:\\Dev\\urban-kitchen-wine-list",
         "rounds":  99,
