@@ -38,6 +38,8 @@ param(
 
     [switch]$RequireMagicPreflight,
 
+    [switch]$UseGlobalRunShape,
+
     [switch]$DryRun
 )
 
@@ -162,8 +164,8 @@ if ($expectedProjects.Count -gt 0) {
 $manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "overnight" -ConfigPath $ConfigPath -ProjectFilter $Project
 for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     $ship = $shipsToLaunch[$shipIndex]
-    $shipBatchSize = Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize
-    $shipMaxBatches = Get-ShipInt -Ship $ship -Name "overnightMaxBatches" -Default $MaxBatches
+    $shipBatchSize = if ($UseGlobalRunShape) { $BatchSize } else { Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize }
+    $shipMaxBatches = if ($UseGlobalRunShape) { $MaxBatches } else { Get-ShipInt -Ship $ship -Name "overnightMaxBatches" -Default $MaxBatches }
     $shipVisualEvery = if ($VisualInspectEvery -gt 0) { $VisualInspectEvery } else { Get-ShipInt -Ship $ship -Name "overnightVisualInspectEvery" -Default 3 }
     $shipSimonEvery = if ($SimonEvery -gt 0) { $SimonEvery } else { Get-ShipInt -Ship $ship -Name "overnightSimonEvery" -Default 3 }
     $shipRobinEvery = if ($RobinEvery -gt 0) { $RobinEvery } else { Get-ShipInt -Ship $ship -Name "overnightRobinEvery" -Default $shipSimonEvery }

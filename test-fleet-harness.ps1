@@ -155,6 +155,16 @@ $tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $
     "-DryRun"
 ))
 
+if (Test-Path $latestLaunch) {
+    $wrapperLaunchText = Get-Content $latestLaunch -Raw
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof BatchSize" -Passed ($wrapperLaunchText -match "-BatchSize 1\b")
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof MaxBatches" -Passed ($wrapperLaunchText -match "-MaxBatches 1\b")
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof Joey cadence" -Passed ($wrapperLaunchText -match "-JoeyEvery 1\b")
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof quarantine budget" -Passed ($wrapperLaunchText -match "-MaxTaskQuarantines 2\b")
+} else {
+    Add-TestResult -Name "Scheduled wrapper dry-run manifest exists" -Passed $false -Detail $latestLaunch
+}
+
 if (!$SkipProjectValidation) {
     foreach ($ship in $SelectedProjects) {
         [void](Invoke-HarnessCommand -Name "Checkpoint loop validates $ship" -Arguments @(

@@ -210,14 +210,6 @@ if (!$SkipHarnessTest -and (!$DryRun -or !$SkipHarnessOnDryRun)) {
     }
 }
 
-if ($DryRun) {
-    Write-ScheduledLog "Dry run passed; selected fleet would launch now."
-    exit 0
-}
-
-Write-ScheduledLog "Clearing global safe-stop so selected ships can depart."
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "request-safe-stop.ps1") -All -Clear *>> $logPath
-
 $launchArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
@@ -233,8 +225,20 @@ $launchArgs = @(
     "-RateLimitCooldownSeconds", ([string]$RateLimitCooldownSeconds),
     "-RateLimitMaxCooldowns", ([string]$RateLimitMaxCooldowns),
     "-MaxTaskQuarantines", ([string]$MaxTaskQuarantines),
-    "-QuarantineFailedTasks"
+    "-QuarantineFailedTasks",
+    "-UseGlobalRunShape"
 )
+
+if ($DryRun) {
+    Write-ScheduledLog "Dry run passed; validating selected launch command shape."
+    & powershell @($launchArgs + "-DryRun") *>> $logPath
+    $dryRunExitCode = $LASTEXITCODE
+    Write-ScheduledLog "Dry-run launch validation exited with code $dryRunExitCode."
+    exit $dryRunExitCode
+}
+
+Write-ScheduledLog "Clearing global safe-stop so selected ships can depart."
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "request-safe-stop.ps1") -All -Clear *>> $logPath
 
 Write-ScheduledLog "Launching selected fleet: $($Project -join ', ')."
 & powershell @launchArgs *>> $logPath
