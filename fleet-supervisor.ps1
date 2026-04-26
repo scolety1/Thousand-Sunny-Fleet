@@ -24,6 +24,12 @@ param(
 
     [string[]]$AutoSafeStopStates = @("BUDGET_STOP", "LOOPING_QUALITY", "IDLE_RUNNING", "BLOCKED_REVIEW"),
 
+    [switch]$AutoRepair,
+
+    [string[]]$AutoRepairStates = @("BUDGET_STOP", "LOOPING_QUALITY", "IDLE_READY"),
+
+    [switch]$ClearSafeStopAfterRepair,
+
     [switch]$Once
 )
 
@@ -210,6 +216,93 @@ function Request-FleetSafeStop {
     return $stopPath
 }
 
+function Get-FleetSafeStopPath {
+    param([string]$ProjectName)
+
+    $stopRoot = Join-Path $fleetRoot ".codex-local\stop-requests"
+    $safeName = ConvertTo-FleetSafeStopName -Name $ProjectName
+    return Join-Path $stopRoot "$safeName.stop.json"
+}
+
+function Clear-FleetSafeStop {
+    param([string]$ProjectName)
+
+    $stopPath = Get-FleetSafeStopPath -ProjectName $ProjectName
+    if (Test-Path -LiteralPath $stopPath) {
+        Remove-Item -LiteralPath $stopPath -Force
+    }
+}
+
+function New-AutoRepairTaskLine {
+    param([object]$Row)
+
+    $pack = if ([string]::IsNullOrWhiteSpace([string]$Row.activePack) -or [string]$Row.activePack -eq "missing") { "the active work pack" } else { [string]$Row.activePack }
+    $reason = ([string]$Row.recommendation).Trim()
+    if ([string]::IsNullOrWhiteSpace($reason)) { $reason = "repair the current supervisor finding" }
+    return "- [ ] Auto repair for $($Row.state) in ${pack}: inspect the latest MAGIC_SCORECARD, QUALITY_QUARANTINE, Simon, Robin, Visual, and nightly report notes, then make exactly one smallest user-visible repair that addresses '$reason'; prefer reducing churn over adding features; preserve existing behavior and avoid backend, secrets, package/dependency files, deployment config, generated output, broad rewrites, and unrelated files. [class:design risk:low mode:single scope:src/,app-vNext/src/,css/,js/,wine.html,index.html]"
+}
+
+function Add-SupervisorAutoRepairTask {
+    param([object]$Row)
+
+    if ($Row.dirty -ne "clean" -or $Row.lockActive) {
+        return [pscustomobject]@{ added = $false; reason = "ship is active or dirty"; task = "" }
+    }
+    if (!($AutoRepairStates -contains [string]$Row.state)) {
+        return [pscustomobject]@{ added = $false; reason = "state is not auto-repairable"; task = "" }
+    }
+
+    $taskQueue = "docs/codex/TASK_QUEUE.md"
+    New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+    if (!(Test-Path $taskQueue)) {
+        "# Codex Task Queue`n" | Set-Content -Path $taskQueue
+    }
+
+    $queueText = Get-Content $taskQueue -Raw
+    if ($queueText -match "(?im)^\s*-\s+\[ \]\s+Auto repair for ") {
+        return [pscustomobject]@{ added = $false; reason = "unchecked auto-repair task already exists"; task = "" }
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $taskLine = New-AutoRepairTaskLine -Row $Row
+    $sectionText = @(
+        "## Supervisor Auto Repair $timestamp",
+        "",
+        $taskLine,
+        ""
+    ) -join "`r`n"
+    $queueText = Get-Content $taskQueue -Raw
+    $newQueueText = "$sectionText`r`n$queueText"
+    Set-Content -Path $taskQueue -Value $newQueueText -NoNewline
+
+    $repairLog = "docs/codex/AUTO_REPAIR.md"
+    $repairLines = @(
+        "",
+        "## $timestamp",
+        "",
+        "- State: $($Row.state)",
+        "- Budget: $($Row.budget)",
+        "- Recommendation: $($Row.recommendation)",
+        "- Task: $taskLine"
+    )
+    if (!(Test-Path $repairLog)) {
+        "# Fleet Auto Repair`n" | Set-Content -Path $repairLog
+    }
+    Add-Content -Path $repairLog -Value $repairLines
+
+    git add docs/codex/TASK_QUEUE.md docs/codex/AUTO_REPAIR.md | Out-Null
+    git commit -m "Codex supervisor auto repair task" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        return [pscustomobject]@{ added = $false; reason = "auto-repair commit failed"; task = $taskLine }
+    }
+
+    if ($ClearSafeStopAfterRepair) {
+        Clear-FleetSafeStop -ProjectName ([string]$Row.ship)
+    }
+
+    return [pscustomobject]@{ added = $true; reason = "repair task committed"; task = $taskLine }
+}
+
 function Get-LastProgressTime {
     $candidates = @()
     foreach ($path in @("docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md", "docs/codex/QUALITY_QUARANTINE.md", "docs/codex/QUARANTINED_TASKS.md")) {
@@ -294,6 +387,7 @@ function Write-SupervisorReport {
     $since = (Get-Date).AddHours(-12)
     $rows = @()
     $safeStopsRequested = @()
+    $repairsQueued = @()
     $lines = @(
         "# Codex Fleet Supervisor",
         "",
@@ -368,6 +462,16 @@ function Write-SupervisorReport {
             $safeStopsRequested += [pscustomobject]@{ ship = $row.ship; state = $row.state; path = $stopPath; reason = $reason }
             $row.recommendation = "safe stop requested; inspect before relaunch"
         }
+        if ($AutoRepair) {
+            Push-Location $project.repo
+            $repairResult = Add-SupervisorAutoRepairTask -Row $row
+            Pop-Location
+            if ($repairResult.added) {
+                $repairsQueued += [pscustomobject]@{ ship = $row.ship; state = $row.state; task = $repairResult.task }
+                $row.tasks = $row.tasks + 1
+                $row.recommendation = "auto-repair task queued"
+            }
+        }
         $rows += $row
     }
 
@@ -394,10 +498,18 @@ function Write-SupervisorReport {
             $lines += "- $($request.ship): $($request.state) - $($request.path)"
         }
     }
+    if ($repairsQueued.Count -gt 0) {
+        $lines += ""
+        $lines += "## Auto Repairs Queued"
+        $lines += ""
+        foreach ($repair in $repairsQueued) {
+            $lines += "- $($repair.ship): $($repair.state) - $($repair.task)"
+        }
+    }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
     Set-Content -Path $OutFile -Value $lines
-    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested
+    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested -RepairsQueued $repairsQueued
 
     Clear-Host
     Write-Host "Codex Fleet Supervisor - $timestamp" -ForegroundColor Cyan
@@ -414,7 +526,8 @@ function Write-OvernightDigest {
         [object[]]$Rows,
         [string]$Timestamp,
         [datetime]$Since,
-        [object[]]$SafeStopsRequested = @()
+        [object[]]$SafeStopsRequested = @(),
+        [object[]]$RepairsQueued = @()
     )
 
     $digest = @(
@@ -446,6 +559,12 @@ function Write-OvernightDigest {
         $digest += "## Safe Stops Requested"
         $digest += ""
         $SafeStopsRequested | ForEach-Object { $digest += "- $($_.ship): $($_.state), $($_.reason)" }
+    }
+    if ($RepairsQueued.Count -gt 0) {
+        $digest += ""
+        $digest += "## Auto Repairs Queued"
+        $digest += ""
+        $RepairsQueued | ForEach-Object { $digest += "- $($_.ship): $($_.state)" }
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $DigestOutFile) | Out-Null
