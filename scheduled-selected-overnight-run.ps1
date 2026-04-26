@@ -4,6 +4,8 @@ param(
 
     [string[]]$Project = @("RestaurantDemo", "ShiftPlate", "EasyLife"),
 
+    [switch]$SkipHarnessTest,
+
     [switch]$DryRun
 )
 
@@ -155,6 +157,15 @@ if ($blocking.Count -gt 0) {
 if ($DryRun) {
     Write-ScheduledLog "Dry run passed; selected fleet would launch now."
     exit 0
+}
+
+if (!$SkipHarnessTest) {
+    Write-ScheduledLog "Running fleet harness self-test before launch."
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "test-fleet-harness.ps1") -SelectedProjects ($Project -join ",") -ExcludedProjects ($exclude -join ",") *>> $logPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-ScheduledLog "Fleet harness self-test failed. No fleet windows launched."
+        exit 1
+    }
 }
 
 Write-ScheduledLog "Clearing global safe-stop so selected ships can depart."
