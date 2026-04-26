@@ -69,6 +69,59 @@ $securityPatterns = @(
     "(?i)(fetch\(|XMLHttpRequest|axios\.)"
 )
 
+$approvalPath = "docs/codex/SECURITY_APPROVAL.md"
+$approvalText = if (Test-Path $approvalPath) { Get-Content $approvalPath -Raw } else { "" }
+$approvalIsActive = $approvalText -match "(?im)^\s*Status:\s*APPROVED\s*$"
+
+function Get-ApprovalList {
+    param(
+        [string]$Text,
+        [string]$Heading
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return @() }
+
+    $escapedHeading = [regex]::Escape($Heading)
+    $match = [regex]::Match($Text, "(?ims)^##\s+$escapedHeading\s*$\s*(.*?)(?=^##\s+|\z)")
+    if (!$match.Success) { return @() }
+
+    return @(
+        $match.Groups[1].Value -split "`r?`n" |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -match "^-\s+" } |
+            ForEach-Object { Normalize-Path ($_.Substring(1).Trim()) } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
+$approvedBlockedFiles = if ($approvalIsActive) { @(Get-ApprovalList -Text $approvalText -Heading "Approved Blocked Files") } else { @() }
+$approvedSensitiveLines = if ($approvalIsActive) { @(Get-ApprovalList -Text $approvalText -Heading "Approved Sensitive Lines") } else { @() }
+
+function Test-ApprovedBlockedFile {
+    param([string]$File)
+
+    if (!$approvalIsActive) { return $false }
+    $normalized = Normalize-Path $File
+    return ($approvedBlockedFiles -contains $normalized)
+}
+
+function Test-ApprovedSensitiveLine {
+    param(
+        [string]$File,
+        [string]$Line
+    )
+
+    if (!$approvalIsActive) { return $false }
+    $normalized = Normalize-Path $File
+    $trimmed = $Line.Trim()
+    foreach ($approved in $approvedSensitiveLines) {
+        if ($approved -eq "$normalized`: $trimmed") {
+            return $true
+        }
+    }
+    return $false
+}
+
 $storageSetPattern = "(?i)\b(window\.)?(localStorage|sessionStorage)\.setItem\s*\("
 $storageSensitivePattern = "(?i)(api[_ -]?key|secret|private[_ -]?key|bearer|access[_ -]?token|refresh[_ -]?token|password|credential|auth|jwt|stripe|checkout|payment|billing)"
 
@@ -90,6 +143,7 @@ function Test-SensitiveAddedLine {
 
 $blockedFiles = @()
 foreach ($file in $changed) {
+    if (Test-ApprovedBlockedFile -File $file) { continue }
     foreach ($pattern in $blockedPathPatterns) {
         if ($file -match $pattern) {
             $blockedFiles += $file
@@ -108,6 +162,9 @@ foreach ($line in $diffLines) {
     }
     if ($line -match "^\+" -and $line -notmatch "^\+\+\+" -and $currentFile -notmatch "^docs/codex/") {
         if (Test-SensitiveAddedLine -Line $line) {
+            if (Test-ApprovedSensitiveLine -File $currentFile -Line $line.Substring(1)) {
+                continue
+            }
             $addedHits += [pscustomobject]@{
                 file = $currentFile
                 line = $line.Substring(1).Trim()
@@ -197,6 +254,7 @@ $lines += ""
 $lines += "## Notes"
 $lines += "- Joey is a guardrail reviewer, not a full penetration test."
 $lines += "- Local storage is allowed for harmless local-only UI state, but still blocked when it appears to store auth, payment, token, credential, or secret data."
+$lines += "- Project-specific approvals may allow exact previously reviewed blocked files or exact sensitive lines through docs/codex/SECURITY_APPROVAL.md."
 $lines += "- A GREEN result means no obvious unattended security regression was detected."
 $lines += "- Human review is still required before merge."
 
