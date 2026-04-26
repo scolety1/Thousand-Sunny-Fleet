@@ -93,12 +93,12 @@ Generate exactly $Count next tasks as markdown checklist lines.
 Rules:
 - Output only checklist lines, no commentary.
 - Each line must start with "- [ ] ".
-- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single scope:src/,docs/codex/ accept:npm.cmd test].
+- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single scope:src/,docs/codex/].
 - Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
 - Supported modes: mode:single and mode:feature-pack. Use mode:feature-pack only when SOFTWARE_FEATURE_PLAN.md and SOFTWARE_FEATURE_APPROVAL.md are approved and the task has explicit scope and accept metadata.
 - Use scope: only when the task can be safely bounded to clear path prefixes.
-- Use accept: only for task-specific checks beyond the normal external build.
+- Use accept: only for task-specific checks beyond the normal external build, and only when the exact command is already documented in the ship's run policy/profile or package scripts. Do not invent npm.cmd test.
 - Each task must be small enough for one Codex implementation round.
 - Each task must include explicit forbidden scope.
 - Prefer tasks that advance the mission and reduce obvious rough edges.
