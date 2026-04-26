@@ -20,6 +20,10 @@ param(
 
     [int]$MaxQualityStops = 3,
 
+    [switch]$AutoSafeStop,
+
+    [string[]]$AutoSafeStopStates = @("BUDGET_STOP", "LOOPING_QUALITY", "IDLE_RUNNING", "BLOCKED_REVIEW"),
+
     [switch]$Once
 )
 
@@ -170,6 +174,42 @@ function Get-RunLockStatus {
     }
 }
 
+function ConvertTo-FleetSafeStopName {
+    param([string]$Name)
+
+    $safeName = if ([string]::IsNullOrWhiteSpace($Name)) { "ALL" } else { ([string]$Name) -replace "[^a-zA-Z0-9_-]+", "-" }
+    $safeName = $safeName.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeName)) { return "ALL" }
+    return $safeName
+}
+
+function Request-FleetSafeStop {
+    param(
+        [string]$ProjectName,
+        [string]$Reason
+    )
+
+    $stopRoot = Join-Path $fleetRoot ".codex-local\stop-requests"
+    New-Item -ItemType Directory -Force -Path $stopRoot | Out-Null
+    $safeName = ConvertTo-FleetSafeStopName -Name $ProjectName
+    $stopPath = Join-Path $stopRoot "$safeName.stop.json"
+    if (Test-Path -LiteralPath $stopPath) {
+        return $stopPath
+    }
+
+    $request = [pscustomobject]@{
+        target = $ProjectName
+        requestedAt = (Get-Date).ToString("o")
+        user = $env:USERNAME
+        machine = $env:COMPUTERNAME
+        behavior = "Stop before the next task/batch boundary. Do not kill in-progress Codex/build/review work."
+        reason = $Reason
+        source = "fleet-supervisor"
+    }
+    $request | ConvertTo-Json -Depth 4 | Set-Content -Path $stopPath -Encoding UTF8
+    return $stopPath
+}
+
 function Get-LastProgressTime {
     $candidates = @()
     foreach ($path in @("docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md", "docs/codex/QUALITY_QUARANTINE.md", "docs/codex/QUARANTINED_TASKS.md")) {
@@ -250,6 +290,7 @@ function Write-SupervisorReport {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $since = (Get-Date).AddHours(-12)
     $rows = @()
+    $safeStopsRequested = @()
     $lines = @(
         "# Codex Fleet Supervisor",
         "",
@@ -318,6 +359,12 @@ function Write-SupervisorReport {
         }
         $row | Add-Member -NotePropertyName state -NotePropertyValue (Resolve-SupervisorState -Row $row)
         $row | Add-Member -NotePropertyName recommendation -NotePropertyValue (Get-Recommendation -Row $row)
+        if ($AutoSafeStop -and $row.lockActive -and ($AutoSafeStopStates -contains [string]$row.state)) {
+            $reason = "$($row.state): $($row.recommendation)"
+            $stopPath = Request-FleetSafeStop -ProjectName ([string]$row.ship) -Reason $reason
+            $safeStopsRequested += [pscustomobject]@{ ship = $row.ship; state = $row.state; path = $stopPath; reason = $reason }
+            $row.recommendation = "safe stop requested; inspect before relaunch"
+        }
         $rows += $row
     }
 
@@ -333,10 +380,21 @@ function Write-SupervisorReport {
     $lines += "- For `IDLE_RUNNING`, inspect the latest `.codex-logs` output first; if no progress continues, request a safe stop."
     $lines += "- For `LOOPING_QUALITY`, let Nami plan a smaller active-pack repair before fresh feature work."
     $lines += "- For `BUDGET_STOP`, pause that ship and inspect commits, screenshots, and scorecard before continuing."
+    if ($AutoSafeStop) {
+        $lines += "- Auto safe-stop is enabled for states: $($AutoSafeStopStates -join ', ')."
+    }
+    if ($safeStopsRequested.Count -gt 0) {
+        $lines += ""
+        $lines += "## Safe Stops Requested"
+        $lines += ""
+        foreach ($request in $safeStopsRequested) {
+            $lines += "- $($request.ship): $($request.state) - $($request.path)"
+        }
+    }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
     Set-Content -Path $OutFile -Value $lines
-    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since
+    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested
 
     Clear-Host
     Write-Host "Codex Fleet Supervisor - $timestamp" -ForegroundColor Cyan
@@ -352,7 +410,8 @@ function Write-OvernightDigest {
     param(
         [object[]]$Rows,
         [string]$Timestamp,
-        [datetime]$Since
+        [datetime]$Since,
+        [object[]]$SafeStopsRequested = @()
     )
 
     $digest = @(
@@ -379,6 +438,12 @@ function Write-OvernightDigest {
     $digest += "## Work Packs"
     $digest += ""
     $Rows | ForEach-Object { $digest += "- $($_.ship): $($_.activePack)" }
+    if ($SafeStopsRequested.Count -gt 0) {
+        $digest += ""
+        $digest += "## Safe Stops Requested"
+        $digest += ""
+        $SafeStopsRequested | ForEach-Object { $digest += "- $($_.ship): $($_.state), $($_.reason)" }
+    }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $DigestOutFile) | Out-Null
     Set-Content -Path $DigestOutFile -Value $digest
