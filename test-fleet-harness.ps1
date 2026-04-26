@@ -70,6 +70,7 @@ foreach ($script in @(
     ".\launch-overnight-run.ps1",
     ".\run-checkpoint-loop.ps1",
     ".\scheduled-selected-overnight-run.ps1",
+    ".\fleet-night-report.ps1",
     ".\fleet-supervisor.ps1",
     ".\harbor-master.ps1",
     ".\tools\codex-fleet-launcher.ps1",
