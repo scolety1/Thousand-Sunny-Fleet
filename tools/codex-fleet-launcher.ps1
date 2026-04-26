@@ -86,7 +86,8 @@ function New-FleetLaunchManifest {
         [string]$FleetRoot,
         [string]$Mode,
         [string]$ConfigPath,
-        [string]$ProjectFilter = ""
+        [string]$ProjectFilter = "",
+        [string]$LatestFileName = "latest-launch.md"
     )
 
     $launchId = "{0}-{1}" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"), ([guid]::NewGuid().ToString("N").Substring(0, 6))
@@ -101,7 +102,7 @@ function New-FleetLaunchManifest {
         projectFilter = $ProjectFilter
         startedAt = (Get-Date).ToString("o")
         jsonPath = (Join-Path $launchRoot "$launchId-$Mode.json")
-        markdownPath = (Join-Path $FleetRoot "out\latest-launch.md")
+        markdownPath = (Join-Path $FleetRoot "out\$LatestFileName")
         entries = [System.Collections.ArrayList]::new()
     }
 }

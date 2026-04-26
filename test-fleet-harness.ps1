@@ -196,6 +196,9 @@ Invoke-SensitiveIntentHarness `
 
 $selected = ($SelectedProjects -join ",")
 $excluded = ($ExcludedProjects -join ",")
+$latestLaunch = Join-Path $fleetRoot "out\latest-launch.md"
+$latestProofLaunch = Join-Path $fleetRoot "out\latest-proof-launch.md"
+$latestLaunchBeforeDryRun = if (Test-Path $latestLaunch) { Get-Content $latestLaunch -Raw } else { $null }
 
 [void](Invoke-HarnessCommand -Name "Selected launch dry-run accepts exact ship set" -Arguments @(
     "-NoProfile",
@@ -210,17 +213,19 @@ $excluded = ($ExcludedProjects -join ",")
     "-DryRun"
 ))
 
-$latestLaunch = Join-Path $fleetRoot "out\latest-launch.md"
-if (Test-Path $latestLaunch) {
-    $launchText = Get-Content $latestLaunch -Raw
+$latestLaunchAfterDryRun = if (Test-Path $latestLaunch) { Get-Content $latestLaunch -Raw } else { $null }
+Add-TestResult -Name "Selected launch dry-run does not overwrite latest real launch" -Passed ($latestLaunchBeforeDryRun -eq $latestLaunchAfterDryRun)
+
+if (Test-Path $latestProofLaunch) {
+    $launchText = Get-Content $latestProofLaunch -Raw
     foreach ($ship in $SelectedProjects) {
-        Add-TestResult -Name "Manifest includes $ship" -Passed ($launchText -match "\|\s*$([regex]::Escape($ship))\s*\|")
+        Add-TestResult -Name "Proof manifest includes $ship" -Passed ($launchText -match "\|\s*$([regex]::Escape($ship))\s*\|")
     }
     foreach ($ship in $ExcludedProjects) {
-        Add-TestResult -Name "Manifest excludes $ship" -Passed ($launchText -notmatch "\|\s*$([regex]::Escape($ship))\s*\|")
+        Add-TestResult -Name "Proof manifest excludes $ship" -Passed ($launchText -notmatch "\|\s*$([regex]::Escape($ship))\s*\|")
     }
 } else {
-    Add-TestResult -Name "Manifest exists after selected dry-run" -Passed $false -Detail $latestLaunch
+    Add-TestResult -Name "Proof manifest exists after selected dry-run" -Passed $false -Detail $latestProofLaunch
 }
 
 $tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $SelectedProjects.Count - 1))) -join ","
@@ -274,14 +279,14 @@ if ($scheduledWrapperSkippedForActiveWork) {
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof MaxBatches" -Passed $true -Detail "skipped because selected work is already active"
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof Joey cadence" -Passed $true -Detail "skipped because selected work is already active"
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof quarantine budget" -Passed $true -Detail "skipped because selected work is already active"
-} elseif (Test-Path $latestLaunch) {
-    $wrapperLaunchText = Get-Content $latestLaunch -Raw
+} elseif (Test-Path $latestProofLaunch) {
+    $wrapperLaunchText = Get-Content $latestProofLaunch -Raw
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof BatchSize" -Passed ($wrapperLaunchText -match "-BatchSize 1\b")
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof MaxBatches" -Passed ($wrapperLaunchText -match "-MaxBatches 1\b")
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof Joey cadence" -Passed ($wrapperLaunchText -match "-JoeyEvery 1\b")
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof quarantine budget" -Passed ($wrapperLaunchText -match "-MaxTaskQuarantines 2\b")
 } else {
-    Add-TestResult -Name "Scheduled wrapper dry-run manifest exists" -Passed $false -Detail $latestLaunch
+    Add-TestResult -Name "Scheduled wrapper dry-run proof manifest exists" -Passed $false -Detail $latestProofLaunch
 }
 
 $scheduledLogRoot = Join-Path $fleetRoot "out\scheduled-runs"
