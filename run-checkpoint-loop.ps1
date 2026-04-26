@@ -368,6 +368,23 @@ function Invoke-FleetPowerShell {
     return $result.exitCode
 }
 
+function Test-SoftCheckpointWidthFailure {
+    param([string]$LogName)
+
+    $logPath = Join-Path $script:RunLogRoot $LogName
+    if (!(Test-Path $logPath)) {
+        return $false
+    }
+
+    $text = Get-Content $logPath -Raw
+    $failLines = @($text -split "\r?\n" | Where-Object { $_ -match "^\s*-\s+\[FAIL\]\s+" })
+    if ($failLines.Count -ne 1) {
+        return $false
+    }
+
+    return ($failLines[0] -match "Too many non-report files changed in current batch")
+}
+
 function Stage-Files {
     param([string[]]$Paths)
 
@@ -2112,8 +2129,13 @@ REVIEW_FINDING: P2: short description
         if ($ContinueOnYellowCheckpoint) {
             $debugArgs += "-AllowYellowCheckpoint"
         }
-        $debugExit = Invoke-FleetPowerShell -Arguments $debugArgs -LogName "debug-checkpoint-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+        $debugLogName = "debug-checkpoint-batch-$batch.log"
+        $debugExit = Invoke-FleetPowerShell -Arguments $debugArgs -LogName $debugLogName -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
         if ($debugExit -ne 0) {
+            if (Test-SoftCheckpointWidthFailure -LogName $debugLogName) {
+                Write-Host "Checkpoint batch was too wide for the configured review limit. Stopping cleanly so the next launch can continue with smaller batches." -ForegroundColor Yellow
+                break
+            }
             Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
             exit 1
         }

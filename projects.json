@@ -208,7 +208,7 @@
         "schoolSimonEvery":  1,
         "schoolRobinEvery":  1,
         "schoolJoeyEvery":  3,
-        "overnightBatchSize":  2,
+        "overnightBatchSize":  1,
         "overnightMaxBatches":  6,
         "overnightVisualInspectEvery":  1,
         "overnightSimonEvery":  1,
