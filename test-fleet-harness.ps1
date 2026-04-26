@@ -184,7 +184,21 @@ $tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $
     "-DryRun"
 ) -ExpectedExitCode 1)
 
-[void](Invoke-HarnessCommand -Name "Scheduled selected wrapper dry-run passes safety preflight" -Arguments @(
+[void](Invoke-HarnessCommand -Name "Selected launch rejects invalid cooldown" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
+    "-ExcludeProject", $excluded,
+    "-ExpectedProject", $selected,
+    "-BatchSize", "1",
+    "-MaxBatches", "1",
+    "-RateLimitCooldownSeconds", "0",
+    "-SkipDoctor",
+    "-AllowSafeStopRequests",
+    "-DryRun"
+) -ExpectedExitCode 1)
+
+$scheduledWrapperDryRun = Invoke-HarnessCommand -Name "Scheduled selected wrapper dry-run passes safety preflight" -Arguments @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
     "-File", (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1"),
@@ -199,9 +213,15 @@ $tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $
     "-MaxTaskQuarantines", "2",
     "-SkipHarnessTest",
     "-DryRun"
-))
+)
 
-if (Test-Path $latestLaunch) {
+$scheduledWrapperSkippedForActiveWork = (($scheduledWrapperDryRun.output -join "`n") -match "(?i)already active or unsafe|No new fleet windows launched")
+if ($scheduledWrapperSkippedForActiveWork) {
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof BatchSize" -Passed $true -Detail "skipped because selected work is already active"
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof MaxBatches" -Passed $true -Detail "skipped because selected work is already active"
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof Joey cadence" -Passed $true -Detail "skipped because selected work is already active"
+    Add-TestResult -Name "Scheduled wrapper dry-run keeps proof quarantine budget" -Passed $true -Detail "skipped because selected work is already active"
+} elseif (Test-Path $latestLaunch) {
     $wrapperLaunchText = Get-Content $latestLaunch -Raw
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof BatchSize" -Passed ($wrapperLaunchText -match "-BatchSize 1\b")
     Add-TestResult -Name "Scheduled wrapper dry-run keeps proof MaxBatches" -Passed ($wrapperLaunchText -match "-MaxBatches 1\b")

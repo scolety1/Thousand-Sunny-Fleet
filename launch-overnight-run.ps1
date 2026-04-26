@@ -104,6 +104,8 @@ function Get-ShipInt {
 
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
+if ($RateLimitCooldownSeconds -lt 60) { Stop-WithMessage "-RateLimitCooldownSeconds must be at least 60." }
+if ($RateLimitMaxCooldowns -lt 0) { Stop-WithMessage "-RateLimitMaxCooldowns must be 0 or greater." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 if ($LaunchDelaySeconds -lt 0) { Stop-WithMessage "-LaunchDelaySeconds must be 0 or greater." }
 if ($VisualInspectEvery -lt 0) { Stop-WithMessage "-VisualInspectEvery must be 0 or greater." }
