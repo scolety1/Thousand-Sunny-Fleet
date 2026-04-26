@@ -16,7 +16,7 @@ param(
 
     [int]$MaxTaskQuarantines = 5,
 
-    [int]$LaunchDelaySeconds = 90,
+    [int]$LaunchDelaySeconds = 0,
 
     [int]$VisualInspectEvery = 0,
 

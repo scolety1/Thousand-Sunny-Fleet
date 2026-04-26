@@ -79,6 +79,8 @@ cd C:\Dev\codex-fleet
 
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows.
 
+Trial overnight launches start ships back-to-back by default. Pass `-LaunchDelaySeconds 90` only when you explicitly want spaced departures.
+
 Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-local/launches/`, including each ship command and PowerShell PID.
 
 `recover-interrupted-task.ps1` handles a half-finished task after an interrupted run. By default it does a dry run: changed files, first unchecked task, guardrails, and build. Add `-ConfirmRecovery` only when you want it to mark the task complete, append the report, and commit.
