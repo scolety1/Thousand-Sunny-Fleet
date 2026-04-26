@@ -24,5 +24,13 @@
 - [x] Improve checkpoint summaries with completed tasks, changed files, visual/Simon/Joey status, and next-batch guidance.
 - [x] Add launch presets for proof, school-day, and overnight runs.
 - [x] Add lightweight script-level tests for task parsing, staging, model resolution, visual paths, and review finding parsing.
+- [x] Add Harbor Master + failure classifier so clean idle shells, stale locks, real active work, review blocks, policy blocks, quarantines, and repairable failures are labeled separately.
+
+## Devil Fruit Autonomy Backlog
+
+- [ ] Auto-relaunch finished ships when clean, unlocked, and still eligible for task generation.
+- [ ] Add a non-destructive ship cleaner that recommends cleanup for abandoned dirty work, stale locks, old reports, and stranded safe-stops.
+- [ ] Add a task quality gate that rejects vague, broad, or guardrail-triggering task lines before launch.
+- [ ] Add an overnight autopilot report that tells a readable hour-by-hour story of progress, relaunches, repairs, and blockers.
 
 More detail: `docs/FLEET_IMPROVEMENT_GAMEPLAN.md`.
