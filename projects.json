@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "name":  "CursorPets",
         "repo":  "C:\\Dev\\cursor-pets",
@@ -101,39 +101,6 @@
         "overnightJoeyEvery":  4,
         "projectType":  "full-stack-web",
         "riskTier":  "production-adjacent",
-        "capabilities":  {
-                             "canEditPackageFiles":  false,
-                             "canAddDependencies":  false,
-                             "canEditBackendCode":  false,
-                             "canEditMigrations":  false,
-                             "canEditAuthPolicy":  false,
-                             "canEditDeploymentConfig":  false,
-                             "canUseNetworkApis":  false,
-                             "canOpenPullRequests":  false,
-                             "canDeploy":  false
-                         }
-    },
-    {
-        "name":  "NinersDynastyWarRoom",
-        "repo":  "C:\\Dev\\niners-dynasty-war-room",
-        "rounds":  99,
-        "briefScript":  "scripts\\codex-brief.ps1",
-        "loopScript":  "scripts\\codex-night-loop.ps1",
-        "buildDirectory":  ".",
-        "buildCommand":  "npm.cmd run build",
-        "profile":  "experimental-prototype",
-        "branchPrefix":  "codex/niners-war-room",
-        "overnightBatchSize":  2,
-        "overnightMaxBatches":  8,
-        "overnightVisualInspectEvery":  3,
-        "overnightSimonEvery":  3,
-        "overnightRobinEvery":  4,
-        "overnightJoeyEvery":  6,
-        "visualPaths":  [
-                            "/"
-                        ],
-        "projectType":  "sandbox-prototype",
-        "riskTier":  "sandbox",
         "capabilities":  {
                              "canEditPackageFiles":  false,
                              "canAddDependencies":  false,
