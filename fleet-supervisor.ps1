@@ -234,17 +234,20 @@ function Resolve-SupervisorState {
     param([object]$Row)
 
     if ($Row.dirty -ne "clean") {
+        if (!$Row.lockActive) { return "BLOCKED_DIRTY" }
+    }
+    if ($Row.budget -match "^OVER") {
+        return "BUDGET_STOP"
+    }
+    if (![string]::IsNullOrWhiteSpace($Row.qualityQuarantine)) {
+        return "LOOPING_QUALITY"
+    }
+    if ($Row.dirty -ne "clean") {
         if ($Row.lockActive) { return "PROGRESSING" }
         return "BLOCKED_DIRTY"
     }
     if ($Row.checkpoint -match "RED" -or $Row.robin -match "RED" -or $Row.joey -match "RED") {
         return "BLOCKED_REVIEW"
-    }
-    if (![string]::IsNullOrWhiteSpace($Row.qualityQuarantine)) {
-        return "LOOPING_QUALITY"
-    }
-    if ($Row.budget -match "^OVER") {
-        return "BUDGET_STOP"
     }
     if ($Row.lockActive) {
         if ($Row.minutesSinceProgress -ge $IdleMinutes) { return "IDLE_RUNNING" }
@@ -375,11 +378,11 @@ function Write-SupervisorReport {
     $lines += ""
     $lines += "## Safe Restart Guidance"
     $lines += ""
-    $lines += "- Use `request-safe-stop.ps1` before intervening in active ships."
+    $lines += '- Use `request-safe-stop.ps1` before intervening in active ships.'
     $lines += "- Do not manually delete locks or kill processes unless a ship is clearly stuck and rescue is approved."
-    $lines += "- For `IDLE_RUNNING`, inspect the latest `.codex-logs` output first; if no progress continues, request a safe stop."
-    $lines += "- For `LOOPING_QUALITY`, let Nami plan a smaller active-pack repair before fresh feature work."
-    $lines += "- For `BUDGET_STOP`, pause that ship and inspect commits, screenshots, and scorecard before continuing."
+    $lines += '- For `IDLE_RUNNING`, inspect the latest `.codex-logs` output first; if no progress continues, request a safe stop.'
+    $lines += '- For `LOOPING_QUALITY`, let Nami plan a smaller active-pack repair before fresh feature work.'
+    $lines += '- For `BUDGET_STOP`, pause that ship and inspect commits, screenshots, and scorecard before continuing.'
     if ($AutoSafeStop) {
         $lines += "- Auto safe-stop is enabled for states: $($AutoSafeStopStates -join ', ')."
     }

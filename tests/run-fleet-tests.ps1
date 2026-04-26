@@ -763,6 +763,7 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'AutoSafeStop') -Message "Supervisor can auto-request safe stops"
     Assert-True -Condition ($supervisorText -match 'Request-FleetSafeStop') -Message "Supervisor writes safe-stop requests"
     Assert-True -Condition ($supervisorText -match 'Safe Stops Requested') -Message "Supervisor reports auto safe-stop actions"
+    Assert-True -Condition ($supervisorText -match '\$Row\.budget -match "\^OVER"') -Message "Supervisor prioritizes budget stops even while active work is dirty"
     Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
     Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
     Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
