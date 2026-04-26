@@ -30,6 +30,52 @@ function ConvertTo-ProjectList {
 $SelectedProjects = @(ConvertTo-ProjectList -Values $SelectedProjects)
 $ExcludedProjects = @(ConvertTo-ProjectList -Values $ExcludedProjects)
 
+function Test-ProcessActive {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return $false }
+    return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
+}
+
+function Acquire-HarnessLock {
+    $lockRoot = Join-Path $fleetRoot ".codex-local\locks"
+    New-Item -ItemType Directory -Force -Path $lockRoot | Out-Null
+    $lockPath = Join-Path $lockRoot "fleet-harness-test.lock.json"
+
+    if (Test-Path -LiteralPath $lockPath) {
+        try {
+            $existing = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+            $existingPid = if ($null -ne $existing.pid) { [int]$existing.pid } else { 0 }
+            if (Test-ProcessActive -ProcessId $existingPid) {
+                Write-Host "Fleet harness self-test is already running under PID $existingPid." -ForegroundColor Red
+                exit 1
+            }
+        } catch {}
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+    }
+
+    $lock = [pscustomobject]@{
+        pid = $PID
+        startedAt = (Get-Date).ToString("o")
+        command = $MyInvocation.Line
+    }
+    $lock | ConvertTo-Json -Depth 4 | Set-Content -Path $lockPath -Encoding UTF8
+    $script:HarnessLockPath = $lockPath
+}
+
+function Release-HarnessLock {
+    if (![string]::IsNullOrWhiteSpace([string]$script:HarnessLockPath) -and (Test-Path -LiteralPath $script:HarnessLockPath)) {
+        Remove-Item -LiteralPath $script:HarnessLockPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+trap {
+    Release-HarnessLock
+    break
+}
+
+Acquire-HarnessLock
+
 function Add-TestResult {
     param(
         [string]$Name,
@@ -200,7 +246,9 @@ Write-Host "Harness report: $reportPath" -ForegroundColor Cyan
 $failed = @($results | Where-Object { !$_.passed })
 if ($failed.Count -gt 0) {
     Write-Host "$($failed.Count) harness check(s) failed." -ForegroundColor Red
+    Release-HarnessLock
     exit 1
 }
 
+Release-HarnessLock
 Write-Host "Fleet harness self-test passed." -ForegroundColor Green
