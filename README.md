@@ -95,6 +95,8 @@ Add `-AutoRepair` when you want the supervisor to queue one high-priority repair
 
 Add `-AutoRelaunchRepair` to let the supervisor clear that ship's safe-stop request and open a one-batch repair run for clean, unlocked ships that already have an unchecked auto-repair task. Repair relaunches default to `-BatchSize 1 -MaxBatches 1` so the ship repairs, re-scores, and returns control to the supervisor instead of sprinting blindly.
 
+`start-overnight-autopilot.ps1` is the single-command overnight wrapper. It runs supervisor cycles with auto safe-stops, auto repair task queueing, and one-batch repair relaunches; it excludes `NinersDynastyWarRoom` by default and writes `out/overnight-autopilot.md`. Add `-LaunchFirst` when you also want it to call `launch-overnight-run.ps1` before supervising; use `-Once` or `-DryRun` for trials. Each supervisor step is bounded by `-StepTimeoutSeconds` and writes stdout/stderr under `out/autopilot-runs/`.
+
 `prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, active-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
 
 The longer path is tracked in `docs/TWELVE_HOUR_MAGIC_ROADMAP.md`: product direction, coherent work selection, before/after quality memory, long-run supervision, and larger software-engineering modes.

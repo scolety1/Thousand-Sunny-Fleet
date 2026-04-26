@@ -614,7 +614,9 @@ function Write-SupervisorReport {
     Set-Content -Path $OutFile -Value $lines
     Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested -RepairsQueued $repairsQueued -RepairLaunches $repairLaunches -RepairLaunchFailures $repairLaunchFailures
 
-    Clear-Host
+    if (-not [Console]::IsOutputRedirected) {
+        Clear-Host
+    }
     Write-Host "Codex Fleet Supervisor - $timestamp" -ForegroundColor Cyan
     Write-Host "Report: $OutFile"
     Write-Host "Digest: $DigestOutFile"

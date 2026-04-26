@@ -774,8 +774,20 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Start-SupervisorRepairRun') -Message "Supervisor can relaunch one repair batch"
     Assert-True -Condition ($supervisorText -match 'Repair Runs Launched') -Message "Supervisor reports repair relaunches"
     Assert-True -Condition ($supervisorText -match 'RepairBatchSize') -Message "Supervisor keeps repair relaunch batches small"
+    Assert-True -Condition ($supervisorText -match 'IsOutputRedirected') -Message "Supervisor skips console clear under redirected autopilot logs"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "start-overnight-autopilot.ps1")) -Message "Fleet exposes overnight autopilot wrapper"
+    $autopilotText = Get-Content (Join-Path $fleetRoot "start-overnight-autopilot.ps1") -Raw
+    Assert-True -Condition ($autopilotText -match 'AutoSafeStop') -Message "Overnight autopilot enables auto safe-stop"
+    Assert-True -Condition ($autopilotText -match 'AutoRepair') -Message "Overnight autopilot enables auto repair queueing"
+    Assert-True -Condition ($autopilotText -match 'AutoRelaunchRepair') -Message "Overnight autopilot enables repair relaunches"
+    Assert-True -Condition ($autopilotText -match 'NinersDynastyWarRoom') -Message "Overnight autopilot excludes docked Niners by default"
+    Assert-True -Condition ($autopilotText -match 'overnight-autopilot\.md') -Message "Overnight autopilot writes a report"
+    Assert-True -Condition ($autopilotText -match 'StepTimeoutSeconds') -Message "Overnight autopilot bounds supervisor step hangs"
+    Assert-True -Condition ($autopilotText -match 'autopilot-runs') -Message "Overnight autopilot writes step logs"
+    Assert-True -Condition ($autopilotText -match '\$null -eq \$process\.ExitCode') -Message "Overnight autopilot handles blank completed process exit codes"
     Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
     Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
+    Assert-True -Condition ($readmeText -match 'start-overnight-autopilot\.ps1') -Message "README documents overnight autopilot wrapper"
     Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
 }
 
