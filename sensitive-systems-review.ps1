@@ -33,7 +33,7 @@ function Remove-NegativeSensitiveClauses {
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
     $cleaned = [string]$Text
-    $cleaned = [regex]::Replace($cleaned, "(?i)(^|[.!?]\s+)\s*(do\s+not|don't|without|no)\s+[^.!?]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?]*[.!?]?", " ")
+    $cleaned = [regex]::Replace($cleaned, "(?i)(^|[.!?;]\s+)\s*(do\s+not|don't|without|no)\s+[^.!?;]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?]*[.!?]?", " ")
     return $cleaned
 }
 
