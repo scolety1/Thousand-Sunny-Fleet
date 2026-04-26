@@ -600,6 +600,7 @@ function Get-SensitiveIntentText {
     $negativeLead = "do\s+not|don't|without|no|forbid|forbids|forbidden|forbidden\s+scope|forbidden\s+scope\s+includes|avoid|exclude|excluding"
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:$negativeLead)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:while\s+)?leav(?:e|ing)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:untouched|unchanged|alone)[^.!?;]*[.!?;]?", " ")
+    $text = [regex]::Replace($text, "(?i)[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:untouched|unchanged|alone)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*preserv(?:e|ing)\s+[^.!?;]*(?:existing\s+)?(?:boundaries|guardrails|restrictions|policy|policies)[^.!?;]*(?:$sensitiveWords)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*preserv(?:e|ing)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:boundaries|guardrails|restrictions|policy|policies)[^.!?;]*[.!?;]?", " ")
     return $text

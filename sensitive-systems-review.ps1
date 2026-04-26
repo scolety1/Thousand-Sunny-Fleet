@@ -35,6 +35,7 @@ function Remove-NegativeSensitiveClauses {
     $cleaned = [string]$Text
     $cleaned = [regex]::Replace($cleaned, "(?i)(^|[\r\n]+|[.!?;]\s+)\s*(?:[-*+]\s*)?(?:\[[^\]]+\]\s*)?(do\s+not|don't|without|no)\s+[^.!?;\r\n]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?;\r\n]*[.!?]?", " ")
     $cleaned = [regex]::Replace($cleaned, "(?i)(^|[\r\n]+|[.!?;]\s+)\s*(?:[-*+]\s*)?(?:\[[^\]]+\]\s*)?(?:while\s+)?leav(?:e|ing)\s+[^.!?;\r\n]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?;\r\n]*(untouched|unchanged|alone)[^.!?;\r\n]*[.!?]?", " ")
+    $cleaned = [regex]::Replace($cleaned, "(?i)[^.!?;\r\n]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?;\r\n]*(untouched|unchanged|alone)[^.!?;\r\n]*[.!?]?", " ")
     return $cleaned
 }
 
