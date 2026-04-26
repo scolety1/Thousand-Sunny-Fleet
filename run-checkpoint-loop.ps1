@@ -1825,6 +1825,7 @@ Do not broaden scope.
 Do not run build commands.
 Do not mark tasks complete.
 Do not edit NIGHTLY_REPORT.md.
+Fleet-generated report files under docs/codex, including RUNTIME_VERIFICATION.md, are allowed harness output and must not be treated as task scope violations.
 
 After fixing clear issues, end your response with exactly one of these machine-readable status lines:
 REVIEW_STATUS: PASS
