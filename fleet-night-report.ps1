@@ -8,6 +8,8 @@ param(
 
     [int]$SinceHours = 18,
 
+    [switch]$IgnoreDryRuns,
+
     [string]$OutFile = "out\fleet-night-report.md",
 
     [string]$JsonOutFile = "out\fleet-night-report.json"
@@ -140,19 +142,19 @@ function Get-ScheduledRunRows {
         Sort-Object LastWriteTime |
         ForEach-Object {
             $text = Get-Content -LiteralPath $_.FullName -Raw
-            $status = if ($text -match "(?i)Dry run passed") {
-                "dry-run"
+            $status = if ($text -match "(?i)Fleet harness self-test failed|Launch command exited with code [1-9]|Dry-run launch validation exited with code [1-9]") {
+                "failed"
             } elseif ($text -match "(?i)No new fleet windows launched|Skipping") {
                 "skipped"
             } elseif ($text -match "(?i)Launch command exited with code 0") {
                 "launched"
-            } elseif ($text -match "(?i)failed|exited with code [1-9]") {
-                "failed"
+            } elseif ($text -match "(?i)Dry run passed|Dry-run launch validation exited with code 0") {
+                "dry-run"
             } else {
                 "unknown"
             }
             $why = ""
-            $skipLine = [regex]::Match($text, "(?im)^\d{4}-\d{2}-\d{2} .*(Skipping|Fleet harness self-test failed|No new fleet windows launched).*$")
+            $skipLine = [regex]::Match($text, "(?im)^\d{4}-\d{2}-\d{2} .*(Skipping|Fleet harness self-test failed|No new fleet windows launched|Dry-run launch validation exited with code [0-9]+).*$")
             if ($skipLine.Success) { $why = $skipLine.Value.Trim() }
             [pscustomobject]@{
                 name = $_.Name
@@ -180,6 +182,12 @@ if ($excluded.Count -gt 0) {
 }
 
 $scheduledRows = @(Get-ScheduledRunRows -Since $since)
+if ($IgnoreDryRuns) {
+    $scheduledRows = @($scheduledRows | Where-Object {
+        $_.status -ne "dry-run" -and
+        $_.name -notmatch "(?i)(dryrun|dry-run|proof|test|check|harness)"
+    })
+}
 $shipRows = @()
 foreach ($projectConfig in $projects) {
     $name = [string]$projectConfig.name
@@ -240,6 +248,7 @@ $lines = @(
     "",
     "- Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
     "- Window: last $SinceHours hour(s)",
+    "- Ignore dry-runs: $([bool]$IgnoreDryRuns)",
     "- Scheduled attempts: $($scheduledRows.Count)",
     "- Launched: $launched",
     "- Skipped: $skipped",

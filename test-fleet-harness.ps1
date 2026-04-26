@@ -211,6 +211,41 @@ if (Test-Path $latestLaunch) {
     Add-TestResult -Name "Scheduled wrapper dry-run manifest exists" -Passed $false -Detail $latestLaunch
 }
 
+$scheduledLogRoot = Join-Path $fleetRoot "out\scheduled-runs"
+New-Item -ItemType Directory -Force -Path $scheduledLogRoot | Out-Null
+$nightReportHarnessLog = Join-Path $scheduledLogRoot "harness-proof-dryrun-$PID.log"
+$nightReportHarnessMd = Join-Path $fleetRoot "out\fleet-night-report-harness.md"
+$nightReportHarnessJson = Join-Path $fleetRoot "out\fleet-night-report-harness.json"
+try {
+    @(
+        "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') Dry-run launch validation exited with code 0",
+        "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') Dry run passed. No windows launched."
+    ) | Set-Content -Path $nightReportHarnessLog -Encoding UTF8
+
+    [void](Invoke-HarnessCommand -Name "Night report ignores proof dry-runs" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-night-report.ps1"),
+        "-SinceHours", "1",
+        "-IgnoreDryRuns",
+        "-ExcludeProject", (($SelectedProjects + $ExcludedProjects) -join ","),
+        "-OutFile", $nightReportHarnessMd,
+        "-JsonOutFile", $nightReportHarnessJson
+    ))
+
+    if (Test-Path -LiteralPath $nightReportHarnessJson) {
+        $nightReportHarness = Get-Content -LiteralPath $nightReportHarnessJson -Raw | ConvertFrom-Json
+        $scheduledRunCount = @($nightReportHarness.scheduledRuns).Count
+        Add-TestResult -Name "Night report removed harness dry-run log" -Passed ($scheduledRunCount -eq 0) -Detail "scheduledRuns=$scheduledRunCount"
+    } else {
+        Add-TestResult -Name "Night report harness JSON exists" -Passed $false -Detail $nightReportHarnessJson
+    }
+} finally {
+    Remove-Item -LiteralPath $nightReportHarnessLog -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $nightReportHarnessMd -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $nightReportHarnessJson -Force -ErrorAction SilentlyContinue
+}
+
 if (!$SkipProjectValidation) {
     foreach ($ship in $SelectedProjects) {
         [void](Invoke-HarnessCommand -Name "Checkpoint loop validates $ship" -Arguments @(
