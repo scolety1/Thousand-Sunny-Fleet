@@ -579,7 +579,8 @@ function Get-SensitiveIntentText {
     $text = [string]$Summary
     $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s+scope\s*:.*$", "")
     $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s*:.*$", "")
-    $text = [regex]::Replace($text, "(?i)(^|[.!?;]\s+)\s*(do\s+not|don't|without|no)\s+[^.!?;]*(auth|login|oauth|permission|payment|stripe|checkout|billing)[^.!?]*[.!?]?", " ")
+    $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(do\s+not|don't|without|no)\s+[^.!?;]*(auth|login|oauth|permission|payment|stripe|checkout|billing)[^.!?;]*[.!?;]?", " ")
+    $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(do\s+not|don't|without|no)\s+[^.!?;]*(backend|api|apis|external\s+service|database|firestore|firebase|payment|payments)[^.!?;]*[.!?;]?", " ")
     return $text
 }
 
