@@ -37,6 +37,9 @@ cd C:\Dev\codex-fleet
 .\harbor-master.ps1
 .\fleet-supervisor.ps1 -Once
 .\prepare-magic-run.ps1
+.\test-fleet-harness.ps1
+.\scheduled-selected-overnight-run.ps1 -DryRun
+.\fleet-night-report.ps1 -SinceHours 24
 .\merge-readiness.ps1
 .\visual-gallery.ps1
 .\tests\run-fleet-tests.ps1
@@ -99,6 +102,12 @@ Add `-AutoRepair` when you want the supervisor to queue one high-priority repair
 Add `-AutoRelaunchRepair` to let the supervisor clear that ship's safe-stop request and open a one-batch repair run for clean, unlocked ships that already have an unchecked auto-repair task. Repair relaunches default to `-BatchSize 1 -MaxBatches 1` so the ship repairs, re-scores, and returns control to the supervisor instead of sprinting blindly.
 
 `start-overnight-autopilot.ps1` is the single-command overnight wrapper. It runs supervisor cycles with auto safe-stops, auto repair task queueing, and one-batch repair relaunches; it excludes `NinersDynastyWarRoom` by default and writes `out/overnight-autopilot.md`. Add `-LaunchFirst` when you also want it to call `launch-overnight-run.ps1` before supervising; use `-Once` or `-DryRun` for trials. Each supervisor step is bounded by `-StepTimeoutSeconds` and writes stdout/stderr under `out/autopilot-runs/`.
+
+`scheduled-selected-overnight-run.ps1` is the safer selected-fleet departure wrapper. It accepts comma-separated or array-style `-Project` values, saves report-only dirty files before launch, runs `test-fleet-harness.ps1` before clearing safe-stop, computes exclusions dynamically from `projects.json`, and calls `launch-overnight-run.ps1` with `-ExpectedProject` so selected launches fail closed if the wrong ships would depart. Use `-DryRun` before scheduling or manual launch.
+
+`test-fleet-harness.ps1` is the deterministic control-room self-test. It parses core scripts, verifies selected launch inclusion/exclusion, checks that launch validation rejects unexpected ships, and validates the selected checkpoint-loop configs unless `-SkipProjectValidation` is passed. It writes `out/fleet-harness-test.md`.
+
+`fleet-night-report.ps1` is the morning debrief. It reads scheduled run logs, launch state, ship locks, dirty status, task counts, and latest nightly outcomes, then writes `out/fleet-night-report.md` and `out/fleet-night-report.json` with successes, skips, failures, and next actions.
 
 `prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, active-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
 

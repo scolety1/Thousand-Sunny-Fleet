@@ -14,6 +14,22 @@ Set-Location $fleetRoot
 
 $results = [System.Collections.Generic.List[object]]::new()
 
+function ConvertTo-ProjectList {
+    param([string[]]$Values = @())
+
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
+}
+
+$SelectedProjects = @(ConvertTo-ProjectList -Values $SelectedProjects)
+$ExcludedProjects = @(ConvertTo-ProjectList -Values $ExcludedProjects)
+
 function Add-TestResult {
     param(
         [string]$Name,
@@ -121,6 +137,16 @@ $tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $
     "-AllowSafeStopRequests",
     "-DryRun"
 ) -ExpectedExitCode 1)
+
+[void](Invoke-HarnessCommand -Name "Scheduled selected wrapper dry-run passes safety preflight" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1"),
+    "-RunLabel", "harness-self-test",
+    "-Project", $selected,
+    "-SkipHarnessTest",
+    "-DryRun"
+))
 
 if (!$SkipProjectValidation) {
     foreach ($ship in $SelectedProjects) {

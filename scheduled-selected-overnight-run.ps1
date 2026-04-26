@@ -6,6 +6,8 @@ param(
 
     [switch]$SkipHarnessTest,
 
+    [switch]$SkipHarnessOnDryRun,
+
     [switch]$DryRun
 )
 
@@ -25,6 +27,19 @@ function Write-ScheduledLog {
     $line = "{0} {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
     Add-Content -Path $logPath -Value $line
     Write-Host $line
+}
+
+function ConvertTo-ProjectList {
+    param([string[]]$Values = @())
+
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
 }
 
 function Test-RunProcessActive {
@@ -115,9 +130,12 @@ function Save-ReportOnlyDirtyFiles {
     }
 }
 
+$Project = @(ConvertTo-ProjectList -Values $Project)
 Write-ScheduledLog "Selected overnight run '$RunLabel' checking projects: $($Project -join ', ')"
 
 $projectsJson = @(Get-Content ".\projects.json" -Raw | ConvertFrom-Json | ForEach-Object { $_ })
+$selectedProjectNames = @($Project)
+$exclude = @($projectsJson | Where-Object { $selectedProjectNames -notcontains [string]$_.name } | ForEach-Object { [string]$_.name })
 $blocking = @()
 foreach ($projectName in $Project) {
     $projectConfig = @($projectsJson | Where-Object { [string]$_.name -ceq $projectName }) | Select-Object -First 1
@@ -154,12 +172,7 @@ if ($blocking.Count -gt 0) {
     exit 0
 }
 
-if ($DryRun) {
-    Write-ScheduledLog "Dry run passed; selected fleet would launch now."
-    exit 0
-}
-
-if (!$SkipHarnessTest) {
+if (!$SkipHarnessTest -and (!$DryRun -or !$SkipHarnessOnDryRun)) {
     Write-ScheduledLog "Running fleet harness self-test before launch."
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "test-fleet-harness.ps1") -SelectedProjects ($Project -join ",") -ExcludedProjects ($exclude -join ",") *>> $logPath
     if ($LASTEXITCODE -ne 0) {
@@ -168,10 +181,14 @@ if (!$SkipHarnessTest) {
     }
 }
 
+if ($DryRun) {
+    Write-ScheduledLog "Dry run passed; selected fleet would launch now."
+    exit 0
+}
+
 Write-ScheduledLog "Clearing global safe-stop so selected ships can depart."
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "request-safe-stop.ps1") -All -Clear *>> $logPath
 
-$exclude = @("CursorPets", "NinersWarRoom", "Tree")
 $launchArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
