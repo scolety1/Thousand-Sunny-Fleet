@@ -690,7 +690,15 @@ function Invoke-TaskAcceptanceChecks {
         $index++
         Write-Host "Running task acceptance check ${index}: $command" -ForegroundColor DarkCyan
         $logPath = Join-Path $script:RunLogRoot ("acceptance-{0}-{1}.log" -f $index, (Get-Date -Format "HHmmssfff"))
-        $result = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) -WorkingDirectory (Get-Location).Path -LogPath $logPath -TimeoutSeconds (Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)
+        $acceptanceWorkingDirectory = (Get-Location).Path
+        $configuredBuildDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
+        if (![string]::IsNullOrWhiteSpace($configuredBuildDir) -and $configuredBuildDir -ne ".") {
+            $resolvedBuildDir = Resolve-Path $configuredBuildDir -ErrorAction SilentlyContinue
+            if ($resolvedBuildDir) {
+                $acceptanceWorkingDirectory = $resolvedBuildDir.Path
+            }
+        }
+        $result = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) -WorkingDirectory $acceptanceWorkingDirectory -LogPath $logPath -TimeoutSeconds (Get-TimeoutSetting -Role "build" -Default $BuildTimeoutSeconds)
         if ($result.exitCode -ne 0) {
             Write-Host "Task acceptance check failed: $command" -ForegroundColor Red
             Write-Host "Log: $logPath" -ForegroundColor Yellow
