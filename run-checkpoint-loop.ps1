@@ -596,14 +596,33 @@ function Get-SensitiveIntentText {
     $text = [string]$Summary
     $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s+scope\s*:.*$", "")
     $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s*:.*$", "")
-    $sensitiveWords = "auth|login|oauth|permission|payment|payments|stripe|checkout|billing|backend|api|apis|external\s+service|database|firestore|firebase"
-    $negativeLead = "do\s+not|don't|without|no|forbid|forbids|forbidden|forbidden\s+scope|forbidden\s+scope\s+includes|avoid|exclude|excluding"
+    $sensitiveWords = "auth|login|oauth|permission|payment|payments|stripe|checkout|billing|backend|api|apis|external\s+service|database|firestore|firebase|analytics|tracking"
+    $negativeLead = "do\s+not|don't|without|no|forbid|forbids|forbidden|forbidden\s+scope|forbidden\s+scope\s+includes|avoid|exclude|excluding|do\s+not\s+edit|do\s+not\s+touch"
+    $protectiveIntent = "do\s+not|don't|without|no|forbid|forbids|forbidden|avoid|exclude|excluding|keep|preserve|leav(?:e|ing)|maintain|unchanged|untouched|alone|out\s+of\s+scope|limits?|guardrails?|restrictions?|boundaries|policy|policies"
+    $sensitiveAction = "add|build|create|edit|change|modify|update|replace|wire|connect|integrate|enable|configure|migrate|implement"
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:$negativeLead)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:keep|preserve|leav(?:e|ing)|maintain)\s+[^.!?;]*(?:$sensitiveWords)(?:[/\w\s,-]*(?:$sensitiveWords))*[^.!?;]*(?:limits?|guardrails?|restrictions?|untouched|unchanged|alone|out\s+of\s+scope)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:while\s+)?leav(?:e|ing)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:untouched|unchanged|alone)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:untouched|unchanged|alone)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*preserv(?:e|ing)\s+[^.!?;]*(?:existing\s+)?(?:boundaries|guardrails|restrictions|policy|policies)[^.!?;]*(?:$sensitiveWords)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*preserv(?:e|ing)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:boundaries|guardrails|restrictions|policy|policies)[^.!?;]*[.!?;]?", " ")
+    $segments = @($text -split "(?<=[.!?;])\s+|[\r\n]+")
+    $keptSegments = @()
+    foreach ($segment in $segments) {
+        $trimmed = ([string]$segment).Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+        $mentionsSensitive = ($trimmed -match "(?i)(?:$sensitiveWords)")
+        $isProtectiveOnly = (
+            $mentionsSensitive -and
+            $trimmed -match "(?i)(?:$protectiveIntent)" -and
+            $trimmed -notmatch "(?i)\b(?:$sensitiveAction)\b(?:\s+\w+){0,8}\s+(?:$sensitiveWords)"
+        )
+        if ($isProtectiveOnly) {
+            continue
+        }
+        $keptSegments += $trimmed
+    }
+    $text = $keptSegments -join " "
     return $text
 }
 

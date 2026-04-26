@@ -128,6 +128,49 @@ function Invoke-HarnessCommand {
     return [pscustomobject]@{ exitCode = $exitCode; output = $output; passed = $passed }
 }
 
+function Invoke-SensitiveIntentHarness {
+    param(
+        [string]$Name,
+        [string]$Summary,
+        [string]$ForbiddenPattern = "",
+        [string]$RequiredPattern = ""
+    )
+
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $fleetRoot "run-checkpoint-loop.ps1"), [ref]$tokens, [ref]$parseErrors)
+    if ($parseErrors.Count -gt 0) {
+        Add-TestResult -Name $Name -Passed $false -Detail "checkpoint loop parse failed"
+        return
+    }
+
+    $functionAst = $ast.Find({
+        param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -eq "Get-SensitiveIntentText"
+    }, $true)
+    if ($null -eq $functionAst) {
+        Add-TestResult -Name $Name -Passed $false -Detail "function missing"
+        return
+    }
+
+    $scriptBlock = [scriptblock]::Create($functionAst.Extent.Text)
+    . $scriptBlock
+    $result = Get-SensitiveIntentText -Summary $Summary
+    $passed = $true
+    $detail = $result
+    if (![string]::IsNullOrWhiteSpace($ForbiddenPattern) -and $result -match $ForbiddenPattern) {
+        $passed = $false
+        $detail = "forbidden pattern remained: $ForbiddenPattern; result=$result"
+    }
+    if (![string]::IsNullOrWhiteSpace($RequiredPattern) -and $result -notmatch $RequiredPattern) {
+        $passed = $false
+        $detail = "required pattern missing: $RequiredPattern; result=$result"
+    }
+
+    Add-TestResult -Name $Name -Passed $passed -Detail $detail
+}
+
 foreach ($script in @(
     ".\launch-overnight-run.ps1",
     ".\run-checkpoint-loop.ps1",
@@ -140,6 +183,16 @@ foreach ($script in @(
 )) {
     Test-PowerShellParse -Path $script
 }
+
+Invoke-SensitiveIntentHarness `
+    -Name "Sensitive intent strips protective preserve clauses" `
+    -Summary "Simplify the first screen and preserve fake data, current routes, package files, generated output, backend/auth/payments/APIs/analytics/tracking limits, and no real restaurant data." `
+    -ForbiddenPattern "(?i)\bauth\b|\bpayments?\b|\bapis?\b|\banalytics\b|\btracking\b"
+
+Invoke-SensitiveIntentHarness `
+    -Name "Sensitive intent keeps real auth work" `
+    -Summary "Add auth login with password reset, no backend payment changes." `
+    -RequiredPattern "(?i)\bauth\b|\blogin\b"
 
 $selected = ($SelectedProjects -join ",")
 $excluded = ($ExcludedProjects -join ",")
