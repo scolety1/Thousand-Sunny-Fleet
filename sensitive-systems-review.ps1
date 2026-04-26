@@ -28,6 +28,15 @@ function Test-Heading {
     return ($Text -match "(?im)^##\s+$([regex]::Escape($Heading))\s*$")
 }
 
+function Remove-NegativeSensitiveClauses {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+    $cleaned = [string]$Text
+    $cleaned = [regex]::Replace($cleaned, "(?i)(^|[.!?]\s+)\s*(do\s+not|don't|without|no)\s+[^.!?]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?]*[.!?]?", " ")
+    return $cleaned
+}
+
 $repoPath = Resolve-Path -LiteralPath $Repo -ErrorAction SilentlyContinue
 if (!$repoPath) { Stop-WithMessage "Repo not found: $Repo" }
 Set-Location $repoPath.Path
@@ -38,7 +47,8 @@ $issues = [System.Collections.Generic.List[string]]::new()
 
 $diff = git diff --cached --unified=0 2>$null
 $addedLines = @($diff | Where-Object { ([string]$_).StartsWith("+") -and !([string]$_).StartsWith("+++") })
-$needsRegistry = (($addedLines -join "`n") -match "(?i)\bfetch\s*\(|\baxios\b|\bopenai\b|\banthropic\b|\bgemini\b|\bstripe\b|\bsupabase\b|\bfirebase\b|\bhttps?://")
+$sensitiveIntentText = Remove-NegativeSensitiveClauses -Text ($addedLines -join "`n")
+$needsRegistry = ($sensitiveIntentText -match "(?i)\bfetch\s*\(|\baxios\b|\bopenai\b|\banthropic\b|\bgemini\b|\bstripe\b|\bsupabase\b|\bfirebase\b|\bhttps?://")
 
 $registryPath = "docs/codex/EXTERNAL_SERVICES.md"
 if (Test-Path $registryPath) {
