@@ -33,8 +33,15 @@ function Remove-NegativeSensitiveClauses {
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
     $cleaned = [string]$Text
-    $cleaned = [regex]::Replace($cleaned, "(?i)(^|[.!?;]\s+)\s*(do\s+not|don't|without|no)\s+[^.!?;]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?]*[.!?]?", " ")
+    $cleaned = [regex]::Replace($cleaned, "(?i)(^|[\r\n]+|[.!?;]\s+)\s*(?:[-*+]\s*)?(?:\[[^\]]+\]\s*)?(do\s+not|don't|without|no)\s+[^.!?;\r\n]*(auth|login|oauth|permission|payment|stripe|checkout|billing|fetch\s*\(|axios|openai|anthropic|gemini|supabase|firebase|https?://|backend|api|secret|data\s+fetching)[^.!?;\r\n]*[.!?]?", " ")
     return $cleaned
+}
+
+function Test-GeneratedSensitiveReportPath {
+    param([string]$Path)
+
+    $normalized = ([string]$Path).Replace("\", "/")
+    return $normalized -match "^docs/codex/(CHECKPOINT_REVIEW|JOEY_SECURITY_REVIEW|ROBIN_COPY_REVIEW|SENSITIVE_SYSTEMS_REVIEW|SIMON_DESIGN_REVIEW|VISUAL_BUGS|NIGHTLY_REPORT|NEXT_5_TASKS|MAGIC_SCORECARD|WORK_PACK_STATUS|QUARANTINED_TASKS)\.md$"
 }
 
 $repoPath = Resolve-Path -LiteralPath $Repo -ErrorAction SilentlyContinue
@@ -45,9 +52,22 @@ if ($LASTEXITCODE -ne 0) { Stop-WithMessage "Repo is not a git repository: $($re
 
 $issues = [System.Collections.Generic.List[string]]::new()
 
-$diff = git diff --cached --unified=0 2>$null
+$diff = @(git diff --cached --unified=0 2>$null)
 $addedLines = @($diff | Where-Object { ([string]$_).StartsWith("+") -and !([string]$_).StartsWith("+++") })
-$sensitiveIntentText = Remove-NegativeSensitiveClauses -Text ($addedLines -join "`n")
+$registryAddedLines = [System.Collections.Generic.List[string]]::new()
+$currentDiffPath = ""
+foreach ($line in @($diff)) {
+    $text = [string]$line
+    if ($text.StartsWith("+++ b/")) {
+        $currentDiffPath = $text.Substring(6)
+        continue
+    }
+    if (!$text.StartsWith("+") -or $text.StartsWith("+++")) { continue }
+    if (Test-GeneratedSensitiveReportPath -Path $currentDiffPath) { continue }
+    $registryAddedLines.Add($text.Substring(1)) | Out-Null
+}
+
+$sensitiveIntentText = Remove-NegativeSensitiveClauses -Text ($registryAddedLines -join "`n")
 $needsRegistry = ($sensitiveIntentText -match "(?i)\bfetch\s*\(|\baxios\b|\bopenai\b|\banthropic\b|\bgemini\b|\bstripe\b|\bsupabase\b|\bfirebase\b|\bhttps?://")
 
 $registryPath = "docs/codex/EXTERNAL_SERVICES.md"

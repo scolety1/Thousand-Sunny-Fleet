@@ -324,6 +324,8 @@ function Test-PhaseFiveSensitiveSystemsSupport {
     Assert-True -Condition ($sensitiveText -match 'AUTH_POLICY\.md') -Message "Sensitive systems review recognizes auth policy"
     Assert-True -Condition ($sensitiveText -match 'PAYMENT_RISK\.md') -Message "Sensitive systems review recognizes payment risk"
     Assert-True -Condition ($sensitiveText -match 'sk-\[A-Za-z0-9_-\]') -Message "Sensitive systems review scans staged diffs for secret-like tokens"
+    Assert-True -Condition ($sensitiveText -match 'Test-GeneratedSensitiveReportPath') -Message "Sensitive systems review ignores generated report prose for registry detection"
+    Assert-True -Condition ($sensitiveText -match '\[-\*\+\]') -Message "Sensitive systems review strips markdown-bullet negative sensitive clauses"
     Assert-True -Condition ($loopText -match 'Invoke-SensitiveSystemsReviewGate') -Message "Checkpoint loop runs sensitive systems review gate"
     Assert-True -Condition ($loopText -match 'Invoke-FleetCommit') -Message "Checkpoint loop centralizes commits behind sensitive systems gate"
     Assert-True -Condition ($loopText -match 'Test-SensitiveTaskApproval') -Message "Checkpoint loop checks auth/payment/integration task approvals"
