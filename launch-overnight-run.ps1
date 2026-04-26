@@ -61,7 +61,13 @@ function Get-Projects {
         }
     }
     if ($ExcludeProject.Count -gt 0) {
-        $exclude = @($ExcludeProject | ForEach-Object { [string]$_ })
+        $exclude = @(
+            $ExcludeProject |
+                ForEach-Object { [string]$_ } |
+                ForEach-Object { $_ -split "," } |
+                ForEach-Object { $_.Trim() } |
+                Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+        )
         $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
     }
 
@@ -104,7 +110,13 @@ if (!$SkipDoctor) {
     if (![string]::IsNullOrWhiteSpace($Project)) {
         $doctorArgs += @("-Project", $Project)
     }
-    $doctorExclusions = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    $doctorExclusions = @(
+        $ExcludeProject |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+    )
     if ($doctorExclusions.Count -gt 0) {
         $doctorArgs += @("-ExcludeProject", ($doctorExclusions -join ","))
     }
@@ -119,7 +131,13 @@ if ($RequireMagicPreflight) {
     if (![string]::IsNullOrWhiteSpace($Project)) {
         $preflightArgs += @("-Project", $Project)
     }
-    $preflightExclusions = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+    $preflightExclusions = @(
+        $ExcludeProject |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+    )
     if ($preflightExclusions.Count -gt 0) {
         $preflightArgs += @("-ExcludeProject", ($preflightExclusions -join ","))
     }
