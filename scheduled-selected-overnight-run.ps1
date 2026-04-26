@@ -4,6 +4,24 @@ param(
 
     [string[]]$Project = @("RestaurantDemo", "ShiftPlate", "EasyLife"),
 
+    [int]$BatchSize = 1,
+
+    [int]$MaxBatches = 6,
+
+    [int]$VisualInspectEvery = 1,
+
+    [int]$SimonEvery = 1,
+
+    [int]$RobinEvery = 1,
+
+    [int]$JoeyEvery = 3,
+
+    [int]$RateLimitCooldownSeconds = 3600,
+
+    [int]$RateLimitMaxCooldowns = 8,
+
+    [int]$MaxTaskQuarantines = 5,
+
     [switch]$SkipHarnessTest,
 
     [switch]$SkipHarnessOnDryRun,
@@ -12,6 +30,16 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+
+if ($BatchSize -lt 1) { Write-Host "-BatchSize must be at least 1." -ForegroundColor Red; exit 1 }
+if ($MaxBatches -lt 1) { Write-Host "-MaxBatches must be at least 1." -ForegroundColor Red; exit 1 }
+if ($VisualInspectEvery -lt 0) { Write-Host "-VisualInspectEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($SimonEvery -lt 0) { Write-Host "-SimonEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($RobinEvery -lt 0) { Write-Host "-RobinEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($JoeyEvery -lt 0) { Write-Host "-JoeyEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($RateLimitCooldownSeconds -lt 60) { Write-Host "-RateLimitCooldownSeconds must be at least 60." -ForegroundColor Red; exit 1 }
+if ($RateLimitMaxCooldowns -lt 0) { Write-Host "-RateLimitMaxCooldowns must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($MaxTaskQuarantines -lt 0) { Write-Host "-MaxTaskQuarantines must be 0 or greater." -ForegroundColor Red; exit 1 }
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
@@ -132,6 +160,7 @@ function Save-ReportOnlyDirtyFiles {
 
 $Project = @(ConvertTo-ProjectList -Values $Project)
 Write-ScheduledLog "Selected overnight run '$RunLabel' checking projects: $($Project -join ', ')"
+Write-ScheduledLog "Run shape: batch size $BatchSize, max batches $MaxBatches, visual every $VisualInspectEvery, Simon every $SimonEvery, Robin every $RobinEvery, Joey every $JoeyEvery, quarantine budget $MaxTaskQuarantines."
 
 $projectsJson = @(Get-Content ".\projects.json" -Raw | ConvertFrom-Json | ForEach-Object { $_ })
 $selectedProjectNames = @($Project)
@@ -195,19 +224,19 @@ $launchArgs = @(
     "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
     "-ExcludeProject", ($exclude -join ","),
     "-ExpectedProject", ($Project -join ","),
-    "-BatchSize", "1",
-    "-MaxBatches", "6",
-    "-VisualInspectEvery", "1",
-    "-SimonEvery", "1",
-    "-RobinEvery", "1",
-    "-JoeyEvery", "3",
-    "-RateLimitCooldownSeconds", "3600",
-    "-RateLimitMaxCooldowns", "8",
-    "-MaxTaskQuarantines", "5",
+    "-BatchSize", ([string]$BatchSize),
+    "-MaxBatches", ([string]$MaxBatches),
+    "-VisualInspectEvery", ([string]$VisualInspectEvery),
+    "-SimonEvery", ([string]$SimonEvery),
+    "-RobinEvery", ([string]$RobinEvery),
+    "-JoeyEvery", ([string]$JoeyEvery),
+    "-RateLimitCooldownSeconds", ([string]$RateLimitCooldownSeconds),
+    "-RateLimitMaxCooldowns", ([string]$RateLimitMaxCooldowns),
+    "-MaxTaskQuarantines", ([string]$MaxTaskQuarantines),
     "-QuarantineFailedTasks"
 )
 
-Write-ScheduledLog "Launching selected fleet: RestaurantDemo, ShiftPlate, EasyLife."
+Write-ScheduledLog "Launching selected fleet: $($Project -join ', ')."
 & powershell @launchArgs *>> $logPath
 $exitCode = $LASTEXITCODE
 Write-ScheduledLog "Launch command exited with code $exitCode."

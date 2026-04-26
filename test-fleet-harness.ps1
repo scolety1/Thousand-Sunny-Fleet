@@ -144,6 +144,13 @@ $tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $
     "-File", (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1"),
     "-RunLabel", "harness-self-test",
     "-Project", $selected,
+    "-BatchSize", "1",
+    "-MaxBatches", "1",
+    "-VisualInspectEvery", "1",
+    "-SimonEvery", "1",
+    "-RobinEvery", "1",
+    "-JoeyEvery", "1",
+    "-MaxTaskQuarantines", "2",
     "-SkipHarnessTest",
     "-DryRun"
 ))
