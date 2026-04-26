@@ -599,6 +599,7 @@ function Get-SensitiveIntentText {
     $sensitiveWords = "auth|login|oauth|permission|payment|payments|stripe|checkout|billing|backend|api|apis|external\s+service|database|firestore|firebase"
     $negativeLead = "do\s+not|don't|without|no|forbid|forbids|forbidden|forbidden\s+scope|forbidden\s+scope\s+includes|avoid|exclude|excluding"
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:$negativeLead)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*[.!?;]?", " ")
+    $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:keep|preserve|leav(?:e|ing)|maintain)\s+[^.!?;]*(?:$sensitiveWords)(?:[/\w\s,-]*(?:$sensitiveWords))*[^.!?;]*(?:limits?|guardrails?|restrictions?|untouched|unchanged|alone|out\s+of\s+scope)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*(?:while\s+)?leav(?:e|ing)\s+[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:untouched|unchanged|alone)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)[^.!?;]*(?:$sensitiveWords)[^.!?;]*(?:untouched|unchanged|alone)[^.!?;]*[.!?;]?", " ")
     $text = [regex]::Replace($text, "(?i)(^|[.!?;,]\s+|\s+and\s+)\s*preserv(?:e|ing)\s+[^.!?;]*(?:existing\s+)?(?:boundaries|guardrails|restrictions|policy|policies)[^.!?;]*(?:$sensitiveWords)[^.!?;]*[.!?;]?", " ")
@@ -1087,6 +1088,80 @@ $files
 "@
 }
 
+function New-ReplacementTaskLine {
+    param(
+        [string]$Task,
+        [string]$Reason,
+        [object]$Contract = $null
+    )
+
+    $summary = if ($null -ne $Contract -and ![string]::IsNullOrWhiteSpace([string]$Contract.summary)) {
+        [string]$Contract.summary
+    } else {
+        [string]$Task
+    }
+    $summary = ($summary -replace "\s+", " ").Trim()
+    if ($summary.Length -gt 420) {
+        $summary = $summary.Substring(0, 420).Trim()
+    }
+
+    $taskClass = if ($null -ne $Contract -and ![string]::IsNullOrWhiteSpace([string]$Contract.class)) { [string]$Contract.class } else { "design" }
+    if ($taskClass -in @("backend", "migration", "integration", "performance")) {
+        $taskClass = "docs"
+    }
+
+    $safeScope = @()
+    if ($null -ne $Contract -and $Contract.scope.Count -gt 0) {
+        $safeScope = @($Contract.scope | ForEach-Object { ([string]$_).Replace("\", "/").Trim("/") } | Where-Object {
+            ![string]::IsNullOrWhiteSpace($_) -and
+            $_ -notmatch "(?i)(backend|api|server|firebase|firestore|auth|payment|stripe|package|lock|dist|build)"
+        })
+    }
+    if ($safeScope.Count -eq 0) {
+        $safeScope = @("src/")
+    }
+
+    $safeReason = ([string]$Reason -replace "\s+", " ").Trim()
+    if ($safeReason.Length -gt 220) {
+        $safeReason = $safeReason.Substring(0, 220).Trim()
+    }
+
+    return "- [ ] Auto recovery retry: make a smaller safe slice of the quarantined task '$summary' that avoids the failure reason '$safeReason'; change only one narrow UI/content/module area, prefer deleting awkward complexity over adding new systems, and do not touch backend, auth, payments, Firebase rules/config, package/dependency files, generated output, deployment config, secrets, or unrelated files. [class:$taskClass risk:low mode:single scope:$($safeScope -join ',')]"
+}
+
+function Add-ReplacementTaskAfterQuarantine {
+    param(
+        [string]$Task,
+        [string]$Reason,
+        [object]$Contract = $null
+    )
+
+    $taskQueue = "docs/codex/TASK_QUEUE.md"
+    if (!(Test-Path $taskQueue)) {
+        return $false
+    }
+
+    if ($null -eq $Contract) {
+        $Contract = Resolve-TaskContract -Task $Task
+    }
+
+    $taskLine = New-ReplacementTaskLine -Task $Task -Reason $Reason -Contract $Contract
+    $queueText = Get-Content $taskQueue -Raw
+    $fingerprint = [regex]::Escape(($taskLine -replace "\s+", " ").Trim())
+    if (($queueText -replace "\s+", " ") -match $fingerprint) {
+        return $false
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -Path $taskQueue -Value @(
+        "",
+        "## Fleet Auto Recovery $timestamp",
+        "",
+        $taskLine
+    )
+    return $true
+}
+
 function Invoke-PreImplementationQuarantine {
     param(
         [string]$Task,
@@ -1108,6 +1183,7 @@ function Invoke-PreImplementationQuarantine {
     $script:TaskQuarantineCount++
     Write-Host "Quarantining blocked task $script:TaskQuarantineCount of $MaxTaskQuarantines and continuing." -ForegroundColor Yellow
     Mark-FirstUncheckedTaskQuarantined
+    [void](Add-ReplacementTaskAfterQuarantine -Task $Task -Reason $Reason -Contract $Contract)
     Append-Report -Task $Task -FilesChanged @() -BuildResult "Quarantined" -Risk $Reason -Contract $Contract
     Append-QuarantineReport -Task $Task -Reason $Reason -Batch $Batch -TaskIndex $TaskIndex -FilesChanged @()
 
@@ -1201,6 +1277,7 @@ function Invoke-TaskQuarantine {
     }
 
     Mark-FirstUncheckedTaskQuarantined
+    [void](Add-ReplacementTaskAfterQuarantine -Task $Task -Reason $Reason)
     Append-Report -Task $Task -FilesChanged $filesChanged -BuildResult "Quarantined" -Risk $Reason
     Append-QuarantineReport -Task $Task -Reason $Reason -Batch $Batch -TaskIndex $TaskIndex -FilesChanged $filesChanged
 
