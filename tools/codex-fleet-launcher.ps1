@@ -39,6 +39,7 @@ function Assert-NoFleetSafeStopRequests {
     param(
         [string]$FleetRoot,
         [string]$ProjectFilter = "",
+        [string[]]$ExcludeProject = @(),
         [switch]$AllowSafeStopRequests
     )
 
@@ -48,10 +49,18 @@ function Assert-NoFleetSafeStopRequests {
     }
 
     $safeProject = ConvertTo-FleetLaunchSafeName -Name $ProjectFilter
+    $safeExclusions = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object {
+        ConvertTo-FleetLaunchSafeName -Name ([string]$_)
+    })
     $blocking = @($requests | Where-Object {
-        [string]::IsNullOrWhiteSpace($ProjectFilter) -or
-        $_.safeTarget -eq "ALL" -or
-        $_.safeTarget -eq $safeProject
+        if ($safeExclusions -contains $_.safeTarget) {
+            return $false
+        }
+        return (
+            [string]::IsNullOrWhiteSpace($ProjectFilter) -or
+            $_.safeTarget -eq "ALL" -or
+            $_.safeTarget -eq $safeProject
+        )
     })
 
     if ($blocking.Count -eq 0) {

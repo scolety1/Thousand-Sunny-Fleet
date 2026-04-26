@@ -661,6 +661,7 @@ function Test-SafeStopSupport {
 function Test-LaunchControlSupport {
     $launcherText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1") -Raw
     Assert-True -Condition ($launcherText -match 'Assert-NoFleetSafeStopRequests') -Message "Shared launcher helper blocks stale safe stop requests"
+    Assert-True -Condition ($launcherText -match 'ExcludeProject') -Message "Shared launcher helper ignores safe stops for excluded ships"
     Assert-True -Condition ($launcherText -match 'New-FleetLaunchManifest') -Message "Shared launcher helper creates launch manifests"
     Assert-True -Condition ($launcherText -match 'NewGuid') -Message "Launch manifest IDs include a uniqueness suffix for parallel launches"
     Assert-True -Condition ($launcherText -match 'out\\latest-launch\.md') -Message "Launch manifests update the latest-launch report"
@@ -678,9 +679,13 @@ function Test-LaunchControlSupport {
     foreach ($launcherName in @("launch-school-run.ps1", "launch-overnight-run.ps1")) {
         $launcher = Get-Content (Join-Path $fleetRoot $launcherName) -Raw
         Assert-True -Condition ($launcher -match 'ExcludeProject') -Message "$launcherName can exclude docked ships"
+        Assert-True -Condition ($launcher -match 'Assert-NoFleetSafeStopRequests[^\r\n]+-ExcludeProject') -Message "$launcherName ignores safe stops for excluded ships"
         Assert-True -Condition ($launcher -match 'doctorExclusions') -Message "$launcherName forwards multiple doctor exclusions together"
         Assert-True -Condition ($launcher -match '-join ","') -Message "$launcherName comma-packs doctor exclusions for child PowerShell"
     }
+
+    $proofLauncher = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    Assert-True -Condition ($proofLauncher -match 'Assert-NoFleetSafeStopRequests[^\r\n]+-ExcludeProject') -Message "launch-proof-run.ps1 ignores safe stops for excluded ships"
 
     $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
     Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
