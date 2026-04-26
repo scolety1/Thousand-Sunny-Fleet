@@ -1434,10 +1434,34 @@ function Assert-NoDuplicateFleetRun {
 
     $existingProcesses = @(Get-ExistingFleetRunProcesses -ProjectName $ProjectName -RepoFullPath $RepoFullPath)
     if ($existingProcesses.Count -gt 0) {
+        $lockPath = Get-FleetRunLockPath -ProjectName $ProjectName -RepoFullPath $RepoFullPath
+        $activeLockPid = 0
+        if (Test-Path $lockPath) {
+            try {
+                $existingLock = Get-Content $lockPath -Raw | ConvertFrom-Json
+                if ($null -ne $existingLock -and $null -ne $existingLock.pid) {
+                    $candidatePid = [int]$existingLock.pid
+                    if (Test-FleetProcessAlive -ProcessId $candidatePid) {
+                        $activeLockPid = $candidatePid
+                    }
+                }
+            } catch {
+                $activeLockPid = 0
+            }
+        }
+
+        if ($activeLockPid -eq 0) {
+            Write-Host "Ignoring stale run-checkpoint-loop shells for $ProjectName because no active fleet lock exists." -ForegroundColor DarkYellow
+            return
+        }
+
         Write-Host "Duplicate fleet run refused for $ProjectName." -ForegroundColor Red
         Write-Host "Another run-checkpoint-loop process appears active for this ship:" -ForegroundColor Yellow
-        $existingProcesses | Select-Object -First 5 | ForEach-Object {
+        @($existingProcesses | Where-Object { [int]$_.ProcessId -eq $activeLockPid }) | Select-Object -First 5 | ForEach-Object {
             Write-Host ("- PID {0}: {1}" -f $_.ProcessId, $_.CommandLine) -ForegroundColor Yellow
+        }
+        if ($existingProcesses.Count -gt 1) {
+            Write-Host "Other matching shell windows exist, but only the active lock owner blocks the launch." -ForegroundColor DarkYellow
         }
         Write-Host "Wait for that window to finish, or pass -AllowDuplicateRun if you are intentionally doing something risky." -ForegroundColor Yellow
         exit 1

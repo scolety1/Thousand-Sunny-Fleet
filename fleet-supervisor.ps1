@@ -30,6 +30,12 @@ param(
 
     [switch]$ClearSafeStopAfterRepair,
 
+    [switch]$AutoRelaunchRepair,
+
+    [int]$RepairBatchSize = 1,
+
+    [int]$RepairMaxBatches = 1,
+
     [switch]$Once
 )
 
@@ -303,6 +309,63 @@ function Add-SupervisorAutoRepairTask {
     return [pscustomobject]@{ added = $true; reason = "repair task committed"; task = $taskLine }
 }
 
+function Test-UncheckedAutoRepairTask {
+    $taskQueue = "docs/codex/TASK_QUEUE.md"
+    if (!(Test-Path $taskQueue)) { return $false }
+    return [bool](Select-String -Path $taskQueue -Pattern "^\s*-\s+\[ \]\s+Auto repair for " -Quiet)
+}
+
+function Start-SupervisorRepairRun {
+    param([object]$Row)
+
+    if ($Row.dirty -ne "clean" -or $Row.lockActive) {
+        return [pscustomobject]@{ launched = $false; reason = "ship is active or dirty"; pid = 0; command = "" }
+    }
+    if (-not (Test-UncheckedAutoRepairTask)) {
+        return [pscustomobject]@{ launched = $false; reason = "no unchecked auto-repair task"; pid = 0; command = "" }
+    }
+
+    Clear-FleetSafeStop -ProjectName ([string]$Row.ship)
+    $scriptPath = Join-Path $fleetRoot "run-checkpoint-loop.ps1"
+    $repairLogRoot = Join-Path $fleetRoot "out\repair-runs"
+    New-Item -ItemType Directory -Force -Path $repairLogRoot | Out-Null
+    $safeShip = ([string]$Row.ship) -replace "[^a-zA-Z0-9_.-]+", "-"
+    $safeShip = $safeShip.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeShip)) { $safeShip = "ship" }
+    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $stdoutPath = Join-Path $repairLogRoot "$safeShip-$stamp.out.log"
+    $stderrPath = Join-Path $repairLogRoot "$safeShip-$stamp.err.log"
+    $args = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $scriptPath,
+        "-Project", ([string]$Row.ship),
+        "-BatchSize", ([string]$RepairBatchSize),
+        "-MaxBatches", ([string]$RepairMaxBatches),
+        "-VisualInspectEvery", "1",
+        "-SimonEvery", "1",
+        "-RobinEvery", "1",
+        "-JoeyEvery", "1",
+        "-ContinueOnYellowCheckpoint",
+        "-MaxTaskQuarantines", "1",
+        "-QuarantineFailedTasks"
+    )
+    $command = "powershell $($args -join ' ')"
+    $process = Start-Process powershell -WorkingDirectory $fleetRoot -WindowStyle Hidden -ArgumentList $args -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
+
+    $deadline = (Get-Date).AddSeconds(12)
+    do {
+        Start-Sleep -Seconds 1
+        $lockStatus = Get-RunLockStatus -ProjectName ([string]$Row.ship)
+        if ($lockStatus.active) {
+            return [pscustomobject]@{ launched = $true; reason = "repair run launched"; pid = $process.Id; command = $command; stdout = $stdoutPath; stderr = $stderrPath }
+        }
+        $process.Refresh()
+    } while ((Get-Date) -lt $deadline -and !$process.HasExited)
+
+    return [pscustomobject]@{ launched = $false; reason = "repair run did not acquire an active lock; inspect $stdoutPath and $stderrPath"; pid = $process.Id; command = $command; stdout = $stdoutPath; stderr = $stderrPath }
+}
+
 function Get-LastProgressTime {
     $candidates = @()
     foreach ($path in @("docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md", "docs/codex/QUALITY_QUARANTINE.md", "docs/codex/QUARANTINED_TASKS.md")) {
@@ -388,6 +451,8 @@ function Write-SupervisorReport {
     $rows = @()
     $safeStopsRequested = @()
     $repairsQueued = @()
+    $repairLaunches = @()
+    $repairLaunchFailures = @()
     $lines = @(
         "# Codex Fleet Supervisor",
         "",
@@ -472,6 +537,20 @@ function Write-SupervisorReport {
                 $row.recommendation = "auto-repair task queued"
             }
         }
+        if ($AutoRelaunchRepair) {
+            Push-Location $project.repo
+            $repairLaunch = Start-SupervisorRepairRun -Row $row
+            Pop-Location
+            if ($repairLaunch.launched) {
+                $repairLaunches += [pscustomobject]@{ ship = $row.ship; state = $row.state; pid = $repairLaunch.pid; command = $repairLaunch.command; stdout = $repairLaunch.stdout; stderr = $repairLaunch.stderr }
+                $row.lock = "launched PID $($repairLaunch.pid)"
+                $row.lockActive = $true
+                $row.recommendation = "repair batch relaunched"
+            } elseif (![string]::IsNullOrWhiteSpace([string]$repairLaunch.reason) -and [string]$repairLaunch.reason -ne "ship is active or dirty" -and [string]$repairLaunch.reason -ne "no unchecked auto-repair task") {
+                $repairLaunchFailures += [pscustomobject]@{ ship = $row.ship; state = $row.state; reason = $repairLaunch.reason; pid = $repairLaunch.pid; stdout = $repairLaunch.stdout; stderr = $repairLaunch.stderr }
+                $row.recommendation = "repair relaunch failed; inspect repair run logs"
+            }
+        }
         $rows += $row
     }
 
@@ -506,10 +585,34 @@ function Write-SupervisorReport {
             $lines += "- $($repair.ship): $($repair.state) - $($repair.task)"
         }
     }
+    if ($repairLaunches.Count -gt 0) {
+        $lines += ""
+        $lines += "## Repair Runs Launched"
+        $lines += ""
+        foreach ($launch in $repairLaunches) {
+            $lines += "- $($launch.ship): PID $($launch.pid)"
+            $lines += "  - stdout: $($launch.stdout)"
+            $lines += "  - stderr: $($launch.stderr)"
+            $lines += '```powershell'
+            $lines += $launch.command
+            $lines += '```'
+        }
+    }
+    if ($repairLaunchFailures.Count -gt 0) {
+        $lines += ""
+        $lines += "## Repair Relaunch Failures"
+        $lines += ""
+        foreach ($failure in $repairLaunchFailures) {
+            $lines += "- $($failure.ship): $($failure.reason)"
+            $lines += "  - PID: $($failure.pid)"
+            $lines += "  - stdout: $($failure.stdout)"
+            $lines += "  - stderr: $($failure.stderr)"
+        }
+    }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
     Set-Content -Path $OutFile -Value $lines
-    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested -RepairsQueued $repairsQueued
+    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested -RepairsQueued $repairsQueued -RepairLaunches $repairLaunches -RepairLaunchFailures $repairLaunchFailures
 
     Clear-Host
     Write-Host "Codex Fleet Supervisor - $timestamp" -ForegroundColor Cyan
@@ -527,7 +630,9 @@ function Write-OvernightDigest {
         [string]$Timestamp,
         [datetime]$Since,
         [object[]]$SafeStopsRequested = @(),
-        [object[]]$RepairsQueued = @()
+        [object[]]$RepairsQueued = @(),
+        [object[]]$RepairLaunches = @(),
+        [object[]]$RepairLaunchFailures = @()
     )
 
     $digest = @(
@@ -565,6 +670,18 @@ function Write-OvernightDigest {
         $digest += "## Auto Repairs Queued"
         $digest += ""
         $RepairsQueued | ForEach-Object { $digest += "- $($_.ship): $($_.state)" }
+    }
+    if ($RepairLaunches.Count -gt 0) {
+        $digest += ""
+        $digest += "## Repair Runs Launched"
+        $digest += ""
+        $RepairLaunches | ForEach-Object { $digest += "- $($_.ship): PID $($_.pid)" }
+    }
+    if ($RepairLaunchFailures.Count -gt 0) {
+        $digest += ""
+        $digest += "## Repair Relaunch Failures"
+        $digest += ""
+        $RepairLaunchFailures | ForEach-Object { $digest += "- $($_.ship): $($_.reason)" }
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $DigestOutFile) | Out-Null

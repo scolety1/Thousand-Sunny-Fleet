@@ -93,6 +93,8 @@ Every launcher writes `out/latest-launch.md` plus raw launch JSON under `.codex-
 
 Add `-AutoRepair` when you want the supervisor to queue one high-priority repair task for clean, stopped ships in `BUDGET_STOP`, `LOOPING_QUALITY`, or `IDLE_READY`. It prepends a small bounded task to `docs/codex/TASK_QUEUE.md`, records the action in `docs/codex/AUTO_REPAIR.md`, commits the repair task on that ship branch, and skips active or dirty ships. Add `-ClearSafeStopAfterRepair` only when you want that ship eligible for the next launcher run immediately after the repair task is queued.
 
+Add `-AutoRelaunchRepair` to let the supervisor clear that ship's safe-stop request and open a one-batch repair run for clean, unlocked ships that already have an unchecked auto-repair task. Repair relaunches default to `-BatchSize 1 -MaxBatches 1` so the ship repairs, re-scores, and returns control to the supervisor instead of sprinting blindly.
+
 `prepare-magic-run.ps1` is the 12-hour autonomy preflight. It checks clean working trees, active run locks, task supply, `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`, then writes `out/magic-run-preflight.md`. Use `-Template` to install starter mission, work-pack, active-pack, and scorecard files in a ship; fill those files before expecting a true long unattended design run. `launch-overnight-run.ps1 -RequireMagicPreflight` runs the preflight in strict mode and refuses departure when blockers or warnings remain.
 
 The longer path is tracked in `docs/TWELVE_HOUR_MAGIC_ROADMAP.md`: product direction, coherent work selection, before/after quality memory, long-run supervision, and larger software-engineering modes.

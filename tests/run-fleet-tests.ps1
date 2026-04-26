@@ -641,6 +641,7 @@ function Test-DuplicateRunGuard {
     Assert-True -Condition ($loopText -match 'Get-CimInstance Win32_Process') -Message "Checkpoint loop scans existing PowerShell command lines for older runs"
     Assert-True -Condition ($loopText -match 'CreateNew') -Message "Checkpoint loop creates locks atomically"
     Assert-True -Condition ($loopText -match 'Duplicate fleet run refused') -Message "Checkpoint loop reports duplicate run refusal clearly"
+    Assert-True -Condition ($loopText -match 'Ignoring stale run-checkpoint-loop shells') -Message "Checkpoint loop ignores stale launch shells without active locks"
 }
 
 function Test-SafeStopSupport {
@@ -769,6 +770,10 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Supervisor Auto Repair') -Message "Supervisor creates high-priority repair queue sections"
     Assert-True -Condition ($supervisorText -match 'AUTO_REPAIR\.md') -Message "Supervisor records auto-repair actions"
     Assert-True -Condition ($supervisorText -match 'ClearSafeStopAfterRepair') -Message "Supervisor can clear a ship safe-stop after repair task creation"
+    Assert-True -Condition ($supervisorText -match 'AutoRelaunchRepair') -Message "Supervisor exposes auto-relaunch repair mode"
+    Assert-True -Condition ($supervisorText -match 'Start-SupervisorRepairRun') -Message "Supervisor can relaunch one repair batch"
+    Assert-True -Condition ($supervisorText -match 'Repair Runs Launched') -Message "Supervisor reports repair relaunches"
+    Assert-True -Condition ($supervisorText -match 'RepairBatchSize') -Message "Supervisor keeps repair relaunch batches small"
     Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
     Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
     Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
