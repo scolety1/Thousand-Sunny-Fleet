@@ -4,7 +4,7 @@ param(
 
     [string]$Project = "",
 
-    [string[]]$ExcludeProject = @(),
+    [string[]]$ExcludeProject = @("CursorPets"),
 
     [string[]]$ExpectedProject = @(),
 
