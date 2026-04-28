@@ -233,6 +233,7 @@
         "cheapModelEligible":  false,
         "buildDirectory":  "app-vNext",
         "buildCommand":  "npm.cmd run build",
+        "previewHost":  "localhost",
         "previewPort":  5317,
         "model":  "gpt-5.5",
         "models":  {
