@@ -214,6 +214,19 @@ Each ship may carry `docs/codex/PHASE_STATE.md` with the current phase, product 
 - `Human Taste Note`: your override, such as `too much`, `too plain`, `wrong direction`, `almost there`, or `park it`.
 - `Phase Model Policy`: `budget`, `balanced`, or `judgment-heavy`.
 
+It also carries operational fields that keep the loop from drifting:
+
+- `Audience`: the exact buyer or user the ship is serving.
+- `Evidence Required`: what proof each task should leave behind.
+- `Done Signal`: the practical condition for stopping instead of looping forever.
+- `Next Phase Criteria`: when the ship may advance to the next loop.
+
+Validate a ship phase file before long runs:
+
+```powershell
+.\fleet-phase.ps1 -Project Bottlelight -Validate
+```
+
 When `-BudgetMode cheap` is used, implementation can still start on cheaper models for eligible demo ships, but Shape/Simplicity/Polish planning and taste-review roles use stronger judgment models. A ship can also set `Phase Model Policy: judgment-heavy` to force stronger planner, Simon, and Robin judgment during a cheap run, or `budget` to keep the whole cheap-eligible loop low-cost.
 
 Morning review:

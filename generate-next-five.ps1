@@ -149,11 +149,15 @@ Rules:
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Current loop phase: $effectivePhase.
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
-- Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, and Parking State.
+- Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Audience, Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, Parking State, Evidence Required, Done Signal, and Next Phase Criteria.
 - Every task must support the Product Promise and Showable Moment.
+- Every task must serve the Audience and preserve the Primary Action.
 - If No More Features Lock is true, do not generate feature-addition tasks; generate removal, demotion, simplification, refinement, proof, or parked-review tasks only.
 - Every task must respect What Not To Build and the Complexity Budget.
 - For visible work, the task wording must say how the Before/After Judgment should improve.
+- Every task acceptance should produce the Evidence Required or explain why the task is docs-only.
+- Do not generate more work once the Done Signal is met except proof, parking, or explicitly requested user changes.
+- Respect Next Phase Criteria when deciding whether to generate current-phase work or a phase-advancement task.
 - If Parking State is PARKED_REVIEW_READY or Current Phase is parked, output only one docs-only task saying the ship is review-ready and should not continue unattended.
 - Phase doctrine:
   - brief: define or repair audience, product promise, primary action, showable moment, and what not to build; prefer docs/codex/PHASE_STATE.md or mission docs only.
