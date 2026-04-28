@@ -227,6 +227,13 @@ Validate a ship phase file before long runs:
 .\fleet-phase.ps1 -Project Bottlelight -Validate
 ```
 
+Require that validation before a serious launch:
+
+```powershell
+.\launch-overnight-run.ps1 -Project RestaurantDemo -RequirePhaseValidation
+.\launch-cellar-fleet.ps1 -Mode school -RequirePhaseValidation
+```
+
 When `-BudgetMode cheap` is used, implementation can still start on cheaper models for eligible demo ships, but Shape/Simplicity/Polish planning and taste-review roles use stronger judgment models. A ship can also set `Phase Model Policy: judgment-heavy` to force stronger planner, Simon, and Robin judgment during a cheap run, or `budget` to keep the whole cheap-eligible loop low-cost.
 
 Morning review:

@@ -911,6 +911,9 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($schoolText -match '\$LoopPhase') -Message "School launcher exposes LoopPhase"
     Assert-True -Condition ($overnightText -match '\$LoopPhase') -Message "Overnight launcher exposes LoopPhase"
     Assert-True -Condition ($cellarText -match '\$LoopPhase') -Message "Cellar launcher exposes LoopPhase"
+    Assert-True -Condition ($schoolText -match 'RequirePhaseValidation') -Message "School launcher can require phase validation"
+    Assert-True -Condition ($overnightText -match 'RequirePhaseValidation') -Message "Overnight launcher can require phase validation"
+    Assert-True -Condition ($cellarText -match 'RequirePhaseValidation') -Message "Cellar launcher can require phase validation"
     Assert-True -Condition ($docsText -match 'Phase loops') -Message "Control room docs explain phase loops"
 }
 

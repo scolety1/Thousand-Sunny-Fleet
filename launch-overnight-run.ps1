@@ -50,6 +50,8 @@ param(
 
     [switch]$RequireMagicPreflight,
 
+    [switch]$RequirePhaseValidation,
+
     [switch]$UseGlobalRunShape,
 
     [switch]$DryRun
@@ -243,6 +245,16 @@ if ($expectedProjects.Count -gt 0) {
         exit 1
     }
 }
+
+if ($RequirePhaseValidation) {
+    foreach ($ship in $shipsToLaunch) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "fleet-phase.ps1") -ConfigPath $ConfigPath -Project ([string]$ship.name) -Validate
+        if ($LASTEXITCODE -ne 0) {
+            Stop-WithMessage "Overnight run refused. Phase state validation failed for $($ship.name)."
+        }
+    }
+}
+
 $manifestProjectFilter = $Project
 if ($expectedProjects.Count -gt 0) {
     $manifestProjectFilter = $expectedProjects -join ", "

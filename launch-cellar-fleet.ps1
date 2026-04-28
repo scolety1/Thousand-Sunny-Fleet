@@ -23,6 +23,8 @@ param(
 
     [switch]$AllowSafeStopRequests,
 
+    [switch]$RequirePhaseValidation,
+
     [switch]$DryRun
 )
 
@@ -85,6 +87,7 @@ $args += @("-ExpectedProject", ($cellarNames -join ","))
 if ($PushCheckpoint) { $args += "-PushCheckpoint" }
 if ($QuarantineFailedTasks) { $args += "-QuarantineFailedTasks" }
 if ($AllowSafeStopRequests) { $args += "-AllowSafeStopRequests" }
+if ($RequirePhaseValidation) { $args += "-RequirePhaseValidation" }
 if ($DryRun) { $args += "-DryRun" }
 
 & powershell @args
