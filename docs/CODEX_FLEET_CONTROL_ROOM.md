@@ -142,6 +142,20 @@ cd C:\Dev\codex-fleet
 .\launch-school-run.ps1 -Project ShipName -BatchSize 2 -MaxBatches 4 -QuarantineFailedTasks -MaxTaskQuarantines 3
 ```
 
+Overnight run with a rate budget:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\launch-overnight-run.ps1 -Project ShipName -MaxRuntimeMinutes 360 -MaxCompletedTasks 6 -MaxPlannerBatches 1 -QuarantineFailedTasks
+```
+
+Overnight budget caps:
+
+- `-MaxRuntimeMinutes` stops a ship after the wall-clock budget is used.
+- `-MaxCompletedTasks` stops a ship after it finishes that many implementation tasks.
+- `-MaxPlannerBatches` limits how many times an overnight run can generate fresh tasks after the queue is empty.
+- Pass `0` for any cap only when intentionally disabling that cap.
+
 Morning review:
 
 ```powershell

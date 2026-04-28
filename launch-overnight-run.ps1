@@ -12,6 +12,12 @@ param(
 
     [int]$MaxBatches = 20,
 
+    [int]$MaxRuntimeMinutes = 360,
+
+    [int]$MaxCompletedTasks = 6,
+
+    [int]$MaxPlannerBatches = 1,
+
     [int]$RateLimitCooldownSeconds = 3600,
 
     [int]$RateLimitMaxCooldowns = 8,
@@ -104,6 +110,9 @@ function Get-ShipInt {
 
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
+if ($MaxRuntimeMinutes -lt 0) { Stop-WithMessage "-MaxRuntimeMinutes must be 0 or greater." }
+if ($MaxCompletedTasks -lt 0) { Stop-WithMessage "-MaxCompletedTasks must be 0 or greater." }
+if ($MaxPlannerBatches -lt 0) { Stop-WithMessage "-MaxPlannerBatches must be 0 or greater." }
 if ($RateLimitCooldownSeconds -lt 60) { Stop-WithMessage "-RateLimitCooldownSeconds must be at least 60." }
 if ($RateLimitMaxCooldowns -lt 0) { Stop-WithMessage "-RateLimitMaxCooldowns must be 0 or greater." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
@@ -174,6 +183,9 @@ for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     $ship = $shipsToLaunch[$shipIndex]
     $shipBatchSize = if ($UseGlobalRunShape) { $BatchSize } else { Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize }
     $shipMaxBatches = if ($UseGlobalRunShape) { $MaxBatches } else { Get-ShipInt -Ship $ship -Name "overnightMaxBatches" -Default $MaxBatches }
+    $shipMaxRuntimeMinutes = if ($UseGlobalRunShape) { $MaxRuntimeMinutes } else { Get-ShipInt -Ship $ship -Name "overnightMaxRuntimeMinutes" -Default $MaxRuntimeMinutes }
+    $shipMaxCompletedTasks = if ($UseGlobalRunShape) { $MaxCompletedTasks } else { Get-ShipInt -Ship $ship -Name "overnightMaxCompletedTasks" -Default $MaxCompletedTasks }
+    $shipMaxPlannerBatches = if ($UseGlobalRunShape) { $MaxPlannerBatches } else { Get-ShipInt -Ship $ship -Name "overnightMaxPlannerBatches" -Default $MaxPlannerBatches }
     $shipVisualEvery = if ($VisualInspectEvery -gt 0) { $VisualInspectEvery } else { Get-ShipInt -Ship $ship -Name "overnightVisualInspectEvery" -Default 3 }
     $shipSimonEvery = if ($SimonEvery -gt 0) { $SimonEvery } else { Get-ShipInt -Ship $ship -Name "overnightSimonEvery" -Default 3 }
     $shipRobinEvery = if ($RobinEvery -gt 0) { $RobinEvery } else { Get-ShipInt -Ship $ship -Name "overnightRobinEvery" -Default $shipSimonEvery }
@@ -182,10 +194,10 @@ for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
 
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $shipBatchSize -MaxBatches $shipMaxBatches -VisualInspectEvery $shipVisualEvery -SimonEvery $shipSimonEvery -RobinEvery $shipRobinEvery -JoeyEvery $shipJoeyEvery -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $shipBatchSize -MaxBatches $shipMaxBatches -MaxRuntimeMinutes $shipMaxRuntimeMinutes -MaxCompletedTasks $shipMaxCompletedTasks -MaxPlannerBatches $shipMaxPlannerBatches -VisualInspectEvery $shipVisualEvery -SimonEvery $shipSimonEvery -RobinEvery $shipRobinEvery -JoeyEvery $shipJoeyEvery -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching overnight run for $($ship.name): batch $shipBatchSize x $shipMaxBatches, Simon every $shipSimonEvery, Robin every $shipRobinEvery..." -ForegroundColor Cyan
+    Write-Host "Launching overnight run for $($ship.name): batch $shipBatchSize x $shipMaxBatches, max $shipMaxCompletedTasks tasks, max $shipMaxRuntimeMinutes minutes, planner batches $shipMaxPlannerBatches..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
         Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun

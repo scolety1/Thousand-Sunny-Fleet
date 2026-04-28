@@ -12,6 +12,12 @@ param(
 
     [int]$MaxBatches = 1,
 
+    [int]$MaxRuntimeMinutes = 0,
+
+    [int]$MaxCompletedTasks = 0,
+
+    [int]$MaxPlannerBatches = 0,
+
     [int]$MaxCodexAttempts = 4,
 
     [int]$CodexTimeoutSeconds = 1800,
@@ -116,6 +122,18 @@ if ($BatchSize -lt 1) {
 
 if ($MaxBatches -lt 1) {
     Stop-Usage "-MaxBatches must be at least 1."
+}
+
+if ($MaxRuntimeMinutes -lt 0) {
+    Stop-Usage "-MaxRuntimeMinutes must be 0 or greater."
+}
+
+if ($MaxCompletedTasks -lt 0) {
+    Stop-Usage "-MaxCompletedTasks must be 0 or greater."
+}
+
+if ($MaxPlannerBatches -lt 0) {
+    Stop-Usage "-MaxPlannerBatches must be 0 or greater."
 }
 
 if ($RateLimitCooldownSeconds -lt 60) {
@@ -421,6 +439,25 @@ function Get-FirstUncheckedTask {
         }
     }
     return $null
+}
+
+function Test-OvernightBudgetExceeded {
+    param([string]$Moment)
+
+    if ($MaxRuntimeMinutes -gt 0) {
+        $elapsedMinutes = ((Get-Date) - $script:BudgetStartedAt).TotalMinutes
+        if ($elapsedMinutes -ge $MaxRuntimeMinutes) {
+            Write-Host "Overnight budget stop before ${Moment}: runtime cap reached ($([Math]::Round($elapsedMinutes, 1)) / $MaxRuntimeMinutes minutes)." -ForegroundColor Yellow
+            return $true
+        }
+    }
+
+    if ($MaxCompletedTasks -gt 0 -and $script:CompletedTaskCount -ge $MaxCompletedTasks) {
+        Write-Host "Overnight budget stop before ${Moment}: completed task cap reached ($script:CompletedTaskCount / $MaxCompletedTasks)." -ForegroundColor Yellow
+        return $true
+    }
+
+    return $false
 }
 
 function Resolve-TaskContract {
@@ -2053,8 +2090,12 @@ $logRoot = ".codex-logs\checkpoint-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $script:RunLogRoot = $logRoot
 $script:TaskQuarantineCount = 0
+$script:BudgetStartedAt = Get-Date
+$script:CompletedTaskCount = 0
+$script:PlannerBatchCount = 0
 
 for ($batch = 1; $batch -le $MaxBatches; $batch++) {
+    if (Test-OvernightBudgetExceeded -Moment "checkpoint batch $batch") { break }
     Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before checkpoint batch $batch"
 
     Write-Host ""
@@ -2069,9 +2110,14 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
 
     $task = Get-FirstUncheckedTask
     if ([string]::IsNullOrWhiteSpace($task)) {
+        if ($MaxPlannerBatches -gt 0 -and $script:PlannerBatchCount -ge $MaxPlannerBatches) {
+            Write-Host "Overnight budget stop: planner batch cap reached ($script:PlannerBatchCount / $MaxPlannerBatches) and no queued tasks remain." -ForegroundColor Yellow
+            break
+        }
         Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before Nami task planning for batch $batch"
 
         Write-Host "No unchecked tasks. Generating next $BatchSize from mission." -ForegroundColor Cyan
+        $script:PlannerBatchCount++
         $plannerArgs = @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
@@ -2100,6 +2146,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     }
 
     for ($i = 1; $i -le $BatchSize; $i++) {
+        if (Test-OvernightBudgetExceeded -Moment "task $i in batch $batch") { break }
         Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before task $i in batch $batch"
 
         $task = Get-FirstUncheckedTask
@@ -2361,6 +2408,7 @@ REVIEW_FINDING: P2: short description
             exit 1
         }
         Mark-FirstUncheckedTaskComplete
+        $script:CompletedTaskCount++
         Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract -TaskBase $taskBase
         Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md"))
         if (-not (Invoke-FleetCommit -Message "Codex checkpoint batch $batch task $i")) { exit 1 }
