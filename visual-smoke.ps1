@@ -7,13 +7,15 @@ param(
 
     [string]$ServeDirectory = ".",
 
-    [string]$ServeCommand = "npm.cmd run dev -- --host 127.0.0.1 --port {PORT}",
+    [string]$ServeCommand = "",
 
     [int]$Port = 0,
 
     [string[]]$RequiredText = @(),
 
     [string[]]$Anchors = @(),
+
+    [string]$Path = "/",
 
     [string]$BaseUrl = "",
 
@@ -27,6 +29,11 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+
+$Anchors = @($Anchors |
+    ForEach-Object { ([string]$_) -split "," } |
+    ForEach-Object { $_.Trim() } |
+    Where-Object { ![string]::IsNullOrWhiteSpace($_) })
 
 function Find-Chrome {
     $candidates = @(
@@ -56,6 +63,13 @@ function Wait-Http {
                 return $true
             }
         } catch {
+            $statusCode = 0
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+            if ($statusCode -ge 200 -and $statusCode -lt 500) {
+                return $true
+            }
             Start-Sleep -Milliseconds 500
         }
     }
@@ -65,7 +79,7 @@ function Wait-Http {
 function Stop-Tree {
     param([int]$ProcessId)
     if ($ProcessId -gt 0) {
-        cmd.exe /c "taskkill /PID $ProcessId /T /F" | Out-Null
+        cmd.exe /c "taskkill /PID $ProcessId /T /F 1>NUL 2>NUL" | Out-Null
     }
 }
 
@@ -75,6 +89,18 @@ function Get-FreeTcpPort {
     $port = $listener.LocalEndpoint.Port
     $listener.Stop()
     return $port
+}
+
+function Get-DefaultServeCommand {
+    param([string]$ServeDir)
+
+    if (Test-Path (Join-Path $ServeDir "package.json")) {
+        return "npm.cmd run dev -- --host 127.0.0.1 --port {PORT}"
+    }
+
+    $fleetRoot = Split-Path -Parent $PSCommandPath
+    $serverScript = Join-Path $fleetRoot "tools\static-preview-server.ps1"
+    return ('powershell -NoProfile -ExecutionPolicy Bypass -File "{0}" -Root . -Port {{PORT}}' -f $serverScript)
 }
 
 $repoMatches = @(Resolve-Path $Repo -ErrorAction SilentlyContinue)
@@ -97,6 +123,13 @@ if ($ChromePort -le 0) {
 
 if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
     $BaseUrl = "http://127.0.0.1:$Port"
+}
+
+if (![string]::IsNullOrWhiteSpace($Path) -and $Path -ne "/") {
+    $base = [System.Uri]$BaseUrl
+    $builder = [System.UriBuilder]::new($base)
+    $builder.Path = if ($Path.StartsWith("/")) { $Path } else { "/$Path" }
+    $BaseUrl = $builder.Uri.AbsoluteUri
 }
 
 if ($RequiredText.Count -eq 0) {
@@ -127,6 +160,9 @@ $chromeProcess = $null
 try {
     if (!$SkipServer) {
         $serveDir = Join-Path $repoPath $ServeDirectory
+        if ([string]::IsNullOrWhiteSpace($ServeCommand)) {
+            $ServeCommand = Get-DefaultServeCommand -ServeDir $serveDir
+        }
         $command = $ServeCommand.Replace("{PORT}", [string]$Port)
         $serveLog = Join-Path $outDir "server.log"
         $serveErr = Join-Path $outDir "server.err.log"

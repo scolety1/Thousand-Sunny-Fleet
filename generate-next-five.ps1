@@ -58,6 +58,8 @@ $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content 
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $qualityQuarantine = if (Test-Path "docs/codex/QUALITY_QUARANTINE.md") { Get-Content "docs/codex/QUALITY_QUARANTINE.md" -Tail 120 } else { @("No quality quarantine found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
+$siteMap = if (Test-Path "docs/codex/SITE_MAP.md") { Get-Content "docs/codex/SITE_MAP.md" -Raw } else { "No site map found." }
+$visualRoutes = if (Test-Path "docs/codex/visual-routes.json") { Get-Content "docs/codex/visual-routes.json" -Raw } else { "No visual route config found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
 $simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No Simon design review found." }
 $visualBugs = if (Test-Path "docs/codex/VISUAL_BUGS.md") { Get-Content "docs/codex/VISUAL_BUGS.md" -Raw } else { "No visual bug report found." }
@@ -93,10 +95,11 @@ Generate exactly $Count next tasks as markdown checklist lines.
 Rules:
 - Output only checklist lines, no commentary.
 - Each line must start with "- [ ] ".
-- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single scope:src/,docs/codex/].
+- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single impact:visible scope:src/,docs/codex/].
 - Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
 - Supported modes: mode:single and mode:feature-pack. Use mode:feature-pack only when SOFTWARE_FEATURE_PLAN.md and SOFTWARE_FEATURE_APPROVAL.md are approved and the task has explicit scope and accept metadata.
+- Supported impacts: impact:standard, impact:visible, and impact:showpiece. Use impact:visible for design/copy/page/mobile tasks. Use impact:showpiece for final, demo-ready, major redesign, premium, or high-expectation creative tasks.
 - Use scope: only when the task can be safely bounded to clear path prefixes.
 - Use accept: only for task-specific checks beyond the normal external build, and only when the exact command is already documented in the ship's run policy/profile or package scripts. Do not invent npm.cmd test.
 - Each task must be small enough for one Codex implementation round.
@@ -122,8 +125,12 @@ Rules:
 - If WORK_PACK_STATUS.md names an active pack, every fresh mission-forward task must mention that active pack label, for example "Pack 1 - Product Spine".
 - Do not move to a later pack until WORK_PACK_STATUS.md marks the current pack DONE.
 - Use MAGIC_SCORECARD.md to avoid work that previously scored as weak, blocked, or repetitive.
+- If SITE_MAP.md or visual-routes.json names multiple routes, treat them as intended product surfaces. Generate route/page tasks when splitting content into real pages would make the product clearer.
+- Do not tell Codex to preserve current routes if the task is about page splits, route repair, navigation, or reducing an overloaded one-page experience.
+- Route/page tasks must say frontend-only, prefer existing routing patterns, avoid new dependencies unless explicitly approved, and update SITE_MAP.md plus visual-routes.json when routes change.
 - If QUALITY_QUARANTINE.md exists, treat it like an active repair order. The next task must be a smaller repair task for the named active work pack.
 - Every task should make the next screenshot, workflow, or user-facing product state measurably better.
+- Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
@@ -153,6 +160,12 @@ $($qualityQuarantine -join "`n")
 
 Run policy:
 $policy
+
+Site map:
+$siteMap
+
+Visual route config:
+$visualRoutes
 
 Checkpoint review:
 $checkpoint

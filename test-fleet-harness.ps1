@@ -2,7 +2,7 @@
 param(
     [string[]]$SelectedProjects = @("EasyLife", "RestaurantDemo", "ShiftPlate"),
 
-    [string[]]$ExcludedProjects = @("CursorPets", "NinersWarRoom", "Tree"),
+    [string[]]$ExcludedProjects = @("CursorPets", "NinersWarRoom", "Tree", "Bottlelight", "ShiftLedger", "EventBook", "OrderPilot", "LineupLab"),
 
     [switch]$SkipProjectValidation
 )
@@ -175,8 +175,10 @@ foreach ($script in @(
     ".\launch-overnight-run.ps1",
     ".\run-checkpoint-loop.ps1",
     ".\scheduled-selected-overnight-run.ps1",
+    ".\launch-cellar-fleet.ps1",
     ".\fleet-night-report.ps1",
     ".\fleet-supervisor.ps1",
+    ".\fleet-copy-smoke.ps1",
     ".\harbor-master.ps1",
     ".\tools\codex-fleet-launcher.ps1",
     ".\tools\codex-fleet-runtime.ps1"

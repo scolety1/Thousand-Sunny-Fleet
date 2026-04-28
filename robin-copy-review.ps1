@@ -81,6 +81,45 @@ foreach ($file in $textFiles) {
     if ($copySamples.Count -ge 120) { break }
 }
 
+$copySmokeTerms = @(
+    "artifact",
+    "automation",
+    "demo",
+    "proof",
+    "sample",
+    "screen",
+    "service notes",
+    "workflow",
+    "ready for service",
+    "manager-ready",
+    "staff-ready",
+    "polish",
+    "handoff",
+    "bring",
+    "start with"
+)
+$copySmokeHits = @()
+$publicCopyFiles = @($textFiles | Where-Object {
+    $_ -match "^(src|app|web|pages|components|routes|views|public|data|content)/" -or
+    $_ -match "\.(tsx|jsx|html|mdx)$"
+})
+foreach ($file in $publicCopyFiles) {
+    foreach ($term in $copySmokeTerms) {
+        $hits = @(Select-String -Path $file -Pattern ([regex]::Escape($term)) -CaseSensitive:$false -ErrorAction SilentlyContinue | Select-Object -First 5)
+        foreach ($hit in $hits) {
+            $line = $hit.Line.Trim()
+            if ($line -match "^\s*(import|export|type|interface|const|let|var|function|class)\b" -and $line -notmatch "['`"]") {
+                continue
+            }
+            if ($line.Length -gt 180) {
+                $line = $line.Substring(0, 180) + "..."
+            }
+            $copySmokeHits += "${file}:$($hit.LineNumber): [$term] $line"
+        }
+    }
+    if ($copySmokeHits.Count -ge 80) { break }
+}
+
 $prompt = @"
 You are Robin, the Codex Fleet voice editor.
 
@@ -107,6 +146,7 @@ Does the language match the mission, audience, and product position? Be specific
 
 ## Delicate Wording Risks
 Bullets. Flag wording that feels misleading, overclaims, sounds student-made, sounds generic, is too cute for the audience, too corporate, too casual, too salesy, legally risky, insensitive, or off-brand.
+Also flag customer-facing copy that sounds like instructions to the builder instead of the buyer, especially vague phrases like "bring the note", "start with X", "ready for service", "manager-ready", "polish", "handoff", or "workflow" when the reader, action, and outcome are not concrete.
 
 ## Beautiful Language Opportunities
 Bullets. Name where copy could become clearer, warmer, more premium, more specific, or more evocative.
@@ -130,6 +170,9 @@ Rules:
 - Use ASCII punctuation only. Use straight quotes and hyphens, not curly quotes or smart punctuation.
 - Do not invent facts, sales claims, testimonials, results, prices, certifications, legal claims, or real restaurant data.
 - For wine/menu/hospitality projects, favor vivid but honest sensory language: specific, elegant, restrained, useful to guests and staff.
+- For restaurant/hospitality service sites, make every visible sentence pass this test: "Who is this for, what should they do, and what do they get?" If any part is unclear, mark the review YELLOW and provide a plain rewrite.
+- Prefer concrete nouns over brand fog: wine list, menu note, manager brief, event request, QR card, text thread, staff note, guest page. Avoid vague nouns as standalone value props: artifact, workflow, polish, service notes, handoff, automation, solution.
+- When copy addresses a potential customer, do not write as if you are instructing Codex or the site owner. Address the restaurant owner/manager directly or describe the customer outcome clearly.
 - For playful projects, personality is welcome, but it must not bury clarity.
 - Do not recommend backend, auth, payments, deployment, analytics, tracking, secrets, package changes, or broad architecture changes.
 - RED is only for wording that is seriously misleading, risky, offensive, legally sensitive, or mission-breaking.
@@ -174,6 +217,10 @@ $($reportTail -join "`n")
 
 Copy samples:
 $(if ($copySamples.Count -eq 0) { "- None found" } else { ($copySamples | Select-Object -First 120 | ForEach-Object { "- $_" }) -join "`n" })
+
+Static public-copy smoke hits:
+These are deterministic hints, not automatic failures. Treat them as likely customer-facing copy only when the term appears inside visible strings, JSX text, HTML text, markdown content, or data rendered into the UI. Ignore harmless component names, CSS class names, import names, IDs, and internal docs.
+$(if ($copySmokeHits.Count -eq 0) { "- None found" } else { ($copySmokeHits | Select-Object -First 80 | ForEach-Object { "- $_" }) -join "`n" })
 "@
 
 $tmp = New-TemporaryFile

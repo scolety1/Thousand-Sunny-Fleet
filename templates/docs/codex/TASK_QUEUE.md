@@ -13,6 +13,7 @@ Codex may:
 - make small reviewable changes
 - use fake data when prototyping
 - improve copy, layout, and docs
+- add frontend-only pages/routes when the selected task asks for real pages and the route is documented in `docs/codex/SITE_MAP.md`
 
 Codex may not:
 - run build commands
@@ -20,6 +21,7 @@ Codex may not:
 - edit `docs/codex/NIGHTLY_REPORT.md`
 - add backend/auth/payment/secrets/deployment work unless explicitly approved
 - touch blocked paths from the selected profile
+- add route dependencies unless dependency/package changes are explicitly approved
 
 ## Tasks
 

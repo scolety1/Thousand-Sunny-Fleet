@@ -163,9 +163,13 @@ if ($expectedProjects.Count -gt 0) {
         exit 1
     }
 }
+$manifestProjectFilter = $Project
+if ($expectedProjects.Count -gt 0) {
+    $manifestProjectFilter = $expectedProjects -join ", "
+}
 $manifestMode = if ($DryRun) { "overnight-proof" } else { "overnight" }
 $latestManifestFile = if ($DryRun) { "latest-proof-launch.md" } else { "latest-launch.md" }
-$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode $manifestMode -ConfigPath $ConfigPath -ProjectFilter $Project -LatestFileName $latestManifestFile
+$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode $manifestMode -ConfigPath $ConfigPath -ProjectFilter $manifestProjectFilter -LatestFileName $latestManifestFile
 for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     $ship = $shipsToLaunch[$shipIndex]
     $shipBatchSize = if ($UseGlobalRunShape) { $BatchSize } else { Get-ShipInt -Ship $ship -Name "overnightBatchSize" -Default $BatchSize }

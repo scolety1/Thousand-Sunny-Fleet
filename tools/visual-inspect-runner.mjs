@@ -12,7 +12,9 @@ const {
   outDir,
   chromePort = 9222,
   project = "Project",
+  routes,
   paths = ["/"],
+  viewports: configuredViewports,
 } = options;
 
 if (!baseUrl || !outDir) {
@@ -92,6 +94,18 @@ async function waitFor(check, timeoutMs = 20000, intervalMs = 250) {
   throw new Error("Timed out waiting for condition.");
 }
 
+const routeConfigs = (Array.isArray(routes) && routes.length ? routes : paths).map((entry) => {
+  if (typeof entry === "string") {
+    return { path: entry, label: entry };
+  }
+  const routePath = entry?.path ?? entry?.url ?? "/";
+  return {
+    ...entry,
+    path: routePath,
+    label: entry?.label ?? routePath,
+  };
+});
+
 function joinUrl(base, route) {
   const url = new URL(base);
   const cleanRoute = String(route || "/");
@@ -106,7 +120,8 @@ function severityRank(severity) {
   return { high: 0, medium: 1, low: 2 }[severity] ?? 3;
 }
 
-async function runRouteViewport(route, viewportName, viewport) {
+async function runRouteViewport(routeConfig, viewportName, viewport) {
+  const route = routeConfig.path ?? "/";
   const url = joinUrl(baseUrl, route);
   const target = await requestJson(`http://127.0.0.1:${chromePort}/json/new?${encodeURIComponent(url)}`, "PUT");
   const client = new CdpClient(target.webSocketDebuggerUrl);
@@ -125,7 +140,7 @@ async function runRouteViewport(route, viewportName, viewport) {
   client.events.length = 0;
   await client.send("Page.navigate", { url });
   await waitFor(() => client.events.some((event) => event.method === "Page.loadEventFired"));
-  await new Promise((resolve) => setTimeout(resolve, 850));
+  await new Promise((resolve) => setTimeout(resolve, routeConfig.waitMs ?? 850));
 
   const consoleIssues = [];
   for (const event of client.events) {
@@ -283,6 +298,31 @@ async function runRouteViewport(route, viewportName, viewport) {
     returnByValue: true,
   });
 
+  const requiredText = Array.isArray(routeConfig.requiredText) ? routeConfig.requiredText : [];
+  if (requiredText.length > 0) {
+    const requiredResult = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        const text = document.body ? document.body.innerText : "";
+        return ${JSON.stringify(requiredText)}.map((item) => ({
+          text: item,
+          present: text.toLowerCase().includes(String(item).toLowerCase())
+        }));
+      })()`,
+      returnByValue: true,
+    });
+    for (const check of requiredResult.result.value ?? []) {
+      if (!check.present) {
+        auditResult.result.value.findings.push({
+          severity: "high",
+          type: "missing-required-text",
+          selector: "document",
+          message: "Required route text was not found.",
+          evidence: check.text,
+        });
+      }
+    }
+  }
+
   const initialScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
   const safeRoute = String(route || "/").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "root";
   const screenshotPath = path.join(outDir, `${safeRoute}-${viewportName}.png`);
@@ -293,6 +333,7 @@ async function runRouteViewport(route, viewportName, viewport) {
 
   return {
     route,
+    label: routeConfig.label ?? route,
     viewport: viewportName,
     screenshotPath,
     consoleIssues: consoleIssues.filter((issue) =>
@@ -303,13 +344,25 @@ async function runRouteViewport(route, viewportName, viewport) {
   };
 }
 
-const viewports = [
+const defaultViewports = [
   ["desktop", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false }],
   ["mobile", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }],
 ];
 
+const viewports = Array.isArray(configuredViewports) && configuredViewports.length
+  ? configuredViewports.map((viewport) => [
+      viewport.name ?? `${viewport.width}x${viewport.height}`,
+      {
+        width: viewport.width ?? 1440,
+        height: viewport.height ?? 1000,
+        deviceScaleFactor: viewport.deviceScaleFactor ?? 1,
+        mobile: Boolean(viewport.mobile),
+      },
+    ])
+  : defaultViewports;
+
 const results = [];
-for (const route of paths.length ? paths : ["/"]) {
+for (const route of routeConfigs.length ? routeConfigs : [{ path: "/", label: "/" }]) {
   for (const [name, viewport] of viewports) {
     results.push(await runRouteViewport(route, name, viewport));
   }
@@ -346,7 +399,8 @@ const summary = {
   baseUrl,
   outDir,
   checkedAt: new Date().toISOString(),
-  routes: paths,
+  routes: routeConfigs,
+  viewports: viewports.map(([name, viewport]) => ({ name, ...viewport })),
   results,
   findings: allFindings,
   passed: !allFindings.some((finding) => finding.severity === "high"),

@@ -47,7 +47,14 @@ function Get-MarkdownValue {
     $pattern = "(?ims)^##\s+$([regex]::Escape($Heading))\s*\r?\n\s*([^\r\n#]+)"
     $match = [regex]::Match($text, $pattern)
     if ($match.Success) {
-        return $match.Groups[1].Value.Trim()
+        $value = $match.Groups[1].Value.Trim()
+        if ($Heading -eq "Verdict") {
+            $verdict = [regex]::Match($value, "^(GREEN|YELLOW|RED)\b", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            if ($verdict.Success) {
+                return $verdict.Groups[1].Value.ToUpperInvariant()
+            }
+        }
+        return $value
     }
 
     return "unknown"
@@ -85,6 +92,79 @@ function Get-VisualFindingCount {
     }
 
     return @(Select-String -Path "docs/codex/VISUAL_BUGS.md" -Pattern "\[$($Severity.ToUpperInvariant())\]" -ErrorAction SilentlyContinue).Count
+}
+
+function Get-LatestBatchQaSummary {
+    $path = "docs/codex/MAGIC_SCORECARD.md"
+    if (!(Test-Path $path)) {
+        return [pscustomobject]@{
+            status = "missing"
+            checkpoint = "missing"
+            simon = "missing"
+            robin = "missing"
+            joey = "missing"
+            debug = "missing"
+            score = "missing"
+            scorecardCommit = "missing"
+            commitsAfter = 0
+        }
+    }
+
+    $text = Get-Content $path -Raw
+    $matches = [regex]::Matches($text, "(?ims)^##\s+Batch\s+\d+\s+QA\s+-\s+.+?(?=^##\s+|\z)")
+    if ($matches.Count -eq 0) {
+        return [pscustomobject]@{
+            status = "missing"
+            checkpoint = "missing"
+            simon = "missing"
+            robin = "missing"
+            joey = "missing"
+            debug = "missing"
+            score = "missing"
+            scorecardCommit = "missing"
+            commitsAfter = 0
+        }
+    }
+
+    $latest = $matches[$matches.Count - 1].Value
+    function Get-LineValue {
+        param([string]$Label)
+        $match = [regex]::Match($latest, "(?im)^-\s+$([regex]::Escape($Label)):\s*(.+)$")
+        if ($match.Success) {
+            $value = $match.Groups[1].Value.Trim()
+            if ($Label -match "verdict$") {
+                $verdict = [regex]::Match($value, "^(GREEN|YELLOW|RED)\b", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+                if ($verdict.Success) {
+                    return $verdict.Groups[1].Value.ToUpperInvariant()
+                }
+            }
+            return $value
+        }
+        return "unknown"
+    }
+
+    $scorecardCommit = (git rev-list -1 HEAD -- $path 2>$null)
+    $commitsAfter = 0
+    if (![string]::IsNullOrWhiteSpace($scorecardCommit)) {
+        $commitsAfterText = (git rev-list --count "$scorecardCommit..HEAD" 2>$null)
+        if (![string]::IsNullOrWhiteSpace($commitsAfterText)) {
+            $commitsAfter = [int]$commitsAfterText
+        }
+    } else {
+        $scorecardCommit = "unknown"
+    }
+
+    return [pscustomobject]@{
+        status = "present"
+        checkpoint = Get-LineValue "Checkpoint verdict"
+        simon = Get-LineValue "Simon verdict"
+        robin = Get-LineValue "Robin verdict"
+        joey = Get-LineValue "Joey verdict"
+        debug = Get-LineValue "Debug checkpoint result"
+        score = Get-LineValue "Simon improvement score"
+        scorecardCommit = $scorecardCommit
+        commitsAfter = $commitsAfter
+    }
 }
 
 function Invoke-ProjectBuild {
@@ -207,6 +287,7 @@ foreach ($projectConfig in $projects) {
     $visualHigh = Get-VisualFindingCount -Severity "High"
     $visualMedium = Get-VisualFindingCount -Severity "Medium"
     $visual = if (!(Test-Path "docs/codex/VISUAL_BUGS.md")) { "missing" } else { "high $visualHigh, medium $visualMedium" }
+    $batchQa = Get-LatestBatchQaSummary
 
     if ($branch -eq $BaseBranch) { Add-Reason -Reasons $reasons -Message "Ship is on $BaseBranch, not a review branch." }
     if ($dirty.Count -gt 0) { Add-Reason -Reasons $reasons -Message "Working tree is dirty: $($dirty.Count) file(s)." }
@@ -222,6 +303,13 @@ foreach ($projectConfig in $projects) {
     if ($robin -eq "YELLOW") { Add-Reason -Reasons $warnings -Message "Robin copy review is YELLOW; inspect copy before merge." }
     if ($visualHigh -gt 0) { Add-Reason -Reasons $reasons -Message "Visual bug report has $visualHigh high finding(s)." }
     if ($visualMedium -gt 0) { Add-Reason -Reasons $warnings -Message "Visual bug report has $visualMedium medium finding(s)." }
+    if ($batchQa.status -eq "missing" -and $commitCount -gt 0) { Add-Reason -Reasons $warnings -Message "No fresh batch QA scorecard entry found." }
+    if ($batchQa.status -eq "present" -and $batchQa.commitsAfter -gt 0) { Add-Reason -Reasons $warnings -Message "Batch QA scorecard is stale: $($batchQa.commitsAfter) commit(s) after latest scorecard update." }
+    if ($batchQa.debug -match "^FAIL") { Add-Reason -Reasons $reasons -Message "Batch QA debug checkpoint result is $($batchQa.debug)." }
+    if ($batchQa.checkpoint -eq "RED") { Add-Reason -Reasons $reasons -Message "Batch QA checkpoint verdict is RED." }
+    if ($batchQa.simon -eq "RED") { Add-Reason -Reasons $reasons -Message "Batch QA Simon verdict is RED." }
+    if ($batchQa.robin -eq "RED") { Add-Reason -Reasons $reasons -Message "Batch QA Robin verdict is RED." }
+    if ($batchQa.joey -eq "RED") { Add-Reason -Reasons $reasons -Message "Batch QA Joey verdict is RED." }
 
     $status = if ($reasons.Count -gt 0) {
         "DO NOT MERGE"
@@ -249,6 +337,10 @@ foreach ($projectConfig in $projects) {
         robin = $robin
         joey = $joey
         visual = $visual
+        batchQaStatus = $batchQa.status
+        batchQaDebug = $batchQa.debug
+        batchQaScore = $batchQa.score
+        batchQaCommitsAfter = $batchQa.commitsAfter
     }
 
     Pop-Location
@@ -271,12 +363,12 @@ $lines = @(
     "",
     "Jimbei Harbor Master note: this report does not merge anything. It only tells the captain which ships are allowed near the dock.",
     "",
-    "| Ship | Status | Branch | HEAD | Commits | Build | Tasks | Checkpoint | Simon | Robin | Joey | Visual |",
-    "| --- | --- | --- | --- | ---: | --- | ---: | --- | --- | --- | --- | --- |"
+    "| Ship | Status | Branch | HEAD | Commits | Build | Tasks | Checkpoint | Simon | Robin | Joey | Visual | Batch QA |",
+    "| --- | --- | --- | --- | ---: | --- | ---: | --- | --- | --- | --- | --- | --- |"
 )
 
 foreach ($result in $results) {
-    $lines += "| $($result.ship) | $($result.status) | $($result.branch) | $($result.head) | $($result.commitsAhead) | $($result.build) | $($result.tasks) | $($result.checkpoint) | $($result.simon) | $($result.robin) | $($result.joey) | $($result.visual) |"
+    $lines += "| $($result.ship) | $($result.status) | $($result.branch) | $($result.head) | $($result.commitsAhead) | $($result.build) | $($result.tasks) | $($result.checkpoint) | $($result.simon) | $($result.robin) | $($result.joey) | $($result.visual) | $($result.batchQaStatus) / $($result.batchQaDebug) |"
 }
 
 foreach ($result in $results) {
@@ -288,6 +380,9 @@ foreach ($result in $results) {
     $lines += "- Branch: $($result.branch)"
     $lines += "- HEAD: $($result.head)"
     $lines += "- Build: $($result.build)"
+    $lines += "- Batch QA: $($result.batchQaStatus) / debug $($result.batchQaDebug)"
+    $lines += "- Batch QA freshness: $($result.batchQaCommitsAfter) commit(s) after latest scorecard update"
+    $lines += "- Batch QA Simon score: $($result.batchQaScore)"
     if (![string]::IsNullOrWhiteSpace([string]$result.buildLog)) {
         $lines += "- Build log: $($result.buildLog)"
     }
@@ -326,7 +421,7 @@ Write-Host "Jimbei Harbor Master - $overall" -ForegroundColor $(if ($overall -eq
 Write-Host "Report: $OutFile"
 foreach ($result in $results) {
     $color = if ($result.status -eq "DO NOT MERGE") { "Red" } elseif ($result.status -eq "SAFE TO INSPECT") { "Yellow" } else { "Green" }
-    Write-Host ("{0}: {1} | branch {2} | build {3} | checkpoint {4} | Simon {5} | Robin {6} | Joey {7}" -f $result.ship, $result.status, $result.branch, $result.build, $result.checkpoint, $result.simon, $result.robin, $result.joey) -ForegroundColor $color
+    Write-Host ("{0}: {1} | branch {2} | build {3} | checkpoint {4} | Simon {5} | Robin {6} | Joey {7} | batch QA {8}/{9}" -f $result.ship, $result.status, $result.branch, $result.build, $result.checkpoint, $result.simon, $result.robin, $result.joey, $result.batchQaStatus, $result.batchQaDebug) -ForegroundColor $color
 }
 
 if ($overall -eq "DO NOT MERGE") {

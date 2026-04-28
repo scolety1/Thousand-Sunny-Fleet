@@ -6,6 +6,8 @@ param(
 
     [string[]]$ExcludeProject = @(),
 
+    [string[]]$ExpectedProject = @(),
+
     [int]$BatchSize = 3,
 
     [int]$MaxBatches = 10,
@@ -35,6 +37,19 @@ function Stop-WithMessage {
     exit 1
 }
 
+function ConvertTo-ProjectList {
+    param([string[]]$Values)
+
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
+}
+
 function Get-Projects {
     if (!(Test-Path $ConfigPath)) {
         Stop-WithMessage "Config not found: $ConfigPath"
@@ -49,7 +64,7 @@ function Get-Projects {
         }
     }
     if ($ExcludeProject.Count -gt 0) {
-        $exclude = @($ExcludeProject | ForEach-Object { [string]$_ })
+        $exclude = @(ConvertTo-ProjectList -Values $ExcludeProject)
         $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
     }
 
@@ -98,7 +113,27 @@ if (!$SkipDoctor) {
 }
 
 $shipsToLaunch = @(Get-Projects)
-$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "school" -ConfigPath $ConfigPath -ProjectFilter $Project
+$expectedProjects = @(ConvertTo-ProjectList -Values $ExpectedProject)
+if ($expectedProjects.Count -gt 0) {
+    $actualProjects = @($shipsToLaunch | ForEach-Object { [string]$_.name } | Sort-Object -Unique)
+    $missing = @($expectedProjects | Where-Object { $actualProjects -notcontains $_ })
+    $unexpected = @($actualProjects | Where-Object { $expectedProjects -notcontains $_ })
+    if ($missing.Count -gt 0 -or $unexpected.Count -gt 0) {
+        Write-Host "Selected launch validation failed." -ForegroundColor Red
+        Write-Host "Expected: $($expectedProjects -join ', ')" -ForegroundColor Yellow
+        Write-Host "Actual: $($actualProjects -join ', ')" -ForegroundColor Yellow
+        if ($missing.Count -gt 0) { Write-Host "Missing: $($missing -join ', ')" -ForegroundColor Yellow }
+        if ($unexpected.Count -gt 0) { Write-Host "Unexpected: $($unexpected -join ', ')" -ForegroundColor Yellow }
+        exit 1
+    }
+}
+$manifestProjectFilter = $Project
+if ($expectedProjects.Count -gt 0) {
+    $manifestProjectFilter = $expectedProjects -join ", "
+}
+$manifestMode = if ($DryRun) { "school-proof" } else { "school" }
+$latestManifestFile = if ($DryRun) { "latest-proof-launch.md" } else { "latest-launch.md" }
+$manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode $manifestMode -ConfigPath $ConfigPath -ProjectFilter $manifestProjectFilter -LatestFileName $latestManifestFile
 foreach ($ship in $shipsToLaunch) {
     $shipBatchSize = Get-ShipInt -Ship $ship -Name "schoolBatchSize" -Default $BatchSize
     $shipMaxBatches = Get-ShipInt -Ship $ship -Name "schoolMaxBatches" -Default $MaxBatches

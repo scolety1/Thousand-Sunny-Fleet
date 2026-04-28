@@ -1,0 +1,25 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "label": "Home",
+      "requiredText": []
+    }
+  ],
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "deviceScaleFactor": 1,
+      "mobile": false
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 2,
+      "mobile": true
+    }
+  ]
+}

@@ -197,13 +197,17 @@ async function runViewport(name, viewport) {
   await client.send("Page.close").catch(() => {});
   client.close();
 
+  const filteredConsoleIssues = consoleIssues.filter((issue) =>
+    !/Failed to load resource: the server responded with a status of 404/i.test(issue)
+  );
+
   return {
     viewport: name,
     initialScreenshotPath,
     screenshotPath,
     missingText,
     missingAnchors,
-    consoleIssues,
+    consoleIssues: filteredConsoleIssues,
     layout,
     clipping,
     bodyTextLength: bodyText.length,
@@ -235,9 +239,6 @@ for (const result of results) {
     }
   }
   for (const issue of result.consoleIssues) {
-    if (/Failed to load resource: the server responded with a status of 404/i.test(issue)) {
-      continue;
-    }
     failures.push(`${result.viewport}: console/log issue: ${issue}`);
   }
 }

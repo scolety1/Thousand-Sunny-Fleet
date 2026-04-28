@@ -83,7 +83,7 @@ cd C:\Dev\codex-fleet
 
 `fleet-autopilot-policy.ps1` is the Phase 9 limited business autopilot gate. It validates `AUTOPILOT_POLICY.md` and `AUTOPILOT_APPROVAL.md`, requires explicit rules for spending limits, customer-data handling, and escalation, writes an audit log under `.codex-local/audit/`, and never spends money, deploys, emails customers, changes auth/payments, edits legal text, or touches customer data.
 
-`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows.
+`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows. Proof runs include visual inspection, Simon, Robin, Joey, checkpoint review, and the checkpoint debugger by default; pass `-RobinEvery 0` only when intentionally skipping copy review for a non-copy technical probe.
 
 Trial overnight launches start ships back-to-back by default. Pass `-LaunchDelaySeconds 90` only when you explicitly want spaced departures.
 
@@ -117,17 +117,49 @@ The longer path is tracked in `docs/TWELVE_HOUR_MAGIC_ROADMAP.md`: product direc
 
 `visual-gallery.ps1` writes `out/visual-gallery.html`, a local screenshot gallery for the latest visual smoke and visual inspection runs across the fleet.
 
+`fleet-visual-check.ps1` is the direct visual QA lane. It reads `projects.json`, launches selected ships, runs `visual-inspect.ps1` against their configured routes, writes screenshots and visual reports into `.codex-logs`, and summarizes the fleet in `out/fleet-visual-check.md`. Use it when you want screenshots without starting a full checkpoint mission:
+
+```powershell
+.\fleet-visual-check.ps1 -Project EasyLife,RestaurantDemo -RefreshGallery
+```
+
+By default this direct check does not dirty ship working trees with `docs/codex/VISUAL_BUGS.md`; add `-WriteShipReports` when you intentionally want the ship-local report updated. Add `-VerboseRunner` if you want the full raw browser JSON in the terminal.
+
+Medium/low visual findings are reported as `WARN` with grouped top findings in `out/fleet-visual-check.md`; only high findings or infrastructure failures block the command unless you explicitly tolerate high findings with `-NoFailOnFindings`.
+
 `tests\run-fleet-tests.ps1` runs deterministic fleet tests without touching real ships. It generates disposable fixture repos under `.codex-local/fixtures/`, validates parsing/config/guardrail helpers, and removes fixtures when it finishes unless `-KeepFixtures` is passed.
 
 `debug-checkpoint.ps1` inspects a checkpoint branch for weirdness: dirty tree, forbidden files, suspicious added lines, non-GREEN checkpoint review, task/report issues, and oversized changes. During checkpoint loops, the current batch diff is the hard file-count gate; the whole branch diff is still reported as a warning when it grows large.
+
+`merge-readiness.ps1` also reads the latest Batch QA entry in `MAGIC_SCORECARD.md`. Missing Batch QA memory becomes an inspection warning, Batch QA memory with newer commits after it is marked stale, and RED batch QA verdicts or failed debug results block merge readiness.
 
 `visual-smoke.ps1` launches the site, opens Chrome/Edge headless, checks key text/anchors on desktop and mobile, records console issues, and saves screenshots under `.codex-logs/visual-*`.
 
 `visual-inspect.ps1` launches the site, opens desktop and mobile viewports, screenshots the page, and writes `docs/codex/VISUAL_BUGS.md` with suspicious layout issues such as horizontal overflow, clipped text, covered headings, console errors, and small tap targets.
 
+Ships can optionally provide `docs/codex/visual-routes.json` or `.codex/visual-routes.json` to override the simple `visualPaths` list with named routes, route-specific required text, wait time, and custom viewports. Use `templates/visual-routes.json` as the starter.
+
+Projects whose build/static-check root differs from their preview root can set `visualServeDirectory` in `projects.json`. This keeps normal builds pointed at `buildDirectory` while screenshots serve the correct HTML/app folder.
+
+`set-ship-pages.ps1` makes real page work reusable across ships. It updates the selected ship's `visualPaths`, can install a starter `docs/codex/SITE_MAP.md`, and writes `docs/codex/visual-routes.json` so the next visual QA run inspects every declared page:
+
+```powershell
+.\set-ship-pages.ps1 -Project RestaurantDemo -Path /,/wine-list,/operations,/events,/contact -InstallSiteMap
+```
+
+The checkpoint loop and Nami planner read `SITE_MAP.md` and `visual-routes.json`. If a task asks for page splits, route repair, navigation cleanup, or real pages, Codex is allowed to make frontend-only route changes inside the task scope and should update those route docs. Package/dependency edits still require explicit approval.
+
 `simon-design-review.ps1` runs Simon, a sharp mission-driven design reviewer, and writes `docs/codex/SIMON_DESIGN_REVIEW.md` with a taste check, mission-fit review, visual problems, and the next five design tasks.
 
-`robin-copy-review.ps1` runs Robin, the fleet voice editor, and writes `docs/codex/ROBIN_COPY_REVIEW.md` with mission-fit copy notes, delicate wording risks, rewrite opportunities, voice rules, and the next five copy tasks.
+`robin-copy-review.ps1` runs Robin, the fleet voice editor, and writes `docs/codex/ROBIN_COPY_REVIEW.md` with mission-fit copy notes, delicate wording risks, rewrite opportunities, voice rules, and the next five copy tasks. Before asking Robin, the wrapper now adds deterministic public-copy smoke hits for likely scaffolding terms such as `demo`, `sample`, `proof`, `artifact`, `workflow`, `automation`, and vague phrases like `service notes`, while telling Robin to ignore harmless component names and internal identifiers.
+
+`fleet-copy-smoke.ps1` is the no-model version of that early warning check. It scans public source/content files for vague customer-facing wording such as `ready for service`, `manager-ready`, `workflow`, `polish`, `handoff`, and `start with`, plus likely double-header route structures, then writes `docs/codex/COPY_SMOKE.md`:
+
+```powershell
+.\fleet-copy-smoke.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
+```
+
+Use `-FailOnHigh` when you want high-risk copy smoke findings to return a nonzero exit code. This is intended as a cheap preflight before spending Robin/Simon review calls.
 
 `joey-security-review.ps1` runs Joey Tough Knuckles, a deterministic security guardrail reviewer, and writes `docs/codex/JOEY_SECURITY_REVIEW.md` with blocked file checks, sensitive added-line checks, and a security merge recommendation.
 
@@ -172,7 +204,7 @@ Nami's task planner reads the mission, run policy, checkpoint review, Simon desi
 
 When present, Nami also reads `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`. Those files turn overnight planning from isolated polish tasks into coherent work-pack progress: one product direction, one active pack, and a memory of weak or blocked slices to avoid. If `WORK_PACK_STATUS.md` names an active pack, planner output must mention that active pack before the tasks can be imported.
 
-Phase 3 Devil Fruit quality memory adds before/after visual evidence to `MAGIC_SCORECARD.md`, asks Simon for a required `Magic Improvement Score`, and writes `QUALITY_QUARANTINE.md` when Simon says the active pack is flat, regressed, or scoring too weakly to continue unattended. Nami reads that quarantine as a repair order before planning fresh work.
+Phase 3 Devil Fruit quality memory adds before/after visual evidence to `MAGIC_SCORECARD.md`, asks Simon for a required `Magic Improvement Score`, and writes `QUALITY_QUARANTINE.md` when Simon says the active pack is flat, regressed, or scoring too weakly to continue unattended. After the final visual, Simon, Robin, Joey, checkpoint, and debug gates pass, the loop also appends a fresh batch QA scorecard entry with latest visual evidence, review verdicts, Simon score, impact mode, and debug result. Nami reads that scorecard/quarantine memory before planning fresh work.
 
 Phase 3 task contracts can be added to task lines when a task needs tighter implementation controls:
 
@@ -181,7 +213,9 @@ Phase 3 task contracts can be added to task lines when a task needs tighter impl
 - [ ] Build Pack 1 - Product Spine settings workflow slice. [class:feature risk:high mode:feature-pack scope:app-vNext/src/,docs/codex/ accept:npm.cmd run build,npm.cmd test]
 ```
 
-Supported classes are `feature`, `bugfix`, `refactor`, `test`, `docs`, `design`, `copy`, `backend`, `migration`, `integration`, and `performance`. Supported risks are `low`, `medium`, `high`, and `gated`; `high` and `gated` tasks require an approved Phase 1 architecture plan. Supported modes are `single` and `feature-pack`; `feature-pack` requires approved software feature docs, explicit scope, acceptance commands, and runtime scenarios. `scope:` limits changed files to path prefixes, and `accept:` runs task-specific checks in addition to the normal external build.
+Supported classes are `feature`, `bugfix`, `refactor`, `test`, `docs`, `design`, `copy`, `backend`, `migration`, `integration`, and `performance`. Supported risks are `low`, `medium`, `high`, and `gated`; `high` and `gated` tasks require an approved Phase 1 architecture plan. Supported modes are `single` and `feature-pack`; `feature-pack` requires approved software feature docs, explicit scope, acceptance commands, and runtime scenarios. Supported impacts are `standard`, `visible`, and `showpiece`; visible/showpiece tasks must change actual product source, route, component, content, or style files enough for a user-noticeable result. `scope:` limits changed files to path prefixes, and `accept:` runs task-specific checks in addition to the normal external build.
+
+The visible-impact guard is for high-expectation design passes. If Nami or the task marks `impact:visible` or `impact:showpiece`, the checkpoint loop asks Codex to state the visible user impact, rejects report-only/doc-only work, and quarantines showpiece tasks that look like tiny CSS polish instead of real product progress. This is meant to catch "the build passed but I can barely see what changed" before the task is marked done.
 
 Backend and migration task classes are additionally gated. `class:backend` requires approved architecture. `class:migration` requires approved architecture plus the Phase 4 migration proposal and approval gate.
 

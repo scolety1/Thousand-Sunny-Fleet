@@ -99,6 +99,7 @@ What feels premium, modern, current, or on-trend? What feels generic, amateur, c
 
 ## Visual Problems To Fix
 Bullets. Each bullet should describe a concrete visible issue, not vague taste.
+Always inspect for repeated page identity: double headers, duplicated title/intro bands, route chrome that repeats the same label as the demo, stacked nav bars, or wrapper panels that make the real product page feel buried. If present on a customer-facing route, call it out as a concrete visual problem.
 
 ## Strongest Opportunities
 Bullets. Suggest high-leverage design improvements that would make the project feel more impressive.
@@ -130,6 +131,8 @@ Rules:
 - Make the Stop Or Continue line short and machine-readable, but put the real design direction in Priority Fix and Designer Handoff.
 - If screenshots are missing, say that confidence is lower.
 - If visual bugs are reported, use them as evidence, but also judge the design quality.
+- Treat "double header", repeated section intro, or visually loud route controls as mission-breaking clutter on restaurant, portfolio, product, or demo sites. The user should see the actual product/example first, not a wrapper explaining the page twice.
+- For demo/business sites, route navigation should be useful but quiet. If nav pills, action bars, or explanatory wrappers compete with the main demo, mark the review YELLOW and make the Priority Fix reduce chrome before adding new sections.
 - Use MAGIC_MISSION.md, WORK_PACKS.md, WORK_PACK_STATUS.md, and MAGIC_SCORECARD.md to judge whether the current branch is advancing the active work pack or merely changing things.
 - A score of 1 means actively worse, 2 means weak or mostly cosmetic, 3 means small improvement, 4 means clearly better, and 5 means morning-review impressive.
 

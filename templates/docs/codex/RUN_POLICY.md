@@ -23,3 +23,11 @@ After a run, generate a planner request, then either:
 - run the Codex CLI planner.
 
 Always validate proposed tasks before importing them into `TASK_QUEUE.md`.
+
+## Pages And Routes
+
+Ships may define intended user-facing pages in `docs/codex/SITE_MAP.md` and visual QA routes in `docs/codex/visual-routes.json`.
+
+Codex may add or change frontend-only pages/routes when the selected task asks for real pages, page splits, or route work, as long as it follows the repo's existing routing pattern and does not add package dependencies without explicit approval.
+
+When adding a user-facing route, update the site map and visual route config so the fleet can screenshot and review that page on future runs.

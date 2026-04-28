@@ -429,9 +429,11 @@ function Resolve-TaskContract {
     $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "design", "copy", "backend", "migration", "integration", "performance")
     $allowedRisks = @("low", "medium", "high", "gated")
     $allowedModes = @("single", "feature-pack")
+    $allowedImpacts = @("standard", "visible", "showpiece")
     $taskClass = "feature"
     $risk = "low"
     $mode = "single"
+    $impact = "standard"
     $scope = @()
     $acceptance = @()
     $summary = $Task
@@ -457,12 +459,18 @@ function Resolve-TaskContract {
             if ($allowedModes -contains $candidate) { $mode = $candidate }
         }
 
+        $impactMatch = [regex]::Match($metadata, "(?:^|\s)impact:([^\s]+)")
+        if ($impactMatch.Success) {
+            $candidate = $impactMatch.Groups[1].Value.Trim().ToLowerInvariant()
+            if ($allowedImpacts -contains $candidate) { $impact = $candidate }
+        }
+
         $scopeMatch = [regex]::Match($metadata, "(?:^|\s)scope:([^\s]+)")
         if ($scopeMatch.Success) {
             $scope = @($scopeMatch.Groups[1].Value.Split(",") | ForEach-Object { $_.Trim().Replace("\", "/").Trim("/") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
         }
 
-        $acceptMatch = [regex]::Match($metadata, "(?:^|\s)accept:(.+?)(?=\s+(class|risk|scope):|$)")
+        $acceptMatch = [regex]::Match($metadata, "(?:^|\s)accept:(.+?)(?=\s+(class|risk|mode|impact|scope):|$)")
         if ($acceptMatch.Success) {
             $acceptance = @($acceptMatch.Groups[1].Value.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
         }
@@ -470,15 +478,102 @@ function Resolve-TaskContract {
 
     $summary = ($summary -replace "\s*\[[^\]]+\]\s*", " ").Trim()
     if ([string]::IsNullOrWhiteSpace($summary)) { $summary = $Task }
+    if ($impact -eq "standard") {
+        $visibleIntentPattern = "(?i)\b(design|redesign|visual|layout|hero|mobile|desktop|page|route|navigation|restaurant|demo|simon|pretty|elegant|beautiful|polish|finish|final|showpiece|major|premium|ready)\b"
+        $showpieceIntentPattern = "(?i)\b(redesign|showpiece|major|final|finish|demo-ready|ready for demo|asap|magic|magnificent|premium)\b"
+        if ($taskClass -eq "design" -or ($taskClass -eq "copy" -and $summary -match $visibleIntentPattern) -or $summary -match $visibleIntentPattern) {
+            $impact = "visible"
+        }
+        if ($summary -match $showpieceIntentPattern) {
+            $impact = "showpiece"
+        }
+    }
 
     return [pscustomobject]@{
         summary = $summary
         class = $taskClass
         risk = $risk
         mode = $mode
+        impact = $impact
         scope = $scope
         acceptance = $acceptance
     }
+}
+
+function Get-TaskMaterialitySignalForLoop {
+    param(
+        [object]$Contract,
+        [string[]]$FilesChanged,
+        [string]$TaskBase = ""
+    )
+
+    $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR)\.md$"
+    $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
+    $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
+    $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
+
+    $nonReport = @($files | Where-Object { $_ -notmatch $reportPattern })
+    $nonDoc = @($nonReport | Where-Object { $_ -notmatch $docPattern })
+    $surface = @($nonReport | Where-Object { $_ -match $surfacePattern })
+    $structural = @($nonReport | Where-Object { $_ -match $structuralPattern })
+    $cssOnly = ($nonDoc.Count -gt 0 -and @($nonDoc | Where-Object { $_ -notmatch "(?i)\.(css|scss|sass)$" }).Count -eq 0)
+    $lineDelta = 0
+
+    if (![string]::IsNullOrWhiteSpace($TaskBase) -and $nonReport.Count -gt 0) {
+        foreach ($line in @(git diff --numstat $TaskBase -- $nonReport 2>$null)) {
+            if ($line -match "^(\d+|-)\s+(\d+|-)\s+") {
+                $added = if ($Matches[1] -eq "-") { 0 } else { [int]$Matches[1] }
+                $removed = if ($Matches[2] -eq "-") { 0 } else { [int]$Matches[2] }
+                $lineDelta += ($added + $removed)
+            }
+        }
+        foreach ($file in @($nonReport | Where-Object { Test-Path $_ -PathType Leaf })) {
+            if (@(git ls-files --others --exclude-standard -- $file 2>$null).Count -gt 0) {
+                $lineDelta += @((Get-Content $file -ErrorAction SilentlyContinue)).Count
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        impact = if ($null -ne $Contract) { [string]$Contract.impact } else { "standard" }
+        nonReportCount = $nonReport.Count
+        nonDocCount = $nonDoc.Count
+        surfaceCount = $surface.Count
+        structuralCount = $structural.Count
+        cssOnly = $cssOnly
+        lineDelta = $lineDelta
+    }
+}
+
+function Get-TaskMaterialityFailureForLoop {
+    param(
+        [object]$Contract,
+        [string[]]$FilesChanged,
+        [string]$TaskBase = ""
+    )
+
+    if ($null -eq $Contract -or [string]$Contract.impact -eq "standard") {
+        return ""
+    }
+
+    $signal = Get-TaskMaterialitySignalForLoop -Contract $Contract -FilesChanged $FilesChanged -TaskBase $TaskBase
+    if ($signal.nonDocCount -eq 0) {
+        return "Visible-impact task changed only report/docs files; leave the task unchecked until it changes the actual product surface."
+    }
+    if ($signal.surfaceCount -eq 0) {
+        return "Visible-impact task did not change a recognized user-facing source, route, content, or style file."
+    }
+    if ([string]$Contract.impact -eq "showpiece") {
+        if ($signal.structuralCount -eq 0 -and $signal.lineDelta -lt 40) {
+            return "Showpiece task looks too small to trust: it has no structural/page/content change and less than 40 lines of source/style delta."
+        }
+        if ($signal.cssOnly -and $signal.lineDelta -lt 60) {
+            return "Showpiece task changed only a small amount of CSS; that often means subtle polish instead of meaningful visible progress."
+        }
+    }
+
+    return ""
 }
 
 function Get-ArchitecturePlanStatusForLoop {
@@ -678,7 +773,9 @@ function Test-TaskScope {
         "docs/codex/SOFTWARE_FEATURE_PLAN.md",
         "docs/codex/SOFTWARE_FEATURE_APPROVAL.md",
         "docs/codex/DEPENDENCY_PROPOSAL.md",
-        "docs/codex/DEPENDENCY_APPROVAL.md"
+        "docs/codex/DEPENDENCY_APPROVAL.md",
+        "docs/codex/SITE_MAP.md",
+        "docs/codex/visual-routes.json"
     )
     $violations = @()
     foreach ($file in @($FilesChanged)) {
@@ -877,7 +974,7 @@ function Mark-FirstUncheckedTaskQuarantined {
 }
 
 function Append-Report {
-    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null)
+    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null, [string]$TaskBase = "")
     if (!(Test-Path "docs/codex/NIGHTLY_REPORT.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
         "# Codex Nightly Report`n" | Set-Content "docs/codex/NIGHTLY_REPORT.md"
@@ -890,6 +987,7 @@ function Append-Report {
         $contractLines += "- Task class: $($Contract.class)"
         $contractLines += "- Task risk: $($Contract.risk)"
         $contractLines += "- Task mode: $($Contract.mode)"
+        $contractLines += "- Task impact: $($Contract.impact)"
         $contractLines += "- Allowed scope: $(if ($Contract.scope.Count -gt 0) { $Contract.scope -join ', ' } else { 'profile/default' })"
         $contractLines += "- Acceptance checks: $(if ($Contract.acceptance.Count -gt 0) { $Contract.acceptance -join ', ' } else { 'external build only' })"
     }
@@ -905,11 +1003,11 @@ $files
 - Risks or follow-up needed: $Risk
 "@
 
-    Append-MagicScorecard -Task $Task -FilesChanged $FilesChanged -BuildResult $BuildResult -Risk $Risk -Contract $Contract
+    Append-MagicScorecard -Task $Task -FilesChanged $FilesChanged -BuildResult $BuildResult -Risk $Risk -Contract $Contract -TaskBase $TaskBase
 }
 
 function Append-MagicScorecard {
-    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null)
+    param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null, [string]$TaskBase = "")
 
     if (!(Test-Path "docs/codex/MAGIC_SCORECARD.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
@@ -926,6 +1024,8 @@ function Append-MagicScorecard {
     $changedCount = if ($null -eq $FilesChanged) { 0 } else { @($FilesChanged).Count }
     $taskClass = if ($null -ne $Contract) { [string]$Contract.class } else { "unknown" }
     $taskRisk = if ($null -ne $Contract) { [string]$Contract.risk } else { "unknown" }
+    $materiality = Get-TaskMaterialitySignalForLoop -Contract $Contract -FilesChanged $FilesChanged -TaskBase $TaskBase
+    $materialityLine = "impact=$($materiality.impact), surface-files=$($materiality.surfaceCount), structural-files=$($materiality.structuralCount), source-lines=$($materiality.lineDelta), css-only=$($materiality.cssOnly)"
     $activePack = Get-ActiveWorkPackForLoop
     $beforeEvidence = if ($null -ne $script:CurrentTaskBeforeVisualEvidence -and $script:CurrentTaskBeforeVisualEvidence.Count -gt 0) { ($script:CurrentTaskBeforeVisualEvidence | ForEach-Object { "- $_" }) -join "`n" } else { "- None recorded before task." }
     $afterEvidenceItems = @(Get-LatestVisualEvidenceForLoop)
@@ -942,6 +1042,7 @@ function Append-MagicScorecard {
 - Task class: $taskClass
 - Task risk: $taskRisk
 - Changed files: $changedCount
+- Materiality signal: $materialityLine
 - Simon improvement score: $simonScore
 - Before visual evidence:
 $beforeEvidence
@@ -949,6 +1050,99 @@ $beforeEvidence
 $afterEvidence
 - Follow-up: $Risk
 "@
+}
+
+function Get-ReviewVerdictForLoop {
+    param([string]$Path)
+
+    if (!(Test-Path $Path)) { return "missing" }
+
+    $text = Get-Content $Path -Raw
+    $verdictMatch = [regex]::Match($text, "(?im)^##\s+Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)\b[\s\.\!\:;-]*$")
+    if ($verdictMatch.Success) {
+        return $verdictMatch.Groups[1].Value.ToUpperInvariant()
+    }
+
+    return "unknown"
+}
+
+function Get-DebugResultForLoop {
+    param([string]$LogName)
+
+    if ([string]::IsNullOrWhiteSpace($LogName)) { return "not-run" }
+
+    $logPath = Join-Path $script:RunLogRoot $LogName
+    if (!(Test-Path $logPath)) { return "missing-log" }
+
+    $text = Get-Content $logPath -Raw
+    $debugMatch = [regex]::Match($text, "(?im)^Checkpoint debugger:\s*(PASS|WARN|FAIL)\s*$")
+    if ($debugMatch.Success) {
+        return $debugMatch.Groups[1].Value.ToUpperInvariant()
+    }
+
+    return "unknown"
+}
+
+function Append-BatchQualityScorecard {
+    param(
+        [int]$Batch,
+        [string]$ImpactMode,
+        [int]$DebugExit,
+        [string]$DebugLogName
+    )
+
+    if (!(Test-Path "docs/codex/MAGIC_SCORECARD.md")) {
+        New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+        "# Magic Scorecard`n`nThis file is appended by Codex Fleet after checkpoint-loop tasks.`n" | Set-Content "docs/codex/MAGIC_SCORECARD.md"
+    }
+
+    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $activePack = Get-ActiveWorkPackForLoop
+    $freshEvidenceItems = @(Get-LatestVisualEvidenceForLoop)
+    $freshEvidence = if ($freshEvidenceItems.Count -gt 0) { ($freshEvidenceItems | ForEach-Object { "- $_" }) -join "`n" } else { "- None recorded after batch QA." }
+    $checkpointVerdict = Get-ReviewVerdictForLoop -Path "docs/codex/CHECKPOINT_REVIEW.md"
+    $simonVerdict = Get-ReviewVerdictForLoop -Path "docs/codex/SIMON_DESIGN_REVIEW.md"
+    $robinVerdict = Get-ReviewVerdictForLoop -Path "docs/codex/ROBIN_COPY_REVIEW.md"
+    $joeyVerdict = Get-ReviewVerdictForLoop -Path "docs/codex/JOEY_SECURITY_REVIEW.md"
+    $simonScore = Get-SimonImprovementScoreForLoop
+    $debugResult = Get-DebugResultForLoop -LogName $DebugLogName
+    $debugStatus = if ([string]::IsNullOrWhiteSpace($DebugLogName)) { "not-run" } elseif ($DebugExit -eq 0) { "passed" } else { "failed" }
+
+    Add-Content "docs/codex/MAGIC_SCORECARD.md" @"
+
+## Batch $Batch QA - $date
+
+- Active work pack: $activePack
+- Batch impact mode: $ImpactMode
+- Fresh QA evidence:
+$freshEvidence
+- Checkpoint verdict: $checkpointVerdict
+- Simon verdict: $simonVerdict
+- Robin verdict: $robinVerdict
+- Joey verdict: $joeyVerdict
+- Simon improvement score: $simonScore
+- Debug checkpoint result: $debugResult ($debugStatus)
+"@
+}
+
+function Save-BatchQualityScorecardForLoop {
+    param(
+        [int]$Batch,
+        [string]$ImpactMode,
+        [int]$DebugExit = -1,
+        [string]$DebugLogName = "",
+        [string]$CommitMessage = ""
+    )
+
+    Append-BatchQualityScorecard -Batch $Batch -ImpactMode $ImpactMode -DebugExit $DebugExit -DebugLogName $DebugLogName
+    Stage-Files -Paths @("docs/codex/MAGIC_SCORECARD.md")
+    $pendingBatchQualityCommit = @(git diff --cached --name-only)
+    if ($pendingBatchQualityCommit.Count -gt 0) {
+        $message = if (![string]::IsNullOrWhiteSpace($CommitMessage)) { $CommitMessage } else { "Codex batch QA scorecard $Batch" }
+        if (-not (Invoke-FleetCommit -Message $message)) { return $false }
+    }
+
+    return $true
 }
 
 function Get-ActiveWorkPackForLoop {
@@ -1871,6 +2065,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host "Could not determine batch base commit before starting checkpoint batch." -ForegroundColor Red
         exit 1
     }
+    $batchImpactMode = "standard"
 
     $task = Get-FirstUncheckedTask
     if ([string]::IsNullOrWhiteSpace($task)) {
@@ -1914,7 +2109,12 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host "----- TASK $i of $BatchSize -----" -ForegroundColor Cyan
         Write-Host "Selected task: $task" -ForegroundColor Cyan
         $taskContract = Resolve-TaskContract -Task $task
-        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        if ($taskContract.impact -eq "showpiece") {
+            $batchImpactMode = "showpiece"
+        } elseif ($taskContract.impact -eq "visible" -and $batchImpactMode -eq "standard") {
+            $batchImpactMode = "visible"
+        }
+        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), impact=$($taskContract.impact), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
         if ($taskContract.risk -in @("high", "gated") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
             $blockReason = "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present."
             if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
@@ -1957,8 +2157,13 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         }
         $script:CurrentTaskBeforeVisualEvidence = @(Get-LatestVisualEvidenceForLoop)
 
+        $siteMapNote = if (Test-Path "docs/codex/SITE_MAP.md") { Get-Content "docs/codex/SITE_MAP.md" -Raw } else { "No SITE_MAP.md present." }
+        $visualRouteNote = if (Test-Path "docs/codex/visual-routes.json") { Get-Content "docs/codex/visual-routes.json" -Raw } else { "No visual-routes.json present." }
+        $simonNote = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No SIMON_DESIGN_REVIEW.md present." }
+        $robinNote = if (Test-Path "docs/codex/ROBIN_COPY_REVIEW.md") { Get-Content "docs/codex/ROBIN_COPY_REVIEW.md" -Raw } else { "No ROBIN_COPY_REVIEW.md present." }
+
         $prompt = @"
-Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, and docs/codex/TASK_QUEUE.md.
+Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, docs/codex/TASK_QUEUE.md, docs/codex/SITE_MAP.md if present, docs/codex/visual-routes.json if present, docs/codex/SIMON_DESIGN_REVIEW.md if present, and docs/codex/ROBIN_COPY_REVIEW.md if present.
 
 Implement only this selected task:
 $task
@@ -1967,9 +2172,22 @@ Task contract:
 - Class: $($taskContract.class)
 - Risk: $($taskContract.risk)
 - Mode: $($taskContract.mode)
+- Impact: $($taskContract.impact)
 - Summary: $($taskContract.summary)
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 - Acceptance checks: $(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ", " } else { "External build only." })
+
+Route/page context:
+$siteMapNote
+
+Visual routes:
+$visualRouteNote
+
+Simon design context:
+$simonNote
+
+Robin copy context:
+$robinNote
 
 Rules:
 1. Make a small reviewable change.
@@ -1978,6 +2196,12 @@ Rules:
 4. Do not edit NIGHTLY_REPORT.md.
 5. Do not merge, push to main, or deploy.
 6. Obey the project guardrails and forbidden scope.
+7. If the selected task asks for real pages, page splits, navigation repair, or route cleanup, frontend-only route changes are allowed within scope. Prefer existing routing patterns and do not add route dependencies unless package/dependency edits are explicitly approved.
+8. When adding or changing user-facing routes, update docs/codex/SITE_MAP.md and docs/codex/visual-routes.json when they are in task scope.
+9. If Impact is visible or showpiece, make a user-noticeable product change to the named screen/workflow. Tiny spacing-only, report-only, or invisible refactors do not satisfy the task. If the scope cannot support a visible improvement, leave it for a smaller follow-up task instead of pretending it is complete.
+10. For visible website/app work, remove repeated page identity and visual wrappers that create double headers, stacked intro bands, or route chrome that competes with the real page.
+11. For customer-facing copy, make each sentence answer who it is for, what the reader should do, and what they get. Avoid vague standalone phrases like artifact, workflow, polish, ready for service, manager-ready, staff-ready, bring the note, and start with X unless the concrete buyer/action/outcome is obvious.
+12. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
@@ -2049,6 +2273,7 @@ Task contract:
 - Class: $($taskContract.class)
 - Risk: $($taskContract.risk)
 - Mode: $($taskContract.mode)
+- Impact: $($taskContract.impact)
 - Summary: $($taskContract.summary)
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 
@@ -2129,8 +2354,14 @@ REVIEW_FINDING: P2: short description
             Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Blocked" -Risk "Package/dependency files changed without approved dependency lane and enabled capabilities." -Contract $taskContract
             exit 1
         }
+        $materialityFailure = Get-TaskMaterialityFailureForLoop -Contract $taskContract -FilesChanged $filesChanged -TaskBase $taskBase
+        if (![string]::IsNullOrWhiteSpace($materialityFailure)) {
+            if (Invoke-TaskQuarantine -Task $task -Reason $materialityFailure -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Blocked" -Risk $materialityFailure -Contract $taskContract
+            exit 1
+        }
         Mark-FirstUncheckedTaskComplete
-        Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract
+        Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract -TaskBase $taskBase
         Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md"))
         if (-not (Invoke-FleetCommit -Message "Codex checkpoint batch $batch task $i")) { exit 1 }
     }
@@ -2138,9 +2369,12 @@ REVIEW_FINDING: P2: short description
     $stopAfterCheckpoint = $false
     $stopAfterCheckpointExitCode = 0
     $stopAfterCheckpointReason = ""
+    $batchQualityRecorded = $false
 
     if ($VisualEvery -gt 0 -and ($batch % $VisualEvery -eq 0)) {
-        $serveDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
+        $serveDir = Get-ConfigScalar -Name "visualServeDirectory" -Default (Get-ConfigScalar -Name "buildDirectory" -Default ".")
+        $visualSmokePaths = Get-ConfigArray -Name "visualPaths"
+        $visualSmokePath = if ($visualSmokePaths.Count -gt 0) { [string]$visualSmokePaths[0] } else { "/" }
         $visualSmokeArgs = @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
@@ -2148,6 +2382,7 @@ REVIEW_FINDING: P2: short description
             "-Repo", $repoPath,
             "-Project", $script:projectConfig.name,
             "-ServeDirectory", $serveDir,
+            "-Path", $visualSmokePath,
             "-Port", (Get-FreeTcpPort),
             "-ChromePort", (Get-FreeTcpPort)
         )
@@ -2159,7 +2394,7 @@ REVIEW_FINDING: P2: short description
     }
 
     if ($VisualInspectEvery -gt 0 -and ($batch % $VisualInspectEvery -eq 0)) {
-        $serveDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
+        $serveDir = Get-ConfigScalar -Name "visualServeDirectory" -Default (Get-ConfigScalar -Name "buildDirectory" -Default ".")
         $visualPaths = Get-ConfigArray -Name "visualPaths"
         if ($visualPaths.Count -eq 0) {
             $visualPaths = @("/")
@@ -2311,6 +2546,10 @@ REVIEW_FINDING: P2: short description
     $checkpointText = Invoke-CheckpointReviewGate -Batch $batch
 
     if ($stopAfterCheckpoint) {
+        if (-not $batchQualityRecorded) {
+            if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit -1 -DebugLogName "" -CommitMessage "Codex batch QA scorecard $batch human stop")) { exit 1 }
+            $batchQualityRecorded = $true
+        }
         Write-Host "$stopAfterCheckpointReason Ending loop without merge." -ForegroundColor $(if ($stopAfterCheckpointExitCode -ne 0) { "Red" } else { "Yellow" })
         if ($stopAfterCheckpointExitCode -ne 0) {
             exit $stopAfterCheckpointExitCode
@@ -2319,6 +2558,10 @@ REVIEW_FINDING: P2: short description
     }
 
     if ($checkpointText -match "(?is)## Verdict\s+RED\b" -or $checkpointText -match "(?i)stop for human review") {
+        if (-not $batchQualityRecorded) {
+            if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit -1 -DebugLogName "" -CommitMessage "Codex batch QA scorecard $batch human stop")) { exit 1 }
+            $batchQualityRecorded = $true
+        }
         Write-Host "Checkpoint review requested a human stop. Ending loop without merge." -ForegroundColor Yellow
         break
     }
@@ -2343,15 +2586,27 @@ REVIEW_FINDING: P2: short description
         if ($ContinueOnYellowCheckpoint) {
             $debugArgs += "-AllowYellowCheckpoint"
         }
+        if ($batchImpactMode -ne "standard") {
+            $debugArgs += @("-ImpactMode", $batchImpactMode)
+        }
         $debugLogName = "debug-checkpoint-batch-$batch.log"
         $debugExit = Invoke-FleetPowerShell -Arguments $debugArgs -LogName $debugLogName -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
         if ($debugExit -ne 0) {
+            if (-not $batchQualityRecorded) {
+                if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit $debugExit -DebugLogName $debugLogName -CommitMessage "Codex batch QA scorecard $batch debug stop")) { exit 1 }
+                $batchQualityRecorded = $true
+            }
             if (Test-SoftCheckpointWidthFailure -LogName $debugLogName) {
                 Write-Host "Checkpoint batch was too wide for the configured review limit. Stopping cleanly so the next launch can continue with smaller batches." -ForegroundColor Yellow
                 break
             }
             Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
+            Release-FleetRunLock
             exit 1
+        }
+        if (-not $batchQualityRecorded) {
+            if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit $debugExit -DebugLogName $debugLogName)) { exit 1 }
+            $batchQualityRecorded = $true
         }
     }
 

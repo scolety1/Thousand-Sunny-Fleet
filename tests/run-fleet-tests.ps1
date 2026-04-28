@@ -280,6 +280,7 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'Resolve-TaskContract') -Message "Checkpoint loop parses Phase 3 task contracts"
     Assert-True -Condition ($loopText -match 'class:') -Message "Task contract parser recognizes class metadata"
     Assert-True -Condition ($loopText -match 'risk:') -Message "Task contract parser recognizes risk metadata"
+    Assert-True -Condition ($loopText -match 'impact:') -Message "Task contract parser recognizes impact metadata"
     Assert-True -Condition ($loopText -match 'scope:') -Message "Task contract parser recognizes scope metadata"
     Assert-True -Condition ($loopText -match 'accept:\(\.\+\?') -Message "Task contract parser recognizes acceptance commands"
     Assert-True -Condition ($loopText -match 'Test-TaskScope') -Message "Checkpoint loop enforces declared task scopes"
@@ -290,6 +291,7 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
     Assert-True -Condition ($plannerText -match 'Supported classes') -Message "Nami planner is taught task classes"
     Assert-True -Condition ($plannerText -match 'Supported risks') -Message "Nami planner is taught task risks"
+    Assert-True -Condition ($plannerText -match 'Supported impacts') -Message "Nami planner is taught task impacts"
     Assert-True -Condition ($readmeText -match 'Phase 3 task contracts') -Message "README documents Phase 3 task contracts"
 }
 
@@ -448,6 +450,34 @@ function Test-DoctorAndReadiness {
     )
     Assert-Equal -Actual $doctor.exitCode -Expected 0 -Message "Fleet doctor passes fixture ships"
 
+    $fixtureProjects = @(Get-Content $fixtureConfig -Raw | ConvertFrom-Json | ForEach-Object { $_ })
+    foreach ($fixtureProject in $fixtureProjects) {
+        Push-Location $fixtureProject.repo
+        try {
+            New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+            Set-Content -Path "docs/codex/MAGIC_SCORECARD.md" -Value @"
+# Magic Scorecard
+
+## Batch 1 QA - 2026-01-01 00:00:00
+
+- Active work pack: Fixture Pack
+- Batch impact mode: standard
+- Fresh QA evidence:
+- Fixture visual evidence.
+- Checkpoint verdict: GREEN
+- Simon verdict: GREEN
+- Robin verdict: GREEN
+- Joey verdict: GREEN
+- Simon improvement score: SCORE: 4; DIRECTION: improved; ACTIVE_PACK: Fixture Pack; REASON: fixture.
+- Debug checkpoint result: PASS (passed)
+"@
+            & git add -- docs/codex/MAGIC_SCORECARD.md
+            & git commit -m "fixture batch QA memory" | Out-Null
+        } finally {
+            Pop-Location
+        }
+    }
+
     $readiness = Invoke-Checked -FilePath "powershell" -Arguments @(
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
@@ -457,6 +487,36 @@ function Test-DoctorAndReadiness {
     )
     Assert-Equal -Actual $readiness.exitCode -Expected 0 -Message "Merge readiness passes fixture ships in skip-build mode"
     Assert-True -Condition (($readiness.output -join "`n") -match "SAFE TO MERGE AFTER HUMAN REVIEW") -Message "Merge readiness can produce a green overall result"
+    $mergeText = Get-Content (Join-Path $fleetRoot "merge-readiness.ps1") -Raw
+    Assert-True -Condition ($mergeText -match 'Get-LatestBatchQaSummary') -Message "Merge readiness reads latest batch QA scorecard"
+    Assert-True -Condition ($mergeText -match 'Batch QA') -Message "Merge readiness reports batch QA status"
+    Assert-True -Condition ($mergeText -match 'No fresh batch QA scorecard entry found') -Message "Merge readiness warns when batch QA memory is missing"
+    Assert-True -Condition ($mergeText -match 'Batch QA scorecard is stale') -Message "Merge readiness warns when commits land after batch QA"
+
+    $staleProject = Get-Project -Name "FixtureStaticDemo"
+    Push-Location $staleProject.repo
+    try {
+        Set-Content -Path "post-qa-change.txt" -Value "change after QA"
+        & git add -- post-qa-change.txt
+        & git commit -m "fixture post QA change" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $staleReadiness = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "merge-readiness.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Project", "FixtureStaticDemo",
+        "-SkipBuild"
+    )
+    $staleOutput = $staleReadiness.output -join "`n"
+    Assert-Equal -Actual $staleReadiness.exitCode -Expected 0 -Message "Merge readiness allows stale QA as inspect-only"
+    Assert-True -Condition ($staleOutput -match "SAFE TO INSPECT") -Message "Stale batch QA downgrades merge readiness to inspect-only"
+    Assert-True -Condition ($staleOutput -match "batch QA present/PASS") -Message "Stale batch QA still reports the latest QA result"
+    $staleReport = Get-Content (Join-Path $fleetRoot "out\merge-readiness.md") -Raw
+    Assert-True -Condition ($staleReport -match "Batch QA scorecard is stale: 1 commit") -Message "Stale batch QA reports commits after latest scorecard"
 }
 
 function Test-MaintenanceDirtySkip {
@@ -664,7 +724,7 @@ function Test-LaunchControlSupport {
     Assert-True -Condition ($launcherText -match 'ExcludeProject') -Message "Shared launcher helper ignores safe stops for excluded ships"
     Assert-True -Condition ($launcherText -match 'New-FleetLaunchManifest') -Message "Shared launcher helper creates launch manifests"
     Assert-True -Condition ($launcherText -match 'NewGuid') -Message "Launch manifest IDs include a uniqueness suffix for parallel launches"
-    Assert-True -Condition ($launcherText -match 'out\\latest-launch\.md') -Message "Launch manifests update the latest-launch report"
+    Assert-True -Condition ($launcherText -match 'LatestFileName = "latest-launch\.md"' -and $launcherText -match 'markdownPath') -Message "Launch manifests update the latest-launch report"
     Assert-True -Condition ($launcherText -match '\.codex-local\\launches') -Message "Launch manifests write raw local launch records"
 
     foreach ($launcherName in @("launch-proof-run.ps1", "launch-school-run.ps1", "launch-overnight-run.ps1", "run-fleet.ps1")) {
@@ -686,6 +746,9 @@ function Test-LaunchControlSupport {
 
     $proofLauncher = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
     Assert-True -Condition ($proofLauncher -match 'Assert-NoFleetSafeStopRequests[^\r\n]+-ExcludeProject') -Message "launch-proof-run.ps1 ignores safe stops for excluded ships"
+    Assert-True -Condition ($proofLauncher -match '\[int\]\$RobinEvery = 1') -Message "launch-proof-run.ps1 runs Robin by default"
+    Assert-True -Condition ($proofLauncher -match '-RobinEvery \$RobinEvery') -Message "launch-proof-run.ps1 forwards Robin cadence into checkpoint loop"
+    Assert-True -Condition ($proofLauncher -match '-RobinEvery must be 0 or greater') -Message "launch-proof-run.ps1 validates Robin cadence"
 
     $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
     Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
@@ -695,11 +758,53 @@ function Test-LaunchControlSupport {
     Assert-True -Condition ($visualRunner -match 'routeUrl\.search') -Message "Visual inspect route URLs preserve query strings"
 }
 
+function Test-FleetVisualQaLaneSupport {
+    $visualInspectText = Get-Content (Join-Path $fleetRoot "visual-inspect.ps1") -Raw
+    $visualRunnerText = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
+    $fleetVisualText = Get-Content (Join-Path $fleetRoot "fleet-visual-check.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-visual-check.ps1")) -Message "Fleet exposes a direct visual QA lane"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "templates\visual-routes.json")) -Message "Fleet includes a starter visual route map"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "templates\docs\codex\SITE_MAP.md")) -Message "Fleet includes a starter site map"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "set-ship-pages.ps1")) -Message "Fleet exposes reusable ship page configuration"
+    Assert-True -Condition ($visualInspectText -match '\$RouteConfig') -Message "Visual inspect accepts an explicit route config"
+    Assert-True -Condition ($visualInspectText -match 'docs\\codex\\visual-routes\.json') -Message "Visual inspect auto-discovers ship route maps"
+    Assert-True -Condition ($visualRunnerText -match 'requiredText') -Message "Visual runner supports route-specific required text"
+    Assert-True -Condition ($visualRunnerText -match 'configuredViewports') -Message "Visual runner supports configured viewports"
+    Assert-True -Condition ($fleetVisualText -match 'out\\fleet-visual-check\.md') -Message "Fleet visual check writes a fleet summary"
+    Assert-True -Condition ($fleetVisualText -match 'visual-inspect\.ps1') -Message "Fleet visual check delegates to visual inspect"
+    Assert-True -Condition ($fleetVisualText -match 'visualServeDirectory') -Message "Fleet visual check supports visual-only serve directories"
+    Assert-True -Condition ($fleetVisualText -match 'INFRA_FAIL') -Message "Fleet visual check distinguishes harness failures from visual findings"
+    Assert-True -Condition ($fleetVisualText -match 'NoFailOnFindings' -and $fleetVisualText -match 'did not produce a fresh summary') -Message "NoFailOnFindings does not hide missing visual summaries"
+    Assert-True -Condition ($fleetVisualText -match 'No projects selected') -Message "Fleet visual check rejects empty project selections"
+    Assert-True -Condition ($fleetVisualText -match 'WriteShipReports' -and $visualInspectText -match 'SkipShipReport') -Message "Direct visual checks can avoid dirtying ship report files"
+    Assert-True -Condition ($fleetVisualText -match 'VerboseRunner' -and $visualInspectText -match '\$Quiet') -Message "Direct visual checks quiet noisy runner output by default"
+    Assert-True -Condition ($fleetVisualText -match 'WARN' -and $fleetVisualText -match 'topFindings') -Message "Fleet visual check reports non-blocking warning summaries"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "tools\visual-smoke-runner.mjs") -Raw) -match 'filteredConsoleIssues') -Message "Visual smoke filters ignored console noise from recorded results"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'visualServeDirectory') -Message "Checkpoint visual gates support visual-only serve directories"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-smoke.ps1") -Raw) -match 'static-preview-server\.ps1') -Message "Visual smoke supports static preview ships"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-smoke.ps1") -Raw) -match '\[string\]\$Path') -Message "Visual smoke supports non-root smoke paths"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'visualSmokePath') -Message "Checkpoint visual smoke uses configured visual paths"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'SITE_MAP\.md' -and (Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw) -match 'visual-routes\.json') -Message "Planner and implementation prompts include route/page context"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw) -match 'SITE_MAP\.md' -and (Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw) -match 'visual-routes\.json') -Message "Harness install provides route planning docs"
+    Assert-True -Condition ($readmeText -match 'fleet-visual-check\.ps1') -Message "README documents the direct visual QA lane"
+    Assert-True -Condition ($readmeText -match 'set-ship-pages\.ps1') -Message "README documents reusable ship page configuration"
+}
+
 function Test-JoeyStorageRules {
     $joeyText = Get-Content (Join-Path $fleetRoot "joey-security-review.ps1") -Raw
     Assert-True -Condition ($joeyText -match 'Test-SensitiveAddedLine') -Message "Joey centralizes sensitive added-line detection"
     Assert-True -Condition ($joeyText -match 'storageSensitivePattern') -Message "Joey treats local storage as sensitive only for risky data names"
     Assert-False -Condition ($joeyText -match 'process\\.env\|import\\.meta\\.env\|localStorage\\.setItem') -Message "Joey does not blanket-block harmless localStorage writes"
+}
+
+function Test-RobinCopySmokeSupport {
+    $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
+    Assert-True -Condition ($robinText -match 'copySmokeTerms') -Message "Robin wrapper defines deterministic copy-smoke terms"
+    Assert-True -Condition ($robinText -match 'Static public-copy smoke hits') -Message "Robin prompt includes copy-smoke evidence"
+    Assert-True -Condition ($robinText -match 'Ignore harmless component names') -Message "Robin copy smoke distinguishes visible copy from internal identifiers"
+    Assert-True -Condition ($robinText -match 'service notes') -Message "Robin copy smoke catches vague restaurant-service wording"
 }
 
 function Test-DebuggerReportFileAllowance {
@@ -736,11 +841,27 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($plannerText -match 'coherent work-pack progress') -Message "Nami planner prioritizes coherent work-pack progress"
     Assert-True -Condition ($plannerText -match 'do not mention the active work pack') -Message "Nami rejects tasks that ignore active work pack"
     Assert-True -Condition ($loopText -match 'Append-MagicScorecard') -Message "Checkpoint loop appends magic scorecard entries"
+    Assert-True -Condition ($loopText -match 'Append-BatchQualityScorecard') -Message "Checkpoint loop appends fresh batch QA scorecard entries"
+    Assert-True -Condition ($loopText -match 'Save-BatchQualityScorecardForLoop') -Message "Checkpoint loop centralizes batch QA scorecard commits"
     Assert-True -Condition ($loopText -match 'Active work pack') -Message "Checkpoint loop records active work pack in scorecard"
     Assert-True -Condition ($loopText -match 'Before visual evidence') -Message "Checkpoint loop records before visual evidence"
     Assert-True -Condition ($loopText -match 'After visual evidence') -Message "Checkpoint loop records after visual evidence"
     Assert-True -Condition ($loopText -match 'QUALITY_QUARANTINE\.md') -Message "Checkpoint loop writes quality quarantine"
     Assert-True -Condition ($loopText -match 'Magic Improvement Score') -Message "Checkpoint loop reads Simon magic improvement score"
+    Assert-True -Condition ($loopText -match 'Get-TaskMaterialityFailureForLoop') -Message "Checkpoint loop blocks visible-impact tasks that lack material product changes"
+    Assert-True -Condition ($loopText -match 'VISIBLE_IMPACT') -Message "Implementation prompt asks Codex to state visible user impact"
+    Assert-True -Condition ($loopText -match 'Materiality signal') -Message "Magic scorecard records visible-impact materiality"
+    Assert-True -Condition ($loopText -match 'Fresh QA evidence') -Message "Batch scorecard records fresh post-gate visual evidence"
+    Assert-True -Condition ($loopText -match 'Debug checkpoint result') -Message "Batch scorecard records checkpoint debugger result"
+    Assert-True -Condition ($loopText -match 'Codex batch QA scorecard') -Message "Checkpoint loop commits batch QA scorecard updates"
+    Assert-True -Condition ($loopText -match 'human stop' -and $loopText -match 'DebugExit -1') -Message "Checkpoint loop records batch QA when human-stop gates fire before debug"
+    Assert-True -Condition ($loopText -match 'debug stop') -Message "Checkpoint loop records batch QA when debug gate fails"
+    Assert-True -Condition ($loopText -match 'Release-FleetRunLock\s*\r?\n\s*exit 1') -Message "Checkpoint loop releases run lock before debug failure exit"
+    Assert-True -Condition ($loopText -match 'Task impact:') -Message "Nightly report records task impact metadata"
+    Assert-True -Condition ($loopText -match 'Append-MagicScorecard.+-TaskBase') -Message "Magic scorecard receives task base for materiality line counts"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw) -match 'ImpactMode') -Message "Checkpoint debugger can enforce visible-impact batches"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw) -match '\(GREEN\|YELLOW\|RED\)\\b\[\\s\\\.') -Message "Checkpoint debugger accepts verdict punctuation"
+    Assert-True -Condition ($plannerText -match 'impact:showpiece') -Message "Nami planner can mark high-expectation creative tasks as showpiece impact"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw) -match 'Magic Improvement Score') -Message "Simon is asked for magic improvement score"
     Assert-True -Condition ($loopText -match 'docs/codex/MAGIC_SCORECARD\.md') -Message "Checkpoint loop stages magic scorecard"
     Assert-True -Condition ($readmeText -match 'WORK_PACK_STATUS\.md') -Message "README documents active work-pack status"
@@ -748,6 +869,7 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($overnightText -match 'prepare-magic-run\.ps1') -Message "Overnight launcher can run magic preflight"
     Assert-True -Condition ($overnightText -match '-Strict') -Message "Overnight magic preflight treats warnings as blockers"
     Assert-True -Condition ($readmeText -match 'prepare-magic-run\.ps1') -Message "README documents magic-run preflight"
+    Assert-True -Condition ($readmeText -match 'visible-impact guard') -Message "README documents the visible-impact guard"
 }
 
 function Test-LongRunSupervisorSupport {
@@ -849,7 +971,9 @@ Test-TaskQuarantineSupport
 Test-DuplicateRunGuard
 Test-SafeStopSupport
 Test-LaunchControlSupport
+Test-FleetVisualQaLaneSupport
 Test-JoeyStorageRules
+Test-RobinCopySmokeSupport
 Test-DebuggerReportFileAllowance
 Test-ShipPreviewRefreshSupport
 Test-MagicRunSupport

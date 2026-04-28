@@ -24,6 +24,8 @@ $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+
 $completed = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[x\]" -ErrorAction SilentlyContinue | ForEach-Object { $_.Line.Trim() })
 $reportTail = if (Test-Path "docs/codex/NIGHTLY_REPORT.md") { Get-Content "docs/codex/NIGHTLY_REPORT.md" -Tail 120 } else { @("No report found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
+$siteMap = if (Test-Path "docs/codex/SITE_MAP.md") { Get-Content "docs/codex/SITE_MAP.md" -Raw } else { "No site map found." }
+$visualRoutes = if (Test-Path "docs/codex/visual-routes.json") { Get-Content "docs/codex/visual-routes.json" -Raw } else { "No visual route config found." }
 
 $body = @"
 # Next Task Request
@@ -38,6 +40,10 @@ Each task must:
 - include explicit forbidden scope
 - obey the run policy
 - avoid broad rewrites
+- use SITE_MAP.md and visual-routes.json when route/page work would make the product clearer
+- not say "preserve current routes" when the goal is real pages, page splits, navigation repair, or route cleanup
+- use impact:visible for normal user-facing design/copy/page/mobile tasks and impact:showpiece for final, demo-ready, major redesign, premium, or high-expectation creative tasks
+- make visible/showpiece tasks target actual product source, route, component, content, or style files rather than report-only or tiny spacing-only changes
 
 ## Repo
 
@@ -72,6 +78,14 @@ $($reportTail -join "`n")
 ## Run Policy
 
 $policy
+
+## Site Map
+
+$siteMap
+
+## Visual Routes
+
+$visualRoutes
 "@
 
 $outPath = Join-Path $repoPath.Path $OutFile

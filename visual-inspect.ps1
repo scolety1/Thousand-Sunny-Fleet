@@ -11,6 +11,8 @@ param(
 
     [string[]]$Paths = @("/"),
 
+    [string]$RouteConfig = "",
+
     [int]$Port = 0,
 
     [string]$BaseUrl = "",
@@ -23,7 +25,11 @@ param(
 
     [switch]$SkipServer,
 
-    [switch]$NoFailOnFindings
+    [switch]$NoFailOnFindings,
+
+    [switch]$SkipShipReport,
+
+    [switch]$Quiet
 )
 
 $ErrorActionPreference = "Continue"
@@ -34,6 +40,41 @@ $Paths = @($Paths |
     Where-Object { ![string]::IsNullOrWhiteSpace($_) })
 if ($Paths.Count -eq 0) {
     $Paths = @("/")
+}
+
+function Get-VisualRouteConfig {
+    param(
+        [string]$ExplicitPath,
+        [string]$RepoPath
+    )
+
+    $candidatePaths = @()
+    if (![string]::IsNullOrWhiteSpace($ExplicitPath)) {
+        $candidatePaths += $ExplicitPath
+    } else {
+        $candidatePaths += @(
+            (Join-Path $RepoPath "docs\codex\visual-routes.json"),
+            (Join-Path $RepoPath ".codex\visual-routes.json")
+        )
+    }
+
+    foreach ($candidate in $candidatePaths) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        $resolved = Resolve-Path $candidate -ErrorAction SilentlyContinue
+        if (!$resolved) { continue }
+        try {
+            $parsed = Get-Content $resolved.Path -Raw | ConvertFrom-Json
+            return [pscustomobject]@{
+                path = $resolved.Path
+                config = $parsed
+            }
+        } catch {
+            Write-Host "Could not parse visual route config: $($resolved.Path)" -ForegroundColor Red
+            throw
+        }
+    }
+
+    return $null
 }
 
 function Find-Chrome {
@@ -64,6 +105,13 @@ function Wait-Http {
                 return $true
             }
         } catch {
+            $statusCode = 0
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+            if ($statusCode -ge 200 -and $statusCode -lt 500) {
+                return $true
+            }
             Start-Sleep -Milliseconds 500
         }
     }
@@ -73,7 +121,7 @@ function Wait-Http {
 function Stop-Tree {
     param([int]$ProcessId)
     if ($ProcessId -gt 0) {
-        cmd.exe /c "taskkill /PID $ProcessId /T /F" | Out-Null
+        cmd.exe /c "taskkill /PID $ProcessId /T /F 1>NUL 2>NUL" | Out-Null
     }
 }
 
@@ -92,7 +140,9 @@ function Get-DefaultServeCommand {
         return "npm.cmd run dev -- --host 127.0.0.1 --port {PORT}"
     }
 
-    return 'node -e "const http=require(''http''),fs=require(''fs''),path=require(''path'');const root=process.cwd(),port={PORT};const types={''.html'':''text/html'',''.css'':''text/css'',''.js'':''text/javascript'',''.json'':''application/json'',''.csv'':''text/csv'',''.svg'':''image/svg+xml'',''.png'':''image/png'',''.jpg'':''image/jpeg'',''.jpeg'':''image/jpeg'',''.webp'':''image/webp''};http.createServer((q,s)=>{let u=decodeURIComponent(q.url.split(''?'')[0]);if(u===''/'' )u=''/index.html'';const f=path.normalize(path.join(root,u));if(!f.startsWith(root)){s.writeHead(403);return s.end(''forbidden'');}fs.readFile(f,(e,d)=>{if(e){s.writeHead(404);s.end(''not found'');}else{s.writeHead(200,{''content-type'':types[path.extname(f)]||''text/plain''});s.end(d);}});}).listen(port,''127.0.0.1'');"'
+    $fleetRoot = Split-Path -Parent $PSCommandPath
+    $serverScript = Join-Path $fleetRoot "tools\static-preview-server.ps1"
+    return ('powershell -NoProfile -ExecutionPolicy Bypass -File "{0}" -Root . -Port {{PORT}}' -f $serverScript)
 }
 
 function Write-VisualBugReport {
@@ -165,6 +215,8 @@ if ($repoMatches.Count -ne 1) {
 }
 $repoPath = $repoMatches[0].Path
 
+$routeConfig = Get-VisualRouteConfig -ExplicitPath $RouteConfig -RepoPath $repoPath
+
 if ([string]::IsNullOrWhiteSpace($Project)) {
     $Project = Split-Path -Leaf $repoPath
 }
@@ -234,11 +286,27 @@ try {
         chromePort = $ChromePort
         project = $Project
         paths = $Paths
-    } | ConvertTo-Json -Compress
+    }
+    if ($routeConfig) {
+        if ($routeConfig.config.routes) {
+            $options["routes"] = @($routeConfig.config.routes)
+        }
+        if ($routeConfig.config.viewports) {
+            $options["viewports"] = @($routeConfig.config.viewports)
+        }
+        $options["routeConfigPath"] = $routeConfig.path
+    }
+    $options = $options | ConvertTo-Json -Depth 8 -Compress
     $optionsFile = Join-Path $outDir "visual-inspect-options.json"
     Set-Content -Path $optionsFile -Value $options
 
-    node $runner "@$optionsFile"
+    $runnerOut = Join-Path $outDir "visual-inspect-runner.out.log"
+    $runnerErr = Join-Path $outDir "visual-inspect-runner.err.log"
+    if ($Quiet) {
+        node $runner "@$optionsFile" > $runnerOut 2> $runnerErr
+    } else {
+        node $runner "@$optionsFile"
+    }
     $runnerExit = $LASTEXITCODE
     $summaryPath = Join-Path $outDir "visual-inspect-summary.json"
     if (!(Test-Path $summaryPath)) {
@@ -247,7 +315,7 @@ try {
     }
 
     $summary = Get-Content $summaryPath -Raw | ConvertFrom-Json
-    $reportPath = Join-Path $repoPath "docs\codex\VISUAL_BUGS.md"
+    $reportPath = if ($SkipShipReport) { Join-Path $outDir "VISUAL_BUGS.md" } else { Join-Path $repoPath "docs\codex\VISUAL_BUGS.md" }
     Write-VisualBugReport -Summary $summary -ReportPath $reportPath
 
     if ($runnerExit -eq 0 -or $NoFailOnFindings) {

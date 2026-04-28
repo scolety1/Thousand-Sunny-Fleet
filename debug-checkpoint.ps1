@@ -17,6 +17,9 @@ param(
 
     [switch]$AllowYellowCheckpoint,
 
+    [ValidateSet("standard", "visible", "showpiece")]
+    [string]$ImpactMode = "standard",
+
     [switch]$Json
 )
 
@@ -134,6 +137,35 @@ if ($hasBatchBase) {
     Add-Issue "FAIL" "Too many files changed compared with ${BaseBranch}: $($changed.Count), max $MaxChangedFiles."
 }
 
+if ($ImpactMode -ne "standard") {
+    $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
+    $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
+    $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
+    $visibleNonDoc = @($batchChangedForLimit | Where-Object { $_ -notmatch $docPattern })
+    $visibleSurface = @($visibleNonDoc | Where-Object { $_ -match $surfacePattern })
+    $visibleStructural = @($visibleNonDoc | Where-Object { $_ -match $structuralPattern })
+    $visibleCssOnly = ($visibleNonDoc.Count -gt 0 -and @($visibleNonDoc | Where-Object { $_ -notmatch "(?i)\.(css|scss|sass)$" }).Count -eq 0)
+    $visibleDelta = 0
+    if ($visibleNonDoc.Count -gt 0) {
+        foreach ($line in @(git diff --numstat $batchDiffRange -- $visibleNonDoc 2>$null)) {
+            if ($line -match "^(\d+|-)\s+(\d+|-)\s+") {
+                $added = if ($Matches[1] -eq "-") { 0 } else { [int]$Matches[1] }
+                $removed = if ($Matches[2] -eq "-") { 0 } else { [int]$Matches[2] }
+                $visibleDelta += ($added + $removed)
+            }
+        }
+    }
+    if ($visibleNonDoc.Count -eq 0) {
+        Add-Issue "FAIL" "Visible-impact checkpoint changed only report/docs files."
+    } elseif ($visibleSurface.Count -eq 0) {
+        Add-Issue "FAIL" "Visible-impact checkpoint did not change recognized user-facing source, content, route, or style files."
+    } elseif ($ImpactMode -eq "showpiece" -and $visibleStructural.Count -eq 0 -and $visibleDelta -lt 40) {
+        Add-Issue "FAIL" "Showpiece checkpoint looks too small to trust: no structural/page/content change and less than 40 source/style lines changed."
+    } elseif ($ImpactMode -eq "showpiece" -and $visibleCssOnly -and $visibleDelta -lt 60) {
+        Add-Issue "FAIL" "Showpiece checkpoint changed only a small amount of CSS; likely subtle polish rather than meaningful visible progress."
+    }
+}
+
 $blockedPathPatterns = @(
     "^\.firebaserc$",
     "^firebase\.json$",
@@ -195,7 +227,7 @@ if ($suspiciousHits.Count -gt 0) {
 
 if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") {
     $review = Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw
-    $verdictMatch = [regex]::Match($review, "(?im)^## Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)\s*$")
+    $verdictMatch = [regex]::Match($review, "(?im)^## Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)\b[\s\.\!\:;-]*$")
     $verdict = if ($verdictMatch.Success) { $verdictMatch.Groups[1].Value.ToUpperInvariant() } else { "" }
     if ($verdict -eq "YELLOW" -and $AllowYellowCheckpoint) {
         Add-Issue "WARN" "Checkpoint verdict is YELLOW; allowed to continue after follow-up gates."
