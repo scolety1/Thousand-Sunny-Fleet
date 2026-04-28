@@ -158,7 +158,9 @@ Cheap budget mode also uses cheaper model chains for static/demo ships first:
 
 - Implementation starts with `gpt-5.4-mini`, then tries `gpt-5.3-codex-spark`, then falls back to `gpt-5.4`.
 - Planner, checkpoint, Simon, and Robin start with `gpt-5.4-mini`, then fall back to `gpt-5.4`.
-- Real-product ships keep their configured model chains unless their profile/project type is explicitly changed.
+- Cheap model ships: Cellar demo ships, RestaurantDemo, Tree, and CursorPets.
+- Strong model ships: EasyLife, NinersWarRoom, and ShiftPlate.
+- Real-product ships keep their configured model chains unless `cheapModelEligible` is explicitly set for that ship.
 
 Overnight run with a rate budget:
 

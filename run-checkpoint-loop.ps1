@@ -308,6 +308,11 @@ function Get-ProjectModels {
 }
 
 function Test-CheapModelEligible {
+    $projectOverride = Get-ConfigPropertyValue -Object $script:projectConfig -Name "cheapModelEligible"
+    if ($null -ne $projectOverride) {
+        return ([string]$projectOverride).ToLowerInvariant() -eq "true"
+    }
+
     $profileName = Get-ConfigPropertyValue -Object $script:projectConfig -Name "profile"
     if ([string]::IsNullOrWhiteSpace([string]$profileName)) {
         $profileName = Get-ConfigPropertyValue -Object $script:profileConfig -Name "name"
