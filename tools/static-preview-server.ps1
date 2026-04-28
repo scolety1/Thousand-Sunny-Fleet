@@ -68,6 +68,28 @@ try {
             }
 
             if (!(Test-Path -LiteralPath $targetPath -PathType Leaf)) {
+                $htmlFallbackPath = [System.IO.Path]::GetFullPath((Join-Path $rootPath (Join-Path "html" $requestPath)))
+                if ($htmlFallbackPath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $htmlFallbackPath -PathType Leaf)) {
+                    $targetPath = $htmlFallbackPath
+                }
+            }
+
+            if (!(Test-Path -LiteralPath $targetPath -PathType Leaf) -and [System.IO.Path]::GetExtension($requestPath) -eq "") {
+                $routeName = $requestPath.Trim("/")
+                $routeCandidates = @(
+                    (Join-Path $rootPath (Join-Path "html" "$routeName.html")),
+                    (Join-Path $rootPath (Join-Path "html" "${routeName}_page.html"))
+                )
+                foreach ($candidate in $routeCandidates) {
+                    $candidatePath = [System.IO.Path]::GetFullPath($candidate)
+                    if ($candidatePath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+                        $targetPath = $candidatePath
+                        break
+                    }
+                }
+            }
+
+            if (!(Test-Path -LiteralPath $targetPath -PathType Leaf)) {
                 Send-Text -Context $context -StatusCode 404 -Text "Not found"
                 continue
             }

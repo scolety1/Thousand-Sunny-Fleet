@@ -470,15 +470,15 @@
         "loopScript":  "scripts\\codex-night-loop.ps1",
         "buildDirectory":  ".",
         "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
-        "visualServeDirectory":  "html",
+        "visualServeDirectory":  ".",
         "profile":  "real-product",
         "branchPrefix":  "codex/tree",
         "visualPaths":  [
-                            "/home_page.html",
-                            "/signin.html",
-                            "/dashboard.html",
-                            "/tree_page.html",
-                            "/search_page.html"
+                            "/html/home_page.html",
+                            "/html/signin.html",
+                            "/html/dashboard.html",
+                            "/html/tree_page.html",
+                            "/html/search_page.html"
                         ],
         "overnightBatchSize":  1,
         "overnightMaxBatches":  4,
