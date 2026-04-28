@@ -8,6 +8,9 @@ param(
 
     [string[]]$ExpectedProject = @(),
 
+    [ValidateSet("cheap", "balanced", "premium")]
+    [string]$BudgetMode = "balanced",
+
     [int]$BatchSize = 3,
 
     [int]$MaxBatches = 20,
@@ -108,6 +111,71 @@ function Get-ShipInt {
     return $Default
 }
 
+function Get-MinPositive {
+    param(
+        [int]$Value,
+        [int]$Cap
+    )
+
+    if ($Value -le 0) { return $Value }
+    if ($Cap -le 0) { return $Value }
+    return [Math]::Min($Value, $Cap)
+}
+
+function Resolve-BudgetShape {
+    param(
+        [int]$ShipBatchSize,
+        [int]$ShipMaxBatches,
+        [int]$ShipMaxRuntimeMinutes,
+        [int]$ShipMaxCompletedTasks,
+        [int]$ShipMaxPlannerBatches,
+        [int]$ShipVisualEvery,
+        [int]$ShipSimonEvery,
+        [int]$ShipRobinEvery,
+        [int]$ShipJoeyEvery
+    )
+
+    if ($BudgetMode -eq "cheap") {
+        return [pscustomobject]@{
+            batchSize = Get-MinPositive -Value $ShipBatchSize -Cap 1
+            maxBatches = Get-MinPositive -Value $ShipMaxBatches -Cap 4
+            maxRuntimeMinutes = Get-MinPositive -Value $ShipMaxRuntimeMinutes -Cap 180
+            maxCompletedTasks = Get-MinPositive -Value $ShipMaxCompletedTasks -Cap 3
+            maxPlannerBatches = Get-MinPositive -Value $ShipMaxPlannerBatches -Cap 1
+            visualEvery = if ($ShipVisualEvery -gt 0) { [Math]::Max($ShipVisualEvery, 2) } else { 0 }
+            simonEvery = if ($ShipSimonEvery -gt 0) { [Math]::Max($ShipSimonEvery, 2) } else { 0 }
+            robinEvery = if ($ShipRobinEvery -gt 0) { [Math]::Max($ShipRobinEvery, 3) } else { 0 }
+            joeyEvery = if ($ShipJoeyEvery -gt 0) { [Math]::Max($ShipJoeyEvery, 6) } else { 0 }
+        }
+    }
+
+    if ($BudgetMode -eq "premium") {
+        return [pscustomobject]@{
+            batchSize = $ShipBatchSize
+            maxBatches = $ShipMaxBatches
+            maxRuntimeMinutes = $ShipMaxRuntimeMinutes
+            maxCompletedTasks = $ShipMaxCompletedTasks
+            maxPlannerBatches = $ShipMaxPlannerBatches
+            visualEvery = if ($ShipVisualEvery -gt 0) { 1 } else { 0 }
+            simonEvery = if ($ShipSimonEvery -gt 0) { 1 } else { 0 }
+            robinEvery = if ($ShipRobinEvery -gt 0) { 1 } else { 0 }
+            joeyEvery = $ShipJoeyEvery
+        }
+    }
+
+    return [pscustomobject]@{
+        batchSize = $ShipBatchSize
+        maxBatches = $ShipMaxBatches
+        maxRuntimeMinutes = $ShipMaxRuntimeMinutes
+        maxCompletedTasks = $ShipMaxCompletedTasks
+        maxPlannerBatches = $ShipMaxPlannerBatches
+        visualEvery = $ShipVisualEvery
+        simonEvery = $ShipSimonEvery
+        robinEvery = $ShipRobinEvery
+        joeyEvery = $ShipJoeyEvery
+    }
+}
+
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxRuntimeMinutes -lt 0) { Stop-WithMessage "-MaxRuntimeMinutes must be 0 or greater." }
@@ -191,13 +259,14 @@ for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
     $shipRobinEvery = if ($RobinEvery -gt 0) { $RobinEvery } else { Get-ShipInt -Ship $ship -Name "overnightRobinEvery" -Default $shipSimonEvery }
     $shipJoeyEvery = if ($JoeyEvery -gt 0) { $JoeyEvery } else { Get-ShipInt -Ship $ship -Name "overnightJoeyEvery" -Default 6 }
     $shipLaunchDelay = Get-ShipInt -Ship $ship -Name "launchDelaySeconds" -Default $LaunchDelaySeconds
+    $budgetShape = Resolve-BudgetShape -ShipBatchSize $shipBatchSize -ShipMaxBatches $shipMaxBatches -ShipMaxRuntimeMinutes $shipMaxRuntimeMinutes -ShipMaxCompletedTasks $shipMaxCompletedTasks -ShipMaxPlannerBatches $shipMaxPlannerBatches -ShipVisualEvery $shipVisualEvery -ShipSimonEvery $shipSimonEvery -ShipRobinEvery $shipRobinEvery -ShipJoeyEvery $shipJoeyEvery
 
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $shipBatchSize -MaxBatches $shipMaxBatches -MaxRuntimeMinutes $shipMaxRuntimeMinutes -MaxCompletedTasks $shipMaxCompletedTasks -MaxPlannerBatches $shipMaxPlannerBatches -VisualInspectEvery $shipVisualEvery -SimonEvery $shipSimonEvery -RobinEvery $shipRobinEvery -JoeyEvery $shipJoeyEvery -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -MaxRuntimeMinutes $($budgetShape.maxRuntimeMinutes) -MaxCompletedTasks $($budgetShape.maxCompletedTasks) -MaxPlannerBatches $($budgetShape.maxPlannerBatches) -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching overnight run for $($ship.name): batch $shipBatchSize x $shipMaxBatches, max $shipMaxCompletedTasks tasks, max $shipMaxRuntimeMinutes minutes, planner batches $shipMaxPlannerBatches..." -ForegroundColor Cyan
+    Write-Host "Launching overnight run for $($ship.name): budget $BudgetMode, batch $($budgetShape.batchSize) x $($budgetShape.maxBatches), max $($budgetShape.maxCompletedTasks) tasks, max $($budgetShape.maxRuntimeMinutes) minutes, planner batches $($budgetShape.maxPlannerBatches)..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
         Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun

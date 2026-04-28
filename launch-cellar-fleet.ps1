@@ -5,6 +5,9 @@ param(
 
     [string]$ConfigPath = ".\projects.json",
 
+    [ValidateSet("cheap", "balanced", "premium")]
+    [string]$BudgetMode = "cheap",
+
     [int]$RateLimitCooldownSeconds = 3600,
 
     [int]$RateLimitMaxCooldowns = 4,
@@ -64,6 +67,10 @@ $args = @(
     "-RateLimitMaxCooldowns", $RateLimitMaxCooldowns,
     "-MaxTaskQuarantines", $MaxTaskQuarantines
 )
+
+if ($Mode -in @("school", "overnight")) {
+    $args += @("-BudgetMode", $BudgetMode)
+}
 
 if ($excludeNames.Count -gt 0) {
     $args += @("-ExcludeProject", ($excludeNames -join ","))

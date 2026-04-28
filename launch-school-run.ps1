@@ -8,6 +8,9 @@ param(
 
     [string[]]$ExpectedProject = @(),
 
+    [ValidateSet("cheap", "balanced", "premium")]
+    [string]$BudgetMode = "cheap",
+
     [int]$BatchSize = 3,
 
     [int]$MaxBatches = 10,
@@ -88,6 +91,59 @@ function Get-ShipInt {
     return $Default
 }
 
+function Get-MinPositive {
+    param(
+        [int]$Value,
+        [int]$Cap
+    )
+
+    if ($Value -le 0) { return $Value }
+    if ($Cap -le 0) { return $Value }
+    return [Math]::Min($Value, $Cap)
+}
+
+function Resolve-BudgetShape {
+    param(
+        [int]$ShipBatchSize,
+        [int]$ShipMaxBatches,
+        [int]$ShipVisualEvery,
+        [int]$ShipSimonEvery,
+        [int]$ShipRobinEvery,
+        [int]$ShipJoeyEvery
+    )
+
+    if ($BudgetMode -eq "cheap") {
+        return [pscustomobject]@{
+            batchSize = Get-MinPositive -Value $ShipBatchSize -Cap 1
+            maxBatches = Get-MinPositive -Value $ShipMaxBatches -Cap 3
+            visualEvery = if ($ShipVisualEvery -gt 0) { [Math]::Max($ShipVisualEvery, 2) } else { 0 }
+            simonEvery = if ($ShipSimonEvery -gt 0) { [Math]::Max($ShipSimonEvery, 2) } else { 0 }
+            robinEvery = if ($ShipRobinEvery -gt 0) { [Math]::Max($ShipRobinEvery, 3) } else { 0 }
+            joeyEvery = if ($ShipJoeyEvery -gt 0) { [Math]::Max($ShipJoeyEvery, 6) } else { 0 }
+        }
+    }
+
+    if ($BudgetMode -eq "premium") {
+        return [pscustomobject]@{
+            batchSize = $ShipBatchSize
+            maxBatches = $ShipMaxBatches
+            visualEvery = if ($ShipVisualEvery -gt 0) { 1 } else { 0 }
+            simonEvery = if ($ShipSimonEvery -gt 0) { 1 } else { 0 }
+            robinEvery = if ($ShipRobinEvery -gt 0) { 1 } else { 0 }
+            joeyEvery = $ShipJoeyEvery
+        }
+    }
+
+    return [pscustomobject]@{
+        batchSize = $ShipBatchSize
+        maxBatches = $ShipMaxBatches
+        visualEvery = $ShipVisualEvery
+        simonEvery = $ShipSimonEvery
+        robinEvery = $ShipRobinEvery
+        joeyEvery = $ShipJoeyEvery
+    }
+}
+
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
@@ -141,13 +197,14 @@ foreach ($ship in $shipsToLaunch) {
     $shipSimonEvery = Get-ShipInt -Ship $ship -Name "schoolSimonEvery" -Default 2
     $shipRobinEvery = Get-ShipInt -Ship $ship -Name "schoolRobinEvery" -Default 2
     $shipJoeyEvery = Get-ShipInt -Ship $ship -Name "schoolJoeyEvery" -Default 4
+    $budgetShape = Resolve-BudgetShape -ShipBatchSize $shipBatchSize -ShipMaxBatches $shipMaxBatches -ShipVisualEvery $shipVisualEvery -ShipSimonEvery $shipSimonEvery -ShipRobinEvery $shipRobinEvery -ShipJoeyEvery $shipJoeyEvery
 
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $shipBatchSize -MaxBatches $shipMaxBatches -VisualInspectEvery $shipVisualEvery -SimonEvery $shipSimonEvery -RobinEvery $shipRobinEvery -JoeyEvery $shipJoeyEvery -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching school run for $($ship.name): batch $shipBatchSize x $shipMaxBatches..." -ForegroundColor Cyan
+    Write-Host "Launching school run for $($ship.name): budget $BudgetMode, batch $($budgetShape.batchSize) x $($budgetShape.maxBatches), visual $($budgetShape.visualEvery), Simon $($budgetShape.simonEvery), Robin $($budgetShape.robinEvery), Joey $($budgetShape.joeyEvery)..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
         Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun

@@ -142,6 +142,18 @@ cd C:\Dev\codex-fleet
 .\launch-school-run.ps1 -Project ShipName -BatchSize 2 -MaxBatches 4 -QuarantineFailedTasks -MaxTaskQuarantines 3
 ```
 
+Budget modes:
+
+```powershell
+.\launch-school-run.ps1 -Project ShipName -BudgetMode cheap
+.\launch-school-run.ps1 -Project ShipName -BudgetMode balanced
+.\launch-school-run.ps1 -Project ShipName -BudgetMode premium
+```
+
+- `cheap` is the default for school and Cellar runs. It caps batches lower and spaces out visual, Simon, Robin, and Joey reviews.
+- `balanced` uses the ship's configured run shape.
+- `premium` keeps reviews frequent for final polish or important demos.
+
 Overnight run with a rate budget:
 
 ```powershell
@@ -155,6 +167,7 @@ Overnight budget caps:
 - `-MaxCompletedTasks` stops a ship after it finishes that many implementation tasks.
 - `-MaxPlannerBatches` limits how many times an overnight run can generate fresh tasks after the queue is empty.
 - Pass `0` for any cap only when intentionally disabling that cap.
+- Overnight also accepts `-BudgetMode cheap|balanced|premium`; default is `balanced`.
 
 Morning review:
 
