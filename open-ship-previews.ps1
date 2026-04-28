@@ -155,9 +155,12 @@ foreach ($ship in $projects) {
         continue
     }
 
-    $buildDirectory = [string](Get-ConfigPropertyValue -Object $ship -Name "buildDirectory")
-    if ([string]::IsNullOrWhiteSpace($buildDirectory)) { $buildDirectory = "." }
-    $servePathValue = Join-Path $repoPath.Path $buildDirectory
+    $serveDirectory = [string](Get-ConfigPropertyValue -Object $ship -Name "visualServeDirectory")
+    if ([string]::IsNullOrWhiteSpace($serveDirectory)) {
+        $serveDirectory = [string](Get-ConfigPropertyValue -Object $ship -Name "buildDirectory")
+    }
+    if ([string]::IsNullOrWhiteSpace($serveDirectory)) { $serveDirectory = "." }
+    $servePathValue = Join-Path $repoPath.Path $serveDirectory
     $servePath = Resolve-Path -LiteralPath $servePathValue -ErrorAction SilentlyContinue
     if (!$servePath) {
         $results += [pscustomobject]@{
@@ -191,7 +194,10 @@ foreach ($ship in $projects) {
             }
         }
 
-        if (!$hasDevScript -and !(Test-Path -LiteralPath (Join-Path $servePath.Path "index.html"))) {
+        $hasIndex = Test-Path -LiteralPath (Join-Path $servePath.Path "index.html")
+        $hasStaticHtml = $null -ne (Get-ChildItem -LiteralPath $servePath.Path -Filter "*.html" -File -ErrorAction SilentlyContinue | Select-Object -First 1)
+
+        if (!$hasDevScript -and !$hasIndex -and !$hasStaticHtml) {
             $status = "no dev script or index.html"
         } else {
             $process = Start-ShipServer -Ship $ship -ServePath $servePath.Path -Port $port -HasDevScript $hasDevScript
