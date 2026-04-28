@@ -172,7 +172,8 @@ foreach ($ship in $projects) {
         continue
     }
 
-    $port = $BasePort + $index
+    $previewPort = Get-ConfigPropertyValue -Object $ship -Name "previewPort"
+    $port = if ($null -ne $previewPort -and [int]$previewPort -gt 0) { [int]$previewPort } else { $BasePort + $index }
     $index++
     $rootUrl = "http://127.0.0.1:$port/"
     $process = $null

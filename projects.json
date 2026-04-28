@@ -231,6 +231,7 @@
         "profile":  "real-product",
         "buildDirectory":  "app-vNext",
         "buildCommand":  "npm.cmd run build",
+        "previewPort":  5317,
         "model":  "gpt-5.5",
         "models":  {
                        "implement":  [
