@@ -149,6 +149,12 @@ Rules:
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Current loop phase: $effectivePhase.
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
+- Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, and Parking State.
+- Every task must support the Product Promise and Showable Moment.
+- If No More Features Lock is true, do not generate feature-addition tasks; generate removal, demotion, simplification, refinement, proof, or parked-review tasks only.
+- Every task must respect What Not To Build and the Complexity Budget.
+- For visible work, the task wording must say how the Before/After Judgment should improve.
+- If Parking State is PARKED_REVIEW_READY or Current Phase is parked, output only one docs-only task saying the ship is review-ready and should not continue unattended.
 - Phase doctrine:
   - brief: define or repair audience, product promise, primary action, showable moment, and what not to build; prefer docs/codex/PHASE_STATE.md or mission docs only.
   - foundation: add missing routes, components, local demo data, and core interactions; do not spend tasks on final polish or tiny visual refinements.

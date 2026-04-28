@@ -10,7 +10,26 @@ param(
 
     [string]$ProductPromise = "",
 
+    [string]$PrimaryAction = "",
+
+    [string]$ShowableMoment = "",
+
+    [string]$WhatNotToBuild = "",
+
+    [ValidateSet("", "true", "false")]
+    [string]$NoMoreFeaturesLock = "",
+
+    [string]$ComplexityBudget = "",
+
+    [string]$BeforeAfterJudgment = "",
+
     [string]$HumanTasteNote = "",
+
+    [ValidateSet("", "budget", "balanced", "judgment-heavy")]
+    [string]$PhaseModelPolicy = "",
+
+    [ValidateSet("", "ACTIVE", "PARKED_REVIEW_READY")]
+    [string]$ParkingState = "",
 
     [switch]$Init,
 
@@ -39,7 +58,7 @@ if (!(Test-Path -LiteralPath $ConfigPath)) {
     exit 1
 }
 
-$projects = @(Get-Content $ConfigPath -Raw | ConvertFrom-Json)
+$projects = @(Get-Content $ConfigPath -Raw | ConvertFrom-Json | ForEach-Object { $_ })
 $ship = $projects | Where-Object { [string]$_.name -ceq $Project } | Select-Object -First 1
 if ($null -eq $ship) {
     Write-Host "Project not found: $Project" -ForegroundColor Red
@@ -65,8 +84,8 @@ if ($Status) {
     exit 0
 }
 
-if (!$Init -and [string]::IsNullOrWhiteSpace($Phase) -and [string]::IsNullOrWhiteSpace($ProductPromise) -and [string]::IsNullOrWhiteSpace($HumanTasteNote)) {
-    Write-Host "Nothing to update. Pass -Init, -Phase, -ProductPromise, or -HumanTasteNote." -ForegroundColor Yellow
+if (!$Init -and [string]::IsNullOrWhiteSpace($Phase) -and [string]::IsNullOrWhiteSpace($ProductPromise) -and [string]::IsNullOrWhiteSpace($PrimaryAction) -and [string]::IsNullOrWhiteSpace($ShowableMoment) -and [string]::IsNullOrWhiteSpace($WhatNotToBuild) -and [string]::IsNullOrWhiteSpace($NoMoreFeaturesLock) -and [string]::IsNullOrWhiteSpace($ComplexityBudget) -and [string]::IsNullOrWhiteSpace($BeforeAfterJudgment) -and [string]::IsNullOrWhiteSpace($HumanTasteNote) -and [string]::IsNullOrWhiteSpace($PhaseModelPolicy) -and [string]::IsNullOrWhiteSpace($ParkingState)) {
+    Write-Host "Nothing to update. Pass -Init, -Phase, or a phase data field." -ForegroundColor Yellow
     exit 0
 }
 
@@ -86,7 +105,15 @@ function Get-ExistingValue {
 
 $currentPhase = if (![string]::IsNullOrWhiteSpace($Phase)) { $Phase } else { Get-ExistingValue -Text $existing -Name "Current Phase" -Default "brief" }
 $currentPromise = if (![string]::IsNullOrWhiteSpace($ProductPromise)) { $ProductPromise } else { Get-ExistingValue -Text $existing -Name "Product Promise" -Default "TODO: This demo helps [person] do [specific job] without [current pain]." }
+$currentPrimaryAction = if (![string]::IsNullOrWhiteSpace($PrimaryAction)) { $PrimaryAction } else { Get-ExistingValue -Text $existing -Name "Primary Action" -Default "TODO: the one thing the visitor should do first." }
+$currentShowableMoment = if (![string]::IsNullOrWhiteSpace($ShowableMoment)) { $ShowableMoment } else { Get-ExistingValue -Text $existing -Name "Showable Moment" -Default "TODO: the moment that makes the buyer say 'I get it.'" }
+$currentWhatNotToBuild = if (![string]::IsNullOrWhiteSpace($WhatNotToBuild)) { $WhatNotToBuild } else { Get-ExistingValue -Text $existing -Name "What Not To Build" -Default "Do not add broad platform framing, fake enterprise dashboards, pricing, backend, auth, payments, analytics, or extra feature tours unless explicitly requested." }
+$currentNoMoreFeaturesLock = if (![string]::IsNullOrWhiteSpace($NoMoreFeaturesLock)) { $NoMoreFeaturesLock } else { Get-ExistingValue -Text $existing -Name "No More Features Lock" -Default $(if ($currentPhase -in @("simplicity", "polish", "proof", "parked")) { "true" } else { "false" }) }
+$currentComplexityBudget = if (![string]::IsNullOrWhiteSpace($ComplexityBudget)) { $ComplexityBudget } else { Get-ExistingValue -Text $existing -Name "Complexity Budget" -Default "Above the fold: one primary action, no more than three secondary choices, one short intro sentence, and no competing feature cards." }
+$currentBeforeAfterJudgment = if (![string]::IsNullOrWhiteSpace($BeforeAfterJudgment)) { $BeforeAfterJudgment } else { Get-ExistingValue -Text $existing -Name "Before/After Judgment" -Default "Each task must make the product clearer, simpler, more useful, or more beautiful than the previous screenshot/state." }
 $currentTasteNote = if (![string]::IsNullOrWhiteSpace($HumanTasteNote)) { $HumanTasteNote } else { Get-ExistingValue -Text $existing -Name "Human Taste Note" -Default "none" }
+$currentPhaseModelPolicy = if (![string]::IsNullOrWhiteSpace($PhaseModelPolicy)) { $PhaseModelPolicy } else { Get-ExistingValue -Text $existing -Name "Phase Model Policy" -Default $(if ($currentPhase -in @("shape", "simplicity", "polish")) { "judgment-heavy" } elseif ($currentPhase -eq "foundation") { "budget" } else { "balanced" }) }
+$currentParkingState = if (![string]::IsNullOrWhiteSpace($ParkingState)) { $ParkingState } elseif ($currentPhase -eq "parked") { "PARKED_REVIEW_READY" } else { Get-ExistingValue -Text $existing -Name "Parking State" -Default "ACTIVE" }
 $updatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 $content = @"
@@ -94,7 +121,15 @@ $content = @"
 
 Current Phase: $currentPhase
 Product Promise: $currentPromise
+Primary Action: $currentPrimaryAction
+Showable Moment: $currentShowableMoment
+What Not To Build: $currentWhatNotToBuild
+No More Features Lock: $currentNoMoreFeaturesLock
+Complexity Budget: $currentComplexityBudget
+Before/After Judgment: $currentBeforeAfterJudgment
 Human Taste Note: $currentTasteNote
+Phase Model Policy: $currentPhaseModelPolicy
+Parking State: $currentParkingState
 Updated At: $updatedAt
 
 ## Phase Order
@@ -121,6 +156,7 @@ brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 - Protect the showable moment.
 - Honor human taste notes.
 - Use stronger judgment for Shape, Simplicity, and Polish.
+- Park review-ready ships instead of continuing to generate improvements.
 "@
 
 Set-Content -LiteralPath $phasePath -Value $content

@@ -203,6 +203,19 @@ brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 
 Each ship may carry `docs/codex/PHASE_STATE.md` with the current phase, product promise, and human taste note. `-LoopPhase auto` reads that file; explicit `-LoopPhase simplicity` overrides it for the run.
 
+`PHASE_STATE.md` carries the eight first-class website-quality controls:
+
+- `Parking State`: `ACTIVE` or `PARKED_REVIEW_READY`.
+- `No More Features Lock`: blocks feature-addition tasks after Foundation.
+- `Before/After Judgment`: how the next change must improve the product.
+- `Product Promise`: one sentence the planner must serve.
+- `Complexity Budget`: limits sections, CTAs, choices, and visible copy.
+- `Showable Moment`: the demo moment the buyer should understand fast.
+- `Human Taste Note`: your override, such as `too much`, `too plain`, `wrong direction`, `almost there`, or `park it`.
+- `Phase Model Policy`: `budget`, `balanced`, or `judgment-heavy`.
+
+When `-BudgetMode cheap` is used, implementation can still start on cheaper models for eligible demo ships, but Shape/Simplicity/Polish planning and taste-review roles use stronger judgment models. A ship can also set `Phase Model Policy: judgment-heavy` to force stronger planner, Simon, and Robin judgment during a cheap run, or `budget` to keep the whole cheap-eligible loop low-cost.
+
 Morning review:
 
 ```powershell

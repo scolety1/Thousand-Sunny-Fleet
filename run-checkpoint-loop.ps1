@@ -338,6 +338,30 @@ function Get-BudgetModels {
     if ($ModelBudget -ne "cheap") { return @() }
     if (!(Test-CheapModelEligible)) { return @() }
 
+    $effectivePhaseForModels = $LoopPhase
+    $phaseModelPolicy = ""
+    if ($effectivePhaseForModels -eq "auto" -and (Test-Path "docs/codex/PHASE_STATE.md")) {
+        $phaseText = Get-Content "docs/codex/PHASE_STATE.md" -Raw
+        $phaseMatch = [regex]::Match($phaseText, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked)\s*$")
+        if ($phaseMatch.Success) {
+            $effectivePhaseForModels = $phaseMatch.Groups[1].Value.Trim().ToLowerInvariant()
+        }
+        $policyMatch = [regex]::Match($phaseText, "(?im)^Phase Model Policy:\s*(budget|balanced|judgment-heavy)\s*$")
+        if ($policyMatch.Success) {
+            $phaseModelPolicy = $policyMatch.Groups[1].Value.Trim().ToLowerInvariant()
+        }
+    } elseif (Test-Path "docs/codex/PHASE_STATE.md") {
+        $phaseText = Get-Content "docs/codex/PHASE_STATE.md" -Raw
+        $policyMatch = [regex]::Match($phaseText, "(?im)^Phase Model Policy:\s*(budget|balanced|judgment-heavy)\s*$")
+        if ($policyMatch.Success) {
+            $phaseModelPolicy = $policyMatch.Groups[1].Value.Trim().ToLowerInvariant()
+        }
+    }
+
+    if ($Role -in @("planner", "review", "simon", "robin") -and ($phaseModelPolicy -eq "judgment-heavy" -or ([string]::IsNullOrWhiteSpace($phaseModelPolicy) -and $effectivePhaseForModels -in @("shape", "simplicity", "polish")))) {
+        return @("gpt-5.5", "gpt-5.4")
+    }
+
     switch ($Role) {
         "implement" { return @("gpt-5.4-mini", "gpt-5.3-codex-spark", "gpt-5.4") }
         "review" { return @("gpt-5.4-mini", "gpt-5.4") }

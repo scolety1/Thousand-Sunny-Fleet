@@ -874,6 +874,7 @@ function Test-MagicRunSupport {
 
 function Test-PhaseLoopSupport {
     $phasePath = Join-Path $fleetRoot "fleet-phase.ps1"
+    $phaseText = Get-Content $phasePath -Raw
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
@@ -882,8 +883,21 @@ function Test-PhaseLoopSupport {
     $docsText = Get-Content (Join-Path $fleetRoot "docs\CODEX_FLEET_CONTROL_ROOM.md") -Raw
 
     Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
+    Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
+    Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
+    Assert-True -Condition ($phaseText -match 'No More Features Lock') -Message "Phase state stores feature lock"
+    Assert-True -Condition ($phaseText -match 'Complexity Budget') -Message "Phase state stores complexity budget"
+    Assert-True -Condition ($phaseText -match 'Before/After Judgment') -Message "Phase state stores before-after judgment"
+    Assert-True -Condition ($phaseText -match 'Parking State') -Message "Phase state stores parking state"
+    Assert-True -Condition ($phaseText -match '\$ParkingState') -Message "Phase state accepts parking state updates"
+    Assert-True -Condition ($phaseText -match 'Phase Model Policy') -Message "Phase state stores phase model policy"
     Assert-True -Condition ($plannerText -match 'PHASE_STATE\.md') -Message "Planner reads phase state"
     Assert-True -Condition ($plannerText -match 'Current loop phase') -Message "Planner receives current loop phase"
+    Assert-True -Condition ($plannerText -match 'No More Features Lock') -Message "Planner treats feature lock as first-class"
+    Assert-True -Condition ($plannerText -match 'Product Promise') -Message "Planner treats product promise as first-class"
+    Assert-True -Condition ($plannerText -match 'Complexity Budget') -Message "Planner treats complexity budget as first-class"
+    Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
+    Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"
     Assert-True -Condition ($loopText -match '\$LoopPhase') -Message "Checkpoint loop exposes LoopPhase"
     Assert-True -Condition ($loopText -match '-LoopPhase') -Message "Checkpoint loop passes LoopPhase to planner"
