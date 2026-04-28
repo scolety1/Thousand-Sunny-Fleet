@@ -154,6 +154,12 @@ Budget modes:
 - `balanced` uses the ship's configured run shape.
 - `premium` keeps reviews frequent for final polish or important demos.
 
+Cheap budget mode also uses cheaper model chains for static/demo ships first:
+
+- Implementation starts with `gpt-5.4-mini`, then tries `gpt-5.3-codex-spark`, then falls back to `gpt-5.4`.
+- Planner, checkpoint, Simon, and Robin start with `gpt-5.4-mini`, then fall back to `gpt-5.4`.
+- Real-product ships keep their configured model chains unless their profile/project type is explicitly changed.
+
 Overnight run with a rate budget:
 
 ```powershell

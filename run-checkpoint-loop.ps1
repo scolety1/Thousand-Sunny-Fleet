@@ -44,6 +44,9 @@ param(
 
     [int]$MaxTaskQuarantines = 3,
 
+    [ValidateSet("auto", "cheap", "balanced", "premium")]
+    [string]$ModelBudget = "auto",
+
     [int]$VisualEvery = 0,
 
     [int]$VisualInspectEvery = 0,
@@ -292,6 +295,9 @@ function Get-RoleModelsFrom {
 function Get-ProjectModels {
     param([string]$Role)
 
+    $budgetModels = @(Get-BudgetModels -Role $Role)
+    if ($budgetModels.Count -gt 0) { return $budgetModels }
+
     $projectModels = @(Get-RoleModelsFrom -ConfigObject $script:projectConfig -Role $Role)
     if ($projectModels.Count -gt 0) { return $projectModels }
 
@@ -299,6 +305,40 @@ function Get-ProjectModels {
     if ($profileModels.Count -gt 0) { return $profileModels }
 
     return @()
+}
+
+function Test-CheapModelEligible {
+    $profileName = Get-ConfigPropertyValue -Object $script:projectConfig -Name "profile"
+    if ([string]::IsNullOrWhiteSpace([string]$profileName)) {
+        $profileName = Get-ConfigPropertyValue -Object $script:profileConfig -Name "name"
+    }
+
+    $projectType = Get-ConfigPropertyValue -Object $script:projectConfig -Name "projectType"
+    if ([string]::IsNullOrWhiteSpace([string]$projectType)) {
+        $projectType = Get-ConfigPropertyValue -Object $script:profileConfig -Name "projectType"
+    }
+
+    $cheapProfiles = @("frontend-static-demo", "docs-only")
+    $cheapProjectTypes = @("marketing-site", "static-site", "documentation", "docs")
+
+    return (($cheapProfiles -contains [string]$profileName) -or ($cheapProjectTypes -contains [string]$projectType))
+}
+
+function Get-BudgetModels {
+    param([string]$Role)
+
+    if ($ModelBudget -ne "cheap") { return @() }
+    if (!(Test-CheapModelEligible)) { return @() }
+
+    switch ($Role) {
+        "implement" { return @("gpt-5.4-mini", "gpt-5.3-codex-spark", "gpt-5.4") }
+        "review" { return @("gpt-5.4-mini", "gpt-5.4") }
+        "planner" { return @("gpt-5.4-mini", "gpt-5.4") }
+        "checkpoint" { return @("gpt-5.4-mini", "gpt-5.4") }
+        "simon" { return @("gpt-5.4-mini", "gpt-5.4") }
+        "robin" { return @("gpt-5.4-mini", "gpt-5.4") }
+        default { return @() }
+    }
 }
 
 function Get-TimeoutSetting {
@@ -2046,6 +2086,7 @@ if ($ValidateOnly) {
     $validateBuildDirectory = Get-ConfigScalar -Name "buildDirectory" -Default "."
     $validateBuildCommand = Get-ConfigScalar -Name "buildCommand" -Default ""
     Write-Host "Profile: $validateProfile"
+    Write-Host "Model budget: $ModelBudget"
     Write-Host "Build directory: $validateBuildDirectory"
     Write-Host "Build command: $validateBuildCommand"
     Write-Host "Implement models: $((Get-ProjectModels -Role "implement") -join ', ')"
