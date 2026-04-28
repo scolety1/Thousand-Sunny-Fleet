@@ -177,6 +177,32 @@ Overnight budget caps:
 - Pass `0` for any cap only when intentionally disabling that cap.
 - Overnight also accepts `-BudgetMode cheap|balanced|premium`; default is `balanced`.
 
+## Phase loops
+
+The fleet can now plan inside a website/software phase instead of using one generic task brain:
+
+```powershell
+.\fleet-phase.ps1 -Project ShipName -Init -Phase shape -ProductPromise "This demo helps a GM turn scattered shift notes into one server-ready brief."
+.\launch-school-run.ps1 -Project ShipName -LoopPhase shape
+.\launch-cellar-fleet.ps1 -LoopPhase simplicity -BudgetMode cheap
+```
+
+Phase order:
+
+```text
+brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
+```
+
+- `brief`: define audience, promise, primary action, showable moment, and what not to build.
+- `foundation`: add missing routes/components/data/core behavior.
+- `shape`: clarify product structure and primary flow; avoid feature sprawl.
+- `simplicity`: remove, combine, shorten, hide, or demote before adding.
+- `polish`: refine type, spacing, color, hierarchy, button rhythm, and final wording.
+- `proof`: fix blockers only.
+- `parked`: review-ready; do not continue unattended.
+
+Each ship may carry `docs/codex/PHASE_STATE.md` with the current phase, product promise, and human taste note. `-LoopPhase auto` reads that file; explicit `-LoopPhase simplicity` overrides it for the run.
+
 Morning review:
 
 ```powershell

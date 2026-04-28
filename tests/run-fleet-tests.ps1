@@ -872,6 +872,27 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($readmeText -match 'visible-impact guard') -Message "README documents the visible-impact guard"
 }
 
+function Test-PhaseLoopSupport {
+    $phasePath = Join-Path $fleetRoot "fleet-phase.ps1"
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $cellarText = Get-Content (Join-Path $fleetRoot "launch-cellar-fleet.ps1") -Raw
+    $docsText = Get-Content (Join-Path $fleetRoot "docs\CODEX_FLEET_CONTROL_ROOM.md") -Raw
+
+    Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
+    Assert-True -Condition ($plannerText -match 'PHASE_STATE\.md') -Message "Planner reads phase state"
+    Assert-True -Condition ($plannerText -match 'Current loop phase') -Message "Planner receives current loop phase"
+    Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"
+    Assert-True -Condition ($loopText -match '\$LoopPhase') -Message "Checkpoint loop exposes LoopPhase"
+    Assert-True -Condition ($loopText -match '-LoopPhase') -Message "Checkpoint loop passes LoopPhase to planner"
+    Assert-True -Condition ($schoolText -match '\$LoopPhase') -Message "School launcher exposes LoopPhase"
+    Assert-True -Condition ($overnightText -match '\$LoopPhase') -Message "Overnight launcher exposes LoopPhase"
+    Assert-True -Condition ($cellarText -match '\$LoopPhase') -Message "Cellar launcher exposes LoopPhase"
+    Assert-True -Condition ($docsText -match 'Phase loops') -Message "Control room docs explain phase loops"
+}
+
 function Test-LongRunSupervisorSupport {
     $supervisorText = Get-Content (Join-Path $fleetRoot "fleet-supervisor.ps1") -Raw
     $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
@@ -977,6 +998,7 @@ Test-RobinCopySmokeSupport
 Test-DebuggerReportFileAllowance
 Test-ShipPreviewRefreshSupport
 Test-MagicRunSupport
+Test-PhaseLoopSupport
 Test-LongRunSupervisorSupport
 Test-SophisticatedSoftwareModeSupport
 

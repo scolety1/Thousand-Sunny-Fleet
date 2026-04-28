@@ -8,6 +8,9 @@ param(
     [ValidateSet("cheap", "balanced", "premium")]
     [string]$BudgetMode = "cheap",
 
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [string]$LoopPhase = "auto",
+
     [int]$RateLimitCooldownSeconds = 3600,
 
     [int]$RateLimitMaxCooldowns = 4,
@@ -70,6 +73,7 @@ $args = @(
 
 if ($Mode -in @("school", "overnight")) {
     $args += @("-BudgetMode", $BudgetMode)
+    $args += @("-LoopPhase", $LoopPhase)
 }
 
 if ($excludeNames.Count -gt 0) {

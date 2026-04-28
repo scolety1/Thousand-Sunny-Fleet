@@ -18,6 +18,9 @@ param(
 
     [int]$MaxPlannerBatches = 0,
 
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [string]$LoopPhase = "auto",
+
     [int]$MaxCodexAttempts = 4,
 
     [int]$CodexTimeoutSeconds = 1800,
@@ -2170,6 +2173,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             "-File", (Join-Path $fleetRoot "generate-next-five.ps1"),
             "-Repo", $repoPath,
             "-BaseBranch", $BaseBranch,
+            "-LoopPhase", $LoopPhase,
             "-Count", $BatchSize
         )
         $plannerModels = @(Get-ProjectModels -Role "planner")

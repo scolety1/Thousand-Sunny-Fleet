@@ -6,6 +6,9 @@ param(
 
     [int]$Count = 5,
 
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [string]$LoopPhase = "auto",
+
     [string]$OutFile = "docs/codex/NEXT_5_TASKS.md",
 
     [string]$Model = "",
@@ -55,6 +58,7 @@ $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISS
 $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
+$phaseState = if (Test-Path "docs/codex/PHASE_STATE.md") { Get-Content "docs/codex/PHASE_STATE.md" -Raw } else { "No phase state file found." }
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $qualityQuarantine = if (Test-Path "docs/codex/QUALITY_QUARANTINE.md") { Get-Content "docs/codex/QUALITY_QUARANTINE.md" -Tail 120 } else { @("No quality quarantine found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
@@ -86,6 +90,18 @@ function Get-ActiveWorkPack {
 }
 
 $activeWorkPack = Get-ActiveWorkPack -Text $workPackStatus
+
+function Get-PhaseFromState {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+    $match = [regex]::Match($Text, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked)\s*$")
+    if ($match.Success) { return $match.Groups[1].Value.Trim().ToLowerInvariant() }
+    return ""
+}
+
+$effectivePhase = if ($LoopPhase -ne "auto") { $LoopPhase } else { Get-PhaseFromState -Text $phaseState }
+if ([string]::IsNullOrWhiteSpace($effectivePhase)) { $effectivePhase = "foundation" }
 
 $prompt = @"
 You are the mission planner for an unattended Codex branch.
@@ -131,6 +147,18 @@ Rules:
 - If QUALITY_QUARANTINE.md exists, treat it like an active repair order. The next task must be a smaller repair task for the named active work pack.
 - Every task should make the next screenshot, workflow, or user-facing product state measurably better.
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
+- Current loop phase: $effectivePhase.
+- Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
+- Phase doctrine:
+  - brief: define or repair audience, product promise, primary action, showable moment, and what not to build; prefer docs/codex/PHASE_STATE.md or mission docs only.
+  - foundation: add missing routes, components, local demo data, and core interactions; do not spend tasks on final polish or tiny visual refinements.
+  - shape: clarify audience, promise, first screen, page order, and primary flow; reorganize or remove confusing sections; do not add unrelated features.
+  - simplicity: reduce cognitive load; remove, combine, shorten, hide, or demote before adding; require one obvious primary action and fewer choices than before.
+  - polish: refine typography, spacing, hierarchy, color, button rhythm, and final microcopy; do not add sections, routes, or new product capabilities.
+  - proof: fix blockers only: broken routes, build/runtime failures, clipped text, tap targets, copy smoke, and visual QA issues; do not redesign.
+  - parked: output one docs-only task explaining the ship is review-ready and should not continue unattended.
+- For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
+- Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
 - If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
@@ -151,6 +179,9 @@ $workPacks
 
 Work pack status:
 $workPackStatus
+
+Phase state:
+$phaseState
 
 Magic scorecard tail:
 $($magicScorecard -join "`n")
