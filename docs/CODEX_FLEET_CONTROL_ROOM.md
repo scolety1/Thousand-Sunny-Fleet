@@ -210,6 +210,8 @@ This writes `ANALYSIS_BRIEF.md`, `DATA_CONTRACT.md`, `FORMULA_SPEC.md`, `FIXTURE
 
 The checkpoint loop blocks `engine-build`, `calibration`, `dashboard`, `scenario-tools`, and `analysis-proof` until the analytical planning pack is approved. Early phases can still draft the pack; implementation and UI phases need approval first.
 
+During analytical phases, staged commits also run `analytical-number-provenance.ps1`. This blocks hardcoded user-facing probabilities, scores, ranks, dollar values, forecasts, and recommendation numbers unless they clearly come from code/data or live in fixtures, sample data, tests, formulas, data contracts, or generated reports.
+
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.

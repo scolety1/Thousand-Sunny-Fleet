@@ -883,6 +883,7 @@ function Test-PhaseLoopSupport {
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $analysisText = Get-Content (Join-Path $fleetRoot "fleet-analysis.ps1") -Raw
+    $numberText = Get-Content (Join-Path $fleetRoot "analytical-number-provenance.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
@@ -892,6 +893,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
     Assert-True -Condition (Test-Path $phaseAuditPath) -Message "Fleet exposes phase readiness audit"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-analysis.ps1")) -Message "Fleet exposes analytical planning pack script"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-number-provenance.ps1")) -Message "Fleet exposes analytical number provenance gate"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -940,6 +942,11 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($loopText -match 'engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof"') -Message "Analytical approval gate covers implementation and UI phases"
     Assert-True -Condition ($loopText -match [regex]::Escape('Status:\s*APPROVED')) -Message "Analytical gate requires approved analysis status"
     Assert-True -Condition ($loopText -match 'fleet-analysis\.ps1 -Project') -Message "Analytical gate reports the repair command"
+    Assert-True -Condition ($numberText -match 'Analytical Number Provenance') -Message "Number provenance gate writes a report"
+    Assert-True -Condition ($numberText -match 'probabilities, scores, ranks, dollar values') -Message "Number provenance gate targets analytical numeric claims"
+    Assert-True -Condition ($numberText -match 'Test-AllowedEvidencePath') -Message "Number provenance gate allows fixtures, data, tests, and analysis docs"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalNumberProvenanceGate') -Message "Checkpoint loop runs analytical number provenance before commit"
+    Assert-True -Condition ($loopText -match 'ANALYTICAL_NUMBER_PROVENANCE\.md') -Message "Task scope allows analytical number provenance report"
     Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
     Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"

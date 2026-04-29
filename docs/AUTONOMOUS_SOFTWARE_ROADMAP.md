@@ -53,13 +53,16 @@ Acceptance:
 - The refusal tells the operator to run or review `fleet-analysis.ps1`.
 - Tests cover approved, draft, and missing analytical packs.
 
-### A2 - No Fake Numbers Gate
+### A2 - No Fake Numbers Gate - done
 
 Problem:
 Analytical apps can look convincing while showing hardcoded or invented percentages, ranks, scores, probabilities, dollar values, or recommendations.
 
 Target:
 Add a gate that scans staged UI/report text for numeric claims and requires an obvious code/data source, fixture, or generated output path behind those numbers.
+
+Status:
+Implemented as `analytical-number-provenance.ps1` and wired into `run-checkpoint-loop.ps1` before commits during analytical phases. The gate scans staged user-facing additions for hardcoded analytical percentages, scores, ranks, dollar values, forecasts, and recommendation numbers while allowing fixtures, sample data, tests, formula specs, data contracts, and generated reports.
 
 Acceptance:
 

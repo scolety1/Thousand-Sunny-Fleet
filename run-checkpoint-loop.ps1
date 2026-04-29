@@ -617,7 +617,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -1042,8 +1042,35 @@ function Invoke-RuntimeVerificationGate {
     return ($exitCode -eq 0)
 }
 
+function Invoke-AnalyticalNumberProvenanceGate {
+    $effectivePhase = Resolve-EffectiveLoopPhaseForGate
+    $analyticalPhases = @("problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")
+    if ($effectivePhase -notin $analyticalPhases) { return $true }
+
+    $reviewScript = Join-Path $fleetRoot "analytical-number-provenance.ps1"
+    if (!(Test-Path -LiteralPath $reviewScript)) {
+        Write-Host "Analytical number provenance script not found: $reviewScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $reviewScript,
+        "-Repo", (Get-Location).Path
+    ) -LogName ("analytical-number-provenance-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    Stage-Files -Paths @("docs/codex/ANALYTICAL_NUMBER_PROVENANCE.md")
+    return ($exitCode -eq 0)
+}
+
 function Invoke-FleetCommit {
     param([string]$Message)
+
+    if (-not (Invoke-AnalyticalNumberProvenanceGate)) {
+        Write-Host "Analytical number provenance failed before commit." -ForegroundColor Red
+        return $false
+    }
 
     if (-not (Invoke-SensitiveSystemsReviewGate)) {
         Write-Host "Sensitive systems review failed before commit." -ForegroundColor Red
