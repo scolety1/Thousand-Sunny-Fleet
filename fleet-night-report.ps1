@@ -10,6 +10,8 @@ param(
 
     [switch]$IgnoreDryRuns,
 
+    [string]$ScheduledRunLogRoot = "",
+
     [string]$OutFile = "out\fleet-night-report.md",
 
     [string]$JsonOutFile = "out\fleet-night-report.json"
@@ -134,7 +136,7 @@ function Get-Recommendation {
 function Get-ScheduledRunRows {
     param([datetime]$Since)
 
-    $logRoot = Join-Path $fleetRoot "out\scheduled-runs"
+    $logRoot = if (![string]::IsNullOrWhiteSpace($ScheduledRunLogRoot)) { $ScheduledRunLogRoot } else { Join-Path $fleetRoot "out\scheduled-runs" }
     if (!(Test-Path -LiteralPath $logRoot)) { return @() }
 
     return @(Get-ChildItem -Path $logRoot -File -Filter "*.log" -ErrorAction SilentlyContinue |

@@ -291,7 +291,7 @@ if ($scheduledWrapperSkippedForActiveWork) {
     Add-TestResult -Name "Scheduled wrapper dry-run proof manifest exists" -Passed $false -Detail $latestProofLaunch
 }
 
-$scheduledLogRoot = Join-Path $fleetRoot "out\scheduled-runs"
+$scheduledLogRoot = Join-Path $fleetRoot "out\harness-scheduled-runs"
 New-Item -ItemType Directory -Force -Path $scheduledLogRoot | Out-Null
 $nightReportHarnessLog = Join-Path $scheduledLogRoot "harness-proof-dryrun-$PID.log"
 $nightReportHarnessMd = Join-Path $fleetRoot "out\fleet-night-report-harness.md"
@@ -308,6 +308,7 @@ try {
         "-File", (Join-Path $fleetRoot "fleet-night-report.ps1"),
         "-SinceHours", "1",
         "-IgnoreDryRuns",
+        "-ScheduledRunLogRoot", $scheduledLogRoot,
         "-ExcludeProject", (($SelectedProjects + $ExcludedProjects) -join ","),
         "-OutFile", $nightReportHarnessMd,
         "-JsonOutFile", $nightReportHarnessJson
