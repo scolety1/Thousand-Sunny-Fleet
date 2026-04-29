@@ -325,7 +325,8 @@
                             "/War_Board",
                             "/Trade_Central",
                             "/Draft_Room",
-                            "/League_Intel"
+                            "/League_Intel",
+                            "/Model_Audit"
                         ],
         "overnightBatchSize":  1,
         "overnightMaxBatches":  4,
