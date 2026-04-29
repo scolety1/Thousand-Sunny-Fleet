@@ -130,6 +130,11 @@ Write a concise markdown review to this exact structure:
 
 ## Verdict
 Use exactly one: GREEN, YELLOW, or RED.
+Verdict rules:
+- RED only for build failure, unsafe/risky changes, high visual issues, security blockers, or a review gate that explicitly says stop.
+- GREEN when build passed, the working tree is clean, no unchecked tasks remain, and there are no high/medium visual issues or blocking review signals. This means the ship is parked/ready, even if no new code landed in this checkpoint window.
+- YELLOW for non-blocking polish debt, medium review concerns, or meaningful follow-up work that should shape the next task.
+- Do not downgrade solely because no new code, commits, or task movement happened in this checkpoint window. An empty queue can be a successful stopping point.
 
 ## Progress Against Mission
 Summarize whether the branch is moving toward the mission.
@@ -152,6 +157,7 @@ Bullets for visual bug report, Simon design review, Robin copy review, Joey secu
 
 ## Recommended Next Step
 Choose one: continue, patch first, stop for human review.
+Use "stop for human review" for a clean, queue-empty, build-passing ship that appears ready to inspect or park. Use "patch first" only when there is a concrete non-blocking defect to repair. Use "continue" when there is still mission-forward queued work.
 
 ## Next Batch Guidance
 Include:
