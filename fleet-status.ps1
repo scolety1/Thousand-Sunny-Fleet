@@ -125,7 +125,7 @@ foreach ($project in $projects) {
 
     Push-Location $project.repo
     $branch = git branch --show-current
-    $status = @(git status --short)
+    $status = @(git status --short 2>$null)
     $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue)
     $head = git rev-parse --short HEAD 2>$null
     if ($LASTEXITCODE -ne 0) {

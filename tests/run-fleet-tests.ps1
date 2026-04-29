@@ -754,6 +754,7 @@ function Test-LaunchControlSupport {
     Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
     Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
     Assert-True -Condition ($statusText -match 'Get-FleetStatusChildSummary') -Message "Fleet status reports active child work for run locks"
+    Assert-True -Condition ($statusText -match 'git status --short 2>\$null') -Message "Fleet status suppresses noisy inaccessible temp-directory warnings"
 
     $visualRunner = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
     Assert-True -Condition ($visualRunner -match 'routeUrl\.search') -Message "Visual inspect route URLs preserve query strings"
