@@ -874,7 +874,9 @@ function Test-MagicRunSupport {
 
 function Test-PhaseLoopSupport {
     $phasePath = Join-Path $fleetRoot "fleet-phase.ps1"
+    $phaseAuditPath = Join-Path $fleetRoot "fleet-phase-audit.ps1"
     $phaseText = Get-Content $phasePath -Raw
+    $phaseAuditText = Get-Content $phaseAuditPath -Raw
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
@@ -883,6 +885,7 @@ function Test-PhaseLoopSupport {
     $docsText = Get-Content (Join-Path $fleetRoot "docs\CODEX_FLEET_CONTROL_ROOM.md") -Raw
 
     Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
+    Assert-True -Condition (Test-Path $phaseAuditPath) -Message "Fleet exposes phase readiness audit"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -896,6 +899,9 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($phaseText -match 'Done Signal') -Message "Phase state stores done signal"
     Assert-True -Condition ($phaseText -match 'Next Phase Criteria') -Message "Phase state stores next phase criteria"
     Assert-True -Condition ($phaseText -match '\$Validate') -Message "Phase state can be validated"
+    Assert-True -Condition ($phaseAuditText -match 'PHASE_STATE\.md') -Message "Phase audit checks phase files"
+    Assert-True -Condition ($phaseAuditText -match 'Done Signal') -Message "Phase audit checks done signal"
+    Assert-True -Condition ($phaseAuditText -match '\$Strict') -Message "Phase audit can fail strict runs"
     Assert-True -Condition ($plannerText -match 'PHASE_STATE\.md') -Message "Planner reads phase state"
     Assert-True -Condition ($plannerText -match 'Current loop phase') -Message "Planner receives current loop phase"
     Assert-True -Condition ($plannerText -match 'Audience') -Message "Planner treats audience as first-class"

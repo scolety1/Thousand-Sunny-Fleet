@@ -227,6 +227,13 @@ Validate a ship phase file before long runs:
 .\fleet-phase.ps1 -Project Bottlelight -Validate
 ```
 
+Audit all selected ships before deciding what can run:
+
+```powershell
+.\fleet-phase-audit.ps1
+.\fleet-phase-audit.ps1 -Project RestaurantDemo -Strict
+```
+
 Require that validation before a serious launch:
 
 ```powershell
