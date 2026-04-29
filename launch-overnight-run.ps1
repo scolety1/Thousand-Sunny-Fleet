@@ -152,7 +152,7 @@ function Resolve-BudgetShape {
             maxBatches = Get-MinPositive -Value $ShipMaxBatches -Cap 4
             maxRuntimeMinutes = Get-MinPositive -Value $ShipMaxRuntimeMinutes -Cap 180
             maxCompletedTasks = Get-MinPositive -Value $ShipMaxCompletedTasks -Cap 3
-            maxPlannerBatches = Get-MinPositive -Value $ShipMaxPlannerBatches -Cap 1
+            maxPlannerBatches = Get-MinPositive -Value $ShipMaxPlannerBatches -Cap 4
             visualEvery = if ($ShipVisualEvery -gt 0) { [Math]::Max($ShipVisualEvery, 2) } else { 0 }
             simonEvery = if ($ShipSimonEvery -gt 0) { [Math]::Max($ShipSimonEvery, 2) } else { 0 }
             robinEvery = if ($ShipRobinEvery -gt 0) { [Math]::Max($ShipRobinEvery, 3) } else { 0 }
