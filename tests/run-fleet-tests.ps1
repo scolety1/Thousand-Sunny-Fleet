@@ -920,6 +920,8 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($schoolText -match 'RequirePhaseValidation') -Message "School launcher can require phase validation"
     Assert-True -Condition ($overnightText -match 'RequirePhaseValidation') -Message "Overnight launcher can require phase validation"
     Assert-True -Condition ($cellarText -match 'RequirePhaseValidation') -Message "Cellar launcher can require phase validation"
+    Assert-True -Condition ($cellarText -match '\$FleetGroup') -Message "Cellar launcher can target a named fleet group"
+    Assert-True -Condition ($cellarText -match 'SkipDoctor') -Message "Cellar launcher forwards SkipDoctor"
     Assert-True -Condition ($docsText -match 'Phase loops') -Message "Control room docs explain phase loops"
 }
 

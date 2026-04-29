@@ -5,6 +5,8 @@ param(
 
     [string]$ConfigPath = ".\projects.json",
 
+    [string]$FleetGroup = "CellarFleet",
+
     [ValidateSet("cheap", "balanced", "premium")]
     [string]$BudgetMode = "cheap",
 
@@ -22,6 +24,8 @@ param(
     [switch]$QuarantineFailedTasks,
 
     [switch]$AllowSafeStopRequests,
+
+    [switch]$SkipDoctor,
 
     [switch]$RequirePhaseValidation,
 
@@ -49,15 +53,15 @@ $projects = if ($parsedConfig.PSObject.Properties.Name -contains "value") {
 } else {
     @($parsedConfig | ForEach-Object { $_ })
 }
-$cellarShips = @($projects | Where-Object { [string]$_.fleetGroup -eq "CellarFleet" } | Sort-Object name)
+$cellarShips = @($projects | Where-Object { [string]$_.fleetGroup -eq $FleetGroup } | Sort-Object name)
 if ($cellarShips.Count -eq 0) {
-    Stop-WithMessage "No projects with fleetGroup=CellarFleet found."
+    Stop-WithMessage "No projects with fleetGroup=$FleetGroup found."
 }
 
 $cellarNames = @($cellarShips | ForEach-Object { [string]$_.name })
-$excludeNames = @($projects | Where-Object { [string]$_.fleetGroup -ne "CellarFleet" } | ForEach-Object { [string]$_.name } | Sort-Object -Unique)
+$excludeNames = @($projects | Where-Object { [string]$_.fleetGroup -ne $FleetGroup } | ForEach-Object { [string]$_.name } | Sort-Object -Unique)
 
-Write-Host "Cellar Fleet ships: $($cellarNames -join ', ')" -ForegroundColor Cyan
+Write-Host "$FleetGroup ships: $($cellarNames -join ', ')" -ForegroundColor Cyan
 if ($excludeNames.Count -gt 0) {
     Write-Host "Excluded ships: $($excludeNames -join ', ')" -ForegroundColor DarkGray
 }
@@ -87,6 +91,7 @@ $args += @("-ExpectedProject", ($cellarNames -join ","))
 if ($PushCheckpoint) { $args += "-PushCheckpoint" }
 if ($QuarantineFailedTasks) { $args += "-QuarantineFailedTasks" }
 if ($AllowSafeStopRequests) { $args += "-AllowSafeStopRequests" }
+if ($SkipDoctor) { $args += "-SkipDoctor" }
 if ($RequirePhaseValidation) { $args += "-RequirePhaseValidation" }
 if ($DryRun) { $args += "-DryRun" }
 
