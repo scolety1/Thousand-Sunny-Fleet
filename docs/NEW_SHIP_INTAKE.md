@@ -123,6 +123,12 @@ cd C:\Dev\codex-fleet
 
 ## First Proof Run
 
+Task queue lines should use the planner shape:
+
+```md
+- [ ] User pain: ... Target: ... Change: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ... [class:feature risk:low mode:single impact:visible scope:src/]
+```
+
 ```powershell
 cd C:\Dev\codex-fleet
 .\run-checkpoint-loop.ps1 -Project ShipName -BatchSize 1 -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -QuarantineFailedTasks -MaxTaskQuarantines 1

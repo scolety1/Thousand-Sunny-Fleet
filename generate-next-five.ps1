@@ -56,6 +56,13 @@ $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+
 $completed = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[x\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
 $quarantined = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[!\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
+$userJob = if (Test-Path "docs/codex/USER_JOB.md") { Get-Content "docs/codex/USER_JOB.md" -Raw } else { "No user job file found." }
+$evaluators = if (Test-Path "docs/codex/EVALUATORS.md") { Get-Content "docs/codex/EVALUATORS.md" -Raw } else { "No evaluators file found." }
+$shipAdmission = if (Test-Path "docs/codex/SHIP_ADMISSION.md") { Get-Content "docs/codex/SHIP_ADMISSION.md" -Raw } else { "No ship admission file found." }
+$shipScorecard = if (Test-Path "docs/codex/SHIP_SCORECARD.md") { Get-Content "docs/codex/SHIP_SCORECARD.md" -Raw } else { "No ship scorecard file found." }
+$shipAdmissionReview = if (Test-Path "docs/codex/SHIP_ADMISSION_REVIEW.md") { Get-Content "docs/codex/SHIP_ADMISSION_REVIEW.md" -Raw } else { "No ship admission review found." }
+$productUsefulness = if (Test-Path "docs/codex/PRODUCT_USEFULNESS.md") { Get-Content "docs/codex/PRODUCT_USEFULNESS.md" -Raw } else { "No product usefulness file found." }
+$productUsefulnessReview = if (Test-Path "docs/codex/PRODUCT_USEFULNESS_REVIEW.md") { Get-Content "docs/codex/PRODUCT_USEFULNESS_REVIEW.md" -Raw } else { "No product usefulness review found." }
 $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
@@ -92,6 +99,28 @@ function Get-ActiveWorkPack {
 
 $activeWorkPack = Get-ActiveWorkPack -Text $workPackStatus
 
+function Test-FleetTaskHasProductShape {
+    param([string]$Task)
+
+    $required = @(
+        "User pain:",
+        "Target:",
+        "Change:",
+        "Remove/simplify:",
+        "Guardrails:",
+        "Acceptance:",
+        "Check:"
+    )
+
+    foreach ($label in $required) {
+        if ($Task -notmatch [regex]::Escape($label)) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Get-PhaseFromState {
     param([string]$Text)
 
@@ -112,6 +141,14 @@ Generate exactly $Count next tasks as markdown checklist lines.
 Rules:
 - Output only checklist lines, no commentary.
 - Each line must start with "- [ ] ".
+- Each task line must use this product-shape format, in this order: "User pain: ... Target: ... Change: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ...".
+- User pain must name the concrete confusion, wasted time, broken workflow, missing trust, or blocked demo value the task addresses.
+- Target must name the route, screen, component, module, docs file, formula, test, or local evaluator affected.
+- Change must say the specific behavior, layout, formula, copy, test, or route change to make.
+- Remove/simplify must name what to remove, demote, combine, shorten, hide, or preserve as "none, preserve X" when removal is not appropriate.
+- Guardrails must include explicit forbidden scope and any phase/admission/usefulness constraint.
+- Acceptance must include the normal documented build/check command, a documented test/static-check command, or a docs-only acceptance when the task is intentionally docs-only.
+- Check must include the visual, manual, fixture, formula, or report check that proves usefulness.
 - Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single impact:visible scope:src/,docs/codex/].
 - Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
@@ -147,6 +184,14 @@ Rules:
 - Route/page tasks must say frontend-only, prefer existing routing patterns, avoid new dependencies unless explicitly approved, and update SITE_MAP.md plus visual-routes.json when routes change.
 - If QUALITY_QUARANTINE.md exists, treat it like an active repair order. The next task must be a smaller repair task for the named active work pack.
 - Every task should make the next screenshot, workflow, or user-facing product state measurably better.
+- Plan from USER_JOB.md, EVALUATORS.md, SHIP_ADMISSION.md, SHIP_SCORECARD.md, SHIP_ADMISSION_REVIEW.md, PRODUCT_USEFULNESS.md, and PRODUCT_USEFULNESS_REVIEW.md before inventing work.
+- If SHIP_ADMISSION_REVIEW.md says PARK, output one docs-only task to document that the ship is parked and should not continue unattended.
+- If SHIP_ADMISSION_REVIEW.md says REVISE, generate admission/doc/evaluator sharpening tasks before product implementation.
+- If PRODUCT_USEFULNESS_REVIEW.md says NEEDS HUMAN DIRECTION, generate one docs-only task to fill product truth fields and stop.
+- If PRODUCT_USEFULNESS_REVIEW.md says PARK, output one docs-only parking task and stop.
+- If PRODUCT_USEFULNESS_REVIEW.md says REPAIR, the next task must be repair-first and must name the failing gate.
+- If PRODUCT_USEFULNESS_REVIEW.md says SIMPLIFY, the next task must reduce complexity before adding features.
+- If PRODUCT_USEFULNESS_REVIEW.md says CONTINUE, generate only tasks that match the named Next Useful Improvement or its checked improvement areas.
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Current loop phase: $effectivePhase.
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
@@ -205,6 +250,27 @@ Comparison range: $(if ([string]::IsNullOrWhiteSpace($gitComparison.range)) { "n
 
 Mission:
 $mission
+
+User job:
+$userJob
+
+Evaluators:
+$evaluators
+
+Ship admission:
+$shipAdmission
+
+Ship scorecard:
+$shipScorecard
+
+Ship admission review:
+$shipAdmissionReview
+
+Product usefulness:
+$productUsefulness
+
+Product usefulness review:
+$productUsefulnessReview
 
 Magic mission:
 $magicMission
@@ -317,6 +383,14 @@ $vagueTasks = @($tasks | Where-Object { -not (Test-FleetTaskHasForbiddenScope -T
 if ($vagueTasks.Count -gt 0) {
     Write-Host "Planner produced task(s) without explicit forbidden scope." -ForegroundColor Red
     $vagueTasks | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
+
+$unshapedTasks = @($tasks | Where-Object { -not (Test-FleetTaskHasProductShape -Task $_) })
+if ($unshapedTasks.Count -gt 0) {
+    Write-Host "Planner produced task(s) without required product-shape fields." -ForegroundColor Red
+    Write-Host "Required labels: User pain:, Target:, Change:, Remove/simplify:, Guardrails:, Acceptance:, Check:" -ForegroundColor Yellow
+    $unshapedTasks | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
 

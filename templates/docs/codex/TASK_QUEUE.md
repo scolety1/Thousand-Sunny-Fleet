@@ -25,4 +25,4 @@ Codex may not:
 
 ## Tasks
 
-- [ ] First safe task: replace this with a narrow task that includes explicit forbidden scope.
+- [ ] User pain: replace with the concrete pain this task addresses. Target: replace with the route, screen, component, module, docs file, formula, test, or evaluator. Change: replace with the specific change to make. Remove/simplify: replace with what to remove, demote, combine, shorten, hide, or preserve. Guardrails: include explicit forbidden scope and risky systems not to touch. Acceptance: replace with documented build/check/test command or docs-only acceptance. Check: replace with visual, manual, fixture, formula, or report check. [class:feature risk:low mode:single impact:standard scope:docs/codex/]
