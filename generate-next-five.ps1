@@ -239,7 +239,8 @@ Rules:
 - In repair phase, do not output docs-only stop summaries unless the gate explicitly requires human approval. Prefer a bounded repair task that names the failing gate and the exact files/scope to touch.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
-- If the checkpoint review says RED or stop for human review and Current loop phase is not repair, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
+- If the checkpoint review says RED or a required human approval is missing and Current loop phase is not repair, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
+- If the checkpoint review merely says "stop for human review" because Simon/Robin are YELLOW while build, security, and visual blockers are otherwise clear, do not create a docs-only stop task during shape/simplicity/polish/proof runs. Instead generate one bounded product-surface repair from the named Simon/Robin concern, or stop planning if no concrete concern is named.
 
 Repository: $($repoPath.Path)
 Branch: $branch

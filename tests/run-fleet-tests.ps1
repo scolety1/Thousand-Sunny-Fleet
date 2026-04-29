@@ -862,6 +862,7 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($loopText -match 'Magic Improvement Score') -Message "Checkpoint loop reads Simon magic improvement score"
     Assert-True -Condition ($loopText -match 'Get-TaskMaterialityFailureForLoop') -Message "Checkpoint loop blocks visible-impact tasks that lack material product changes"
     Assert-True -Condition ($loopText -match 'VISIBLE_IMPACT') -Message "Implementation prompt asks Codex to state visible user impact"
+    Assert-True -Condition ($plannerText -match 'do not create a docs-only stop task during shape/simplicity/polish/proof runs') -Message "Nami planner turns yellow human-review stops into product-surface repairs"
     Assert-True -Condition ($loopText -match 'Materiality signal') -Message "Magic scorecard records visible-impact materiality"
     Assert-True -Condition ($loopText -match 'Fresh QA evidence') -Message "Batch scorecard records fresh post-gate visual evidence"
     Assert-True -Condition ($loopText -match 'Debug checkpoint result') -Message "Batch scorecard records checkpoint debugger result"
