@@ -230,7 +230,11 @@ if (Test-Path $latestProofLaunch) {
     Add-TestResult -Name "Proof manifest exists after selected dry-run" -Passed $false -Detail $latestProofLaunch
 }
 
-$tooSmallExpected = @($SelectedProjects | Select-Object -First ([Math]::Max(1, $SelectedProjects.Count - 1))) -join ","
+$tooSmallExpectedProjects = @($SelectedProjects | Select-Object -First ([Math]::Max(0, $SelectedProjects.Count - 1)))
+if ($tooSmallExpectedProjects.Count -eq 0) {
+    $tooSmallExpectedProjects = @("__missing_selected_ship__")
+}
+$tooSmallExpected = $tooSmallExpectedProjects -join ","
 [void](Invoke-HarnessCommand -Name "Selected launch rejects unexpected extra ship" -Arguments @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
