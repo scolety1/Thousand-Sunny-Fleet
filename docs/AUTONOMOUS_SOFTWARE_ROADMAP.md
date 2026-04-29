@@ -36,13 +36,16 @@ Current status:
 
 Next upgrades:
 
-### A1 - Engine-Build Approval Blocker
+### A1 - Engine-Build Approval Blocker - done
 
 Problem:
 The fleet can enter `engine-build` before the human has approved the decision, data contract, formulas, fixtures, and calibration plan.
 
 Target:
 Block `engine-build`, `calibration`, `dashboard`, `scenario-tools`, and `analysis-proof` unless `ANALYSIS_APPROVAL.md` says `Status: APPROVED`.
+
+Status:
+Implemented in `run-checkpoint-loop.ps1`. The checkpoint loop resolves `-LoopPhase auto` from `PHASE_STATE.md`, blocks the implementation/UI analytical phases when the planning pack is missing or draft, releases the fleet run lock, and prints the `fleet-analysis.ps1` commands needed to prepare and validate approval.
 
 Acceptance:
 

@@ -2088,6 +2088,84 @@ function Invoke-FleetSafeStopCheck {
     }
 }
 
+function Resolve-EffectiveLoopPhaseForGate {
+    $effectivePhase = $LoopPhase
+    if ($effectivePhase -eq "auto" -and (Test-Path "docs/codex/PHASE_STATE.md")) {
+        $phaseText = Get-Content "docs/codex/PHASE_STATE.md" -Raw
+        $phaseMatch = [regex]::Match($phaseText, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked|repair|problem-brief|data-contract|formula-spec|fixture-tests|engine-build|calibration|dashboard|scenario-tools|analysis-proof)\s*$")
+        if ($phaseMatch.Success) {
+            $effectivePhase = $phaseMatch.Groups[1].Value.Trim().ToLowerInvariant()
+        }
+    }
+    return $effectivePhase
+}
+
+function Test-AnalyticalApprovalForLoop {
+    $requiredFiles = @(
+        "docs/codex/ANALYSIS_BRIEF.md",
+        "docs/codex/DATA_CONTRACT.md",
+        "docs/codex/FORMULA_SPEC.md",
+        "docs/codex/FIXTURE_TEST_PLAN.md",
+        "docs/codex/CALIBRATION_PLAN.md",
+        "docs/codex/ANALYSIS_APPROVAL.md"
+    )
+
+    foreach ($path in $requiredFiles) {
+        if (!(Test-Path $path)) {
+            return [pscustomobject]@{
+                approved = $false
+                reason = "Missing $path"
+            }
+        }
+    }
+
+    $approval = Get-Content "docs/codex/ANALYSIS_APPROVAL.md" -Raw
+    if ($approval -notmatch "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return [pscustomobject]@{
+            approved = $false
+            reason = "ANALYSIS_APPROVAL.md is not Status: APPROVED"
+        }
+    }
+
+    return [pscustomobject]@{
+        approved = $true
+        reason = "approved"
+    }
+}
+
+function Invoke-AnalyticalApprovalGate {
+    param(
+        [string]$ProjectName,
+        [string]$RepoFullPath
+    )
+
+    $effectivePhase = Resolve-EffectiveLoopPhaseForGate
+    $approvalRequiredPhases = @("engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")
+    if ($effectivePhase -notin $approvalRequiredPhases) { return }
+
+    $approval = Test-AnalyticalApprovalForLoop
+    if ($approval.approved) { return }
+
+    Write-Host ""
+    Write-Host "Analytical approval gate blocked $ProjectName before $effectivePhase." -ForegroundColor Red
+    Write-Host $approval.reason -ForegroundColor Yellow
+    Write-Host "Create/review the analytical pack, then approve it before engine/dashboard work:" -ForegroundColor Cyan
+    Write-Host "  cd C:\Dev\codex-fleet" -ForegroundColor Cyan
+    if (![string]::IsNullOrWhiteSpace($Project)) {
+        Write-Host "  .\fleet-analysis.ps1 -Project $ProjectName -Template" -ForegroundColor Cyan
+    } else {
+        Write-Host "  .\fleet-analysis.ps1 -Repo `"$RepoFullPath`" -Project $ProjectName -Template" -ForegroundColor Cyan
+    }
+    Write-Host "  # Review docs/codex/ANALYSIS_*.md in the ship repo and set ANALYSIS_APPROVAL.md to Status: APPROVED" -ForegroundColor Cyan
+    if (![string]::IsNullOrWhiteSpace($Project)) {
+        Write-Host "  .\fleet-analysis.ps1 -Project $ProjectName -ValidateOnly" -ForegroundColor Cyan
+    } else {
+        Write-Host "  .\fleet-analysis.ps1 -Repo `"$RepoFullPath`" -Project $ProjectName -ValidateOnly" -ForegroundColor Cyan
+    }
+    Release-FleetRunLock
+    exit 1
+}
+
 $script:projectConfig = Get-ProjectConfig
 $repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -2138,6 +2216,7 @@ if (!$AllowDuplicateRun) {
 }
 
 Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "startup"
+Invoke-AnalyticalApprovalGate -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
 
 $status = @(git status --porcelain)
 if ($status.Count -gt 0) {

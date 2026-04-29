@@ -208,6 +208,8 @@ For calculation-heavy ships, create and approve the analytical planning pack bef
 
 This writes `ANALYSIS_BRIEF.md`, `DATA_CONTRACT.md`, `FORMULA_SPEC.md`, `FIXTURE_TEST_PLAN.md`, `CALIBRATION_PLAN.md`, and `ANALYSIS_APPROVAL.md` under `docs/codex`. Keep `ANALYSIS_APPROVAL.md` as `Status: DRAFT` until the decision, data contract, formulas, fixtures, and calibration checks are coherent enough for deterministic implementation.
 
+The checkpoint loop blocks `engine-build`, `calibration`, `dashboard`, `scenario-tools`, and `analysis-proof` until the analytical planning pack is approved. Early phases can still draft the pack; implementation and UI phases need approval first.
+
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.
