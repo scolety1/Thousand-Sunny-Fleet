@@ -34,6 +34,9 @@ param(
 
     [switch]$RequirePhaseValidation,
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$LaunchGateMode = "warn",
+
     [switch]$DryRun
 )
 
@@ -216,7 +219,7 @@ foreach ($ship in $shipsToLaunch) {
 
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -ModelBudget $BudgetMode -LoopPhase $LoopPhase -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -ModelBudget $BudgetMode -LoopPhase $LoopPhase -LaunchGateMode $LaunchGateMode -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
     Write-Host "Launching school run for $($ship.name): budget $BudgetMode, batch $($budgetShape.batchSize) x $($budgetShape.maxBatches), visual $($budgetShape.visualEvery), Simon $($budgetShape.simonEvery), Robin $($budgetShape.robinEvery), Joey $($budgetShape.joeyEvery)..." -ForegroundColor Cyan

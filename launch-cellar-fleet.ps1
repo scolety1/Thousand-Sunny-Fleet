@@ -29,6 +29,9 @@ param(
 
     [switch]$RequirePhaseValidation,
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$LaunchGateMode = "warn",
+
     [switch]$DryRun
 )
 
@@ -93,6 +96,7 @@ if ($QuarantineFailedTasks) { $args += "-QuarantineFailedTasks" }
 if ($AllowSafeStopRequests) { $args += "-AllowSafeStopRequests" }
 if ($SkipDoctor) { $args += "-SkipDoctor" }
 if ($RequirePhaseValidation) { $args += "-RequirePhaseValidation" }
+if (![string]::IsNullOrWhiteSpace($LaunchGateMode)) { $args += @("-LaunchGateMode", $LaunchGateMode) }
 if ($DryRun) { $args += "-DryRun" }
 
 & powershell @args

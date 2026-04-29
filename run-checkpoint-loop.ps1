@@ -50,6 +50,9 @@ param(
     [ValidateSet("auto", "cheap", "balanced", "premium")]
     [string]$ModelBudget = "auto",
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$LaunchGateMode = "warn",
+
     [int]$VisualEvery = 0,
 
     [int]$VisualInspectEvery = 0,
@@ -2370,6 +2373,7 @@ if ($ValidateOnly) {
     $validateBuildCommand = Get-ConfigScalar -Name "buildCommand" -Default ""
     Write-Host "Profile: $validateProfile"
     Write-Host "Model budget: $ModelBudget"
+    Write-Host "Launch gate mode: $LaunchGateMode"
     Write-Host "Build directory: $validateBuildDirectory"
     Write-Host "Build command: $validateBuildCommand"
     Write-Host "Implement models: $((Get-ProjectModels -Role "implement") -join ', ')"
@@ -2381,6 +2385,23 @@ if ($ValidateOnly) {
     $validateVisualPaths = @(Get-ConfigArray -Name "visualPaths")
     Write-Host "Visual paths: $(if ($validateVisualPaths.Count -gt 0) { $validateVisualPaths -join ', ' } else { 'none' })"
     exit 0
+}
+
+if ($LaunchGateMode -ne "off") {
+    $gateArgs = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", $script:projectConfig.name,
+        "-ConfigPath", $ConfigPath,
+        "-LoopPhase", $LoopPhase,
+        "-Mode", $LaunchGateMode
+    )
+    & powershell @gateArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Launch gate blocked $($script:projectConfig.name)." -ForegroundColor Red
+        exit 1
+    }
 }
 
 if (!$AllowDuplicateRun) {

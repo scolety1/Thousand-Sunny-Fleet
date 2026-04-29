@@ -100,6 +100,15 @@ cd C:\Dev\codex-fleet
 
 Usefulness decisions are `CONTINUE`, `REPAIR`, `SIMPLIFY`, `PARK`, or `NEEDS HUMAN DIRECTION`.
 
+Launch gate command:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\fleet-launch-gate.ps1 -Project ShipName -Mode warn
+```
+
+The checkpoint loop runs the launch gate in `warn` mode by default. Use `-LaunchGateMode enforce` once admission and usefulness docs are filled and trusted.
+
 Static frontend demo:
 
 ```powershell
