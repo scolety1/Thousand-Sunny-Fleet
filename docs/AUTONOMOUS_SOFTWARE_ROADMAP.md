@@ -23,6 +23,107 @@ Fleet should not silently spend money, expose secrets, change production data, w
 
 Fleet needs phases, gates, and role-specific reviewers.
 
+## Analytical Software Loop Roadmap
+
+This track is for Niners-style tools, market research runners, ranking engines, scoring systems, recipe/order recommendation engines, and any project where the hard part is deterministic calculation rather than visual polish.
+
+Current status:
+
+- [x] Add analytical phase names: `problem-brief`, `data-contract`, `formula-spec`, `fixture-tests`, `engine-build`, `calibration`, `dashboard`, `scenario-tools`, `analysis-proof`.
+- [x] Teach the planner that analytical ships must be data-first, fixture-first, deterministic, and explainable.
+- [x] Add `fleet-analysis.ps1` to create the planning pack: `ANALYSIS_BRIEF.md`, `DATA_CONTRACT.md`, `FORMULA_SPEC.md`, `FIXTURE_TEST_PLAN.md`, `CALIBRATION_PLAN.md`, and `ANALYSIS_APPROVAL.md`.
+- [x] Add Fleet Doctor reporting for missing, draft, or approved analytical planning packs.
+
+Next upgrades:
+
+### A1 - Engine-Build Approval Blocker
+
+Problem:
+The fleet can enter `engine-build` before the human has approved the decision, data contract, formulas, fixtures, and calibration plan.
+
+Target:
+Block `engine-build`, `calibration`, `dashboard`, `scenario-tools`, and `analysis-proof` unless `ANALYSIS_APPROVAL.md` says `Status: APPROVED`.
+
+Acceptance:
+
+- `run-checkpoint-loop.ps1 -LoopPhase engine-build` refuses unapproved analytical packs.
+- The refusal tells the operator to run or review `fleet-analysis.ps1`.
+- Tests cover approved, draft, and missing analytical packs.
+
+### A2 - No Fake Numbers Gate
+
+Problem:
+Analytical apps can look convincing while showing hardcoded or invented percentages, ranks, scores, probabilities, dollar values, or recommendations.
+
+Target:
+Add a gate that scans staged UI/report text for numeric claims and requires an obvious code/data source, fixture, or generated output path behind those numbers.
+
+Acceptance:
+
+- The gate warns or blocks hardcoded probability/score/rank claims in user-facing files.
+- Fixture/sample files and deterministic test expectations are allowed.
+- Reports explain which numbers need provenance.
+
+### A3 - Fixture-First Enforcement
+
+Problem:
+Formula implementation can drift if tests come after the model code.
+
+Target:
+During `formula-spec` and `fixture-tests`, require tiny known input/output examples before `engine-build` starts.
+
+Acceptance:
+
+- Analytical phase validation can detect missing fixture files or missing expected-output sections.
+- Planner tasks in `formula-spec` and `fixture-tests` prioritize examples, expected outputs, and edge cases.
+- Engine-build tasks must include acceptance commands that run formula/import tests.
+
+### A4 - Calibration Report Script
+
+Problem:
+Even deterministic formulas can be wrong, overconfident, or poorly calibrated.
+
+Target:
+Add `fleet-calibration.ps1` to inspect whether an analytical ship has calibration evidence: known-case comparisons, historical/backtest plan, confidence rules, failure modes, and tuning rules.
+
+Acceptance:
+
+- The script writes a calibration readiness report under `docs/codex`.
+- It distinguishes unavailable history from ignored history.
+- Fleet Doctor reports calibration status for analytical ships.
+
+### A5 - Analytical Dashboard Restraint
+
+Problem:
+The fleet can build a large dashboard before the model is trustworthy.
+
+Target:
+Prevent `dashboard` and `scenario-tools` from producing big UI work until tests, fixture outputs, import validation, and at least one deterministic report/table exist.
+
+Acceptance:
+
+- Planner guidance keeps analytical UI table-first and report-first.
+- Dashboard tasks are blocked or downgraded when formula/test artifacts are missing.
+- Simon/Robin are instructed to judge clarity without encouraging fake insight text.
+
+### A6 - Scenario Approval Lane
+
+Problem:
+What-if sliders and strategy modes can quietly change formulas in ways nobody approved.
+
+Target:
+Add a scenario spec/approval artifact before `scenario-tools` work. Each scenario must state which inputs change, which formulas are affected, which outputs should change, and which outputs must remain fixed.
+
+Acceptance:
+
+- `scenario-tools` refuses to run without an approved scenario spec.
+- Tests cover at least one scenario where changing an input changes the expected score.
+- Scenario UI labels explain assumptions without pretending to be final advice.
+
+Exit criteria for this track:
+
+- The fleet can build a new local-first analytical tool from blank repo to deterministic engine, tested fixtures, calibration report, and table-first dashboard without inventing unsupported numbers.
+
 ### Phase 0 - Intake
 
 Purpose: Decide what kind of software this ship is and what Fleet is allowed to do.
