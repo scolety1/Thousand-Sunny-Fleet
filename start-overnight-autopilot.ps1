@@ -6,13 +6,35 @@ param(
 
     [string[]]$ExcludeProject = @("NinersDynastyWarRoom"),
 
+    [string[]]$ExpectedProject = @(),
+
     [double]$DurationHours = 12,
 
     [int]$SupervisorIntervalSeconds = 300,
 
+    [ValidateSet("cheap", "balanced", "premium")]
+    [string]$BudgetMode = "balanced",
+
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")]
+    [string]$LoopPhase = "auto",
+
     [int]$BatchSize = 3,
 
     [int]$MaxBatches = 20,
+
+    [int]$MaxRuntimeMinutes = 360,
+
+    [int]$MaxCompletedTasks = 6,
+
+    [int]$MaxPlannerBatches = 1,
+
+    [int]$VisualInspectEvery = 0,
+
+    [int]$SimonEvery = 0,
+
+    [int]$RobinEvery = 0,
+
+    [int]$JoeyEvery = 0,
 
     [int]$RateLimitCooldownSeconds = 3600,
 
@@ -32,9 +54,19 @@ param(
 
     [switch]$RequireMagicPreflight,
 
+    [switch]$RequirePhaseValidation,
+
+    [switch]$UseGlobalRunShape,
+
     [switch]$AllowSafeStopRequests,
 
     [switch]$PushCheckpoint,
+
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$LaunchGateMode = "warn",
+
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$KillSwitchMode = "warn",
 
     [switch]$Once,
 
@@ -53,6 +85,13 @@ if ($DurationHours -le 0) { Stop-WithMessage "-DurationHours must be greater tha
 if ($SupervisorIntervalSeconds -lt 30) { Stop-WithMessage "-SupervisorIntervalSeconds must be at least 30." }
 if ($BatchSize -lt 1) { Stop-WithMessage "-BatchSize must be at least 1." }
 if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
+if ($MaxRuntimeMinutes -lt 0) { Stop-WithMessage "-MaxRuntimeMinutes must be 0 or greater." }
+if ($MaxCompletedTasks -lt 0) { Stop-WithMessage "-MaxCompletedTasks must be 0 or greater." }
+if ($MaxPlannerBatches -lt 0) { Stop-WithMessage "-MaxPlannerBatches must be 0 or greater." }
+if ($VisualInspectEvery -lt 0) { Stop-WithMessage "-VisualInspectEvery must be 0 or greater." }
+if ($SimonEvery -lt 0) { Stop-WithMessage "-SimonEvery must be 0 or greater." }
+if ($RobinEvery -lt 0) { Stop-WithMessage "-RobinEvery must be 0 or greater." }
+if ($JoeyEvery -lt 0) { Stop-WithMessage "-JoeyEvery must be 0 or greater." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 if ($RepairBatchSize -lt 1) { Stop-WithMessage "-RepairBatchSize must be at least 1." }
 if ($RepairMaxBatches -lt 1) { Stop-WithMessage "-RepairMaxBatches must be at least 1." }
@@ -70,6 +109,7 @@ $stepLogRoot = Join-Path $fleetRoot "out\autopilot-runs"
 New-Item -ItemType Directory -Force -Path $stepLogRoot | Out-Null
 
 $excludeArgs = @($ExcludeProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+$expectedArgs = @($ExpectedProject | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
 
 function Add-ArrayArgument {
     param(
@@ -96,10 +136,17 @@ function Write-AutopilotReport {
         "Status: $Status",
         "Project: $(if ([string]::IsNullOrWhiteSpace($Project)) { 'all configured ships' } else { $Project })",
         "Excluded: $(if ($excludeArgs.Count -gt 0) { $excludeArgs -join ', ' } else { 'none' })",
+        "Expected ships: $(if ($expectedArgs.Count -gt 0) { $expectedArgs -join ', ' } else { 'not enforced' })",
         "",
         "## Loop",
         "",
         "- Supervisor interval seconds: $SupervisorIntervalSeconds",
+        "- Budget mode: $BudgetMode",
+        "- Loop phase: $LoopPhase",
+        "- Launch gate mode: $LaunchGateMode",
+        "- Kill switch mode: $KillSwitchMode",
+        "- Max completed tasks per ship: $MaxCompletedTasks",
+        "- Max planner batches per ship: $MaxPlannerBatches",
         "- Auto safe-stop: enabled",
         "- Auto repair queue: enabled",
         "- Auto repair relaunch: enabled",
@@ -160,16 +207,30 @@ if ($LaunchFirst) {
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
         "-ConfigPath", $ConfigPath,
+        "-BudgetMode", $BudgetMode,
+        "-LoopPhase", $LoopPhase,
         "-BatchSize", ([string]$BatchSize),
         "-MaxBatches", ([string]$MaxBatches),
+        "-MaxRuntimeMinutes", ([string]$MaxRuntimeMinutes),
+        "-MaxCompletedTasks", ([string]$MaxCompletedTasks),
+        "-MaxPlannerBatches", ([string]$MaxPlannerBatches),
+        "-VisualInspectEvery", ([string]$VisualInspectEvery),
+        "-SimonEvery", ([string]$SimonEvery),
+        "-RobinEvery", ([string]$RobinEvery),
+        "-JoeyEvery", ([string]$JoeyEvery),
         "-RateLimitCooldownSeconds", ([string]$RateLimitCooldownSeconds),
         "-RateLimitMaxCooldowns", ([string]$RateLimitMaxCooldowns),
         "-MaxTaskQuarantines", ([string]$MaxTaskQuarantines),
-        "-QuarantineFailedTasks"
+        "-QuarantineFailedTasks",
+        "-LaunchGateMode", $LaunchGateMode,
+        "-KillSwitchMode", $KillSwitchMode
     )
     if (![string]::IsNullOrWhiteSpace($Project)) { $launchArgs += @("-Project", $Project) }
     $launchArgs = Add-ArrayArgument -Arguments $launchArgs -Name "-ExcludeProject" -Values $excludeArgs
+    $launchArgs = Add-ArrayArgument -Arguments $launchArgs -Name "-ExpectedProject" -Values $expectedArgs
     if ($RequireMagicPreflight) { $launchArgs += "-RequireMagicPreflight" }
+    if ($RequirePhaseValidation) { $launchArgs += "-RequirePhaseValidation" }
+    if ($UseGlobalRunShape) { $launchArgs += "-UseGlobalRunShape" }
     if ($AllowSafeStopRequests) { $launchArgs += "-AllowSafeStopRequests" }
     if ($PushCheckpoint) { $launchArgs += "-PushCheckpoint" }
     if ($DryRun) { $launchArgs += "-DryRun" }
