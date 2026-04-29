@@ -257,6 +257,100 @@ function Add-FleetArrayArgument {
     return @($Arguments + @($Name, ($items -join ",")))
 }
 
+function Test-FleetGitRef {
+    param([string]$Ref)
+
+    if ([string]::IsNullOrWhiteSpace($Ref)) {
+        return $false
+    }
+
+    git rev-parse --verify --quiet "$Ref^{commit}" *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Resolve-FleetGitBaseRef {
+    param([string]$BaseBranch = "main")
+
+    $candidates = @()
+    if (![string]::IsNullOrWhiteSpace($BaseBranch)) {
+        $candidates += $BaseBranch
+        if ($BaseBranch -notmatch "^origin/") {
+            $candidates += "origin/$BaseBranch"
+        }
+    }
+    $candidates += @("main", "origin/main", "master", "origin/master")
+
+    foreach ($candidate in ($candidates | Select-Object -Unique)) {
+        if (Test-FleetGitRef -Ref $candidate) {
+            return $candidate
+        }
+    }
+
+    return ""
+}
+
+function Get-FleetGitComparison {
+    param(
+        [string]$BaseBranch = "main",
+        [int]$MaxCommits = 30
+    )
+
+    $resolvedBase = Resolve-FleetGitBaseRef -BaseBranch $BaseBranch
+    if ([string]::IsNullOrWhiteSpace($resolvedBase)) {
+        return [pscustomobject]@{
+            baseRef = ""
+            range = ""
+            changed = @()
+            commits = @()
+            warning = "No comparable base branch found for '$BaseBranch'."
+        }
+    }
+
+    $headRef = (git rev-parse --abbrev-ref HEAD 2>$null)
+    $range = if (![string]::IsNullOrWhiteSpace($headRef) -and $headRef -eq $resolvedBase) {
+        ""
+    } else {
+        "$resolvedBase..HEAD"
+    }
+
+    $changed = @()
+    $commits = @()
+    if (![string]::IsNullOrWhiteSpace($range)) {
+        $changed = @(git diff --name-status $range 2>$null)
+        $commits = @(git log --oneline $range -n $MaxCommits 2>$null)
+    }
+
+    return [pscustomobject]@{
+        baseRef = $resolvedBase
+        range = $range
+        changed = $changed
+        commits = $commits
+        warning = ""
+    }
+}
+
+function Test-FleetTaskHasForbiddenScope {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) {
+        return $false
+    }
+
+    $patterns = @(
+        "(?i)\b(do\s+not|don't|without|avoid|forbidden)\b",
+        "(?i)\bno\s+(new\s+)?(package|packages|dependency|dependencies|backend|auth|authentication|payment|payments|billing|secret|secrets|api|apis|analytics|tracking|deploy|deployment|dns|generated|build output|real\s+(restaurant\s+)?data|scraping|new sections?|new routes?|broad rewrites?)\b",
+        "(?i)\bpreserv(e|ing)\b.+\b(no|without|avoid)\b"
+    )
+
+    foreach ($pattern in $patterns) {
+        if ($Task -match $pattern) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-FleetRateLimitOutput {
     param([object]$Output)
 

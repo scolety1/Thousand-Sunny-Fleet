@@ -49,8 +49,9 @@ if ($preStatus.Count -gt 0) {
 
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD
-$changed = @(git diff --name-status "$BaseBranch..HEAD")
-$commits = @(git log --oneline "$BaseBranch..HEAD" -n 30)
+$gitComparison = Get-FleetGitComparison -BaseBranch $BaseBranch -MaxCommits 30
+$changed = @($gitComparison.changed)
+$commits = @($gitComparison.commits)
 $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue | ForEach-Object { $_.Line.Trim() })
 $completed = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[x\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
 $quarantined = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[!\]" -ErrorAction SilentlyContinue | Select-Object -Last 30 | ForEach-Object { $_.Line.Trim() })
@@ -199,6 +200,8 @@ Repository: $($repoPath.Path)
 Branch: $branch
 HEAD: $head
 Base branch: $BaseBranch
+Resolved comparison base: $(if ([string]::IsNullOrWhiteSpace($gitComparison.baseRef)) { "none" } else { $gitComparison.baseRef })
+Comparison range: $(if ([string]::IsNullOrWhiteSpace($gitComparison.range)) { "none" } else { $gitComparison.range })
 
 Mission:
 $mission
@@ -310,7 +313,7 @@ if ($tasks.Count -gt $Count) {
     exit 1
 }
 
-$vagueTasks = @($tasks | Where-Object { $_ -notmatch "(?i)do not|without|avoid|forbidden" })
+$vagueTasks = @($tasks | Where-Object { -not (Test-FleetTaskHasForbiddenScope -Task $_) })
 if ($vagueTasks.Count -gt 0) {
     Write-Host "Planner produced task(s) without explicit forbidden scope." -ForegroundColor Red
     $vagueTasks | ForEach-Object { Write-Host "  $_" }
