@@ -42,25 +42,39 @@ function Acquire-HarnessLock {
     New-Item -ItemType Directory -Force -Path $lockRoot | Out-Null
     $lockPath = Join-Path $lockRoot "fleet-harness-test.lock.json"
 
-    if (Test-Path -LiteralPath $lockPath) {
-        try {
-            $existing = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
-            $existingPid = if ($null -ne $existing.pid) { [int]$existing.pid } else { 0 }
-            if (Test-ProcessActive -ProcessId $existingPid) {
-                Write-Host "Fleet harness self-test is already running under PID $existingPid." -ForegroundColor Red
-                exit 1
-            }
-        } catch {}
-        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
-    }
-
     $lock = [pscustomobject]@{
         pid = $PID
         startedAt = (Get-Date).ToString("o")
         command = $MyInvocation.Line
     }
-    $lock | ConvertTo-Json -Depth 4 | Set-Content -Path $lockPath -Encoding UTF8
-    $script:HarnessLockPath = $lockPath
+    $lockJson = $lock | ConvertTo-Json -Depth 4
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($lockJson)
+
+    for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        try {
+            $stream = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+            try {
+                $stream.Write($bytes, 0, $bytes.Length)
+            } finally {
+                $stream.Close()
+            }
+            $script:HarnessLockPath = $lockPath
+            return
+        } catch [System.IO.IOException] {
+            try {
+                $existing = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+                $existingPid = if ($null -ne $existing.pid) { [int]$existing.pid } else { 0 }
+                if (Test-ProcessActive -ProcessId $existingPid) {
+                    Write-Host "Fleet harness self-test is already running under PID $existingPid." -ForegroundColor Red
+                    exit 1
+                }
+            } catch {}
+            Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Host "Fleet harness self-test could not acquire its lock." -ForegroundColor Red
+    exit 1
 }
 
 function Release-HarnessLock {
