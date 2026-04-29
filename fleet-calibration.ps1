@@ -9,6 +9,8 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+$script:OriginalLocation = (Get-Location).Path
+$script:DefaultOutFile = "docs/codex/CALIBRATION_READINESS.md"
 
 function Stop-WithMessage {
     param([string]$Message)
@@ -89,6 +91,20 @@ function Get-TrackedOrExistingFiles {
     }
 
     return @($files)
+}
+
+function Resolve-OutputPath {
+    param([string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+
+    if ($Path -eq $script:DefaultOutFile) {
+        return $Path
+    }
+
+    return (Join-Path $script:OriginalLocation $Path)
 }
 
 $repoPath = Resolve-Path -LiteralPath $Repo -ErrorAction SilentlyContinue
@@ -194,8 +210,9 @@ $lines += ""
 $lines += "Calibration work must prove the deterministic model is not just plausible. It needs historical checks or an explicit unavailable-history fallback, sanity checks, calibration metrics, failure modes, tuning rules, and evidence files before dashboards or scenario tools should be trusted."
 
 if (!$ValidateOnly -or $issues.Count -gt 0 -or $warnings.Count -gt 0) {
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
-    Set-Content -Path $OutFile -Encoding UTF8 -Value $lines
+    $resolvedOutFile = Resolve-OutputPath -Path $OutFile
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resolvedOutFile) | Out-Null
+    Set-Content -Path $resolvedOutFile -Encoding UTF8 -Value $lines
 }
 
 if ($issues.Count -gt 0) {

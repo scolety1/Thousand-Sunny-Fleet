@@ -9,6 +9,8 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+$script:OriginalLocation = (Get-Location).Path
+$script:DefaultOutFile = "docs/codex/ANALYTICAL_DASHBOARD_READINESS.md"
 
 function Stop-WithMessage {
     param([string]$Message)
@@ -58,6 +60,20 @@ function Test-FileContains {
         }
     }
     return $false
+}
+
+function Resolve-OutputPath {
+    param([string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+
+    if ($Path -eq $script:DefaultOutFile) {
+        return $Path
+    }
+
+    return (Join-Path $script:OriginalLocation $Path)
 }
 
 $repoPath = Resolve-Path -LiteralPath $Repo -ErrorAction SilentlyContinue
@@ -164,8 +180,9 @@ $lines += ""
 $lines += "Analytical dashboards and scenario tools must stay table-first and report-first until formula/model tests, import validation tests, fixture expected outputs, and at least one deterministic report/table artifact exist. Do not turn uncalibrated formulas into persuasive insight copy."
 
 if (!$ValidateOnly -or $issues.Count -gt 0 -or $warnings.Count -gt 0) {
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
-    Set-Content -Path $OutFile -Encoding UTF8 -Value $lines
+    $resolvedOutFile = Resolve-OutputPath -Path $OutFile
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resolvedOutFile) | Out-Null
+    Set-Content -Path $resolvedOutFile -Encoding UTF8 -Value $lines
 }
 
 if ($issues.Count -gt 0) {
