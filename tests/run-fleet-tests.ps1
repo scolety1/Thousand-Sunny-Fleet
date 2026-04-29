@@ -976,6 +976,10 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
     Assert-True -Condition ($readmeText -match 'start-overnight-autopilot\.ps1') -Message "README documents overnight autopilot wrapper"
     Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
+
+    $harborText = Get-Content (Join-Path $fleetRoot "harbor-master.ps1") -Raw
+    Assert-True -Condition ($harborText -match 'childSummary') -Message "Harbor Master tracks active child process names"
+    Assert-True -Condition ($harborText -match 'codex') -Message "Harbor Master labels Codex child work clearly"
 }
 
 function Test-SophisticatedSoftwareModeSupport {
