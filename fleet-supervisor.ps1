@@ -304,13 +304,14 @@ function Get-PhaseStateSummary {
 function Get-RepairReturnPhase {
     param([object]$PhaseState)
 
+    $validReturnPhases = @("brief", "foundation", "shape", "simplicity", "polish", "proof", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")
     $phase = ([string]$PhaseState.phase).Trim().ToLowerInvariant()
-    if ($phase -in @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+    if ($phase -in $validReturnPhases) {
         return $phase
     }
 
     $returnPhase = ([string]$PhaseState.repairReturnPhase).Trim().ToLowerInvariant()
-    if ($returnPhase -in @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+    if ($returnPhase -in $validReturnPhases) {
         return $returnPhase
     }
 

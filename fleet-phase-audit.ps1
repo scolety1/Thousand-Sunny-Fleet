@@ -98,6 +98,7 @@ $requiredFields = @(
 )
 
 $rows = New-Object System.Collections.Generic.List[object]
+$validPhases = @("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")
 foreach ($ship in @(Get-Projects)) {
     $name = [string]$ship.name
     $repo = [string](Get-ConfigPropertyValue -Object $ship -Name "repo")
@@ -115,6 +116,9 @@ foreach ($ship in @(Get-Projects)) {
         $text = Get-Content -LiteralPath $phasePath -Raw
         $phase = Get-PhaseValue -Text $text -Name "Current Phase"
         $parking = Get-PhaseValue -Text $text -Name "Parking State"
+        if ($phase -notin $validPhases) {
+            $issues.Add("Current Phase is not recognized: $phase") | Out-Null
+        }
 
         foreach ($field in $requiredFields) {
             $value = Get-PhaseValue -Text $text -Name $field
@@ -124,7 +128,7 @@ foreach ($ship in @(Get-Projects)) {
         }
 
         $featureLock = Get-PhaseValue -Text $text -Name "No More Features Lock"
-        if ($phase -in @("simplicity", "polish", "proof", "parked", "repair") -and $featureLock -ne "true") {
+        if ($phase -in @("simplicity", "polish", "proof", "parked", "repair", "analysis-proof") -and $featureLock -ne "true") {
             $issues.Add("feature lock should be true in $phase") | Out-Null
         }
 
@@ -138,7 +142,7 @@ foreach ($ship in @(Get-Projects)) {
             if ([string]::IsNullOrWhiteSpace($repairTrigger) -or $repairTrigger -match '^TODO:') {
                 $issues.Add("repair phase should name a Repair Trigger") | Out-Null
             }
-            if ($repairReturn -notin @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+            if ($repairReturn -notin @("brief", "foundation", "shape", "simplicity", "polish", "proof", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")) {
                 $issues.Add("repair phase should name a prior Repair Return Phase") | Out-Null
             }
         }

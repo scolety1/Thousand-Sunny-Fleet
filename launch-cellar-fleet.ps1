@@ -10,7 +10,7 @@ param(
     [ValidateSet("cheap", "balanced", "premium")]
     [string]$BudgetMode = "cheap",
 
-    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair")]
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")]
     [string]$LoopPhase = "auto",
 
     [int]$RateLimitCooldownSeconds = 3600,

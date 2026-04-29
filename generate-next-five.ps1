@@ -6,7 +6,7 @@ param(
 
     [int]$Count = 5,
 
-    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair")]
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")]
     [string]$LoopPhase = "auto",
 
     [string]$OutFile = "docs/codex/NEXT_5_TASKS.md",
@@ -95,7 +95,7 @@ function Get-PhaseFromState {
     param([string]$Text)
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
-    $match = [regex]::Match($Text, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked|repair)\s*$")
+    $match = [regex]::Match($Text, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked|repair|problem-brief|data-contract|formula-spec|fixture-tests|engine-build|calibration|dashboard|scenario-tools|analysis-proof)\s*$")
     if ($match.Success) { return $match.Groups[1].Value.Trim().ToLowerInvariant() }
     return ""
 }
@@ -168,6 +168,18 @@ Rules:
   - polish: refine typography, spacing, hierarchy, color, button rhythm, and final microcopy; do not add sections, routes, or new product capabilities.
   - proof: fix blockers only: broken routes, build/runtime failures, clipped text, tap targets, copy smoke, and visual QA issues; do not redesign.
   - parked: output one docs-only task explaining the ship is review-ready and should not continue unattended.
+- Analytical software doctrine:
+  - problem-brief: define the exact decision, user, output labels/tables, assumptions, and what the tool must not predict; docs-first.
+  - data-contract: define CSV schemas, database tables, canonical IDs, snapshot folders, source metadata, missing-data warnings, and reject/warn rules; no UI polish.
+  - formula-spec: write deterministic formulas, weights, priors/defaults, confidence rules, examples, and edge cases before implementation.
+  - fixture-tests: create tiny sample datasets and expected outputs for every formula/rule/import validator; tests before app screens.
+  - engine-build: implement loaders, validators, scoring/ranking/probability functions, exports, and CLI/service seams; core math must be reproducible.
+  - calibration: compare outputs against historical data, sanity fixtures, known cases, and confidence behavior; tune thresholds without adding flashy UI.
+  - dashboard: build table-first review UI, filters, explanations, and report views only after formulas/tests are trustworthy.
+  - scenario-tools: add bounded what-if controls, strategy modes, weight changes, and comparisons using the deterministic engine.
+  - analysis-proof: fix blockers only: tests, imports, deterministic report generation, no live-data dependency, no secrets, and reproducible outputs.
+- For analytical phases, never ask Codex to invent final numbers from prose. Generate tasks that make code compute numbers from local data, fixtures, and deterministic formulas.
+- For calculation-heavy ships, prefer test/data/model tasks over visual polish until dashboard or scenario-tools phase.
 - For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
 - Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.
 - In repair phase, do not output docs-only stop summaries unless the gate explicitly requires human approval. Prefer a bounded repair task that names the failing gate and the exact files/scope to touch.

@@ -187,10 +187,16 @@ The fleet can now plan inside a website/software phase instead of using one gene
 .\launch-cellar-fleet.ps1 -LoopPhase simplicity -BudgetMode cheap
 ```
 
-Phase order:
+Website phase order:
 
 ```text
 brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
+```
+
+Analytical software phase order:
+
+```text
+problem-brief -> data-contract -> formula-spec -> fixture-tests -> engine-build -> calibration -> dashboard -> scenario-tools -> analysis-proof -> parked
 ```
 
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
@@ -201,6 +207,17 @@ brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 - `polish`: refine type, spacing, color, hierarchy, button rhythm, and final wording.
 - `proof`: fix blockers only.
 - `parked`: review-ready; do not continue unattended.
+- `problem-brief`: define the exact decision, user, output shape, assumptions, and what not to predict.
+- `data-contract`: define local snapshots, CSV schemas, database tables, IDs, source metadata, and missing-data rules.
+- `formula-spec`: write formulas, weights, defaults, confidence rules, examples, and edge cases before coding.
+- `fixture-tests`: create tiny known datasets and expected outputs for every formula, rule, and validator.
+- `engine-build`: implement deterministic loaders, validators, scoring, ranking, probability outputs, and exports.
+- `calibration`: compare outputs against history, sanity fixtures, known cases, and confidence behavior.
+- `dashboard`: build table-first review UI only after the math and tests are trustworthy.
+- `scenario-tools`: add bounded what-if controls, strategy modes, weight changes, and comparisons.
+- `analysis-proof`: fix blockers only: tests, imports, deterministic reports, no live-data dependency, and no secrets.
+
+Use the analytical loop for Niners-style tools, market reports, scoring systems, ranking engines, and probability dashboards. The fleet should build the calculator; it should not be the calculator.
 
 Repair runs should be tiny and gate-driven: one blocker, one bounded scope, one acceptance command, no fresh features, and `No More Features Lock: true`.
 
