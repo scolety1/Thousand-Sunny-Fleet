@@ -26,11 +26,13 @@ param(
 
     [switch]$AutoRepair,
 
-    [string[]]$AutoRepairStates = @("BUDGET_STOP", "LOOPING_QUALITY", "IDLE_READY"),
+    [string[]]$AutoRepairStates = @("BUDGET_STOP", "LOOPING_QUALITY", "BLOCKED_REVIEW"),
 
     [switch]$ClearSafeStopAfterRepair,
 
     [switch]$AutoRelaunchRepair,
+
+    [int]$MaxRepairAttempts = 2,
 
     [int]$RepairBatchSize = 1,
 
@@ -269,6 +271,96 @@ function Clear-FleetSafeStop {
     }
 }
 
+function Get-PhaseStateValue {
+    param(
+        [string]$Text,
+        [string]$Name,
+        [string]$Default = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Default }
+    $match = [regex]::Match($Text, "(?im)^$([regex]::Escape($Name)):\s*(.+?)\s*$")
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return $Default
+}
+
+function Get-PhaseStateSummary {
+    param([string]$RepoPath)
+
+    $phasePath = Join-Path $RepoPath "docs\codex\PHASE_STATE.md"
+    if (!(Test-Path -LiteralPath $phasePath)) {
+        return [pscustomobject]@{ phase = "missing"; repairTrigger = ""; repairReturnPhase = ""; path = $phasePath }
+    }
+
+    $text = Get-Content -LiteralPath $phasePath -Raw
+    return [pscustomobject]@{
+        phase = Get-PhaseStateValue -Text $text -Name "Current Phase" -Default "unknown"
+        repairTrigger = Get-PhaseStateValue -Text $text -Name "Repair Trigger" -Default ""
+        repairReturnPhase = Get-PhaseStateValue -Text $text -Name "Repair Return Phase" -Default ""
+        path = $phasePath
+    }
+}
+
+function Get-RepairReturnPhase {
+    param([object]$PhaseState)
+
+    $phase = ([string]$PhaseState.phase).Trim().ToLowerInvariant()
+    if ($phase -in @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+        return $phase
+    }
+
+    $returnPhase = ([string]$PhaseState.repairReturnPhase).Trim().ToLowerInvariant()
+    if ($returnPhase -in @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+        return $returnPhase
+    }
+
+    return "proof"
+}
+
+function Set-SupervisorRepairPhase {
+    param(
+        [object]$Row,
+        [object]$PhaseState
+    )
+
+    $returnPhase = Get-RepairReturnPhase -PhaseState $PhaseState
+    $trigger = "$($Row.state): $($Row.recommendation)"
+    $phaseScript = Join-Path $fleetRoot "fleet-phase.ps1"
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $phaseScript -Project ([string]$Row.ship) -Phase repair -NoMoreFeaturesLock true -RepairTrigger $trigger -RepairReturnPhase $returnPhase | Out-Null
+    return [pscustomobject]@{ trigger = $trigger; returnPhase = $returnPhase }
+}
+
+function Complete-SupervisorRepairPhaseIfClear {
+    param(
+        [object]$Row,
+        [object]$PhaseState
+    )
+
+    if ([string]$PhaseState.phase -ne "repair") {
+        return [pscustomobject]@{ completed = $false; reason = "not in repair phase"; returnPhase = "" }
+    }
+    if ($Row.dirty -ne "clean" -or $Row.lockActive) {
+        return [pscustomobject]@{ completed = $false; reason = "ship is active or dirty"; returnPhase = "" }
+    }
+    if ($Row.budget -match "^OVER" -or ![string]::IsNullOrWhiteSpace([string]$Row.qualityQuarantine) -or $Row.checkpoint -match "RED" -or $Row.simon -match "RED" -or $Row.robin -match "RED" -or $Row.joey -match "RED") {
+        return [pscustomobject]@{ completed = $false; reason = "repair blocker still present"; returnPhase = "" }
+    }
+    if (Test-UncheckedAutoRepairTask) {
+        return [pscustomobject]@{ completed = $false; reason = "repair task still queued"; returnPhase = "" }
+    }
+
+    $returnPhase = Get-RepairReturnPhase -PhaseState $PhaseState
+    $phaseScript = Join-Path $fleetRoot "fleet-phase.ps1"
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $phaseScript -Project ([string]$Row.ship) -Phase $returnPhase -RepairTrigger "none" -RepairReturnPhase "" | Out-Null
+    git add docs/codex/PHASE_STATE.md | Out-Null
+    git commit -m "Codex supervisor exit repair phase" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        return [pscustomobject]@{ completed = $false; reason = "repair phase exit commit failed"; returnPhase = $returnPhase }
+    }
+
+    return [pscustomobject]@{ completed = $true; reason = "repair clear"; returnPhase = $returnPhase }
+}
+
 function New-AutoRepairTaskLine {
     param([object]$Row)
 
@@ -279,13 +371,21 @@ function New-AutoRepairTaskLine {
 }
 
 function Add-SupervisorAutoRepairTask {
-    param([object]$Row)
+    param(
+        [object]$Row,
+        [object]$PhaseState,
+        [datetime]$Since
+    )
 
     if ($Row.dirty -ne "clean" -or $Row.lockActive) {
         return [pscustomobject]@{ added = $false; reason = "ship is active or dirty"; task = "" }
     }
     if (!($AutoRepairStates -contains [string]$Row.state)) {
         return [pscustomobject]@{ added = $false; reason = "state is not auto-repairable"; task = "" }
+    }
+    $repairAttempts = Get-CountSince -Path "docs/codex/AUTO_REPAIR.md" -Pattern "^- State:" -Since $Since
+    if ($repairAttempts -ge $MaxRepairAttempts) {
+        return [pscustomobject]@{ added = $false; reason = "repair attempt cap reached ($repairAttempts/$MaxRepairAttempts)"; task = "" }
     }
 
     $taskQueue = "docs/codex/TASK_QUEUE.md"
@@ -295,11 +395,12 @@ function Add-SupervisorAutoRepairTask {
     }
 
     $queueText = Get-Content $taskQueue -Raw
-    if ($queueText -match "(?im)^\s*-\s+\[ \]\s+Auto repair for ") {
+    if ($queueText -match "(?im)^\s*-\s+\[ \]\s+(Auto repair for|Repair lane for) ") {
         return [pscustomobject]@{ added = $false; reason = "unchecked auto-repair task already exists"; task = "" }
     }
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $phaseRepair = Set-SupervisorRepairPhase -Row $Row -PhaseState $PhaseState
     $taskLine = New-AutoRepairTaskLine -Row $Row
     $sectionText = @(
         "## Supervisor Auto Repair $timestamp",
@@ -319,6 +420,8 @@ function Add-SupervisorAutoRepairTask {
         "- State: $($Row.state)",
         "- Budget: $($Row.budget)",
         "- Recommendation: $($Row.recommendation)",
+        "- Repair Trigger: $($phaseRepair.trigger)",
+        "- Repair Return Phase: $($phaseRepair.returnPhase)",
         "- Task: $taskLine"
     )
     if (!(Test-Path $repairLog)) {
@@ -326,7 +429,7 @@ function Add-SupervisorAutoRepairTask {
     }
     Add-Content -Path $repairLog -Value $repairLines
 
-    git add docs/codex/TASK_QUEUE.md docs/codex/AUTO_REPAIR.md | Out-Null
+    git add docs/codex/TASK_QUEUE.md docs/codex/AUTO_REPAIR.md docs/codex/PHASE_STATE.md | Out-Null
     git commit -m "Codex supervisor auto repair task" | Out-Null
     if ($LASTEXITCODE -ne 0) {
         return [pscustomobject]@{ added = $false; reason = "auto-repair commit failed"; task = $taskLine }
@@ -342,7 +445,7 @@ function Add-SupervisorAutoRepairTask {
 function Test-UncheckedAutoRepairTask {
     $taskQueue = "docs/codex/TASK_QUEUE.md"
     if (!(Test-Path $taskQueue)) { return $false }
-    return [bool](Select-String -Path $taskQueue -Pattern "^\s*-\s+\[ \]\s+Auto repair for " -Quiet)
+    return [bool](Select-String -Path $taskQueue -Pattern "^\s*-\s+\[ \]\s+(Auto repair for|Repair lane for) " -Quiet)
 }
 
 function Start-SupervisorRepairRun {
@@ -489,16 +592,16 @@ function Write-SupervisorReport {
         "",
         "Generated: $timestamp",
         "Window: last 12 hours",
-        "Budgets: task commits <= $MaxTaskCommits, task quarantines <= $MaxQuarantines, quality stops <= $MaxQualityStops",
+        "Budgets: task commits <= $MaxTaskCommits, task quarantines <= $MaxQuarantines, quality stops <= $MaxQualityStops, repair attempts <= $MaxRepairAttempts",
         "",
-        "| Ship | State | Branch | HEAD | Dirty | Tasks | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
-        "| --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
+        "| Ship | State | Phase | Branch | HEAD | Dirty | Tasks | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
+        "| --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
     )
 
     foreach ($project in $projects) {
         if (!(Test-Path $project.repo)) {
             $rows += [pscustomobject]@{
-                ship = $project.name; state = "BLOCKED_MISSING"; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
+                ship = $project.name; state = "BLOCKED_MISSING"; phase = "missing"; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
             }
             continue
         }
@@ -520,6 +623,7 @@ function Write-SupervisorReport {
         $taskCommits = @(git log --since="$($since.ToString("o"))" --oneline --grep="Codex checkpoint batch" 2>$null).Count
         $taskQuarantines = Get-CountSince -Path "docs/codex/QUARANTINED_TASKS.md" -Pattern "Reason:" -Since $since
         $qualityStops = Get-CountSince -Path "docs/codex/QUALITY_QUARANTINE.md" -Pattern "Reason:" -Since $since
+        $phaseState = Get-PhaseStateSummary -RepoPath ([string]$project.repo)
         $budgetProblems = @()
         if ($taskCommits -gt $MaxTaskCommits) { $budgetProblems += "commits $taskCommits/$MaxTaskCommits" }
         if ($taskQuarantines -gt $MaxQuarantines) { $budgetProblems += "quarantines $taskQuarantines/$MaxQuarantines" }
@@ -553,22 +657,37 @@ function Write-SupervisorReport {
             budget = $budget
             minutesSinceProgress = $minutesSinceProgress
             report = $lastReport
+            phase = $phaseState.phase
+            repairTrigger = $phaseState.repairTrigger
+            repairReturnPhase = $phaseState.repairReturnPhase
         }
         $row | Add-Member -NotePropertyName state -NotePropertyValue (Resolve-SupervisorState -Row $row)
         $row | Add-Member -NotePropertyName recommendation -NotePropertyValue (Get-Recommendation -Row $row)
+        Push-Location $project.repo
+        $repairExit = Complete-SupervisorRepairPhaseIfClear -Row $row -PhaseState $phaseState
+        Pop-Location
+        $skipAutoRepairForRow = $false
+        if ($repairExit.completed) {
+            $row.phase = $repairExit.returnPhase
+            $row.repairTrigger = "none"
+            $row.repairReturnPhase = ""
+            $row.recommendation = "repair cleared; returned to $($repairExit.returnPhase)"
+            $skipAutoRepairForRow = $true
+        }
         if ($AutoSafeStop -and $row.lockActive -and ($AutoSafeStopStates -contains [string]$row.state)) {
             $reason = "$($row.state): $($row.recommendation)"
             $stopPath = Request-FleetSafeStop -ProjectName ([string]$row.ship) -Reason $reason
             $safeStopsRequested += [pscustomobject]@{ ship = $row.ship; state = $row.state; path = $stopPath; reason = $reason }
             $row.recommendation = "safe stop requested; inspect before relaunch"
         }
-        if ($AutoRepair) {
+        if ($AutoRepair -and -not $skipAutoRepairForRow) {
             Push-Location $project.repo
-            $repairResult = Add-SupervisorAutoRepairTask -Row $row
+            $repairResult = Add-SupervisorAutoRepairTask -Row $row -PhaseState $phaseState -Since $since
             Pop-Location
             if ($repairResult.added) {
                 $repairsQueued += [pscustomobject]@{ ship = $row.ship; state = $row.state; task = $repairResult.task }
                 $row.tasks = $row.tasks + 1
+                $row.phase = "repair"
                 $row.recommendation = "auto-repair task queued"
             }
         }
@@ -591,7 +710,7 @@ function Write-SupervisorReport {
 
     foreach ($row in $rows) {
         $child = if ([string]::IsNullOrWhiteSpace([string]$row.childSummary)) { "-" } else { [string]$row.childSummary }
-        $lines += "| $($row.ship) | $($row.state) | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
+        $lines += "| $($row.ship) | $($row.state) | $($row.phase) | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
     }
 
     $lines += ""

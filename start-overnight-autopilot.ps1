@@ -24,6 +24,8 @@ param(
 
     [int]$RepairMaxBatches = 1,
 
+    [int]$MaxRepairAttempts = 2,
+
     [int]$StepTimeoutSeconds = 300,
 
     [switch]$LaunchFirst,
@@ -54,6 +56,7 @@ if ($MaxBatches -lt 1) { Stop-WithMessage "-MaxBatches must be at least 1." }
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 if ($RepairBatchSize -lt 1) { Stop-WithMessage "-RepairBatchSize must be at least 1." }
 if ($RepairMaxBatches -lt 1) { Stop-WithMessage "-RepairMaxBatches must be at least 1." }
+if ($MaxRepairAttempts -lt 0) { Stop-WithMessage "-MaxRepairAttempts must be 0 or greater." }
 if ($StepTimeoutSeconds -lt 30) { Stop-WithMessage "-StepTimeoutSeconds must be at least 30." }
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -102,6 +105,7 @@ function Write-AutopilotReport {
         "- Auto repair relaunch: enabled",
         "- Repair batch size: $RepairBatchSize",
         "- Repair max batches: $RepairMaxBatches",
+        "- Max repair attempts per 12h: $MaxRepairAttempts",
         "- Step timeout seconds: $StepTimeoutSeconds",
         "",
         "## Latest Reports",
@@ -190,6 +194,7 @@ do {
         "-AutoRelaunchRepair",
         "-RepairBatchSize", ([string]$RepairBatchSize),
         "-RepairMaxBatches", ([string]$RepairMaxBatches),
+        "-MaxRepairAttempts", ([string]$MaxRepairAttempts),
         "-Once"
     )
     if (![string]::IsNullOrWhiteSpace($Project)) { $supervisorArgs += @("-Project", $Project) }

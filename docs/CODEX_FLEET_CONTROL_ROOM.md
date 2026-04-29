@@ -204,6 +204,8 @@ brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 
 Repair runs should be tiny and gate-driven: one blocker, one bounded scope, one acceptance command, no fresh features, and `No More Features Lock: true`.
 
+Supervisor repair automation now treats repair as a phase handoff, not just a queued task. When auto-repair is enabled it records the `Repair Trigger`, stores the previous `Repair Return Phase`, switches the ship into `repair`, and limits repeated repair attempts. Once the blocker is clear, the supervisor returns the ship to its previous phase and clears the repair fields.
+
 Each ship may carry `docs/codex/PHASE_STATE.md` with the current phase, product promise, and human taste note. `-LoopPhase auto` reads that file; explicit `-LoopPhase simplicity` overrides it for the run.
 
 `PHASE_STATE.md` carries the eight first-class website-quality controls:
