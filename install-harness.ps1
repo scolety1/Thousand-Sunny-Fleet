@@ -37,6 +37,7 @@ $copyMap = @(
     @{ Source = "templates\docs\codex\SITE_MAP.md"; Target = "docs\codex\SITE_MAP.md" },
     @{ Source = "templates\docs\codex\NIGHTLY_REPORT.md"; Target = "docs\codex\NIGHTLY_REPORT.md" },
     @{ Source = "templates\docs\codex\MISSION.md"; Target = "docs\codex\MISSION.md" },
+    @{ Source = "templates\docs\codex\SHIP_SCORECARD.md"; Target = "docs\codex\SHIP_SCORECARD.md" },
     @{ Source = "templates\visual-routes.json"; Target = "docs\codex\visual-routes.json" },
     @{ Source = "templates\scripts\codex-brief.ps1"; Target = "scripts\codex-brief.ps1" },
     @{ Source = "templates\scripts\codex-guardrails.ps1"; Target = "scripts\codex-guardrails.ps1" },

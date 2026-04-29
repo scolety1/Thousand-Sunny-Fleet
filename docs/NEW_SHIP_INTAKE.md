@@ -30,6 +30,10 @@ Deadline or event this supports:
 Anything that must look especially good:
 
 Anything that must stay boring and safe:
+
+Ship admission score:
+
+Admission decision: ADMIT / REVISE / PARK
 ```
 
 ## Profile Guide
@@ -60,6 +64,8 @@ Use `experimental-prototype` for:
 - no production writes
 
 ## Add Project Commands
+
+Before adding a project, fill `docs/codex/SHIP_SCORECARD.md` or use the control-room rubric in `docs/SHIP_ADMISSION_SCORECARD.md`. New ships should score `70+` with no red flags before getting meaningful autonomous runtime.
 
 Static frontend demo:
 
