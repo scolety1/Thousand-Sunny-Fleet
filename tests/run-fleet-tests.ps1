@@ -1101,6 +1101,12 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
     Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
     Assert-True -Condition ($readmeText -match 'start-overnight-autopilot\.ps1') -Message "README documents overnight autopilot wrapper"
+    $selectedOvernightText = Get-Content (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1") -Raw
+    Assert-True -Condition ($selectedOvernightText -match 'BudgetMode') -Message "Selected overnight wrapper forwards budget mode"
+    Assert-True -Condition ($selectedOvernightText -match 'LoopPhase') -Message "Selected overnight wrapper forwards loop phase"
+    Assert-True -Condition ($selectedOvernightText -match 'MaxCompletedTasks') -Message "Selected overnight wrapper forwards task budget"
+    Assert-True -Condition ($selectedOvernightText -match 'LaunchGateMode') -Message "Selected overnight wrapper forwards launch gate mode"
+    Assert-True -Condition ($selectedOvernightText -match 'KillSwitchMode') -Message "Selected overnight wrapper forwards kill switch mode"
     Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
 
     $harborText = Get-Content (Join-Path $fleetRoot "harbor-master.ps1") -Raw

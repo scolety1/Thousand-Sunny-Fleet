@@ -4,9 +4,21 @@ param(
 
     [string[]]$Project = @("RestaurantDemo", "ShiftPlate", "EasyLife"),
 
+    [ValidateSet("cheap", "balanced", "premium")]
+    [string]$BudgetMode = "balanced",
+
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")]
+    [string]$LoopPhase = "auto",
+
     [int]$BatchSize = 1,
 
     [int]$MaxBatches = 6,
+
+    [int]$MaxRuntimeMinutes = 360,
+
+    [int]$MaxCompletedTasks = 6,
+
+    [int]$MaxPlannerBatches = 1,
 
     [int]$VisualInspectEvery = 1,
 
@@ -22,6 +34,12 @@ param(
 
     [int]$MaxTaskQuarantines = 5,
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$LaunchGateMode = "warn",
+
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$KillSwitchMode = "warn",
+
     [switch]$SkipHarnessTest,
 
     [switch]$SkipHarnessOnDryRun,
@@ -33,6 +51,9 @@ $ErrorActionPreference = "Continue"
 
 if ($BatchSize -lt 1) { Write-Host "-BatchSize must be at least 1." -ForegroundColor Red; exit 1 }
 if ($MaxBatches -lt 1) { Write-Host "-MaxBatches must be at least 1." -ForegroundColor Red; exit 1 }
+if ($MaxRuntimeMinutes -lt 0) { Write-Host "-MaxRuntimeMinutes must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($MaxCompletedTasks -lt 0) { Write-Host "-MaxCompletedTasks must be 0 or greater." -ForegroundColor Red; exit 1 }
+if ($MaxPlannerBatches -lt 0) { Write-Host "-MaxPlannerBatches must be 0 or greater." -ForegroundColor Red; exit 1 }
 if ($VisualInspectEvery -lt 0) { Write-Host "-VisualInspectEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
 if ($SimonEvery -lt 0) { Write-Host "-SimonEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
 if ($RobinEvery -lt 0) { Write-Host "-RobinEvery must be 0 or greater." -ForegroundColor Red; exit 1 }
@@ -160,7 +181,7 @@ function Save-ReportOnlyDirtyFiles {
 
 $Project = @(ConvertTo-ProjectList -Values $Project)
 Write-ScheduledLog "Selected overnight run '$RunLabel' checking projects: $($Project -join ', ')"
-Write-ScheduledLog "Run shape: batch size $BatchSize, max batches $MaxBatches, visual every $VisualInspectEvery, Simon every $SimonEvery, Robin every $RobinEvery, Joey every $JoeyEvery, quarantine budget $MaxTaskQuarantines."
+Write-ScheduledLog "Run shape: budget $BudgetMode, phase $LoopPhase, batch size $BatchSize, max batches $MaxBatches, max tasks $MaxCompletedTasks, planner batches $MaxPlannerBatches, visual every $VisualInspectEvery, Simon every $SimonEvery, Robin every $RobinEvery, Joey every $JoeyEvery, launch gate $LaunchGateMode, kill switch $KillSwitchMode, quarantine budget $MaxTaskQuarantines."
 
 $projectsJson = @(Get-Content ".\projects.json" -Raw | ConvertFrom-Json | ForEach-Object { $_ })
 $selectedProjectNames = @($Project)
@@ -216,8 +237,13 @@ $launchArgs = @(
     "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
     "-ExcludeProject", ($exclude -join ","),
     "-ExpectedProject", ($Project -join ","),
+    "-BudgetMode", $BudgetMode,
+    "-LoopPhase", $LoopPhase,
     "-BatchSize", ([string]$BatchSize),
     "-MaxBatches", ([string]$MaxBatches),
+    "-MaxRuntimeMinutes", ([string]$MaxRuntimeMinutes),
+    "-MaxCompletedTasks", ([string]$MaxCompletedTasks),
+    "-MaxPlannerBatches", ([string]$MaxPlannerBatches),
     "-VisualInspectEvery", ([string]$VisualInspectEvery),
     "-SimonEvery", ([string]$SimonEvery),
     "-RobinEvery", ([string]$RobinEvery),
@@ -225,6 +251,8 @@ $launchArgs = @(
     "-RateLimitCooldownSeconds", ([string]$RateLimitCooldownSeconds),
     "-RateLimitMaxCooldowns", ([string]$RateLimitMaxCooldowns),
     "-MaxTaskQuarantines", ([string]$MaxTaskQuarantines),
+    "-LaunchGateMode", $LaunchGateMode,
+    "-KillSwitchMode", $KillSwitchMode,
     "-QuarantineFailedTasks",
     "-UseGlobalRunShape"
 )
