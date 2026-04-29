@@ -754,6 +754,7 @@ function Test-LaunchControlSupport {
     Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
     Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
     Assert-True -Condition ($statusText -match 'Get-FleetStatusChildSummary') -Message "Fleet status reports active child work for run locks"
+    Assert-True -Condition ($statusText -match 'codex') -Message "Fleet status labels Codex child work clearly"
     Assert-True -Condition ($statusText -match 'git status --short 2>\$null') -Message "Fleet status suppresses noisy inaccessible temp-directory warnings"
 
     $visualRunner = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
@@ -957,6 +958,7 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Repair Runs Launched') -Message "Supervisor reports repair relaunches"
     Assert-True -Condition ($supervisorText -match 'Child Work') -Message "Supervisor report separates active child work from idle shells"
     Assert-True -Condition ($supervisorText -match 'childSummary') -Message "Supervisor tracks active child process names"
+    Assert-True -Condition ($supervisorText -match 'codex') -Message "Supervisor labels Codex child work clearly"
     Assert-True -Condition ($supervisorText -match 'no child work') -Message "Supervisor digest explains missing active child work"
     Assert-True -Condition ($supervisorText -match 'RepairBatchSize') -Message "Supervisor keeps repair relaunch batches small"
     Assert-True -Condition ($supervisorText -match 'IsOutputRedirected') -Message "Supervisor skips console clear under redirected autopilot logs"

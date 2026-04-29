@@ -191,7 +191,15 @@ function Get-RunLockStatus {
                 $name = [string]$_.Name
                 ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
             })
-            $childSummary = (($activeChildren | ForEach-Object { [string]$_.Name } | Sort-Object -Unique) -join ", ")
+            $childSummary = (($activeChildren | ForEach-Object {
+                $name = [string]$_.Name
+                $commandLine = [string]$_.CommandLine
+                if ($commandLine -match "(?i)\bcodex(\.cmd|\.exe)?\b") { "${name}: codex" }
+                elseif ($commandLine -match "(?i)\bnpm(\.cmd)?\b") { "${name}: npm" }
+                elseif ($commandLine -match "(?i)\bplaywright\b") { "${name}: playwright" }
+                elseif ($commandLine -match "(?i)\bpowershell(\.exe)?\b") { "${name}: powershell" }
+                else { $name }
+            } | Sort-Object -Unique) -join ", ")
 
             if ($isFresh -or $activeChildren.Count -gt 0) {
                 return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; idleShell = $false; pid = $pidValue; activeChildCount = $activeChildren.Count; childSummary = $childSummary; path = $lockPath }

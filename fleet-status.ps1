@@ -58,7 +58,15 @@ function Get-FleetStatusChildSummary {
         return ""
     }
 
-    $names = @($activeChildren | ForEach-Object { [string]$_.Name } | Sort-Object -Unique)
+    $names = @($activeChildren | ForEach-Object {
+        $name = [string]$_.Name
+        $commandLine = [string]$_.CommandLine
+        if ($commandLine -match "(?i)\bcodex(\.cmd|\.exe)?\b") { "${name}: codex" }
+        elseif ($commandLine -match "(?i)\bnpm(\.cmd)?\b") { "${name}: npm" }
+        elseif ($commandLine -match "(?i)\bplaywright\b") { "${name}: playwright" }
+        elseif ($commandLine -match "(?i)\bpowershell(\.exe)?\b") { "${name}: powershell" }
+        else { $name }
+    } | Sort-Object -Unique)
     return ($names -join ", ")
 }
 
