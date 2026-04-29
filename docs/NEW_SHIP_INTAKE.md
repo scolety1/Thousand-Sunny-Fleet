@@ -82,6 +82,15 @@ Required ship docs:
 - `docs/codex/SHIP_SCORECARD.md`
 - `docs/codex/PRODUCT_USEFULNESS.md`
 
+Admission review command:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\ship-admission.ps1 -Project ShipName
+```
+
+Use report-only mode first. Add `-Enforce` only after the scorecard process is trusted for that ship.
+
 Static frontend demo:
 
 ```powershell
