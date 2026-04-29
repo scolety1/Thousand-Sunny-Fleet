@@ -206,6 +206,8 @@ Repair runs should be tiny and gate-driven: one blocker, one bounded scope, one 
 
 Supervisor repair automation now treats repair as a phase handoff, not just a queued task. When auto-repair is enabled it records the `Repair Trigger`, stores the previous `Repair Return Phase`, switches the ship into `repair`, and limits repeated repair attempts. Once the blocker is clear, the supervisor returns the ship to its previous phase and clears the repair fields.
 
+The supervisor report includes each ship's current phase, repair attempt count, and any skipped repair attempts so overnight loops stop spending effort on the same blocker after the repair cap is reached.
+
 Each ship may carry `docs/codex/PHASE_STATE.md` with the current phase, product promise, and human taste note. `-LoopPhase auto` reads that file; explicit `-LoopPhase simplicity` overrides it for the run.
 
 `PHASE_STATE.md` carries the eight first-class website-quality controls:

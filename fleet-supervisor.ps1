@@ -587,6 +587,7 @@ function Write-SupervisorReport {
     $repairsQueued = @()
     $repairLaunches = @()
     $repairLaunchFailures = @()
+    $repairSkips = @()
     $lines = @(
         "# Codex Fleet Supervisor",
         "",
@@ -594,14 +595,14 @@ function Write-SupervisorReport {
         "Window: last 12 hours",
         "Budgets: task commits <= $MaxTaskCommits, task quarantines <= $MaxQuarantines, quality stops <= $MaxQualityStops, repair attempts <= $MaxRepairAttempts",
         "",
-        "| Ship | State | Phase | Branch | HEAD | Dirty | Tasks | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
-        "| --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
+        "| Ship | State | Phase | Repair Attempts | Branch | HEAD | Dirty | Tasks | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
+        "| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
     )
 
     foreach ($project in $projects) {
         if (!(Test-Path $project.repo)) {
             $rows += [pscustomobject]@{
-                ship = $project.name; state = "BLOCKED_MISSING"; phase = "missing"; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
+                ship = $project.name; state = "BLOCKED_MISSING"; phase = "missing"; repairAttempts = 0; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
             }
             continue
         }
@@ -623,6 +624,7 @@ function Write-SupervisorReport {
         $taskCommits = @(git log --since="$($since.ToString("o"))" --oneline --grep="Codex checkpoint batch" 2>$null).Count
         $taskQuarantines = Get-CountSince -Path "docs/codex/QUARANTINED_TASKS.md" -Pattern "Reason:" -Since $since
         $qualityStops = Get-CountSince -Path "docs/codex/QUALITY_QUARANTINE.md" -Pattern "Reason:" -Since $since
+        $repairAttempts = Get-CountSince -Path "docs/codex/AUTO_REPAIR.md" -Pattern "^- State:" -Since $since
         $phaseState = Get-PhaseStateSummary -RepoPath ([string]$project.repo)
         $budgetProblems = @()
         if ($taskCommits -gt $MaxTaskCommits) { $budgetProblems += "commits $taskCommits/$MaxTaskCommits" }
@@ -660,6 +662,7 @@ function Write-SupervisorReport {
             phase = $phaseState.phase
             repairTrigger = $phaseState.repairTrigger
             repairReturnPhase = $phaseState.repairReturnPhase
+            repairAttempts = $repairAttempts
         }
         $row | Add-Member -NotePropertyName state -NotePropertyValue (Resolve-SupervisorState -Row $row)
         $row | Add-Member -NotePropertyName recommendation -NotePropertyValue (Get-Recommendation -Row $row)
@@ -689,6 +692,9 @@ function Write-SupervisorReport {
                 $row.tasks = $row.tasks + 1
                 $row.phase = "repair"
                 $row.recommendation = "auto-repair task queued"
+            } elseif ([string]$repairResult.reason -match "repair attempt cap reached") {
+                $repairSkips += [pscustomobject]@{ ship = $row.ship; state = $row.state; reason = $repairResult.reason }
+                $row.recommendation = "$($repairResult.reason); human review needed"
             }
         }
         if ($AutoRelaunchRepair) {
@@ -710,7 +716,7 @@ function Write-SupervisorReport {
 
     foreach ($row in $rows) {
         $child = if ([string]::IsNullOrWhiteSpace([string]$row.childSummary)) { "-" } else { [string]$row.childSummary }
-        $lines += "| $($row.ship) | $($row.state) | $($row.phase) | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
+        $lines += "| $($row.ship) | $($row.state) | $($row.phase) | $($row.repairAttempts)/$MaxRepairAttempts | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
     }
 
     $lines += ""
@@ -764,10 +770,18 @@ function Write-SupervisorReport {
             $lines += "  - stderr: $($failure.stderr)"
         }
     }
+    if ($repairSkips.Count -gt 0) {
+        $lines += ""
+        $lines += "## Repair Skipped"
+        $lines += ""
+        foreach ($skip in $repairSkips) {
+            $lines += "- $($skip.ship): $($skip.state) - $($skip.reason)"
+        }
+    }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
     Set-Content -Path $OutFile -Value $lines
-    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested -RepairsQueued $repairsQueued -RepairLaunches $repairLaunches -RepairLaunchFailures $repairLaunchFailures
+    Write-OvernightDigest -Rows $rows -Timestamp $timestamp -Since $since -SafeStopsRequested $safeStopsRequested -RepairsQueued $repairsQueued -RepairLaunches $repairLaunches -RepairLaunchFailures $repairLaunchFailures -RepairSkips $repairSkips
 
     if (-not [Console]::IsOutputRedirected) {
         Clear-Host
@@ -790,7 +804,8 @@ function Write-OvernightDigest {
         [object[]]$SafeStopsRequested = @(),
         [object[]]$RepairsQueued = @(),
         [object[]]$RepairLaunches = @(),
-        [object[]]$RepairLaunchFailures = @()
+        [object[]]$RepairLaunchFailures = @(),
+        [object[]]$RepairSkips = @()
     )
 
     $digest = @(
@@ -850,6 +865,12 @@ function Write-OvernightDigest {
         $digest += "## Repair Relaunch Failures"
         $digest += ""
         $RepairLaunchFailures | ForEach-Object { $digest += "- $($_.ship): $($_.reason)" }
+    }
+    if ($RepairSkips.Count -gt 0) {
+        $digest += ""
+        $digest += "## Repair Skipped"
+        $digest += ""
+        $RepairSkips | ForEach-Object { $digest += "- $($_.ship): $($_.state), $($_.reason)" }
     }
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $DigestOutFile) | Out-Null

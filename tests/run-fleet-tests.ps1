@@ -964,6 +964,8 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Set-SupervisorRepairPhase') -Message "Supervisor enters repair phase before repair tasks"
     Assert-True -Condition ($supervisorText -match 'Complete-SupervisorRepairPhaseIfClear') -Message "Supervisor exits repair phase after blockers clear"
     Assert-True -Condition ($supervisorText -match 'MaxRepairAttempts') -Message "Supervisor caps repair attempts"
+    Assert-True -Condition ($supervisorText -match 'repairAttempts') -Message "Supervisor reports repair attempt counts"
+    Assert-True -Condition ($supervisorText -match 'Repair Skipped') -Message "Supervisor reports skipped repair attempts"
     Assert-True -Condition ($supervisorText -match 'Repair Return Phase') -Message "Supervisor records repair return phase"
     Assert-True -Condition ($supervisorText -match 'Supervisor Auto Repair') -Message "Supervisor creates high-priority repair queue sections"
     Assert-True -Condition ($supervisorText -match 'AUTO_REPAIR\.md') -Message "Supervisor records auto-repair actions"
