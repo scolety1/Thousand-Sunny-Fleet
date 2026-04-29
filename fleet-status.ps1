@@ -13,6 +13,20 @@ function Test-FleetStatusProcessAlive {
     return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
 }
 
+function Get-FleetStatusActiveChildren {
+    param(
+        [int]$ProcessId
+    )
+
+    if ($ProcessId -le 0) { return @() }
+
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ProcessId" -ErrorAction SilentlyContinue)
+    return @($children | Where-Object {
+        $name = [string]$_.Name
+        ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+    })
+}
+
 function Test-FleetStatusRunActive {
     param(
         [int]$ProcessId,
@@ -32,13 +46,20 @@ function Test-FleetStatusRunActive {
         return $true
     }
 
-    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ProcessId" -ErrorAction SilentlyContinue)
-    $activeChildren = @($children | Where-Object {
-        $name = [string]$_.Name
-        ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
-    })
-
+    $activeChildren = @(Get-FleetStatusActiveChildren -ProcessId $ProcessId)
     return ($activeChildren.Count -gt 0)
+}
+
+function Get-FleetStatusChildSummary {
+    param([int]$ProcessId)
+
+    $activeChildren = @(Get-FleetStatusActiveChildren -ProcessId $ProcessId)
+    if ($activeChildren.Count -eq 0) {
+        return ""
+    }
+
+    $names = @($activeChildren | ForEach-Object { [string]$_.Name } | Sort-Object -Unique)
+    return ($names -join ", ")
 }
 
 function Get-FleetStatusLock {
@@ -55,6 +76,10 @@ function Get-FleetStatusLock {
         $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
         $lockPid = if ($null -ne $lock.pid) { [int]$lock.pid } else { 0 }
         if (Test-FleetStatusRunActive -ProcessId $lockPid) {
+            $childSummary = Get-FleetStatusChildSummary -ProcessId $lockPid
+            if (![string]::IsNullOrWhiteSpace($childSummary)) {
+                return "active PID $lockPid ($childSummary)"
+            }
             return "active PID $lockPid"
         }
         if (Test-FleetStatusProcessAlive -ProcessId $lockPid) {

@@ -753,6 +753,7 @@ function Test-LaunchControlSupport {
     $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
     Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
     Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
+    Assert-True -Condition ($statusText -match 'Get-FleetStatusChildSummary') -Message "Fleet status reports active child work for run locks"
 
     $visualRunner = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
     Assert-True -Condition ($visualRunner -match 'routeUrl\.search') -Message "Visual inspect route URLs preserve query strings"
@@ -953,6 +954,9 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'AutoRelaunchRepair') -Message "Supervisor exposes auto-relaunch repair mode"
     Assert-True -Condition ($supervisorText -match 'Start-SupervisorRepairRun') -Message "Supervisor can relaunch one repair batch"
     Assert-True -Condition ($supervisorText -match 'Repair Runs Launched') -Message "Supervisor reports repair relaunches"
+    Assert-True -Condition ($supervisorText -match 'Child Work') -Message "Supervisor report separates active child work from idle shells"
+    Assert-True -Condition ($supervisorText -match 'childSummary') -Message "Supervisor tracks active child process names"
+    Assert-True -Condition ($supervisorText -match 'no child work') -Message "Supervisor digest explains missing active child work"
     Assert-True -Condition ($supervisorText -match 'RepairBatchSize') -Message "Supervisor keeps repair relaunch batches small"
     Assert-True -Condition ($supervisorText -match 'IsOutputRedirected') -Message "Supervisor skips console clear under redirected autopilot logs"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "start-overnight-autopilot.ps1")) -Message "Fleet exposes overnight autopilot wrapper"

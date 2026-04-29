@@ -171,7 +171,7 @@ function Get-RunLockStatus {
     $safeName = $safeName.Trim("-")
     $lockPath = Join-Path $fleetRoot ".codex-local\locks\$safeName.lock.json"
     if (!(Test-Path -LiteralPath $lockPath)) {
-        return [pscustomobject]@{ text = "none"; active = $false; stale = $false; path = "" }
+        return [pscustomobject]@{ text = "none"; active = $false; stale = $false; idleShell = $false; pid = 0; activeChildCount = 0; childSummary = ""; path = "" }
     }
 
     try {
@@ -179,12 +179,11 @@ function Get-RunLockStatus {
         $pidValue = [int]$lock.pid
         $process = if ($pidValue -gt 0) { Get-Process -Id $pidValue -ErrorAction SilentlyContinue } else { $null }
         if ($null -ne $process) {
+            $isFresh = $false
             try {
-                if (((Get-Date) - $process.StartTime).TotalSeconds -lt 120) {
-                    return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
-                }
+                $isFresh = (((Get-Date) - $process.StartTime).TotalSeconds -lt 120)
             } catch {
-                return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
+                $isFresh = $true
             }
 
             $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$pidValue" -ErrorAction SilentlyContinue)
@@ -192,18 +191,20 @@ function Get-RunLockStatus {
                 $name = [string]$_.Name
                 ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
             })
-            if ($activeChildren.Count -gt 0) {
-                return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; path = $lockPath }
+            $childSummary = (($activeChildren | ForEach-Object { [string]$_.Name } | Sort-Object -Unique) -join ", ")
+
+            if ($isFresh -or $activeChildren.Count -gt 0) {
+                return [pscustomobject]@{ text = "active PID $pidValue"; active = $true; stale = $false; idleShell = $false; pid = $pidValue; activeChildCount = $activeChildren.Count; childSummary = $childSummary; path = $lockPath }
             }
 
-            return [pscustomobject]@{ text = "idle shell PID $pidValue"; active = $false; stale = $true; path = $lockPath }
+            return [pscustomobject]@{ text = "idle shell PID $pidValue"; active = $false; stale = $true; idleShell = $true; pid = $pidValue; activeChildCount = 0; childSummary = ""; path = $lockPath }
         }
         if ($pidValue -gt 0) {
-            return [pscustomobject]@{ text = "stale PID $pidValue"; active = $false; stale = $true; path = $lockPath }
+            return [pscustomobject]@{ text = "stale PID $pidValue"; active = $false; stale = $true; idleShell = $false; pid = $pidValue; activeChildCount = 0; childSummary = ""; path = $lockPath }
         }
-        return [pscustomobject]@{ text = "stale PID $pidValue"; active = $false; stale = $true; path = $lockPath }
+        return [pscustomobject]@{ text = "stale PID $pidValue"; active = $false; stale = $true; idleShell = $false; pid = $pidValue; activeChildCount = 0; childSummary = ""; path = $lockPath }
     } catch {
-        return [pscustomobject]@{ text = "unreadable"; active = $false; stale = $true; path = $lockPath }
+        return [pscustomobject]@{ text = "unreadable"; active = $false; stale = $true; idleShell = $false; pid = 0; activeChildCount = 0; childSummary = ""; path = $lockPath }
     }
 }
 
@@ -481,14 +482,14 @@ function Write-SupervisorReport {
         "Window: last 12 hours",
         "Budgets: task commits <= $MaxTaskCommits, task quarantines <= $MaxQuarantines, quality stops <= $MaxQualityStops",
         "",
-        "| Ship | State | Branch | HEAD | Dirty | Tasks | Lock | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
-        "| --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- |"
+        "| Ship | State | Branch | HEAD | Dirty | Tasks | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
+        "| --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
     )
 
     foreach ($project in $projects) {
         if (!(Test-Path $project.repo)) {
             $rows += [pscustomobject]@{
-                ship = $project.name; state = "BLOCKED_MISSING"; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
+                ship = $project.name; state = "BLOCKED_MISSING"; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
             }
             continue
         }
@@ -529,6 +530,10 @@ function Write-SupervisorReport {
             tasks = $tasks
             lock = $lockStatus.text
             lockActive = $lockStatus.active
+            lockIdleShell = $lockStatus.idleShell
+            lockStale = $lockStatus.stale
+            activeChildCount = $lockStatus.activeChildCount
+            childSummary = $lockStatus.childSummary
             activePack = $activePack
             simonScore = $simonScore
             qualityQuarantine = $qualityQuarantine
@@ -576,7 +581,8 @@ function Write-SupervisorReport {
     }
 
     foreach ($row in $rows) {
-        $lines += "| $($row.ship) | $($row.state) | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
+        $child = if ([string]::IsNullOrWhiteSpace([string]$row.childSummary)) { "-" } else { [string]$row.childSummary }
+        $lines += "| $($row.ship) | $($row.state) | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
     }
 
     $lines += ""
@@ -643,7 +649,8 @@ function Write-SupervisorReport {
     Write-Host "Digest: $DigestOutFile"
     foreach ($row in $rows) {
         $color = if ($row.state -match "BLOCKED|LOOPING|BUDGET|IDLE_RUNNING") { "Yellow" } else { "Green" }
-        Write-Host ("{0}: {1} | {2} | tasks {3} | {4} | {5}" -f $row.ship, $row.state, $row.dirty, $row.tasks, $row.activePack, $row.recommendation) -ForegroundColor $color
+        $child = if ([string]::IsNullOrWhiteSpace([string]$row.childSummary)) { "no child work" } else { "child: $($row.childSummary)" }
+        Write-Host ("{0}: {1} | {2} | tasks {3} | {4} | {5} | {6}" -f $row.ship, $row.state, $row.dirty, $row.tasks, $row.activePack, $child, $row.recommendation) -ForegroundColor $color
     }
 }
 
@@ -669,14 +676,24 @@ function Write-OvernightDigest {
     )
     $activeRows = @($Rows | Where-Object { $_.state -in @("PROGRESSING", "READY", "IDLE_READY") })
     if ($activeRows.Count -eq 0) { $digest += "- None." }
-    else { $activeRows | ForEach-Object { $digest += "- $($_.ship): $($_.state), $($_.activePack), $($_.simonScore)" } }
+    else {
+        $activeRows | ForEach-Object {
+            $child = if ([string]::IsNullOrWhiteSpace([string]$_.childSummary)) { "no child work" } else { "child: $($_.childSummary)" }
+            $digest += "- $($_.ship): $($_.state), $($_.activePack), $($_.simonScore), $child"
+        }
+    }
 
     $digest += ""
     $digest += "## Needs Human Attention"
     $digest += ""
     $attentionRows = @($Rows | Where-Object { $_.state -match "BLOCKED|LOOPING|BUDGET|IDLE_RUNNING" })
     if ($attentionRows.Count -eq 0) { $digest += "- None." }
-    else { $attentionRows | ForEach-Object { $digest += "- $($_.ship): $($_.state), $($_.recommendation)" } }
+    else {
+        $attentionRows | ForEach-Object {
+            $child = if ([string]::IsNullOrWhiteSpace([string]$_.childSummary)) { "no child work" } else { "child: $($_.childSummary)" }
+            $digest += "- $($_.ship): $($_.state), $child, $($_.recommendation)"
+        }
+    }
 
     $digest += ""
     $digest += "## Work Packs"
