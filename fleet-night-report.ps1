@@ -185,7 +185,7 @@ $scheduledRows = @(Get-ScheduledRunRows -Since $since)
 if ($IgnoreDryRuns) {
     $scheduledRows = @($scheduledRows | Where-Object {
         $_.status -ne "dry-run" -and
-        $_.name -notmatch "(?i)(dryrun|dry-run|proof|test|check|harness)"
+        $_.name -notmatch "(?i)(dryrun|dry-run|proof|test|check|harness|preflight)"
     })
 }
 $shipRows = @()
