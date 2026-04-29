@@ -1126,6 +1126,132 @@ function Test-SophisticatedSoftwareModeSupport {
     Assert-True -Condition ($roadmapText -match '\[x\] Add approved "bigger-change mode"') -Message "Roadmap marks sophisticated software mode complete"
 }
 
+function Test-ProductAdmissionGateSupport {
+    $dashboardText = Get-Content (Join-Path $fleetRoot "fleet-product-dashboard.ps1") -Raw
+    $admissionText = Get-Content (Join-Path $fleetRoot "ship-admission.ps1") -Raw
+    $usefulnessText = Get-Content (Join-Path $fleetRoot "product-usefulness.ps1") -Raw
+    $launchGateText = Get-Content (Join-Path $fleetRoot "fleet-launch-gate.ps1") -Raw
+    $killSwitchText = Get-Content (Join-Path $fleetRoot "fleet-kill-switch.ps1") -Raw
+    $backfillText = Get-Content (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "ship-admission.ps1")) -Message "Fleet exposes ship admission gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "product-usefulness.ps1")) -Message "Fleet exposes product usefulness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-launch-gate.ps1")) -Message "Fleet exposes launch gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-product-dashboard.ps1")) -Message "Fleet exposes product dashboard"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-kill-switch.ps1")) -Message "Fleet exposes kill switch"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1")) -Message "Fleet exposes product docs backfill tool"
+
+    Assert-True -Condition ($admissionText -match 'SHIP_SCORECARD\.md') -Message "Admission gate reads scorecard"
+    Assert-True -Condition ($admissionText -match 'USER_JOB\.md') -Message "Admission gate requires user job"
+    Assert-True -Condition ($usefulnessText -match 'Gate result') -Message "Usefulness gate reads explicit gate result"
+    Assert-True -Condition ($usefulnessText -match 'NEEDS HUMAN DIRECTION') -Message "Usefulness gate can stop unclear ships"
+    Assert-True -Condition ($launchGateText -match 'Test-TaskHasProductShape') -Message "Launch gate requires product-shaped tasks"
+    Assert-True -Condition ($launchGateText -match 'Test-HasLocalEvaluator') -Message "Launch gate requires local evaluator"
+    Assert-True -Condition ($dashboardText -match 'fleet-launch-gate\.ps1') -Message "Product dashboard includes launch gate state"
+    Assert-True -Condition ($dashboardText -match 'product-usefulness\.ps1') -Message "Product dashboard includes usefulness state"
+    Assert-True -Condition ($killSwitchText -match 'FlatRunThreshold') -Message "Kill switch tracks repeated weak loops"
+    Assert-True -Condition ($killSwitchText -match 'WriteParkingReason') -Message "Kill switch can write parking reason when asked"
+    Assert-True -Condition ($loopText -match 'KillSwitchMode') -Message "Checkpoint loop supports kill-switch mode"
+    Assert-True -Condition ($plannerText -match 'User pain:') -Message "Planner requires product-shaped task user pain"
+    Assert-True -Condition ($plannerText -match 'Remove/simplify:') -Message "Planner requires simplification field"
+    Assert-True -Condition ($backfillText -match 'PRODUCT_USEFULNESS\.md') -Message "Backfill creates usefulness docs"
+    Assert-True -Condition ($backfillText -match 'IsPathRooted') -Message "Backfill supports absolute report paths"
+    Assert-True -Condition ($readmeText -match 'fleet-backfill-product-docs\.ps1') -Message "README documents backfill tool"
+
+    $fixtureBackfillReport = Join-Path $fixtureRoot "product-gate-backfill.md"
+    $backfill = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Apply",
+        "-OutPath", $fixtureBackfillReport
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $backfill.ExitCode -Expected 0 -Message "Backfill applies to fixture ship"
+    Assert-True -Condition (Test-Path $fixtureBackfillReport) -Message "Backfill writes requested report path"
+
+    foreach ($doc in @("USER_JOB.md", "EVALUATORS.md", "SHIP_SCORECARD.md", "SHIP_ADMISSION.md", "PRODUCT_USEFULNESS.md")) {
+        Assert-True -Condition (Test-Path (Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\$doc")) -Message "Backfill created $doc"
+    }
+
+    $admission = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "ship-admission.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-Config", $fixtureConfig,
+        "-NoWrite"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $admission.ExitCode -Expected 0 -Message "Admission review runs on backfilled fixture"
+    Assert-True -Condition (($admission.Output -join "`n") -match 'FixtureStaticDemo: ADMIT') -Message "Backfilled fixture admits with no red flags"
+
+    $usefulness = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "product-usefulness.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-Config", $fixtureConfig,
+        "-NoWrite"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $usefulness.ExitCode -Expected 0 -Message "Usefulness review runs on backfilled fixture"
+    Assert-True -Condition (($usefulness.Output -join "`n") -match 'FixtureStaticDemo: SIMPLIFY') -Message "Backfilled fixture starts in simplify lane"
+
+    $launch = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launch.ExitCode -Expected 0 -Message "Launch gate runs on backfilled fixture"
+    Assert-True -Condition (($launch.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate still blocks old non-product-shaped fixture task"
+
+    $kill = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-kill-switch.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $kill.ExitCode -Expected 0 -Message "Kill switch runs on backfilled fixture"
+    Assert-True -Condition (($kill.Output -join "`n") -match 'Kill switch FixtureStaticDemo: KILL') -Message "Kill switch catches blocked launch gate in warn mode"
+
+    $taskPath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\TASK_QUEUE.md"
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single scope:src/]"
+    )
+
+    $launchReady = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchReady.ExitCode -Expected 0 -Message "Launch gate runs after product-shaped task"
+    Assert-True -Condition (($launchReady.Output -join "`n") -match 'Launch gate FixtureStaticDemo: WARN') -Message "Product-shaped task downgrades fixture from block to usefulness warning"
+
+    $killWatch = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-kill-switch.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $killWatch.ExitCode -Expected 0 -Message "Kill switch reruns after product-shaped task"
+    Assert-True -Condition (($killWatch.Output -join "`n") -match 'Kill switch FixtureStaticDemo: WATCH') -Message "Kill switch watches simplify lane instead of killing ready product-shaped task"
+}
+
 Set-Location $fleetRoot
 Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
 
@@ -1164,6 +1290,7 @@ Test-MagicRunSupport
 Test-PhaseLoopSupport
 Test-LongRunSupervisorSupport
 Test-SophisticatedSoftwareModeSupport
+Test-ProductAdmissionGateSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
     $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)
