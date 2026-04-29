@@ -264,6 +264,22 @@ function Get-AnalysisPlanStatus {
     return "draft"
 }
 
+function Get-CalibrationStatus {
+    if (!(Test-Path "docs/codex/CALIBRATION_PLAN.md")) {
+        return "missing"
+    }
+
+    if (!(Test-Path "docs/codex/CALIBRATION_READINESS.md")) {
+        return "unverified"
+    }
+
+    $report = Get-Content "docs/codex/CALIBRATION_READINESS.md" -Raw
+    if ($report -match "(?is)## Verdict\s+GREEN\b") { return "green" }
+    if ($report -match "(?is)## Verdict\s+YELLOW\b") { return "yellow" }
+    if ($report -match "(?is)## Verdict\s+RED\b") { return "red" }
+    return "unknown"
+}
+
 function Get-DependencyApprovalStatus {
     if (!(Test-Path "docs/codex/DEPENDENCY_PROPOSAL.md")) {
         return "missing"
@@ -390,6 +406,7 @@ function Get-ShipDiagnosis {
     $runPolicyExists = Test-Path "docs/codex/RUN_POLICY.md"
     $architectureStatus = Get-ArchitecturePlanStatus
     $analysisStatus = Get-AnalysisPlanStatus
+    $calibrationStatus = Get-CalibrationStatus
     $dependencyStatus = Get-DependencyApprovalStatus
     $migrationStatus = Get-MigrationApprovalStatus
     $sensitiveStatus = Get-SensitiveSystemsStatus
@@ -469,6 +486,18 @@ function Get-ShipDiagnosis {
         Add-Finding -Findings $findings -Level "WARN" -Message "Analytical planning pack is still DRAFT."
     } elseif ($analysisGateNeeded) {
         Add-Finding -Findings $findings -Level "OK" -Message "Analytical planning pack is approved."
+    }
+
+    if ($analysisGateNeeded -and $calibrationStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Calibration readiness is missing; run fleet-calibration.ps1 before calibration/dashboard work."
+    } elseif ($analysisGateNeeded -and $calibrationStatus -in @("unverified", "unknown")) {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Calibration readiness has not been verified; run fleet-calibration.ps1."
+    } elseif ($analysisGateNeeded -and $calibrationStatus -eq "red") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Calibration readiness is RED; stay in calibration/repair before dashboard work."
+    } elseif ($analysisGateNeeded -and $calibrationStatus -eq "yellow") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Calibration readiness is YELLOW; unavailable history or fallback checks need attention."
+    } elseif ($analysisGateNeeded) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Calibration readiness is GREEN."
     }
 
     $dependencyGateNeeded = (
@@ -578,6 +607,7 @@ function Get-ShipDiagnosis {
         capabilities = $enabledCapabilities
         architecture = $architectureStatus
         analysis = $analysisStatus
+        calibration = $calibrationStatus
         dependencies = $dependencyStatus
         migrations = $migrationStatus
         sensitiveSystems = $sensitiveStatus
@@ -605,13 +635,13 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "| Ship | Ready | Type | Risk | Architecture | Analysis | Dependencies | Migrations | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
+    "| Ship | Ready | Type | Risk | Architecture | Analysis | Calibration | Dependencies | Migrations | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
 )
 
 foreach ($diagnosis in $diagnoses) {
     $ready = if ($diagnosis.launchReady) { "YES" } else { "NO" }
-    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.analysis) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
+    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.analysis) | $($diagnosis.calibration) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
 }
 
 $lines += ""
@@ -629,6 +659,7 @@ foreach ($diagnosis in $diagnoses) {
     $lines += "- Enabled capabilities: $($diagnosis.capabilities)"
     $lines += "- Architecture: $($diagnosis.architecture)"
     $lines += "- Analysis planning: $($diagnosis.analysis)"
+    $lines += "- Calibration readiness: $($diagnosis.calibration)"
     $lines += "- Dependencies: $($diagnosis.dependencies)"
     $lines += "- Migrations: $($diagnosis.migrations)"
     $lines += "- Sensitive systems: $($diagnosis.sensitiveSystems)"
@@ -653,7 +684,7 @@ if (!$Quiet) {
     foreach ($diagnosis in $diagnoses) {
         $color = if ($diagnosis.launchReady) { "Green" } else { "Red" }
         $status = if ($diagnosis.launchReady) { "healthy" } else { "not ready" }
-        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), analysis $($diagnosis.analysis), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
+        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), analysis $($diagnosis.analysis), calibration $($diagnosis.calibration), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
         if (!$diagnosis.launchReady) {
             $diagnosis.findings | Where-Object { $_.level -eq "FAIL" } | ForEach-Object {
                 Write-Host "  - $($_.message)" -ForegroundColor Red

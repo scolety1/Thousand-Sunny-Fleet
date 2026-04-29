@@ -885,6 +885,7 @@ function Test-PhaseLoopSupport {
     $analysisText = Get-Content (Join-Path $fleetRoot "fleet-analysis.ps1") -Raw
     $numberText = Get-Content (Join-Path $fleetRoot "analytical-number-provenance.ps1") -Raw
     $fixtureText = Get-Content (Join-Path $fleetRoot "analytical-fixture-readiness.ps1") -Raw
+    $calibrationText = Get-Content (Join-Path $fleetRoot "fleet-calibration.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
@@ -896,6 +897,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-analysis.ps1")) -Message "Fleet exposes analytical planning pack script"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-number-provenance.ps1")) -Message "Fleet exposes analytical number provenance gate"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-fixture-readiness.ps1")) -Message "Fleet exposes analytical fixture readiness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-calibration.ps1")) -Message "Fleet exposes analytical calibration readiness gate"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -957,6 +959,19 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($loopText -match 'Invoke-AnalyticalFixtureReadinessGate') -Message "Checkpoint loop gates engine-build on fixture readiness"
     Assert-True -Condition ($loopText -match 'analysis-fixture-readiness') -Message "Checkpoint loop writes fixture readiness report outside ship repo"
     Assert-True -Condition ($plannerText -match 'Engine-build is blocked until these exist') -Message "Planner knows fixture-first blocks engine-build"
+    Assert-True -Condition ($calibrationText -match 'Calibration Readiness') -Message "Calibration gate writes a readiness report"
+    foreach ($heading in @("Historical Checks", "Sanity Checks", "Calibration Metrics", "Failure Modes", "Tuning Rules")) {
+        Assert-True -Condition ($calibrationText -match [regex]::Escape($heading)) -Message "Calibration gate checks $heading"
+    }
+    Assert-True -Condition ($calibrationText -match 'history unavailable') -Message "Calibration gate distinguishes unavailable history"
+    Assert-True -Condition ($calibrationText -match 'KNOWN_CASES' -and $calibrationText -match 'BACKTEST_REPORT') -Message "Calibration gate looks for calibration evidence artifacts"
+    Assert-True -Condition ($doctorText -match 'Get-CalibrationStatus') -Message "Fleet doctor reports calibration readiness status"
+    Assert-True -Condition ($doctorText -match 'Calibration readiness') -Message "Fleet doctor warns about calibration readiness"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalCalibrationReadinessGate') -Message "Checkpoint loop gates calibration and dashboard phases"
+    Assert-True -Condition ($loopText -match 'calibration-readiness') -Message "Checkpoint loop writes calibration readiness report outside ship repo"
+    Assert-True -Condition ($loopText -match 'CALIBRATION_READINESS') -Message "Task scope allows calibration readiness reports"
+    Assert-True -Condition ($plannerText -match 'CALIBRATION_READINESS\.md') -Message "Planner knows calibration readiness evidence"
+    Assert-True -Condition ($docsText -match 'fleet-calibration\.ps1') -Message "Control room docs explain calibration readiness"
     Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
     Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"

@@ -617,7 +617,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -2230,6 +2230,43 @@ function Invoke-AnalyticalFixtureReadinessGate {
     exit 1
 }
 
+function Invoke-AnalyticalCalibrationReadinessGate {
+    param([string]$ProjectName)
+
+    $effectivePhase = Resolve-EffectiveLoopPhaseForGate
+    $calibrationRequiredPhases = @("calibration", "dashboard", "scenario-tools", "analysis-proof")
+    if ($effectivePhase -notin $calibrationRequiredPhases) { return }
+
+    $calibrationScript = Join-Path $fleetRoot "fleet-calibration.ps1"
+    if (!(Test-Path -LiteralPath $calibrationScript)) {
+        Write-Host "Calibration readiness script not found: $calibrationScript" -ForegroundColor Red
+        Release-FleetRunLock
+        exit 1
+    }
+
+    $safeProject = if ([string]::IsNullOrWhiteSpace($ProjectName)) { "project" } else { ([string]$ProjectName) -replace "[^a-zA-Z0-9_-]+", "-" }
+    $safeProject = $safeProject.Trim("-")
+    $calibrationReport = Join-Path $fleetRoot ".codex-local\calibration-readiness-$safeProject.md"
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $calibrationScript,
+        "-Repo", (Get-Location).Path,
+        "-OutFile", $calibrationReport
+    ) -LogName ("calibration-readiness-startup-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    if ($exitCode -eq 0) { return }
+
+    Write-Host ""
+    Write-Host "Calibration readiness gate blocked $ProjectName before $effectivePhase." -ForegroundColor Red
+    Write-Host "Add known-case comparisons, historical/backtest evidence or explicit unavailable-history fallback, metrics, failure modes, and tuning rules." -ForegroundColor Yellow
+    Write-Host "Report: $calibrationReport" -ForegroundColor DarkYellow
+    Write-Host "Then rerun:" -ForegroundColor Cyan
+    Write-Host "  .\launch-school-run.ps1 -Project $ProjectName -LoopPhase calibration -RequirePhaseValidation" -ForegroundColor Cyan
+    Release-FleetRunLock
+    exit 1
+}
+
 $script:projectConfig = Get-ProjectConfig
 $repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -2282,6 +2319,7 @@ if (!$AllowDuplicateRun) {
 Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "startup"
 Invoke-AnalyticalApprovalGate -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
 Invoke-AnalyticalFixtureReadinessGate -ProjectName $script:projectConfig.name
+Invoke-AnalyticalCalibrationReadinessGate -ProjectName $script:projectConfig.name
 
 $status = @(git status --porcelain)
 if ($status.Count -gt 0) {

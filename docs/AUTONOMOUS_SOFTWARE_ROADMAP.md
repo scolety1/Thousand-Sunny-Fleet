@@ -87,13 +87,16 @@ Acceptance:
 - Planner tasks in `formula-spec` and `fixture-tests` prioritize examples, expected outputs, and edge cases.
 - Engine-build tasks must include acceptance commands that run formula/import tests.
 
-### A4 - Calibration Report Script
+### A4 - Calibration Report Script - done
 
 Problem:
 Even deterministic formulas can be wrong, overconfident, or poorly calibrated.
 
 Target:
 Add `fleet-calibration.ps1` to inspect whether an analytical ship has calibration evidence: known-case comparisons, historical/backtest plan, confidence rules, failure modes, and tuning rules.
+
+Status:
+Implemented as `fleet-calibration.ps1` and wired into Fleet Doctor plus the checkpoint startup gate for `calibration`, `dashboard`, `scenario-tools`, and `analysis-proof`. The report distinguishes ignored history from explicitly unavailable history with fallback sanity or known-case checks.
 
 Acceptance:
 
