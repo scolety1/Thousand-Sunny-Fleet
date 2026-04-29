@@ -34,6 +34,7 @@ cd C:\Dev\codex-fleet
 .\launch-school-run.ps1
 .\launch-overnight-run.ps1 -Project EasyLife
 .\fleet-status.ps1
+.\fleet-product-dashboard.ps1
 .\harbor-master.ps1
 .\fleet-supervisor.ps1 -Once
 .\prepare-magic-run.ps1
@@ -64,6 +65,8 @@ cd C:\Dev\codex-fleet
 `fleet-doctor.ps1` runs Tony Tony Chopper, the fleet doctor. It checks each ship before launch and writes `out/fleet-doctor.md`. Dirty working trees, missing task queues, missing repos, missing profiles, invalid Phase 0 intake metadata, RED Joey/checkpoint/Simon/Robin reports, and missing build directories block launch.
 
 `harbor-master.ps1` writes `out/harbor-master.md` and `out/harbor-master.json`. It is the quick truth board for the fleet: each ship gets a state plus a failure class such as `working`, `running-clean-stage`, `idle-shell-finished`, `stale-lock`, `build-or-acceptance-failed`, `task-quarantined`, `policy-or-scope-blocked`, `review-blocked`, or `dirty-without-run`. Use it when a ship "went down" before deciding whether to relaunch, repair, or leave active work alone.
+
+`fleet-product-dashboard.ps1` writes `out/fleet-product-dashboard.md` and `out/fleet-product-dashboard.html`. It is the product usefulness board: admission decision, admission score, usefulness decision, launch gate state, phase, unchecked tasks, visual findings, dirty/lock state, and recommended next action for each ship. Use it before deciding whether to run, park, repair, or backfill admission docs.
 
 `fleet-plan.ps1` is the Phase 1 Architect gate. It writes or validates `docs/codex/ARCHITECTURE.md`, `docs/codex/ENGINEERING_PLAN.md`, `docs/codex/RISK_REGISTER.md`, and `docs/codex/ARCHITECTURE_APPROVAL.md`. Use `-Template` for local templates, or run without `-Template` to ask Codex Architect for a planning pack. `-ValidateOnly` passes only when the approval file says `Status: APPROVED`.
 
