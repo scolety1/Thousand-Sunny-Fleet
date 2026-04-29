@@ -91,6 +91,15 @@ cd C:\Dev\codex-fleet
 
 Use report-only mode first. Add `-Enforce` only after the scorecard process is trusted for that ship.
 
+Usefulness review command:
+
+```powershell
+cd C:\Dev\codex-fleet
+.\product-usefulness.ps1 -Project ShipName
+```
+
+Usefulness decisions are `CONTINUE`, `REPAIR`, `SIMPLIFY`, `PARK`, or `NEEDS HUMAN DIRECTION`.
+
 Static frontend demo:
 
 ```powershell
