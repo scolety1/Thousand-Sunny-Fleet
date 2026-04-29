@@ -2988,7 +2988,9 @@ REVIEW_FINDING: P2: short description
         break
     }
 
-    if ($checkpointText -match "(?is)## Verdict\s+RED\b" -or $checkpointText -match "(?i)stop for human review") {
+    $checkpointIsRed = $checkpointText -match "(?is)## Verdict\s+RED\b"
+    $checkpointRequestsHumanReview = $checkpointText -match "(?i)stop for human review"
+    if ($checkpointIsRed -or ($checkpointRequestsHumanReview -and -not $ContinueOnYellowCheckpoint)) {
         if (-not $batchQualityRecorded) {
             if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit -1 -DebugLogName "" -CommitMessage "Codex batch QA scorecard $batch human stop")) { exit 1 }
             $batchQualityRecorded = $true

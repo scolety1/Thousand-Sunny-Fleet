@@ -868,6 +868,7 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($loopText -match 'Debug checkpoint result') -Message "Batch scorecard records checkpoint debugger result"
     Assert-True -Condition ($loopText -match 'Codex batch QA scorecard') -Message "Checkpoint loop commits batch QA scorecard updates"
     Assert-True -Condition ($loopText -match 'human stop' -and $loopText -match 'DebugExit -1') -Message "Checkpoint loop records batch QA when human-stop gates fire before debug"
+    Assert-True -Condition ($loopText -match 'checkpointRequestsHumanReview\s+-and\s+-not\s+\$ContinueOnYellowCheckpoint') -Message "Checkpoint loop honors ContinueOnYellowCheckpoint for yellow human-review wording"
     Assert-True -Condition ($loopText -match 'debug stop') -Message "Checkpoint loop records batch QA when debug gate fails"
     Assert-True -Condition ($loopText -match 'Release-FleetRunLock\s*\r?\n\s*exit 1') -Message "Checkpoint loop releases run lock before debug failure exit"
     Assert-True -Condition ($loopText -match 'Task impact:') -Message "Nightly report records task impact metadata"
