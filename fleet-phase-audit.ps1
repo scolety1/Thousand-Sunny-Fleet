@@ -124,12 +124,23 @@ foreach ($ship in @(Get-Projects)) {
         }
 
         $featureLock = Get-PhaseValue -Text $text -Name "No More Features Lock"
-        if ($phase -in @("simplicity", "polish", "proof", "parked") -and $featureLock -ne "true") {
+        if ($phase -in @("simplicity", "polish", "proof", "parked", "repair") -and $featureLock -ne "true") {
             $issues.Add("feature lock should be true in $phase") | Out-Null
         }
 
         if ($phase -eq "parked" -and $parking -ne "PARKED_REVIEW_READY") {
             $issues.Add("parked phase should set PARKED_REVIEW_READY") | Out-Null
+        }
+
+        if ($phase -eq "repair") {
+            $repairTrigger = Get-PhaseValue -Text $text -Name "Repair Trigger"
+            $repairReturn = Get-PhaseValue -Text $text -Name "Repair Return Phase"
+            if ([string]::IsNullOrWhiteSpace($repairTrigger) -or $repairTrigger -match '^TODO:') {
+                $issues.Add("repair phase should name a Repair Trigger") | Out-Null
+            }
+            if ($repairReturn -notin @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+                $issues.Add("repair phase should name a prior Repair Return Phase") | Out-Null
+            }
         }
 
         if ($issues.Count -gt 0) {

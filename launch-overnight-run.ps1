@@ -11,7 +11,7 @@ param(
     [ValidateSet("cheap", "balanced", "premium")]
     [string]$BudgetMode = "balanced",
 
-    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair")]
     [string]$LoopPhase = "auto",
 
     [int]$BatchSize = 3,

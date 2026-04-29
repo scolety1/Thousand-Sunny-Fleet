@@ -193,6 +193,7 @@ Phase order:
 brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 ```
 
+- `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.
 - `shape`: clarify product structure and primary flow; avoid feature sprawl.
@@ -200,6 +201,8 @@ brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 - `polish`: refine type, spacing, color, hierarchy, button rhythm, and final wording.
 - `proof`: fix blockers only.
 - `parked`: review-ready; do not continue unattended.
+
+Repair runs should be tiny and gate-driven: one blocker, one bounded scope, one acceptance command, no fresh features, and `No More Features Lock: true`.
 
 Each ship may carry `docs/codex/PHASE_STATE.md` with the current phase, product promise, and human taste note. `-LoopPhase auto` reads that file; explicit `-LoopPhase simplicity` overrides it for the run.
 
@@ -220,6 +223,8 @@ It also carries operational fields that keep the loop from drifting:
 - `Evidence Required`: what proof each task should leave behind.
 - `Done Signal`: the practical condition for stopping instead of looping forever.
 - `Next Phase Criteria`: when the ship may advance to the next loop.
+- `Repair Trigger`: the exact RED gate, failed check, quarantine, stale/idle lock, or visual blocker that interrupted normal progress.
+- `Repair Return Phase`: the prior non-repair phase to resume after the blocker clears.
 
 Validate a ship phase file before long runs:
 

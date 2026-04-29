@@ -18,7 +18,7 @@ param(
 
     [int]$MaxPlannerBatches = 0,
 
-    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair")]
     [string]$LoopPhase = "auto",
 
     [int]$MaxCodexAttempts = 4,
@@ -342,7 +342,7 @@ function Get-BudgetModels {
     $phaseModelPolicy = ""
     if ($effectivePhaseForModels -eq "auto" -and (Test-Path "docs/codex/PHASE_STATE.md")) {
         $phaseText = Get-Content "docs/codex/PHASE_STATE.md" -Raw
-        $phaseMatch = [regex]::Match($phaseText, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked)\s*$")
+        $phaseMatch = [regex]::Match($phaseText, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked|repair)\s*$")
         if ($phaseMatch.Success) {
             $effectivePhaseForModels = $phaseMatch.Groups[1].Value.Trim().ToLowerInvariant()
         }
@@ -358,7 +358,7 @@ function Get-BudgetModels {
         }
     }
 
-    if ($Role -in @("planner", "review", "simon", "robin") -and ($phaseModelPolicy -eq "judgment-heavy" -or ([string]::IsNullOrWhiteSpace($phaseModelPolicy) -and $effectivePhaseForModels -in @("shape", "simplicity", "polish")))) {
+    if ($Role -in @("planner", "review", "simon", "robin") -and ($phaseModelPolicy -eq "judgment-heavy" -or ([string]::IsNullOrWhiteSpace($phaseModelPolicy) -and $effectivePhaseForModels -in @("shape", "simplicity", "polish", "repair")))) {
         return @("gpt-5.5", "gpt-5.4")
     }
 

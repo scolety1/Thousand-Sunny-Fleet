@@ -5,7 +5,7 @@ param(
 
     [string]$ConfigPath = ".\projects.json",
 
-    [ValidateSet("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [ValidateSet("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair")]
     [string]$Phase = "",
 
     [string]$ProductPromise = "",
@@ -38,6 +38,11 @@ param(
     [string]$DoneSignal = "",
 
     [string]$NextPhaseCriteria = "",
+
+    [string]$RepairTrigger = "",
+
+    [ValidateSet("", "brief", "foundation", "shape", "simplicity", "polish", "proof")]
+    [string]$RepairReturnPhase = "",
 
     [switch]$Init,
 
@@ -133,13 +138,24 @@ if ($Validate) {
 
     $phaseForValidation = Get-ExistingValue -Text $text -Name "Current Phase" -Default ""
     $featureLockForValidation = Get-ExistingValue -Text $text -Name "No More Features Lock" -Default ""
-    if ($phaseForValidation -in @("simplicity", "polish", "proof", "parked") -and $featureLockForValidation -ne "true") {
+    if ($phaseForValidation -in @("simplicity", "polish", "proof", "parked", "repair") -and $featureLockForValidation -ne "true") {
         $errors += "No More Features Lock must be true in $phaseForValidation phase."
     }
 
     $parkingForValidation = Get-ExistingValue -Text $text -Name "Parking State" -Default ""
     if ($phaseForValidation -eq "parked" -and $parkingForValidation -ne "PARKED_REVIEW_READY") {
         $errors += "Parking State must be PARKED_REVIEW_READY when Current Phase is parked."
+    }
+
+    if ($phaseForValidation -eq "repair") {
+        $repairTriggerForValidation = Get-ExistingValue -Text $text -Name "Repair Trigger" -Default ""
+        $repairReturnForValidation = Get-ExistingValue -Text $text -Name "Repair Return Phase" -Default ""
+        if ([string]::IsNullOrWhiteSpace($repairTriggerForValidation) -or $repairTriggerForValidation -match '^TODO:') {
+            $errors += "Repair Trigger is required when Current Phase is repair."
+        }
+        if ($repairReturnForValidation -notin @("brief", "foundation", "shape", "simplicity", "polish", "proof")) {
+            $errors += "Repair Return Phase must name the prior non-repair phase."
+        }
     }
 
     if ($errors.Count -gt 0) {
@@ -152,7 +168,7 @@ if ($Validate) {
     exit 0
 }
 
-if (!$Init -and [string]::IsNullOrWhiteSpace($Phase) -and [string]::IsNullOrWhiteSpace($ProductPromise) -and [string]::IsNullOrWhiteSpace($Audience) -and [string]::IsNullOrWhiteSpace($PrimaryAction) -and [string]::IsNullOrWhiteSpace($ShowableMoment) -and [string]::IsNullOrWhiteSpace($WhatNotToBuild) -and [string]::IsNullOrWhiteSpace($NoMoreFeaturesLock) -and [string]::IsNullOrWhiteSpace($ComplexityBudget) -and [string]::IsNullOrWhiteSpace($BeforeAfterJudgment) -and [string]::IsNullOrWhiteSpace($HumanTasteNote) -and [string]::IsNullOrWhiteSpace($PhaseModelPolicy) -and [string]::IsNullOrWhiteSpace($ParkingState) -and [string]::IsNullOrWhiteSpace($EvidenceRequired) -and [string]::IsNullOrWhiteSpace($DoneSignal) -and [string]::IsNullOrWhiteSpace($NextPhaseCriteria)) {
+if (!$Init -and [string]::IsNullOrWhiteSpace($Phase) -and [string]::IsNullOrWhiteSpace($ProductPromise) -and [string]::IsNullOrWhiteSpace($Audience) -and [string]::IsNullOrWhiteSpace($PrimaryAction) -and [string]::IsNullOrWhiteSpace($ShowableMoment) -and [string]::IsNullOrWhiteSpace($WhatNotToBuild) -and [string]::IsNullOrWhiteSpace($NoMoreFeaturesLock) -and [string]::IsNullOrWhiteSpace($ComplexityBudget) -and [string]::IsNullOrWhiteSpace($BeforeAfterJudgment) -and [string]::IsNullOrWhiteSpace($HumanTasteNote) -and [string]::IsNullOrWhiteSpace($PhaseModelPolicy) -and [string]::IsNullOrWhiteSpace($ParkingState) -and [string]::IsNullOrWhiteSpace($EvidenceRequired) -and [string]::IsNullOrWhiteSpace($DoneSignal) -and [string]::IsNullOrWhiteSpace($NextPhaseCriteria) -and [string]::IsNullOrWhiteSpace($RepairTrigger) -and [string]::IsNullOrWhiteSpace($RepairReturnPhase)) {
     Write-Host "Nothing to update. Pass -Init, -Phase, or a phase data field." -ForegroundColor Yellow
     exit 0
 }
@@ -165,15 +181,17 @@ $currentAudience = if (![string]::IsNullOrWhiteSpace($Audience)) { $Audience } e
 $currentPrimaryAction = if (![string]::IsNullOrWhiteSpace($PrimaryAction)) { $PrimaryAction } else { Get-ExistingValue -Text $existing -Name "Primary Action" -Default "TODO: the one thing the visitor should do first." }
 $currentShowableMoment = if (![string]::IsNullOrWhiteSpace($ShowableMoment)) { $ShowableMoment } else { Get-ExistingValue -Text $existing -Name "Showable Moment" -Default "TODO: the moment that makes the buyer say 'I get it.'" }
 $currentWhatNotToBuild = if (![string]::IsNullOrWhiteSpace($WhatNotToBuild)) { $WhatNotToBuild } else { Get-ExistingValue -Text $existing -Name "What Not To Build" -Default "Do not add broad platform framing, fake enterprise dashboards, pricing, backend, auth, payments, analytics, or extra feature tours unless explicitly requested." }
-$currentNoMoreFeaturesLock = if (![string]::IsNullOrWhiteSpace($NoMoreFeaturesLock)) { $NoMoreFeaturesLock } else { Get-ExistingValue -Text $existing -Name "No More Features Lock" -Default $(if ($currentPhase -in @("simplicity", "polish", "proof", "parked")) { "true" } else { "false" }) }
+$currentNoMoreFeaturesLock = if (![string]::IsNullOrWhiteSpace($NoMoreFeaturesLock)) { $NoMoreFeaturesLock } else { Get-ExistingValue -Text $existing -Name "No More Features Lock" -Default $(if ($currentPhase -in @("simplicity", "polish", "proof", "parked", "repair")) { "true" } else { "false" }) }
 $currentComplexityBudget = if (![string]::IsNullOrWhiteSpace($ComplexityBudget)) { $ComplexityBudget } else { Get-ExistingValue -Text $existing -Name "Complexity Budget" -Default "Above the fold: one primary action, no more than three secondary choices, one short intro sentence, and no competing feature cards." }
 $currentBeforeAfterJudgment = if (![string]::IsNullOrWhiteSpace($BeforeAfterJudgment)) { $BeforeAfterJudgment } else { Get-ExistingValue -Text $existing -Name "Before/After Judgment" -Default "Each task must make the product clearer, simpler, more useful, or more beautiful than the previous screenshot/state." }
 $currentTasteNote = if (![string]::IsNullOrWhiteSpace($HumanTasteNote)) { $HumanTasteNote } else { Get-ExistingValue -Text $existing -Name "Human Taste Note" -Default "none" }
-$currentPhaseModelPolicy = if (![string]::IsNullOrWhiteSpace($PhaseModelPolicy)) { $PhaseModelPolicy } else { Get-ExistingValue -Text $existing -Name "Phase Model Policy" -Default $(if ($currentPhase -in @("shape", "simplicity", "polish")) { "judgment-heavy" } elseif ($currentPhase -eq "foundation") { "budget" } else { "balanced" }) }
+$currentPhaseModelPolicy = if (![string]::IsNullOrWhiteSpace($PhaseModelPolicy)) { $PhaseModelPolicy } else { Get-ExistingValue -Text $existing -Name "Phase Model Policy" -Default $(if ($currentPhase -in @("shape", "simplicity", "polish", "repair")) { "judgment-heavy" } elseif ($currentPhase -eq "foundation") { "budget" } else { "balanced" }) }
 $currentParkingState = if (![string]::IsNullOrWhiteSpace($ParkingState)) { $ParkingState } elseif ($currentPhase -eq "parked") { "PARKED_REVIEW_READY" } else { Get-ExistingValue -Text $existing -Name "Parking State" -Default "ACTIVE" }
 $currentEvidenceRequired = if (![string]::IsNullOrWhiteSpace($EvidenceRequired)) { $EvidenceRequired } else { Get-ExistingValue -Text $existing -Name "Evidence Required" -Default "Visual check or screenshot evidence, acceptance command output, and a short before/after note." }
 $currentDoneSignal = if (![string]::IsNullOrWhiteSpace($DoneSignal)) { $DoneSignal } else { Get-ExistingValue -Text $existing -Name "Done Signal" -Default "A human can understand the product in 30 seconds and the primary action works without explanation." }
 $currentNextPhaseCriteria = if (![string]::IsNullOrWhiteSpace($NextPhaseCriteria)) { $NextPhaseCriteria } else { Get-ExistingValue -Text $existing -Name "Next Phase Criteria" -Default "Advance only when current phase evidence passes and no higher-priority clarity/usability blocker remains." }
+$currentRepairTrigger = if (![string]::IsNullOrWhiteSpace($RepairTrigger)) { $RepairTrigger } elseif ($currentPhase -eq "repair") { Get-ExistingValue -Text $existing -Name "Repair Trigger" -Default "TODO: name the RED gate, failed check, quarantine, stale lock, or visual blocker that interrupted the normal phase." } else { Get-ExistingValue -Text $existing -Name "Repair Trigger" -Default "none" }
+$currentRepairReturnPhase = if (![string]::IsNullOrWhiteSpace($RepairReturnPhase)) { $RepairReturnPhase } elseif ($currentPhase -eq "repair") { Get-ExistingValue -Text $existing -Name "Repair Return Phase" -Default "TODO: prior non-repair phase." } else { Get-ExistingValue -Text $existing -Name "Repair Return Phase" -Default "none" }
 $updatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 $content = @"
@@ -194,11 +212,15 @@ Parking State: $currentParkingState
 Evidence Required: $currentEvidenceRequired
 Done Signal: $currentDoneSignal
 Next Phase Criteria: $currentNextPhaseCriteria
+Repair Trigger: $currentRepairTrigger
+Repair Return Phase: $currentRepairReturnPhase
 Updated At: $updatedAt
 
 ## Phase Order
 
 brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
+
+repair is an interrupt lane, not a normal destination. Any phase can enter repair when RED review gates, build/runtime failures, quarantine, stale/idle lock problems, or visual blockers stop safe progress. After the repair passes, return to the previous product phase.
 
 ## Phase Locks
 
@@ -209,6 +231,7 @@ brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 - Polish should refine visual/copy details without changing the core flow.
 - Proof should fix blockers only.
 - Parked means review-ready; do not generate new work unless a human moves the phase.
+- Repair must address only the named blocker, keep No More Features Lock true, and avoid fresh feature work.
 
 ## Upgrade Rules
 

@@ -275,7 +275,7 @@ function New-AutoRepairTaskLine {
     $pack = if ([string]::IsNullOrWhiteSpace([string]$Row.activePack) -or [string]$Row.activePack -eq "missing") { "the active work pack" } else { [string]$Row.activePack }
     $reason = ([string]$Row.recommendation).Trim()
     if ([string]::IsNullOrWhiteSpace($reason)) { $reason = "repair the current supervisor finding" }
-    return "- [ ] Auto repair for $($Row.state) in ${pack}: inspect the latest MAGIC_SCORECARD, QUALITY_QUARANTINE, Simon, Robin, Visual, and nightly report notes, then make exactly one smallest user-visible repair that addresses '$reason'; prefer reducing churn over adding features; preserve existing behavior and avoid backend, secrets, package/dependency files, deployment config, generated output, broad rewrites, and unrelated files. [class:design risk:low mode:single scope:src/,app-vNext/src/,css/,js/,wine.html,index.html]"
+    return "- [ ] Repair lane for $($Row.state) in ${pack}: inspect the latest MAGIC_SCORECARD, QUALITY_QUARANTINE, Simon, Robin, Joey, Visual, and nightly report notes, then make exactly one smallest blocker-clearing repair that addresses '$reason'; preserve the prior product phase, prefer reducing churn over adding features, keep No More Features Lock true, and avoid backend, secrets, package/dependency files, deployment config, generated output, broad rewrites, and unrelated files. [class:bugfix risk:low mode:single impact:visible scope:src/,app-vNext/src/,css/,js/,wine.html,index.html]"
 }
 
 function Add-SupervisorAutoRepairTask {
@@ -372,6 +372,7 @@ function Start-SupervisorRepairRun {
         "-Project", ([string]$Row.ship),
         "-BatchSize", ([string]$RepairBatchSize),
         "-MaxBatches", ([string]$RepairMaxBatches),
+        "-LoopPhase", "repair",
         "-VisualInspectEvery", "1",
         "-SimonEvery", "1",
         "-RobinEvery", "1",

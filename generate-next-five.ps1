@@ -6,7 +6,7 @@ param(
 
     [int]$Count = 5,
 
-    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")]
+    [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair")]
     [string]$LoopPhase = "auto",
 
     [string]$OutFile = "docs/codex/NEXT_5_TASKS.md",
@@ -95,7 +95,7 @@ function Get-PhaseFromState {
     param([string]$Text)
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
-    $match = [regex]::Match($Text, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked)\s*$")
+    $match = [regex]::Match($Text, "(?im)^Current Phase:\s*(brief|foundation|shape|simplicity|polish|proof|parked|repair)\s*$")
     if ($match.Success) { return $match.Groups[1].Value.Trim().ToLowerInvariant() }
     return ""
 }
@@ -123,10 +123,10 @@ Rules:
 - Prefer tasks that advance the mission and reduce obvious rough edges.
 - Treat Simon, Visual Bug Report, Robin, and Joey as active repair orders, not optional reading.
 - Priority order for next tasks:
-  1. If Joey is RED or says stop for human security review, output one docs-only task to summarize the security stop-risk, then no more tasks.
+  1. If Joey is RED or says stop for human security review and Current loop phase is not repair, output one docs-only task to summarize the security stop-risk, then no more tasks.
   2. If Visual Bug Report has HIGH findings or suggested visual fix tasks, turn those into the first tasks.
   3. If Simon has a Priority Fix, Designer Handoff, What Not To Do Next, or Next 5 Design Tasks, use those to shape the next tasks before inventing unrelated work.
-  4. If Robin is RED or says stop for human copy review, output one docs-only task to summarize the copy stop-risk, then no more tasks.
+  4. If Robin is RED or says stop for human copy review and Current loop phase is not repair, output one docs-only task to summarize the copy stop-risk, then no more tasks.
   5. If Robin has a Priority Rewrite, Suggested Rewrites, Voice Rules, or Next 5 Copy Tasks, use those to shape copy/voice tasks before inventing unrelated work.
   6. If Checkpoint Review says patch first, convert the patch concern into task(s).
   7. Only after those repair orders are addressed, generate fresh mission-forward tasks.
@@ -149,7 +149,7 @@ Rules:
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Current loop phase: $effectivePhase.
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
-- Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Audience, Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, Parking State, Evidence Required, Done Signal, and Next Phase Criteria.
+- Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Audience, Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, Parking State, Evidence Required, Done Signal, Next Phase Criteria, Repair Trigger, and Repair Return Phase.
 - Every task must support the Product Promise and Showable Moment.
 - Every task must serve the Audience and preserve the Primary Action.
 - If No More Features Lock is true, do not generate feature-addition tasks; generate removal, demotion, simplification, refinement, proof, or parked-review tasks only.
@@ -160,6 +160,7 @@ Rules:
 - Respect Next Phase Criteria when deciding whether to generate current-phase work or a phase-advancement task.
 - If Parking State is PARKED_REVIEW_READY or Current Phase is parked, output only one docs-only task saying the ship is review-ready and should not continue unattended.
 - Phase doctrine:
+  - repair: interrupt lane for RED review gates, build/runtime failures, quarantine, stale/idle lock problems, security stops, and visual blockers. Generate exactly one smallest blocker-clearing task for the Repair Trigger; preserve the Repair Return Phase, keep No More Features Lock true, and do not add features.
   - brief: define or repair audience, product promise, primary action, showable moment, and what not to build; prefer docs/codex/PHASE_STATE.md or mission docs only.
   - foundation: add missing routes, components, local demo data, and core interactions; do not spend tasks on final polish or tiny visual refinements.
   - shape: clarify audience, promise, first screen, page order, and primary flow; reorganize or remove confusing sections; do not add unrelated features.
@@ -169,9 +170,10 @@ Rules:
   - parked: output one docs-only task explaining the ship is review-ready and should not continue unattended.
 - For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
 - Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.
+- In repair phase, do not output docs-only stop summaries unless the gate explicitly requires human approval. Prefer a bounded repair task that names the failing gate and the exact files/scope to touch.
 - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
 - Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
-- If the checkpoint review says RED or stop for human review, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
+- If the checkpoint review says RED or stop for human review and Current loop phase is not repair, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
 
 Repository: $($repoPath.Path)
 Branch: $branch
