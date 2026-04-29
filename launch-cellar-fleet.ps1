@@ -32,6 +32,9 @@ param(
     [ValidateSet("off", "warn", "enforce")]
     [string]$LaunchGateMode = "warn",
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$KillSwitchMode = "warn",
+
     [switch]$DryRun
 )
 
@@ -97,6 +100,7 @@ if ($AllowSafeStopRequests) { $args += "-AllowSafeStopRequests" }
 if ($SkipDoctor) { $args += "-SkipDoctor" }
 if ($RequirePhaseValidation) { $args += "-RequirePhaseValidation" }
 if (![string]::IsNullOrWhiteSpace($LaunchGateMode)) { $args += @("-LaunchGateMode", $LaunchGateMode) }
+if (![string]::IsNullOrWhiteSpace($KillSwitchMode)) { $args += @("-KillSwitchMode", $KillSwitchMode) }
 if ($DryRun) { $args += "-DryRun" }
 
 & powershell @args

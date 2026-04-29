@@ -53,6 +53,11 @@ param(
     [ValidateSet("off", "warn", "enforce")]
     [string]$LaunchGateMode = "warn",
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$KillSwitchMode = "warn",
+
+    [int]$KillSwitchFlatRunThreshold = 3,
+
     [int]$VisualEvery = 0,
 
     [int]$VisualInspectEvery = 0,
@@ -2374,6 +2379,7 @@ if ($ValidateOnly) {
     Write-Host "Profile: $validateProfile"
     Write-Host "Model budget: $ModelBudget"
     Write-Host "Launch gate mode: $LaunchGateMode"
+    Write-Host "Kill switch mode: $KillSwitchMode"
     Write-Host "Build directory: $validateBuildDirectory"
     Write-Host "Build command: $validateBuildCommand"
     Write-Host "Implement models: $((Get-ProjectModels -Role "implement") -join ', ')"
@@ -2447,6 +2453,32 @@ $script:PlannerBatchCount = 0
 for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     if (Test-OvernightBudgetExceeded -Moment "checkpoint batch $batch") { break }
     Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before checkpoint batch $batch"
+
+    if ($KillSwitchMode -ne "off") {
+        $killArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "fleet-kill-switch.ps1"),
+            "-Project", $script:projectConfig.name,
+            "-ConfigPath", $ConfigPath,
+            "-Mode", $KillSwitchMode,
+            "-FlatRunThreshold", $KillSwitchFlatRunThreshold
+        )
+        & powershell @killArgs
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Kill switch parked $($script:projectConfig.name) before batch $batch." -ForegroundColor Red
+            Release-FleetRunLock
+            if (!$SkipShipPreviewRefresh) {
+                Update-ShipPreviewDashboard
+            } else {
+                Write-Host "Skipping ship preview refresh."
+            }
+            Write-Host ""
+            Write-Host "Checkpoint loop stopped cleanly by kill switch." -ForegroundColor Yellow
+            Write-Host "No merge was performed."
+            exit 0
+        }
+    }
 
     Write-Host ""
     Write-Host "===== CHECKPOINT BATCH $batch of $MaxBatches =====" -ForegroundColor Cyan

@@ -35,6 +35,7 @@ cd C:\Dev\codex-fleet
 .\launch-overnight-run.ps1 -Project EasyLife
 .\fleet-status.ps1
 .\fleet-product-dashboard.ps1
+.\fleet-kill-switch.ps1 -Project EasyLife
 .\harbor-master.ps1
 .\fleet-supervisor.ps1 -Once
 .\prepare-magic-run.ps1
@@ -67,6 +68,8 @@ cd C:\Dev\codex-fleet
 `harbor-master.ps1` writes `out/harbor-master.md` and `out/harbor-master.json`. It is the quick truth board for the fleet: each ship gets a state plus a failure class such as `working`, `running-clean-stage`, `idle-shell-finished`, `stale-lock`, `build-or-acceptance-failed`, `task-quarantined`, `policy-or-scope-blocked`, `review-blocked`, or `dirty-without-run`. Use it when a ship "went down" before deciding whether to relaunch, repair, or leave active work alone.
 
 `fleet-product-dashboard.ps1` writes `out/fleet-product-dashboard.md` and `out/fleet-product-dashboard.html`. It is the product usefulness board: admission decision, admission score, usefulness decision, launch gate state, phase, unchecked tasks, visual findings, dirty/lock state, and recommended next action for each ship. Use it before deciding whether to run, park, repair, or backfill admission docs.
+
+`fleet-kill-switch.ps1` writes `out/kill-switches/ShipName.md`. It detects ships that should stop consuming unattended runtime because usefulness is parked/needs direction, launch gates are blocked, quality quarantine is repeating, or Simon scorecard signals are repeatedly flat/regressed. Checkpoint loops run it in `warn` mode by default; use `-KillSwitchMode enforce` only after admission/usefulness docs are backfilled and trusted.
 
 `fleet-plan.ps1` is the Phase 1 Architect gate. It writes or validates `docs/codex/ARCHITECTURE.md`, `docs/codex/ENGINEERING_PLAN.md`, `docs/codex/RISK_REGISTER.md`, and `docs/codex/ARCHITECTURE_APPROVAL.md`. Use `-Template` for local templates, or run without `-Template` to ask Codex Architect for a planning pack. `-ValidateOnly` passes only when the approval file says `Status: APPROVED`.
 

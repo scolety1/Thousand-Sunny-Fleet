@@ -57,6 +57,9 @@ param(
     [ValidateSet("off", "warn", "enforce")]
     [string]$LaunchGateMode = "warn",
 
+    [ValidateSet("off", "warn", "enforce")]
+    [string]$KillSwitchMode = "warn",
+
     [switch]$DryRun
 )
 
@@ -281,7 +284,7 @@ for ($shipIndex = 0; $shipIndex -lt $shipsToLaunch.Count; $shipIndex++) {
 
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -MaxRuntimeMinutes $($budgetShape.maxRuntimeMinutes) -MaxCompletedTasks $($budgetShape.maxCompletedTasks) -MaxPlannerBatches $($budgetShape.maxPlannerBatches) -ModelBudget $BudgetMode -LoopPhase $LoopPhase -LaunchGateMode $LaunchGateMode -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -MaxRuntimeMinutes $($budgetShape.maxRuntimeMinutes) -MaxCompletedTasks $($budgetShape.maxCompletedTasks) -MaxPlannerBatches $($budgetShape.maxPlannerBatches) -ModelBudget $BudgetMode -LoopPhase $LoopPhase -LaunchGateMode $LaunchGateMode -KillSwitchMode $KillSwitchMode -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
     Write-Host "Launching overnight run for $($ship.name): budget $BudgetMode, batch $($budgetShape.batchSize) x $($budgetShape.maxBatches), max $($budgetShape.maxCompletedTasks) tasks, max $($budgetShape.maxRuntimeMinutes) minutes, planner batches $($budgetShape.maxPlannerBatches)..." -ForegroundColor Cyan
