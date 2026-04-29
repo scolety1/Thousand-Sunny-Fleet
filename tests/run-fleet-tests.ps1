@@ -882,6 +882,8 @@ function Test-PhaseLoopSupport {
     $phaseAuditText = Get-Content $phaseAuditPath -Raw
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $analysisText = Get-Content (Join-Path $fleetRoot "fleet-analysis.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
     $cellarText = Get-Content (Join-Path $fleetRoot "launch-cellar-fleet.ps1") -Raw
@@ -889,6 +891,7 @@ function Test-PhaseLoopSupport {
 
     Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
     Assert-True -Condition (Test-Path $phaseAuditPath) -Message "Fleet exposes phase readiness audit"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-analysis.ps1")) -Message "Fleet exposes analytical planning pack script"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -923,6 +926,16 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($plannerText -match 'interrupt lane') -Message "Planner understands repair as an interrupt lane"
     Assert-True -Condition ($plannerText -match 'Analytical software doctrine') -Message "Planner understands analytical software doctrine"
     Assert-True -Condition ($plannerText -match 'fixture-tests' -and $plannerText -match 'engine-build') -Message "Planner exposes analytical engine phases"
+    Assert-True -Condition ($analysisText -match 'ANALYSIS_BRIEF\.md') -Message "Analytical pack writes analysis brief"
+    Assert-True -Condition ($analysisText -match 'DATA_CONTRACT\.md') -Message "Analytical pack writes data contract"
+    Assert-True -Condition ($analysisText -match 'FORMULA_SPEC\.md') -Message "Analytical pack writes formula spec"
+    Assert-True -Condition ($analysisText -match 'FIXTURE_TEST_PLAN\.md') -Message "Analytical pack writes fixture test plan"
+    Assert-True -Condition ($analysisText -match 'CALIBRATION_PLAN\.md') -Message "Analytical pack writes calibration plan"
+    Assert-True -Condition ($analysisText -match 'ANALYSIS_APPROVAL\.md') -Message "Analytical pack writes approval gate"
+    Assert-True -Condition ($analysisText -match '\[switch\]\$ValidateOnly') -Message "Analytical pack supports validation-only mode"
+    Assert-True -Condition ($analysisText -match 'Status:\s*APPROVED') -Message "Analytical pack validates human approval"
+    Assert-True -Condition ($doctorText -match 'Get-AnalysisPlanStatus') -Message "Fleet doctor reports analytical planning status"
+    Assert-True -Condition ($doctorText -match 'Analytical planning pack is missing') -Message "Fleet doctor warns for missing analysis gates"
     Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
     Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"
@@ -943,6 +956,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($docsText -match 'Phase loops') -Message "Control room docs explain phase loops"
     Assert-True -Condition ($docsText -match 'Repair Trigger') -Message "Control room docs explain repair lane fields"
     Assert-True -Condition ($docsText -match 'Analytical software phase order') -Message "Control room docs explain analytical loop"
+    Assert-True -Condition ($docsText -match 'fleet-analysis\.ps1') -Message "Control room docs explain analytical planning pack"
 }
 
 function Test-LongRunSupervisorSupport {
