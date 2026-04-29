@@ -206,7 +206,7 @@ if ([string]::IsNullOrWhiteSpace($BuildCommand)) {
 Set-Location $repoPath.Path
 
 $branch = git branch --show-current
-$dirty = @(git status --short)
+$dirty = @(git status --short 2>$null)
 if ($dirty.Count -eq 0) {
     Write-Host "No interrupted-task recovery needed. Working tree is clean." -ForegroundColor Green
     exit 0
@@ -257,7 +257,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-$remainingDirty = @(git status --short)
+$remainingDirty = @(git status --short 2>$null)
 if ($remainingDirty.Count -gt 0) {
     Write-Host "Recovery committed, but working tree is still dirty:" -ForegroundColor Yellow
     $remainingDirty | ForEach-Object { Write-Host "  $_" }

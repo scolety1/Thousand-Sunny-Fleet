@@ -305,7 +305,7 @@ if ($ValidateOnly) {
     exit 0
 }
 
-$preStatus = @(git status --porcelain)
+$preStatus = @(git status --porcelain 2>$null)
 if ($preStatus.Count -gt 0) {
     Write-Host "Architecture planning requires a clean working tree." -ForegroundColor Red
     $preStatus | ForEach-Object { Write-Host "  $_" }
@@ -432,7 +432,7 @@ foreach ($name in $targets.Keys) {
     Set-Content -LiteralPath $targets[$name] -Value $match.Groups[1].Value.Trim()
 }
 
-$dirtyAfter = @(git status --porcelain)
+$dirtyAfter = @(git status --porcelain 2>$null)
 $allowed = @(
     ($OutDir.Replace("\", "/") + "/ARCHITECTURE.md"),
     ($OutDir.Replace("\", "/") + "/ENGINEERING_PLAN.md"),

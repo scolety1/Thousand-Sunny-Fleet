@@ -106,7 +106,7 @@ foreach ($projectConfig in $projects) {
     }
 
     Push-Location $repoPath.Path
-    $dirty = @(git status --short)
+    $dirty = @(git status --short 2>$null)
     if ($dirty.Count -gt 0) { Add-Reason -Reasons $reasons -Message "Working tree is dirty." }
     $commits = @(git log --oneline "$BaseBranch..HEAD" 2>$null)
     $changed = @(git diff --name-status "$BaseBranch..HEAD" 2>$null)

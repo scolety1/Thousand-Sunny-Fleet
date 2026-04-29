@@ -31,7 +31,7 @@ if ([string]::IsNullOrWhiteSpace($Project)) {
 
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD 2>$null
-$dirty = @(git status --short)
+$dirty = @(git status --short 2>$null)
 $changed = @(git diff --name-only "$BaseBranch..HEAD" 2>$null | ForEach-Object { Normalize-Path $_ })
 $changedStatus = @(git diff --name-status "$BaseBranch..HEAD" 2>$null)
 $diffLines = @(git diff --unified=0 "$BaseBranch..HEAD" 2>$null)

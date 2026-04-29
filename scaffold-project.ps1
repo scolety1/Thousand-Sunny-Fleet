@@ -243,7 +243,7 @@ if ($ValidateOnly) {
     exit 0
 }
 
-$dirty = @(git status --porcelain)
+$dirty = @(git status --porcelain 2>$null)
 if ($dirty.Count -gt 0 -and !$Force) {
     Pop-Location
     Write-Host "Repo has uncommitted changes. Re-run with -Force only if this scaffold should add to current work." -ForegroundColor Red

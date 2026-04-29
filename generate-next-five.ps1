@@ -40,7 +40,7 @@ if (!$repoPath) {
 
 Set-Location $repoPath.Path
 
-$preStatus = @(git status --porcelain)
+$preStatus = @(git status --porcelain 2>$null)
 if ($preStatus.Count -gt 0) {
     Write-Host "Nami requires a clean working tree before planning tasks." -ForegroundColor Red
     $preStatus | ForEach-Object { Write-Host "  $_" }
@@ -288,7 +288,7 @@ Copy-Item $tmp.FullName $outPath -Force
 Remove-Item $tmp.FullName -Force
 
 $allowedPath = $OutFile.Replace("\", "/")
-$dirtyAfter = @(git status --porcelain)
+$dirtyAfter = @(git status --porcelain 2>$null)
 $unexpected = @($dirtyAfter | Where-Object {
     $line = [string]$_
     $path = $line.Substring([Math]::Min(3, $line.Length)).Replace("\", "/")

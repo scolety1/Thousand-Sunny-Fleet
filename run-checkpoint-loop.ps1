@@ -1594,7 +1594,7 @@ function Restore-TaskChanges {
         }
     }
 
-    $remaining = @(git status --porcelain)
+    $remaining = @(git status --porcelain 2>$null)
     return ($remaining.Count -eq 0)
 }
 
@@ -1693,7 +1693,7 @@ function Invoke-CodexExec {
             }
             if ($exitCode -eq 0) { return 0 }
 
-            $statusText = (git status --porcelain) -join "`n"
+            $statusText = (git status --porcelain 2>$null) -join "`n"
             if (![string]::IsNullOrWhiteSpace($statusText)) {
                 Write-Host "Codex exited nonzero after making changes; continuing to checks." -ForegroundColor Yellow
                 return $exitCode
@@ -2395,7 +2395,7 @@ Invoke-AnalyticalCalibrationReadinessGate -ProjectName $script:projectConfig.nam
 Invoke-AnalyticalDashboardReadinessGate -ProjectName $script:projectConfig.name
 Invoke-AnalyticalScenarioApprovalGate -ProjectName $script:projectConfig.name
 
-$status = @(git status --porcelain)
+$status = @(git status --porcelain 2>$null)
 if ($status.Count -gt 0) {
     Write-Host "Repo is dirty. Commit, restore, or stash before starting checkpoint loop." -ForegroundColor Red
     git status
@@ -2593,7 +2593,7 @@ Rules:
             Write-Host "Codex changed HEAD during implementation. Ending loop for human review instead of quarantining." -ForegroundColor Red
             exit 1
         }
-        $statusAfter = @(git status --porcelain)
+        $statusAfter = @(git status --porcelain 2>$null)
         if ($exit -ne 0 -and $statusAfter.Count -eq 0) {
             if (Invoke-TaskQuarantine -Task $task -Reason "Codex command failed after retries and made no changes." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged @() -BuildResult "Failed" -Risk "Codex command failed after retries and made no changes." -Contract $taskContract

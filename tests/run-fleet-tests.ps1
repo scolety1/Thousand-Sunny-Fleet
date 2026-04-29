@@ -757,6 +757,15 @@ function Test-LaunchControlSupport {
     Assert-True -Condition ($statusText -match 'codex') -Message "Fleet status labels Codex child work clearly"
     Assert-True -Condition ($statusText -match 'git status --short 2>\$null') -Message "Fleet status suppresses noisy inaccessible temp-directory warnings"
 
+    $noisyGitStatus = @()
+    foreach ($scriptPath in Get-ChildItem -Path $fleetRoot -Filter "*.ps1" -File) {
+        $matches = @(Select-String -LiteralPath $scriptPath.FullName -Pattern 'git status --(?:short|porcelain)(?!\s+2>\$null)')
+        foreach ($match in $matches) {
+            $noisyGitStatus += "$($scriptPath.Name):$($match.LineNumber)"
+        }
+    }
+    Assert-True -Condition ($noisyGitStatus.Count -eq 0) -Message "All root fleet git status checks suppress noisy inaccessible temp-directory warnings"
+
     $visualRunner = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
     Assert-True -Condition ($visualRunner -match 'routeUrl\.search') -Message "Visual inspect route URLs preserve query strings"
 }

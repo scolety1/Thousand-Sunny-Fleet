@@ -44,7 +44,7 @@ if ([string]::IsNullOrWhiteSpace($Project)) {
 
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD
-$status = @(git status --short)
+$status = @(git status --short 2>$null)
 $changed = @(git diff --name-status "$BaseBranch..HEAD")
 $commits = @(git log --oneline "$BaseBranch..HEAD" -12)
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
@@ -214,7 +214,7 @@ New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outPath) | Out-Nu
 Copy-Item $tmp.FullName $outPath -Force
 Remove-Item $tmp.FullName -Force
 
-$dirty = @(git status --porcelain)
+$dirty = @(git status --porcelain 2>$null)
 $allowedPath = $OutFile.Replace("\", "/")
 $unexpected = @($dirty | Where-Object {
     $line = [string]$_

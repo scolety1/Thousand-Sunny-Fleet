@@ -72,7 +72,7 @@ Push-Location $repoPath
 
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD 2>$null
-$dirty = @(git status --short)
+$dirty = @(git status --short 2>$null)
 
 $branchDiffRange = "$BaseBranch..HEAD"
 $hasBatchBase = ![string]::IsNullOrWhiteSpace($BatchBase)

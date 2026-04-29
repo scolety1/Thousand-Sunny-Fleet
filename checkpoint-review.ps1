@@ -95,7 +95,7 @@ if (!$repoPath) {
 
 Set-Location $repoPath.Path
 
-$preStatus = @(git status --porcelain)
+$preStatus = @(git status --porcelain 2>$null)
 if ($preStatus.Count -gt 0) {
     Write-Host "Checkpoint reviewer requires a clean working tree before writing $OutFile." -ForegroundColor Red
     $preStatus | ForEach-Object { Write-Host "  $_" }
@@ -104,7 +104,7 @@ if ($preStatus.Count -gt 0) {
 
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD
-$status = @(git status --short)
+$status = @(git status --short 2>$null)
 $changed = @(git diff --name-status "$BaseBranch..HEAD")
 $commits = @(git log --oneline "$BaseBranch..HEAD")
 $taskTail = if (Test-Path "docs/codex/TASK_QUEUE.md") { Get-Content "docs/codex/TASK_QUEUE.md" -Tail 120 } else { @("No task queue found.") }
@@ -223,7 +223,7 @@ Copy-Item $tmp.FullName $outPath -Force
 Remove-Item $tmp.FullName -Force
 
 $allowedPath = $OutFile.Replace("\", "/")
-$dirtyAfter = @(git status --porcelain)
+$dirtyAfter = @(git status --porcelain 2>$null)
 $unexpected = @($dirtyAfter | Where-Object {
     $line = [string]$_
     $path = $line.Substring([Math]::Min(3, $line.Length)).Replace("\", "/")

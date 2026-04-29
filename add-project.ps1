@@ -127,7 +127,7 @@ if ($LASTEXITCODE -ne 0) {
     Pop-Location
     Stop-WithMessage "Repo is not a git repository: $repoPath"
 }
-$status = @(git status --short)
+$status = @(git status --short 2>$null)
 if ($status.Count -gt 0 -and !$Force) {
     Pop-Location
     Write-Host "Repo has uncommitted changes. Re-run with -Force only if you want to install/register anyway." -ForegroundColor Red
