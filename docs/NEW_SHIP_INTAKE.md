@@ -34,6 +34,14 @@ Anything that must stay boring and safe:
 Ship admission score:
 
 Admission decision: ADMIT / REVISE / PARK
+
+Primary user:
+
+Weekly job replaced:
+
+First useful outcome:
+
+Local evaluator:
 ```
 
 ## Profile Guide
@@ -65,7 +73,14 @@ Use `experimental-prototype` for:
 
 ## Add Project Commands
 
-Before adding a project, fill `docs/codex/SHIP_SCORECARD.md` or use the control-room rubric in `docs/SHIP_ADMISSION_SCORECARD.md`. New ships should score `70+` with no red flags before getting meaningful autonomous runtime.
+Before adding a project, fill the admission docs or use the control-room rubric in `docs/SHIP_ADMISSION_SCORECARD.md`. New ships should score `70+` with no red flags before getting meaningful autonomous runtime.
+
+Required ship docs:
+- `docs/codex/USER_JOB.md`
+- `docs/codex/EVALUATORS.md`
+- `docs/codex/SHIP_ADMISSION.md`
+- `docs/codex/SHIP_SCORECARD.md`
+- `docs/codex/PRODUCT_USEFULNESS.md`
 
 Static frontend demo:
 
