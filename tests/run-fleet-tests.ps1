@@ -887,6 +887,7 @@ function Test-PhaseLoopSupport {
     $fixtureText = Get-Content (Join-Path $fleetRoot "analytical-fixture-readiness.ps1") -Raw
     $calibrationText = Get-Content (Join-Path $fleetRoot "fleet-calibration.ps1") -Raw
     $dashboardText = Get-Content (Join-Path $fleetRoot "analytical-dashboard-readiness.ps1") -Raw
+    $scenarioText = Get-Content (Join-Path $fleetRoot "analytical-scenario-approval.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
     $simonText = Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw
     $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
@@ -902,6 +903,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-fixture-readiness.ps1")) -Message "Fleet exposes analytical fixture readiness gate"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-calibration.ps1")) -Message "Fleet exposes analytical calibration readiness gate"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-dashboard-readiness.ps1")) -Message "Fleet exposes analytical dashboard readiness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-scenario-approval.ps1")) -Message "Fleet exposes analytical scenario approval gate"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -989,6 +991,21 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($simonText -match 'fake insight') -Message "Simon is restrained from encouraging fake analytical insight"
     Assert-True -Condition ($robinText -match 'prediction theater') -Message "Robin is restrained from encouraging overconfident analytical copy"
     Assert-True -Condition ($docsText -match 'analytical-dashboard-readiness\.ps1') -Message "Control room docs explain dashboard readiness"
+    Assert-True -Condition ($scenarioText -match 'SCENARIO_SPEC\.md') -Message "Scenario gate manages scenario spec"
+    Assert-True -Condition ($scenarioText -match 'SCENARIO_APPROVAL\.md') -Message "Scenario gate manages scenario approval"
+    Assert-True -Condition ($scenarioText -match 'Status:\s*APPROVED') -Message "Scenario gate requires approved status"
+    foreach ($heading in @("Scenario Inventory", "Inputs That May Change", "Formulas Affected", "Expected Output Changes", "Outputs That Must Remain Fixed", "Scenario Tests", "UI Label Assumptions")) {
+        Assert-True -Condition ($scenarioText -match [regex]::Escape($heading)) -Message "Scenario gate checks $heading"
+    }
+    Assert-True -Condition ($scenarioText -match 'one input change affects expected outputs and preserves fixed outputs') -Message "Scenario gate requires scenario test evidence"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalScenarioApprovalGate') -Message "Checkpoint loop gates scenario-tools on scenario approval"
+    Assert-True -Condition ($loopText -match 'scenario-tools') -Message "Scenario approval gate targets scenario-tools"
+    Assert-True -Condition ($loopText -match 'SCENARIO_READINESS') -Message "Task scope allows scenario readiness reports"
+    Assert-True -Condition ($plannerText -match 'SCENARIO_SPEC\.md' -and $plannerText -match 'SCENARIO_APPROVAL\.md') -Message "Planner knows scenario approval artifacts"
+    Assert-True -Condition ($plannerText -match 'generate scenario-spec/test tasks') -Message "Planner downgrades unapproved scenario tools"
+    Assert-True -Condition ($simonText -match 'affected formulas' -and $simonText -match 'fixed outputs') -Message "Simon checks scenario assumptions visually"
+    Assert-True -Condition ($robinText -match 'what-if control' -and $robinText -match 'recalculating an approved assumption') -Message "Robin checks scenario assumption copy"
+    Assert-True -Condition ($docsText -match 'analytical-scenario-approval\.ps1') -Message "Control room docs explain scenario approval"
     Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
     Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"

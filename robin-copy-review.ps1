@@ -174,6 +174,7 @@ Rules:
 - Prefer concrete nouns over brand fog: wine list, menu note, manager brief, event request, QR card, text thread, staff note, guest page. Avoid vague nouns as standalone value props: artifact, workflow, polish, service notes, handoff, automation, solution.
 - When copy addresses a potential customer, do not write as if you are instructing Codex or the site owner. Address the restaurant owner/manager directly or describe the customer outcome clearly.
 - For analytical software, protect the difference between computed output and advice. Do not encourage certainty, prediction theater, guru language, or confident insight copy when tests, calibration, and deterministic reports are not visible. Prefer labels like "model output", "confidence", "source", "assumption", and "why".
+- For scenario tools, require plain assumption labels near every what-if control: what input changes, what formulas are affected, and what outputs remain fixed. Flag scenario copy that implies the model is predicting reality instead of recalculating an approved assumption.
 - For playful projects, personality is welcome, but it must not bury clarity.
 - Do not recommend backend, auth, payments, deployment, analytics, tracking, secrets, package changes, or broad architecture changes.
 - RED is only for wording that is seriously misleading, risky, offensive, legally sensitive, or mission-breaking.

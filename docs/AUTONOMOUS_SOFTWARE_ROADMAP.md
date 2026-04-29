@@ -121,13 +121,16 @@ Acceptance:
 - Dashboard tasks are blocked or downgraded when formula/test artifacts are missing.
 - Simon/Robin are instructed to judge clarity without encouraging fake insight text.
 
-### A6 - Scenario Approval Lane
+### A6 - Scenario Approval Lane - done
 
 Problem:
 What-if sliders and strategy modes can quietly change formulas in ways nobody approved.
 
 Target:
 Add a scenario spec/approval artifact before `scenario-tools` work. Each scenario must state which inputs change, which formulas are affected, which outputs should change, and which outputs must remain fixed.
+
+Status:
+Implemented as `analytical-scenario-approval.ps1` and wired into the checkpoint startup gate for `scenario-tools`. The script can create `SCENARIO_SPEC.md` and `SCENARIO_APPROVAL.md` templates, validates approved scenario assumptions, requires scenario test or fixture evidence, and writes `SCENARIO_READINESS.md`.
 
 Acceptance:
 

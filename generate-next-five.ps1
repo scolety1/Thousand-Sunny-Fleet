@@ -185,6 +185,8 @@ Rules:
 - Dashboard and scenario-tools tasks must be table/report-first and should not add flashy insight text until calibration readiness is GREEN or intentionally YELLOW with documented unavailable history.
 - Dashboard and scenario-tools tasks are blocked until ANALYTICAL_DASHBOARD_READINESS.md can show formula/model tests, import validation tests, fixture expected outputs, and at least one deterministic report/table artifact.
 - If analytical dashboard readiness is missing or RED, downgrade UI ideas into evidence tasks: tests, import validators, generated model output tables, deterministic markdown reports, and restrained table views.
+- Scenario-tools tasks are blocked until SCENARIO_SPEC.md and SCENARIO_APPROVAL.md are approved. Each scenario must name the inputs that may change, formulas affected, expected output changes, outputs that must remain fixed, scenario tests, and UI assumption labels.
+- If scenario approval is missing or draft, generate scenario-spec/test tasks instead of sliders, strategy modes, or what-if UI controls.
 - For calculation-heavy ships, prefer test/data/model tasks over visual polish until dashboard or scenario-tools phase.
 - For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
 - Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.

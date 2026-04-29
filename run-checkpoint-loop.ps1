@@ -617,7 +617,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -2303,6 +2303,42 @@ function Invoke-AnalyticalDashboardReadinessGate {
     exit 1
 }
 
+function Invoke-AnalyticalScenarioApprovalGate {
+    param([string]$ProjectName)
+
+    $effectivePhase = Resolve-EffectiveLoopPhaseForGate
+    if ($effectivePhase -ne "scenario-tools") { return }
+
+    $scenarioScript = Join-Path $fleetRoot "analytical-scenario-approval.ps1"
+    if (!(Test-Path -LiteralPath $scenarioScript)) {
+        Write-Host "Analytical scenario approval script not found: $scenarioScript" -ForegroundColor Red
+        Release-FleetRunLock
+        exit 1
+    }
+
+    $safeProject = if ([string]::IsNullOrWhiteSpace($ProjectName)) { "project" } else { ([string]$ProjectName) -replace "[^a-zA-Z0-9_-]+", "-" }
+    $safeProject = $safeProject.Trim("-")
+    $scenarioReport = Join-Path $fleetRoot ".codex-local\scenario-readiness-$safeProject.md"
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $scenarioScript,
+        "-Repo", (Get-Location).Path,
+        "-OutFile", $scenarioReport
+    ) -LogName ("scenario-readiness-startup-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    if ($exitCode -eq 0) { return }
+
+    Write-Host ""
+    Write-Host "Scenario approval gate blocked $ProjectName before scenario-tools." -ForegroundColor Red
+    Write-Host "Create and approve SCENARIO_SPEC.md plus SCENARIO_APPROVAL.md, with scenario tests or expected fixtures." -ForegroundColor Yellow
+    Write-Host "Report: $scenarioReport" -ForegroundColor DarkYellow
+    Write-Host "Template command:" -ForegroundColor Cyan
+    Write-Host "  .\analytical-scenario-approval.ps1 -Repo `"$repoPath`" -Template" -ForegroundColor Cyan
+    Release-FleetRunLock
+    exit 1
+}
+
 $script:projectConfig = Get-ProjectConfig
 $repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -2357,6 +2393,7 @@ Invoke-AnalyticalApprovalGate -ProjectName $script:projectConfig.name -RepoFullP
 Invoke-AnalyticalFixtureReadinessGate -ProjectName $script:projectConfig.name
 Invoke-AnalyticalCalibrationReadinessGate -ProjectName $script:projectConfig.name
 Invoke-AnalyticalDashboardReadinessGate -ProjectName $script:projectConfig.name
+Invoke-AnalyticalScenarioApprovalGate -ProjectName $script:projectConfig.name
 
 $status = @(git status --porcelain)
 if ($status.Count -gt 0) {
