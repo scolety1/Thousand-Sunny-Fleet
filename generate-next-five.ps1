@@ -183,6 +183,8 @@ Rules:
 - For engine-build and later analytical phases, every task should include an accept: command that runs the relevant formula/import/model tests when the ship has a documented test command.
 - For calibration and later analytical phases, require calibration evidence before trusting UI: known-case comparisons, historical/backtest evidence or an explicit unavailable-history fallback, confidence behavior, failure modes, tuning rules, and CALIBRATION_READINESS.md.
 - Dashboard and scenario-tools tasks must be table/report-first and should not add flashy insight text until calibration readiness is GREEN or intentionally YELLOW with documented unavailable history.
+- Dashboard and scenario-tools tasks are blocked until ANALYTICAL_DASHBOARD_READINESS.md can show formula/model tests, import validation tests, fixture expected outputs, and at least one deterministic report/table artifact.
+- If analytical dashboard readiness is missing or RED, downgrade UI ideas into evidence tasks: tests, import validators, generated model output tables, deterministic markdown reports, and restrained table views.
 - For calculation-heavy ships, prefer test/data/model tasks over visual polish until dashboard or scenario-tools phase.
 - For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
 - Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.

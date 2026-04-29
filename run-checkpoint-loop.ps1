@@ -617,7 +617,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -2267,6 +2267,42 @@ function Invoke-AnalyticalCalibrationReadinessGate {
     exit 1
 }
 
+function Invoke-AnalyticalDashboardReadinessGate {
+    param([string]$ProjectName)
+
+    $effectivePhase = Resolve-EffectiveLoopPhaseForGate
+    $dashboardRequiredPhases = @("dashboard", "scenario-tools")
+    if ($effectivePhase -notin $dashboardRequiredPhases) { return }
+
+    $dashboardScript = Join-Path $fleetRoot "analytical-dashboard-readiness.ps1"
+    if (!(Test-Path -LiteralPath $dashboardScript)) {
+        Write-Host "Analytical dashboard readiness script not found: $dashboardScript" -ForegroundColor Red
+        Release-FleetRunLock
+        exit 1
+    }
+
+    $safeProject = if ([string]::IsNullOrWhiteSpace($ProjectName)) { "project" } else { ([string]$ProjectName) -replace "[^a-zA-Z0-9_-]+", "-" }
+    $safeProject = $safeProject.Trim("-")
+    $dashboardReport = Join-Path $fleetRoot ".codex-local\analytical-dashboard-readiness-$safeProject.md"
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $dashboardScript,
+        "-Repo", (Get-Location).Path,
+        "-OutFile", $dashboardReport
+    ) -LogName ("analytical-dashboard-readiness-startup-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    if ($exitCode -eq 0) { return }
+
+    Write-Host ""
+    Write-Host "Analytical dashboard restraint blocked $ProjectName before $effectivePhase." -ForegroundColor Red
+    Write-Host "Add formula/model tests, import validation tests, fixture expected outputs, and at least one deterministic report/table before UI expansion." -ForegroundColor Yellow
+    Write-Host "Report: $dashboardReport" -ForegroundColor DarkYellow
+    Write-Host "Then rerun in calibration or dashboard phase after evidence exists." -ForegroundColor Cyan
+    Release-FleetRunLock
+    exit 1
+}
+
 $script:projectConfig = Get-ProjectConfig
 $repoMatches = @(Resolve-Path $script:projectConfig.repo -ErrorAction SilentlyContinue)
 if ($repoMatches.Count -ne 1) {
@@ -2320,6 +2356,7 @@ Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "start
 Invoke-AnalyticalApprovalGate -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
 Invoke-AnalyticalFixtureReadinessGate -ProjectName $script:projectConfig.name
 Invoke-AnalyticalCalibrationReadinessGate -ProjectName $script:projectConfig.name
+Invoke-AnalyticalDashboardReadinessGate -ProjectName $script:projectConfig.name
 
 $status = @(git status --porcelain)
 if ($status.Count -gt 0) {

@@ -104,13 +104,16 @@ Acceptance:
 - It distinguishes unavailable history from ignored history.
 - Fleet Doctor reports calibration status for analytical ships.
 
-### A5 - Analytical Dashboard Restraint
+### A5 - Analytical Dashboard Restraint - done
 
 Problem:
 The fleet can build a large dashboard before the model is trustworthy.
 
 Target:
 Prevent `dashboard` and `scenario-tools` from producing big UI work until tests, fixture outputs, import validation, and at least one deterministic report/table exist.
+
+Status:
+Implemented as `analytical-dashboard-readiness.ps1` and wired into the checkpoint startup gate for `dashboard` and `scenario-tools`. The planner now downgrades premature UI ideas into evidence tasks, and Simon/Robin are instructed to judge analytical UI/copy without encouraging fake insight text.
 
 Acceptance:
 

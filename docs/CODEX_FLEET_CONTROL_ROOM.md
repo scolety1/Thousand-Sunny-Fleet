@@ -216,6 +216,8 @@ During analytical phases, staged commits also run `analytical-number-provenance.
 
 `calibration` and later analytical phases also run `fleet-calibration.ps1` before starting. This checks `CALIBRATION_PLAN.md` for historical checks, sanity checks, calibration metrics, failure modes, and tuning rules, then looks for calibration evidence such as known-case comparisons, backtest reports, confidence tests, or explicit unavailable-history fallback checks. Fleet Doctor reports the calibration status for analytical ships.
 
+`dashboard` and `scenario-tools` also run `analytical-dashboard-readiness.ps1` before starting. This blocks big analytical UI work until the ship has formula/model tests, import validation tests, fixture expected outputs, and at least one deterministic report/table artifact. If the gate fails, generate evidence tasks instead of dashboard polish.
+
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.

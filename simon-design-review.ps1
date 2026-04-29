@@ -133,6 +133,7 @@ Rules:
 - If visual bugs are reported, use them as evidence, but also judge the design quality.
 - Treat "double header", repeated section intro, or visually loud route controls as mission-breaking clutter on restaurant, portfolio, product, or demo sites. The user should see the actual product/example first, not a wrapper explaining the page twice.
 - For demo/business sites, route navigation should be useful but quiet. If nav pills, action bars, or explanatory wrappers compete with the main demo, mark the review YELLOW and make the Priority Fix reduce chrome before adding new sections.
+- For analytical software, judge clarity without encouraging fake insight. Prefer table-first, source-visible, confidence-aware layouts. If formulas/tests/calibration are not clearly evidenced, do not ask for larger dashboards, prediction cards, persuasive narrative insight, or flashy scenario UI.
 - Use MAGIC_MISSION.md, WORK_PACKS.md, WORK_PACK_STATUS.md, and MAGIC_SCORECARD.md to judge whether the current branch is advancing the active work pack or merely changing things.
 - A score of 1 means actively worse, 2 means weak or mostly cosmetic, 3 means small improvement, 4 means clearly better, and 5 means morning-review impressive.
 

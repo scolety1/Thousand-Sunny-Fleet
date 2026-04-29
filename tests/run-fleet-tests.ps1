@@ -886,7 +886,10 @@ function Test-PhaseLoopSupport {
     $numberText = Get-Content (Join-Path $fleetRoot "analytical-number-provenance.ps1") -Raw
     $fixtureText = Get-Content (Join-Path $fleetRoot "analytical-fixture-readiness.ps1") -Raw
     $calibrationText = Get-Content (Join-Path $fleetRoot "fleet-calibration.ps1") -Raw
+    $dashboardText = Get-Content (Join-Path $fleetRoot "analytical-dashboard-readiness.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $simonText = Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw
+    $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
     $cellarText = Get-Content (Join-Path $fleetRoot "launch-cellar-fleet.ps1") -Raw
@@ -898,6 +901,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-number-provenance.ps1")) -Message "Fleet exposes analytical number provenance gate"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-fixture-readiness.ps1")) -Message "Fleet exposes analytical fixture readiness gate"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-calibration.ps1")) -Message "Fleet exposes analytical calibration readiness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-dashboard-readiness.ps1")) -Message "Fleet exposes analytical dashboard readiness gate"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -972,6 +976,19 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($loopText -match 'CALIBRATION_READINESS') -Message "Task scope allows calibration readiness reports"
     Assert-True -Condition ($plannerText -match 'CALIBRATION_READINESS\.md') -Message "Planner knows calibration readiness evidence"
     Assert-True -Condition ($docsText -match 'fleet-calibration\.ps1') -Message "Control room docs explain calibration readiness"
+    Assert-True -Condition ($dashboardText -match 'Analytical Dashboard Readiness') -Message "Dashboard readiness gate writes a report"
+    Assert-True -Condition ($dashboardText -match 'formula/model tests') -Message "Dashboard readiness requires formula/model tests"
+    Assert-True -Condition ($dashboardText -match 'import/validation tests') -Message "Dashboard readiness requires import validation tests"
+    Assert-True -Condition ($dashboardText -match 'fixture expected outputs') -Message "Dashboard readiness requires fixture expected outputs"
+    Assert-True -Condition ($dashboardText -match 'deterministic report/table') -Message "Dashboard readiness requires deterministic report or table artifacts"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalDashboardReadinessGate') -Message "Checkpoint loop gates analytical dashboard phases"
+    Assert-True -Condition ($loopText -match 'dashboardRequiredPhases = @\("dashboard", "scenario-tools"\)') -Message "Dashboard readiness gate covers dashboard and scenario-tools"
+    Assert-True -Condition ($loopText -match 'ANALYTICAL_DASHBOARD_READINESS') -Message "Task scope allows dashboard readiness reports"
+    Assert-True -Condition ($plannerText -match 'ANALYTICAL_DASHBOARD_READINESS\.md') -Message "Planner knows dashboard readiness evidence"
+    Assert-True -Condition ($plannerText -match 'downgrade UI ideas into evidence tasks') -Message "Planner downgrades premature dashboard work"
+    Assert-True -Condition ($simonText -match 'fake insight') -Message "Simon is restrained from encouraging fake analytical insight"
+    Assert-True -Condition ($robinText -match 'prediction theater') -Message "Robin is restrained from encouraging overconfident analytical copy"
+    Assert-True -Condition ($docsText -match 'analytical-dashboard-readiness\.ps1') -Message "Control room docs explain dashboard readiness"
     Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
     Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"
