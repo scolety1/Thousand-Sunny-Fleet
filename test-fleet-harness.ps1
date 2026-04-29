@@ -193,6 +193,7 @@ foreach ($script in @(
     ".\fleet-night-report.ps1",
     ".\fleet-supervisor.ps1",
     ".\fleet-copy-smoke.ps1",
+    ".\fleet-website-stages.ps1",
     ".\harbor-master.ps1",
     ".\tools\codex-fleet-launcher.ps1",
     ".\tools\codex-fleet-runtime.ps1"

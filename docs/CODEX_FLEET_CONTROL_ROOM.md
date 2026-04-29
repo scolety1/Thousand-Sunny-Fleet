@@ -193,6 +193,27 @@ Website phase order:
 brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 ```
 
+Phase 1 website stage system:
+
+```powershell
+.\fleet-website-stages.ps1 -List
+.\fleet-website-stages.ps1 -Phase simplicity
+.\fleet-website-stages.ps1 -Project RestaurantDemo -WriteReference
+.\fleet-website-stages.ps1 -Project RestaurantDemo -Validate
+```
+
+`fleet-website-stages.ps1` is the universal website stage contract. It defines each stage's allowed work, forbidden work, exit criteria, reviewer gates, auto-advance rule, and stop rules. The planner reads `docs/codex/WEBSITE_STAGE_RULES.md` when a ship has it, so long runs can advance by stage criteria instead of vague "make it better" tasks.
+
+The website stage contract is deliberately stricter than a normal task queue:
+
+- `brief` locks audience, product promise, primary action, showable moment, and what not to build.
+- `foundation` may create missing pages, routes, nav, local demo data, and the core flow.
+- `shape` makes the first 30 seconds understandable and removes confusing structure.
+- `simplicity` removes, combines, shortens, hides, or demotes before adding anything.
+- `polish` refines the already-shaped site without new pages or claims.
+- `proof` fixes blockers only and verifies routes, screenshots, copy, design, and security gates.
+- `parked` stops unattended work until a human asks for another pass.
+
 Analytical software phase order:
 
 ```text

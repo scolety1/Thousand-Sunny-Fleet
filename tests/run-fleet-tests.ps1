@@ -889,8 +889,10 @@ function Test-MagicRunSupport {
 function Test-PhaseLoopSupport {
     $phasePath = Join-Path $fleetRoot "fleet-phase.ps1"
     $phaseAuditPath = Join-Path $fleetRoot "fleet-phase-audit.ps1"
+    $websiteStagePath = Join-Path $fleetRoot "fleet-website-stages.ps1"
     $phaseText = Get-Content $phasePath -Raw
     $phaseAuditText = Get-Content $phaseAuditPath -Raw
+    $websiteStageText = Get-Content $websiteStagePath -Raw
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $analysisText = Get-Content (Join-Path $fleetRoot "fleet-analysis.ps1") -Raw
@@ -909,6 +911,13 @@ function Test-PhaseLoopSupport {
 
     Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
     Assert-True -Condition (Test-Path $phaseAuditPath) -Message "Fleet exposes phase readiness audit"
+    Assert-True -Condition (Test-Path $websiteStagePath) -Message "Fleet exposes website stage contract manager"
+    Assert-True -Condition ($websiteStageText -match 'Get-WebsiteStageContracts') -Message "Website stage manager defines explicit stage contracts"
+    Assert-True -Condition ($websiteStageText -match 'allowedWork' -and $websiteStageText -match 'forbiddenWork') -Message "Website stages define allowed and forbidden work"
+    Assert-True -Condition ($websiteStageText -match 'exitCriteria' -and $websiteStageText -match 'autoAdvance') -Message "Website stages define exit criteria and auto-advance rules"
+    Assert-True -Condition ($websiteStageText -match 'reviewers' -and $websiteStageText -match 'stopRules') -Message "Website stages define reviewer gates and stop rules"
+    Assert-True -Condition ($websiteStageText -match 'WEBSITE_STAGE_RULES\.md') -Message "Website stage manager writes ship-local stage rules"
+    Assert-True -Condition ($websiteStageText -match '\[switch\]\$Validate') -Message "Website stage manager validates ship stage state"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-analysis.ps1")) -Message "Fleet exposes analytical planning pack script"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-number-provenance.ps1")) -Message "Fleet exposes analytical number provenance gate"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-fixture-readiness.ps1")) -Message "Fleet exposes analytical fixture readiness gate"
@@ -939,6 +948,9 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($phaseAuditText -match 'Repair Return Phase') -Message "Phase audit checks repair return phase"
     Assert-True -Condition ($phaseAuditText -match '\$Strict') -Message "Phase audit can fail strict runs"
     Assert-True -Condition ($plannerText -match 'PHASE_STATE\.md') -Message "Planner reads phase state"
+    Assert-True -Condition ($plannerText -match 'WEBSITE_STAGE_RULES\.md') -Message "Planner reads website stage rules"
+    Assert-True -Condition ($plannerText -match 'authoritative website stage contract') -Message "Planner treats website stage rules as authoritative"
+    Assert-True -Condition ($plannerText -match 'allowed work, forbidden work, exit criteria') -Message "Planner receives website stage contract fields"
     Assert-True -Condition ($plannerText -match 'Current loop phase') -Message "Planner receives current loop phase"
     Assert-True -Condition ($plannerText -match 'Audience') -Message "Planner treats audience as first-class"
     Assert-True -Condition ($plannerText -match 'No More Features Lock') -Message "Planner treats feature lock as first-class"
@@ -1035,6 +1047,8 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($cellarText -match '\$FleetGroup') -Message "Cellar launcher can target a named fleet group"
     Assert-True -Condition ($cellarText -match 'SkipDoctor') -Message "Cellar launcher forwards SkipDoctor"
     Assert-True -Condition ($docsText -match 'Phase loops') -Message "Control room docs explain phase loops"
+    Assert-True -Condition ($docsText -match 'Phase 1 website stage system') -Message "Control room docs explain the website stage system"
+    Assert-True -Condition ($docsText -match 'fleet-website-stages\.ps1') -Message "Control room docs document website stage contract commands"
     Assert-True -Condition ($docsText -match 'Repair Trigger') -Message "Control room docs explain repair lane fields"
     Assert-True -Condition ($docsText -match 'Analytical software phase order') -Message "Control room docs explain analytical loop"
     Assert-True -Condition ($docsText -match 'fleet-analysis\.ps1') -Message "Control room docs explain analytical planning pack"

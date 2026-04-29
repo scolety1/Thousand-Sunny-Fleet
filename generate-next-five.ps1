@@ -67,6 +67,7 @@ $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
 $phaseState = if (Test-Path "docs/codex/PHASE_STATE.md") { Get-Content "docs/codex/PHASE_STATE.md" -Raw } else { "No phase state file found." }
+$websiteStageRules = if (Test-Path "docs/codex/WEBSITE_STAGE_RULES.md") { Get-Content "docs/codex/WEBSITE_STAGE_RULES.md" -Raw } else { "No website stage rules file found." }
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $qualityQuarantine = if (Test-Path "docs/codex/QUALITY_QUARANTINE.md") { Get-Content "docs/codex/QUALITY_QUARANTINE.md" -Tail 120 } else { @("No quality quarantine found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
@@ -195,6 +196,8 @@ Rules:
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Current loop phase: $effectivePhase.
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
+- If WEBSITE_STAGE_RULES.md exists, use it as the authoritative website stage contract: allowed work, forbidden work, exit criteria, reviewer gates, auto-advance rule, and stop rules for brief, foundation, shape, simplicity, polish, proof, and parked.
+- For website stages, generate tasks only for missing exit criteria or named reviewer blockers. Do not generate generic polish when the stage contract says the ship should advance or park.
 - Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Audience, Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, Parking State, Evidence Required, Done Signal, Next Phase Criteria, Repair Trigger, and Repair Return Phase.
 - Every task must support the Product Promise and Showable Moment.
 - Every task must serve the Audience and preserve the Primary Action.
@@ -284,6 +287,9 @@ $workPackStatus
 
 Phase state:
 $phaseState
+
+Website stage rules:
+$websiteStageRules
 
 Magic scorecard tail:
 $($magicScorecard -join "`n")

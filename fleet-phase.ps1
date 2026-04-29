@@ -220,6 +220,8 @@ Updated At: $updatedAt
 
 Website loop: brief -> foundation -> shape -> simplicity -> polish -> proof -> parked
 
+Website stage contract source: docs/codex/WEBSITE_STAGE_RULES.md when present. Use `fleet-website-stages.ps1 -Project $Project -WriteReference` from the fleet control room to write or refresh it.
+
 Analytical software loop: problem-brief -> data-contract -> formula-spec -> fixture-tests -> engine-build -> calibration -> dashboard -> scenario-tools -> analysis-proof -> parked
 
 repair is an interrupt lane, not a normal destination. Any phase can enter repair when RED review gates, build/runtime failures, quarantine, stale/idle lock problems, or visual blockers stop safe progress. After the repair passes, return to the previous product phase.
