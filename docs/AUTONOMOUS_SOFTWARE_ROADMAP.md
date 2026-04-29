@@ -70,13 +70,16 @@ Acceptance:
 - Fixture/sample files and deterministic test expectations are allowed.
 - Reports explain which numbers need provenance.
 
-### A3 - Fixture-First Enforcement
+### A3 - Fixture-First Enforcement - done
 
 Problem:
 Formula implementation can drift if tests come after the model code.
 
 Target:
 During `formula-spec` and `fixture-tests`, require tiny known input/output examples before `engine-build` starts.
+
+Status:
+Implemented as `analytical-fixture-readiness.ps1` and wired into `run-checkpoint-loop.ps1` before `engine-build` and later analytical phases. The planner now prioritizes fixture examples in `formula-spec` and `fixture-tests`, and engine work is blocked until the ship has concrete fixture data, expected outputs, and test files.
 
 Acceptance:
 

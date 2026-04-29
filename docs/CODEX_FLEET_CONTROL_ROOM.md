@@ -212,6 +212,8 @@ The checkpoint loop blocks `engine-build`, `calibration`, `dashboard`, `scenario
 
 During analytical phases, staged commits also run `analytical-number-provenance.ps1`. This blocks hardcoded user-facing probabilities, scores, ranks, dollar values, forecasts, and recommendation numbers unless they clearly come from code/data or live in fixtures, sample data, tests, formulas, data contracts, or generated reports.
 
+`engine-build` and later analytical phases also run `analytical-fixture-readiness.ps1` before starting. This blocks implementation until `FIXTURE_TEST_PLAN.md` has concrete fixture data, expected outputs, and formula tests, and the repo contains fixture/sample data plus tests.
+
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.

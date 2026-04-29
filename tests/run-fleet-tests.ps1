@@ -884,6 +884,7 @@ function Test-PhaseLoopSupport {
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $analysisText = Get-Content (Join-Path $fleetRoot "fleet-analysis.ps1") -Raw
     $numberText = Get-Content (Join-Path $fleetRoot "analytical-number-provenance.ps1") -Raw
+    $fixtureText = Get-Content (Join-Path $fleetRoot "analytical-fixture-readiness.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
@@ -894,6 +895,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition (Test-Path $phaseAuditPath) -Message "Fleet exposes phase readiness audit"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-analysis.ps1")) -Message "Fleet exposes analytical planning pack script"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-number-provenance.ps1")) -Message "Fleet exposes analytical number provenance gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-fixture-readiness.ps1")) -Message "Fleet exposes analytical fixture readiness gate"
     Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
     Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
     Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
@@ -947,6 +949,14 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($numberText -match 'Test-AllowedEvidencePath') -Message "Number provenance gate allows fixtures, data, tests, and analysis docs"
     Assert-True -Condition ($loopText -match 'Invoke-AnalyticalNumberProvenanceGate') -Message "Checkpoint loop runs analytical number provenance before commit"
     Assert-True -Condition ($loopText -match 'ANALYTICAL_NUMBER_PROVENANCE\.md') -Message "Task scope allows analytical number provenance report"
+    Assert-True -Condition ($fixtureText -match 'Analytical Fixture Readiness') -Message "Fixture readiness gate writes a report"
+    Assert-True -Condition ($fixtureText -match 'FIXTURE_TEST_PLAN\.md') -Message "Fixture readiness gate checks fixture test plan"
+    Assert-True -Condition ($fixtureText -match 'Expected Outputs') -Message "Fixture readiness gate requires expected outputs"
+    Assert-True -Condition ($fixtureText -match 'No fixture/sample data files') -Message "Fixture readiness gate requires fixture files"
+    Assert-True -Condition ($fixtureText -match 'No test files') -Message "Fixture readiness gate requires test files"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalFixtureReadinessGate') -Message "Checkpoint loop gates engine-build on fixture readiness"
+    Assert-True -Condition ($loopText -match 'analysis-fixture-readiness') -Message "Checkpoint loop writes fixture readiness report outside ship repo"
+    Assert-True -Condition ($plannerText -match 'Engine-build is blocked until these exist') -Message "Planner knows fixture-first blocks engine-build"
     Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
     Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
     Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"

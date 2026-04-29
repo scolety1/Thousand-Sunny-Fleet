@@ -194,13 +194,13 @@ TODO: Include small examples with expected outputs.
 # Fixture Test Plan
 
 ## Fixture Data
-TODO: Define tiny known datasets checked into tests or sample_data.
+TODO: Define tiny known datasets checked into tests, fixtures, sample_data, or data_packs.
 
 ## Expected Outputs
-TODO: Write expected scores, ranks, errors, warnings, and labels.
+TODO: Write expected scores, ranks, errors, warnings, labels, and output rows for each fixture.
 
 ## Formula Tests
-TODO: Map each formula to at least one deterministic test.
+TODO: Map each formula to at least one deterministic test and command.
 
 ## Import Tests
 TODO: Map validation rules to passing and failing fixtures.
