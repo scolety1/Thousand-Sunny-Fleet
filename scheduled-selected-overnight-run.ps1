@@ -183,6 +183,22 @@ $Project = @(ConvertTo-ProjectList -Values $Project)
 Write-ScheduledLog "Selected overnight run '$RunLabel' checking projects: $($Project -join ', ')"
 Write-ScheduledLog "Run shape: budget $BudgetMode, phase $LoopPhase, batch size $BatchSize, max batches $MaxBatches, max tasks $MaxCompletedTasks, planner batches $MaxPlannerBatches, visual every $VisualInspectEvery, Simon every $SimonEvery, Robin every $RobinEvery, Joey every $JoeyEvery, launch gate $LaunchGateMode, kill switch $KillSwitchMode, quarantine budget $MaxTaskQuarantines."
 
+$analysisLoopPhases = @(
+    "problem-brief",
+    "data-contract",
+    "formula-spec",
+    "fixture-tests",
+    "engine-build",
+    "calibration",
+    "dashboard",
+    "scenario-tools",
+    "analysis-proof"
+)
+$skipDoctorForAnalysis = $analysisLoopPhases -contains $LoopPhase
+if ($skipDoctorForAnalysis) {
+    Write-ScheduledLog "Analytical loop phase detected; bypassing visual/design doctor launch gate for formula-first work."
+}
+
 $projectsJson = @(Get-Content ".\projects.json" -Raw | ConvertFrom-Json | ForEach-Object { $_ })
 $selectedProjectNames = @($Project)
 $exclude = @($projectsJson | Where-Object { $selectedProjectNames -notcontains [string]$_.name } | ForEach-Object { [string]$_.name })
@@ -256,6 +272,9 @@ $launchArgs = @(
     "-QuarantineFailedTasks",
     "-UseGlobalRunShape"
 )
+if ($skipDoctorForAnalysis) {
+    $launchArgs += "-SkipDoctor"
+}
 
 if ($DryRun) {
     Write-ScheduledLog "Dry run passed; validating selected launch command shape."

@@ -289,6 +289,7 @@ $scheduledWrapperDryRun = Invoke-HarnessCommand -Name "Scheduled selected wrappe
     "-RobinEvery", "1",
     "-JoeyEvery", "1",
     "-MaxTaskQuarantines", "2",
+    "-LoopPhase", "formula-spec",
     "-SkipHarnessTest",
     "-DryRun"
 )
