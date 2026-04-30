@@ -214,6 +214,21 @@ The website stage contract is deliberately stricter than a normal task queue:
 - `proof` fixes blockers only and verifies routes, screenshots, copy, design, and security gates.
 - `parked` stops unattended work until a human asks for another pass.
 
+Phase 2 ship completion contracts:
+
+```powershell
+.\fleet-completion-contract.ps1 -Project RestaurantDemo -Write
+.\fleet-completion-contract.ps1 -Project RestaurantDemo -Validate
+.\fleet-completion-contract.ps1 -Project RestaurantDemo -Status
+```
+
+`fleet-completion-contract.ps1` writes `docs/codex/DONE_CONTRACT.md` for a ship. This is the ship-specific definition of "done enough": product target, must-not-do list, evidence required, and the rule for advancing or parking. The planner reads this file and should only generate tasks that close a failed Done Enough, Evidence Required, Must Not Do, or reviewer-blocker item.
+
+For website phases, phase validation now expects both:
+
+- `docs/codex/WEBSITE_STAGE_RULES.md` for universal stage rules.
+- `docs/codex/DONE_CONTRACT.md` for the ship-specific completion target.
+
 Analytical software phase order:
 
 ```text

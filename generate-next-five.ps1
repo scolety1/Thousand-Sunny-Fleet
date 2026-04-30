@@ -68,6 +68,7 @@ $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
 $phaseState = if (Test-Path "docs/codex/PHASE_STATE.md") { Get-Content "docs/codex/PHASE_STATE.md" -Raw } else { "No phase state file found." }
 $websiteStageRules = if (Test-Path "docs/codex/WEBSITE_STAGE_RULES.md") { Get-Content "docs/codex/WEBSITE_STAGE_RULES.md" -Raw } else { "No website stage rules file found." }
+$doneContract = if (Test-Path "docs/codex/DONE_CONTRACT.md") { Get-Content "docs/codex/DONE_CONTRACT.md" -Raw } else { "No done contract file found." }
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $qualityQuarantine = if (Test-Path "docs/codex/QUALITY_QUARANTINE.md") { Get-Content "docs/codex/QUALITY_QUARANTINE.md" -Tail 120 } else { @("No quality quarantine found.") }
 $policy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy found." }
@@ -198,6 +199,9 @@ Rules:
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
 - If WEBSITE_STAGE_RULES.md exists, use it as the authoritative website stage contract: allowed work, forbidden work, exit criteria, reviewer gates, auto-advance rule, and stop rules for brief, foundation, shape, simplicity, polish, proof, and parked.
 - For website stages, generate tasks only for missing exit criteria or named reviewer blockers. Do not generate generic polish when the stage contract says the ship should advance or park.
+- If DONE_CONTRACT.md exists, use it as the ship-specific completion contract. Every generated task must close a failed Done Enough, Evidence Required, Must Not Do, or reviewer blocker bullet from that file.
+- If DONE_CONTRACT.md says Done Enough is true or all listed evidence is already present, output one docs-only phase-advance or parked-review task instead of inventing more product work.
+- Do not generate any task that conflicts with DONE_CONTRACT.md Must Not Do or the Advance Or Park Rule.
 - Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Audience, Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, Parking State, Evidence Required, Done Signal, Next Phase Criteria, Repair Trigger, and Repair Return Phase.
 - Every task must support the Product Promise and Showable Moment.
 - Every task must serve the Audience and preserve the Primary Action.
@@ -290,6 +294,9 @@ $phaseState
 
 Website stage rules:
 $websiteStageRules
+
+Done contract:
+$doneContract
 
 Magic scorecard tail:
 $($magicScorecard -join "`n")

@@ -140,6 +140,7 @@ if ($Validate) {
     $websitePhases = @("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")
     if ($phaseForValidation -in $websitePhases) {
         $stageRulesPath = Join-Path $repoPath.Path "docs\codex\WEBSITE_STAGE_RULES.md"
+        $doneContractPath = Join-Path $repoPath.Path "docs\codex\DONE_CONTRACT.md"
         if (!(Test-Path -LiteralPath $stageRulesPath)) {
             $errors += "WEBSITE_STAGE_RULES.md is required for website phase '$phaseForValidation'. Run fleet-website-stages.ps1 -Project $Project -WriteReference from the fleet control room."
         } else {
@@ -153,6 +154,24 @@ if ($Validate) {
                 if ($stageRulesText -notmatch [regex]::Escape($requiredPhrase)) {
                     $errors += "WEBSITE_STAGE_RULES.md is missing '$requiredPhrase'."
                 }
+            }
+        }
+        if (!(Test-Path -LiteralPath $doneContractPath)) {
+            $errors += "DONE_CONTRACT.md is required for website phase '$phaseForValidation'. Run fleet-completion-contract.ps1 -Project $Project -Write from the fleet control room."
+        } else {
+            $doneContractText = Get-Content -LiteralPath $doneContractPath -Raw
+            foreach ($heading in @("Current Stage", "Product Target", "Done Enough", "Must Not Do", "Evidence Required", "Advance Or Park Rule")) {
+                if ($doneContractText -notmatch "(?m)^## $([regex]::Escape($heading))\s*$") {
+                    $errors += "DONE_CONTRACT.md is missing the '$heading' section."
+                }
+            }
+            foreach ($requiredPhrase in @("Audience:", "Product promise:", "Primary action:", "Showable moment:", "Build/check command:", "Preview route(s):")) {
+                if ($doneContractText -notmatch [regex]::Escape($requiredPhrase)) {
+                    $errors += "DONE_CONTRACT.md is missing '$requiredPhrase'."
+                }
+            }
+            if ($doneContractText -match "TODO:") {
+                $errors += "DONE_CONTRACT.md still contains TODO."
             }
         }
     }

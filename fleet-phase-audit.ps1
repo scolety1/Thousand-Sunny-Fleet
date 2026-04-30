@@ -123,6 +123,7 @@ foreach ($ship in @(Get-Projects)) {
         $websitePhases = @("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")
         if ($phase -in $websitePhases) {
             $stageRulesPath = Join-Path $repo "docs\codex\WEBSITE_STAGE_RULES.md"
+            $doneContractPath = Join-Path $repo "docs\codex\DONE_CONTRACT.md"
             if (!(Test-Path -LiteralPath $stageRulesPath)) {
                 $issues.Add("WEBSITE_STAGE_RULES.md missing for website phase; run fleet-website-stages.ps1 -Project $name -WriteReference") | Out-Null
             } else {
@@ -136,6 +137,24 @@ foreach ($ship in @(Get-Projects)) {
                     if ($stageRulesText -notmatch [regex]::Escape($requiredPhrase)) {
                         $issues.Add("WEBSITE_STAGE_RULES.md missing '$requiredPhrase'") | Out-Null
                     }
+                }
+            }
+            if (!(Test-Path -LiteralPath $doneContractPath)) {
+                $issues.Add("DONE_CONTRACT.md missing for website phase; run fleet-completion-contract.ps1 -Project $name -Write") | Out-Null
+            } else {
+                $doneContractText = Get-Content -LiteralPath $doneContractPath -Raw
+                foreach ($heading in @("Current Stage", "Product Target", "Done Enough", "Must Not Do", "Evidence Required", "Advance Or Park Rule")) {
+                    if ($doneContractText -notmatch "(?m)^## $([regex]::Escape($heading))\s*$") {
+                        $issues.Add("DONE_CONTRACT.md missing '$heading' section") | Out-Null
+                    }
+                }
+                foreach ($requiredPhrase in @("Audience:", "Product promise:", "Primary action:", "Showable moment:", "Build/check command:", "Preview route(s):")) {
+                    if ($doneContractText -notmatch [regex]::Escape($requiredPhrase)) {
+                        $issues.Add("DONE_CONTRACT.md missing '$requiredPhrase'") | Out-Null
+                    }
+                }
+                if ($doneContractText -match "TODO:") {
+                    $issues.Add("DONE_CONTRACT.md still contains TODO") | Out-Null
                 }
             }
         }
