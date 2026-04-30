@@ -336,7 +336,7 @@ Exit criteria:
 
 Purpose: Move beyond "build passed" into "software works."
 
-Status: started. `runtime-verify.ps1` now runs configured command, URL, and text checks from `RUNTIME_CHECKS.md`, writes `RUNTIME_VERIFICATION.md`, and the checkpoint loop invokes runtime verification for integration/performance tasks or task-specific acceptance work.
+Status: started. `runtime-verify.ps1` now runs configured command, URL, URL text, local text, and file-existence checks from `RUNTIME_CHECKS.md`, writes `RUNTIME_VERIFICATION.md` with detail and duration for each check, and the checkpoint loop invokes runtime verification for integration/performance tasks or task-specific acceptance work.
 
 Required upgrades:
 

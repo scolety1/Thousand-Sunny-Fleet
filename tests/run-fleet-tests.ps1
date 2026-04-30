@@ -412,6 +412,7 @@ function Test-PhaseSixRuntimeVerificationSupport {
     Assert-True -Condition ($doctorText -match 'Get-RuntimeVerificationStatus') -Message "Fleet doctor reports runtime verification status"
     Assert-True -Condition ($doctorText -match 'Phase 6 runtime verification') -Message "Fleet doctor warns on failed runtime verification"
     Assert-True -Condition ($readmeText -match 'Phase 6 runtime verification gate') -Message "README documents Phase 6 runtime verification"
+    Assert-True -Condition ($readmeText -match 'url-text: URL => expected text' -and $readmeText -match 'file: path/to/file') -Message "README documents all Phase 6 runtime check types"
 }
 
 function Test-PhaseSevenReleaseSupport {
