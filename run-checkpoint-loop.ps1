@@ -2148,13 +2148,19 @@ function Invoke-CheckpointReviewGate {
         "-RateLimitMaxCooldowns", $checkpointRateLimitMaxCooldowns
     )
     $checkpointExit = Invoke-FleetPowerShell -Arguments $checkpointArgs -LogName "checkpoint-review-batch-$Batch.log" -TimeoutSeconds ($checkpointTimeout + $checkpointBuildTimeout + ($checkpointRateLimitCooldown * $checkpointRateLimitMaxCooldowns) + 120)
-    if ($checkpointExit -ne 0) { exit 1 }
+    if ($checkpointExit -ne 0) {
+        Release-FleetRunLock
+        exit 1
+    }
 
     $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
     Stage-Files -Paths @("docs/codex/CHECKPOINT_REVIEW.md")
     $pendingCheckpointCommit = @(git diff --cached --name-only)
     if ($pendingCheckpointCommit.Count -gt 0) {
-        if (-not (Invoke-FleetCommit -Message "Codex checkpoint review batch $Batch")) { exit 1 }
+        if (-not (Invoke-FleetCommit -Message "Codex checkpoint review batch $Batch")) {
+            Release-FleetRunLock
+            exit 1
+        }
     }
 
     return $checkpointText

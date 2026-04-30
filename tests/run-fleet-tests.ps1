@@ -1560,6 +1560,7 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($loopText -match 'checkpointRequestsHumanReview\s+-and\s+-not\s+\$ContinueOnYellowCheckpoint') -Message "Checkpoint loop honors ContinueOnYellowCheckpoint for yellow human-review wording"
     Assert-True -Condition ($loopText -match 'debug stop') -Message "Checkpoint loop records batch QA when debug gate fails"
     Assert-True -Condition ($loopText -match 'Release-FleetRunLock\s*\r?\n\s*exit 1') -Message "Checkpoint loop releases run lock before debug failure exit"
+    Assert-True -Condition ($loopText -match '\$checkpointExit\s+-ne\s+0[\s\S]{0,120}Release-FleetRunLock[\s\S]{0,40}exit 1') -Message "Checkpoint loop releases run lock before checkpoint review failure exit"
     Assert-True -Condition ($loopText -match 'Task impact:') -Message "Nightly report records task impact metadata"
     Assert-True -Condition ($loopText -match 'Append-MagicScorecard.+-TaskBase') -Message "Magic scorecard receives task base for materiality line counts"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw) -match 'ImpactMode') -Message "Checkpoint debugger can enforce visible-impact batches"
