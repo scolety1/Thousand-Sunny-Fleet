@@ -78,7 +78,9 @@ cd C:\Dev\codex-fleet
 
 `scaffold-project.ps1` is the Phase 2 scaffold and dependency gate. It supports allowlisted scaffolds (`vite-react`, `next-js`, `express-api`, `electron-desktop`, `python-cli`, `library-js`, `test-harness`) and refuses to scaffold until `ARCHITECTURE_APPROVAL.md` says `Status: APPROVED`. Scaffolds with package dependencies write `docs/codex/DEPENDENCY_PROPOSAL.md` and `docs/codex/DEPENDENCY_APPROVAL.md` in DRAFT status for human review.
 
-`migration-review.ps1` is the Phase 4 migration safety gate. Migration tasks require `docs/codex/MIGRATION_PROPOSAL.md` with summary, reversibility, data impact, affected tables/collections, local run evidence, and rollback plan, plus `docs/codex/MIGRATION_APPROVAL.md` with `Status: APPROVED`.
+`migration-review.ps1` is the Phase 4 migration safety gate. Migration tasks require `docs/codex/MIGRATION_PROPOSAL.md` with summary, environment, reversibility, forward-only justification, data impact, data-loss detection, affected tables/collections, local run evidence, and rollback plan, plus `docs/codex/MIGRATION_APPROVAL.md` with `Status: APPROVED`. Production migrations additionally require `Human Approval: APPROVED`.
+
+`api-contract-review.ps1` and `seed-fixture-review.ps1` are the Phase 4 backend/data safety gates. Backend and integration tasks require approved `API_CONTRACT.md` plus `API_CONTRACT_TESTS.md`; backend and migration tasks require approved `SEED_FIXTURE_PLAN.md` plus `SEED_FIXTURE_EVIDENCE.md`. Use the `backend-local` or `backend-staging` profile only when the ship has approved architecture and real local evaluators.
 
 `sensitive-systems-review.ps1` is the Phase 5 auth, payment, secrets, and external-service gate. It scans staged diffs for common secret patterns and validates `EXTERNAL_SERVICES.md`, `AUTH_POLICY.md`/`AUTH_APPROVAL.md`, and `PAYMENT_RISK.md`/`PAYMENT_APPROVAL.md` when those sensitive areas are in play. The checkpoint loop runs this gate before every Fleet commit.
 
@@ -228,7 +230,7 @@ When `accept:` is omitted, Phase 3 uses inferred acceptance checks only from com
 
 The visible-impact guard is for high-expectation design passes. If Nami or the task marks `impact:visible` or `impact:showpiece`, the checkpoint loop asks Codex to state the visible user impact, rejects report-only/doc-only work, and quarantines showpiece tasks that look like tiny CSS polish instead of real product progress. This is meant to catch "the build passed but I can barely see what changed" before the task is marked done.
 
-Backend and migration task classes are additionally gated. `class:backend` requires approved architecture. `class:migration` requires approved architecture plus the Phase 4 migration proposal and approval gate.
+Backend and migration task classes are additionally gated. `class:backend` requires approved architecture, enabled `canEditBackendCode`, approved API contract tests, and approved seed fixture evidence. `class:migration` requires approved architecture, enabled `canEditMigrations`, approved seed fixture evidence, plus the Phase 4 migration proposal and approval gate.
 
 Sensitive tasks are gated too. `class:integration` requires `docs/codex/EXTERNAL_SERVICES.md`; auth-related tasks require approved `AUTH_APPROVAL.md`; payment-related tasks require approved `PAYMENT_APPROVAL.md`. Production credentials and payment activation remain human-controlled.
 

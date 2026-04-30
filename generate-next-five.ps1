@@ -247,7 +247,8 @@ Rules:
 - For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
 - Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.
 - In repair phase, do not output docs-only stop summaries unless the gate explicitly requires human approval. Prefer a bounded repair task that names the failing gate and the exact files/scope to touch.
-- Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, backend changes, or broad rewrites.
+  - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, or broad rewrites.
+  - Do not propose backend, integration, or migration implementation unless the ship profile capability allows it and the matching Phase 4 evidence exists: API_CONTRACT.md plus approved API_CONTRACT_TESTS.md for backend/integration work, SEED_FIXTURE_PLAN.md plus approved SEED_FIXTURE_EVIDENCE.md for backend/migration work, and MIGRATION_PROPOSAL.md plus approved MIGRATION_APPROVAL.md for migration work. If evidence is missing, generate a docs/codex planning/evidence task instead.
 - Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
 - If the checkpoint review says RED or a required human approval is missing and Current loop phase is not repair, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
 - If the checkpoint review merely says "stop for human review" because Simon/Robin are YELLOW while build, security, and visual blockers are otherwise clear, do not create a docs-only stop task during shape/simplicity/polish/proof runs. Instead generate one bounded product-surface repair from the named Simon/Robin concern, or stop planning if no concrete concern is named.

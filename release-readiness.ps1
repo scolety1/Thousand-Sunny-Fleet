@@ -117,6 +117,8 @@ foreach ($projectConfig in $projects) {
     $joey = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
     $runtime = Get-MarkdownValue -Path "docs/codex/RUNTIME_VERIFICATION.md" -Heading "Verdict"
     $migration = Get-MarkdownValue -Path "docs/codex/MIGRATION_REVIEW.md" -Heading "Verdict"
+    $apiContract = Get-MarkdownValue -Path "docs/codex/API_CONTRACT_REVIEW.md" -Heading "Verdict"
+    $seedFixture = Get-MarkdownValue -Path "docs/codex/SEED_FIXTURE_REVIEW.md" -Heading "Verdict"
     $sensitive = Get-MarkdownValue -Path "docs/codex/SENSITIVE_SYSTEMS_REVIEW.md" -Heading "Verdict"
 
     foreach ($gate in @(
@@ -124,6 +126,8 @@ foreach ($projectConfig in $projects) {
         @{ name = "Joey"; value = $joey },
         @{ name = "runtime"; value = $runtime },
         @{ name = "migration"; value = $migration },
+        @{ name = "API contract"; value = $apiContract },
+        @{ name = "seed fixture"; value = $seedFixture },
         @{ name = "sensitive systems"; value = $sensitive }
     )) {
         if ([string]$gate.value -match "^RED\b") { Add-Reason -Reasons $reasons -Message "$($gate.name) gate is RED." }
@@ -160,6 +164,8 @@ foreach ($projectConfig in $projects) {
         joey = $joey
         runtime = $runtime
         migration = $migration
+        apiContract = $apiContract
+        seedFixture = $seedFixture
         sensitive = $sensitive
     }
     Pop-Location
@@ -182,11 +188,11 @@ $lines = @(
     "",
     "This report never deploys. It packages release evidence for human review.",
     "",
-    "| Ship | Status | Build | Commits | Checkpoint | Joey | Runtime | Migration | Sensitive |",
-    "| --- | --- | --- | ---: | --- | --- | --- | --- | --- |"
+    "| Ship | Status | Build | Commits | Checkpoint | Joey | Runtime | Migration | API Contract | Seed Fixture | Sensitive |",
+    "| --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
 )
 foreach ($result in $results) {
-    $lines += "| $($result.name) | $($result.status) | $($result.build) | $($result.commits) | $($result.checkpoint) | $($result.joey) | $($result.runtime) | $($result.migration) | $($result.sensitive) |"
+    $lines += "| $($result.name) | $($result.status) | $($result.build) | $($result.commits) | $($result.checkpoint) | $($result.joey) | $($result.runtime) | $($result.migration) | $($result.apiContract) | $($result.seedFixture) | $($result.sensitive) |"
 }
 
 foreach ($result in $results) {

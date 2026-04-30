@@ -1,0 +1,78 @@
+{
+  "name": "backend-staging",
+  "description": "Profile for staging-only backend work with approved architecture, API contracts, fixtures, and no deploys.",
+  "projectType": "full-stack-web",
+  "riskTier": "staging",
+  "capabilities": {
+    "canEditPackageFiles": false,
+    "canAddDependencies": false,
+    "canEditBackendCode": true,
+    "canEditMigrations": true,
+    "canEditAuthPolicy": false,
+    "canEditDeploymentConfig": false,
+    "canUseNetworkApis": false,
+    "canOpenPullRequests": false,
+    "canDeploy": false
+  },
+  "defaultRounds": 4,
+  "branchPrefix": "codex/backend-staging",
+  "maxChangedFiles": 8,
+  "maxBatchChangedFiles": 6,
+  "model": "gpt-5.5",
+  "models": {
+    "implement": ["gpt-5.5", "gpt-5.3-codex", "gpt-5.4"],
+    "review": ["gpt-5.5", "gpt-5.4"],
+    "planner": ["gpt-5.5", "gpt-5.4"],
+    "checkpoint": ["gpt-5.5", "gpt-5.4"],
+    "simon": ["gpt-5.5", "gpt-5.4"]
+  },
+  "timeouts": {
+    "codex": 2400,
+    "implement": 2400,
+    "review": 1500,
+    "build": 1200,
+    "planner": 900,
+    "checkpoint": 900,
+    "simon": 600,
+    "visual": 600,
+    "joey": 300,
+    "debug": 300,
+    "guardrails": 180,
+    "rateLimitCooldownSeconds": 3600,
+    "rateLimitMaxCooldowns": 4
+  },
+  "allowedPaths": [
+    "src/",
+    "server/",
+    "api/",
+    "backend/",
+    "migrations/",
+    "db/",
+    "tests/",
+    "sample_data/",
+    "fixtures/",
+    "docs/codex/",
+    "README.md"
+  ],
+  "blockedPaths": [
+    ".env",
+    ".env.local",
+    ".env.production",
+    "dist/",
+    "build/",
+    "firebase.json",
+    "firestore.rules",
+    ".firebaserc"
+  ],
+  "blockedTerms": [
+    "api key",
+    "bearer token",
+    "secret",
+    "production database",
+    "real customer data",
+    "stripe",
+    "payment"
+  ],
+  "buildDirectory": ".",
+  "buildCommand": ""
+}

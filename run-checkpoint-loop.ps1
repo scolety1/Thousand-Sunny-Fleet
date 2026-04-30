@@ -719,6 +719,38 @@ function Get-MigrationApprovalStatusForLoop {
     return "draft"
 }
 
+function Get-ApiContractApprovalStatusForLoop {
+    if (!(Test-Path "docs/codex/API_CONTRACT.md")) {
+        return "missing"
+    }
+    if (!(Test-Path "docs/codex/API_CONTRACT_TESTS.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/API_CONTRACT_TESTS.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Get-SeedFixtureApprovalStatusForLoop {
+    if (!(Test-Path "docs/codex/SEED_FIXTURE_PLAN.md")) {
+        return "missing"
+    }
+    if (!(Test-Path "docs/codex/SEED_FIXTURE_EVIDENCE.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/SEED_FIXTURE_EVIDENCE.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
 function Test-ApprovalFileForLoop {
     param([string]$Path)
 
@@ -927,6 +959,8 @@ function Test-TaskScope {
         "docs/codex/RUNTIME_VERIFICATION.md",
         "docs/codex/SENSITIVE_SYSTEMS_REVIEW.md",
         "docs/codex/MIGRATION_REVIEW.md",
+        "docs/codex/API_CONTRACT_REVIEW.md",
+        "docs/codex/SEED_FIXTURE_REVIEW.md",
         "docs/codex/CHECKPOINT_REVIEW.md",
         "docs/codex/VISUAL_BUGS.md",
         "docs/codex/SIMON_DESIGN_REVIEW.md",
@@ -1138,6 +1172,64 @@ function Invoke-MigrationReviewGate {
     ) -LogName ("migration-review-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
 
     Stage-Files -Paths @("docs/codex/MIGRATION_REVIEW.md")
+    return ($exitCode -eq 0)
+}
+
+function Invoke-ApiContractReviewGate {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or $Contract.class -notin @("backend", "integration")) {
+        return $true
+    }
+
+    if ((Get-ApiContractApprovalStatusForLoop) -ne "approved") {
+        Write-Host "Backend/integration task requires approved API_CONTRACT.md and API_CONTRACT_TESTS.md." -ForegroundColor Red
+        return $false
+    }
+
+    $reviewScript = Join-Path $fleetRoot "api-contract-review.ps1"
+    if (!(Test-Path -LiteralPath $reviewScript)) {
+        Write-Host "API contract review script not found: $reviewScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $reviewScript,
+        "-Repo", (Get-Location).Path
+    ) -LogName ("api-contract-review-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    Stage-Files -Paths @("docs/codex/API_CONTRACT_REVIEW.md")
+    return ($exitCode -eq 0)
+}
+
+function Invoke-SeedFixtureReviewGate {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or $Contract.class -notin @("backend", "migration")) {
+        return $true
+    }
+
+    if ((Get-SeedFixtureApprovalStatusForLoop) -ne "approved") {
+        Write-Host "Backend/migration task requires approved SEED_FIXTURE_PLAN.md and SEED_FIXTURE_EVIDENCE.md." -ForegroundColor Red
+        return $false
+    }
+
+    $reviewScript = Join-Path $fleetRoot "seed-fixture-review.ps1"
+    if (!(Test-Path -LiteralPath $reviewScript)) {
+        Write-Host "Seed fixture review script not found: $reviewScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $reviewScript,
+        "-Repo", (Get-Location).Path
+    ) -LogName ("seed-fixture-review-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
+    Stage-Files -Paths @("docs/codex/SEED_FIXTURE_REVIEW.md")
     return ($exitCode -eq 0)
 }
 
@@ -2729,6 +2821,34 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             Write-Host "$($taskContract.class) task requires approved architecture plan. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
+        if ($taskContract.class -eq "backend" -and !(Get-CapabilityForLoop -Name "canEditBackendCode")) {
+            $blockReason = "Backend task requires canEditBackendCode capability in the ship profile."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
+            Write-Host "Backend task is not enabled for this ship/profile. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
+        if ($taskContract.class -eq "migration" -and !(Get-CapabilityForLoop -Name "canEditMigrations")) {
+            $blockReason = "Migration task requires canEditMigrations capability in the ship profile."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
+            Write-Host "Migration task is not enabled for this ship/profile. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
+        if ($taskContract.class -in @("backend", "integration") -and (Get-ApiContractApprovalStatusForLoop) -ne "approved") {
+            $blockReason = "Backend/integration task requires approved Phase 4 API contract and contract tests."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
+            Write-Host "Backend/integration task requires approved API contract evidence. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
+        if ($taskContract.class -in @("backend", "migration") -and (Get-SeedFixtureApprovalStatusForLoop) -ne "approved") {
+            $blockReason = "Backend/migration task requires approved Phase 4 seed fixture evidence."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
+            Write-Host "Backend/migration task requires approved seed fixture evidence. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
         if ($taskContract.class -eq "migration" -and (Get-MigrationApprovalStatusForLoop) -ne "approved") {
             $blockReason = "Migration task requires approved Phase 4 migration proposal."
             if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
@@ -2810,7 +2930,8 @@ Rules:
 10. For visible website/app work, remove repeated page identity and visual wrappers that create double headers, stacked intro bands, or route chrome that competes with the real page.
 11. For customer-facing copy, make each sentence answer who it is for, what the reader should do, and what they get. Avoid vague standalone phrases like artifact, workflow, polish, ready for service, manager-ready, staff-ready, bring the note, and start with X unless the concrete buyer/action/outcome is obvious.
 12. If Implementation scale is large or pack, implement only the next slice named by the plan. Do not sprawl across unrelated files; summarize unresolved slices for later.
-13. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
+13. For backend, integration, or migration tasks, follow the approved API contract, seed fixture plan, migration proposal, and local evidence exactly. Do not invent endpoints, schemas, production data access, or irreversible migrations beyond those approved docs.
+14. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
@@ -2865,6 +2986,18 @@ Rules:
             $migrationFailedFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "Migration review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged $migrationFailedFiles -BuildResult "Blocked" -Risk "Migration review gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-ApiContractReviewGate -Contract $taskContract)) {
+            $apiContractFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "API contract review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $apiContractFailedFiles -BuildResult "Blocked" -Risk "API contract review gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-SeedFixtureReviewGate -Contract $taskContract)) {
+            $seedFixtureFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Seed fixture review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $seedFixtureFailedFiles -BuildResult "Blocked" -Risk "Seed fixture review gate failed." -Contract $taskContract
             exit 1
         }
         if (-not (Invoke-RuntimeVerificationGate -Contract $taskContract)) {
@@ -2943,6 +3076,18 @@ REVIEW_FINDING: P2: short description
             $finalMigrationFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "Final migration review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged $finalMigrationFiles -BuildResult "Blocked" -Risk "Final migration review gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-ApiContractReviewGate -Contract $taskContract)) {
+            $finalApiContractFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final API contract review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalApiContractFiles -BuildResult "Blocked" -Risk "Final API contract review gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-SeedFixtureReviewGate -Contract $taskContract)) {
+            $finalSeedFixtureFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final seed fixture review gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalSeedFixtureFiles -BuildResult "Blocked" -Risk "Final seed fixture review gate failed." -Contract $taskContract
             exit 1
         }
         if (-not (Invoke-RuntimeVerificationGate -Contract $taskContract)) {

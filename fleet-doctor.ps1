@@ -314,6 +314,38 @@ function Get-MigrationApprovalStatus {
     return "draft"
 }
 
+function Get-ApiContractStatus {
+    if (!(Test-Path "docs/codex/API_CONTRACT.md")) {
+        return "missing"
+    }
+    if (!(Test-Path "docs/codex/API_CONTRACT_TESTS.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/API_CONTRACT_TESTS.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
+function Get-SeedFixtureStatus {
+    if (!(Test-Path "docs/codex/SEED_FIXTURE_PLAN.md")) {
+        return "missing"
+    }
+    if (!(Test-Path "docs/codex/SEED_FIXTURE_EVIDENCE.md")) {
+        return "draft"
+    }
+
+    $approval = Get-Content "docs/codex/SEED_FIXTURE_EVIDENCE.md" -Raw
+    if ($approval -match "(?im)^\s*Status:\s*APPROVED\s*$") {
+        return "approved"
+    }
+
+    return "draft"
+}
+
 function Get-SensitiveSystemsStatus {
     $hasRegistry = Test-Path "docs/codex/EXTERNAL_SERVICES.md"
     $authOk = (!(Test-Path "docs/codex/AUTH_POLICY.md") -or (Test-ApprovedStatus -Path "docs/codex/AUTH_APPROVAL.md"))
@@ -409,6 +441,8 @@ function Get-ShipDiagnosis {
     $calibrationStatus = Get-CalibrationStatus
     $dependencyStatus = Get-DependencyApprovalStatus
     $migrationStatus = Get-MigrationApprovalStatus
+    $apiContractStatus = Get-ApiContractStatus
+    $seedFixtureStatus = Get-SeedFixtureStatus
     $sensitiveStatus = Get-SensitiveSystemsStatus
     $runtimeStatus = Get-RuntimeVerificationStatus
     $maintenanceStatus = Get-MaintenanceStatus
@@ -521,6 +555,23 @@ function Get-ShipDiagnosis {
         Add-Finding -Findings $findings -Level "OK" -Message "Phase 4 migration proposal is approved."
     }
 
+    $backendGateNeeded = [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canEditBackendCode")
+    if ($backendGateNeeded -and $apiContractStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 4 API contract is missing for backend-capable ship."
+    } elseif ($backendGateNeeded -and $apiContractStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 4 API contract tests are still DRAFT."
+    } elseif ($backendGateNeeded) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 4 API contract tests are approved."
+    }
+
+    if (($backendGateNeeded -or $migrationGateNeeded) -and $seedFixtureStatus -eq "missing") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 4 seed fixture plan is missing for backend/data-capable ship."
+    } elseif (($backendGateNeeded -or $migrationGateNeeded) -and $seedFixtureStatus -eq "draft") {
+        Add-Finding -Findings $findings -Level "WARN" -Message "Phase 4 seed fixture evidence is still DRAFT."
+    } elseif ($backendGateNeeded -or $migrationGateNeeded) {
+        Add-Finding -Findings $findings -Level "OK" -Message "Phase 4 seed fixture evidence is approved."
+    }
+
     $sensitiveGateNeeded = (
         [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canEditAuthPolicy") -or
         [bool](Get-ConfigPropertyValue -Object $intake.capabilities -Name "canUseNetworkApis") -or
@@ -610,6 +661,8 @@ function Get-ShipDiagnosis {
         calibration = $calibrationStatus
         dependencies = $dependencyStatus
         migrations = $migrationStatus
+        apiContracts = $apiContractStatus
+        seedFixtures = $seedFixtureStatus
         sensitiveSystems = $sensitiveStatus
         runtime = $runtimeStatus
         maintenance = $maintenanceStatus
@@ -635,13 +688,13 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "| Ship | Ready | Type | Risk | Architecture | Analysis | Calibration | Dependencies | Migrations | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
+    "| Ship | Ready | Type | Risk | Architecture | Analysis | Calibration | Dependencies | Migrations | API Contracts | Seed Fixtures | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Joey |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |"
 )
 
 foreach ($diagnosis in $diagnoses) {
     $ready = if ($diagnosis.launchReady) { "YES" } else { "NO" }
-    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.analysis) | $($diagnosis.calibration) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
+    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.analysis) | $($diagnosis.calibration) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.apiContracts) | $($diagnosis.seedFixtures) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.joey) |"
 }
 
 $lines += ""
@@ -662,6 +715,8 @@ foreach ($diagnosis in $diagnoses) {
     $lines += "- Calibration readiness: $($diagnosis.calibration)"
     $lines += "- Dependencies: $($diagnosis.dependencies)"
     $lines += "- Migrations: $($diagnosis.migrations)"
+    $lines += "- API contracts: $($diagnosis.apiContracts)"
+    $lines += "- Seed fixtures: $($diagnosis.seedFixtures)"
     $lines += "- Sensitive systems: $($diagnosis.sensitiveSystems)"
     $lines += "- Runtime verification: $($diagnosis.runtime)"
     $lines += "- Maintenance lane: $($diagnosis.maintenance)"
@@ -684,7 +739,7 @@ if (!$Quiet) {
     foreach ($diagnosis in $diagnoses) {
         $color = if ($diagnosis.launchReady) { "Green" } else { "Red" }
         $status = if ($diagnosis.launchReady) { "healthy" } else { "not ready" }
-        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), analysis $($diagnosis.analysis), calibration $($diagnosis.calibration), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
+        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), analysis $($diagnosis.analysis), calibration $($diagnosis.calibration), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), api contracts $($diagnosis.apiContracts), seed fixtures $($diagnosis.seedFixtures), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Joey $($diagnosis.joey)." -ForegroundColor $color
         if (!$diagnosis.launchReady) {
             $diagnosis.findings | Where-Object { $_.level -eq "FAIL" } | ForEach-Object {
                 Write-Host "  - $($_.message)" -ForegroundColor Red

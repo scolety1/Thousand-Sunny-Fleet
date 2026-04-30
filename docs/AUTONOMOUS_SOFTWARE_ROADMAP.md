@@ -286,7 +286,7 @@ Exit criteria:
 
 Purpose: Allow serious backend work without risking production data.
 
-Status: started. `migration-review.ps1` now validates migration proposals and approvals, the checkpoint loop gates backend and migration task classes behind approved architecture, and migration tasks require approved migration evidence before passing.
+Status: complete for the first production pass. `backend-local` and `backend-staging` profiles now separate local backend work from staging migration-capable work. `migration-review.ps1` validates migration proposals, approvals, destructive-operation acknowledgement, and production human approval. `api-contract-review.ps1` and `seed-fixture-review.ps1` gate backend/API/data work on contract tests and safe fixture evidence. The checkpoint loop blocks backend/migration tasks unless the ship has the right capabilities, approved architecture, and the Phase 4 evidence package before implementation and again before commit.
 
 Required upgrades:
 

@@ -309,22 +309,55 @@ function Test-PhaseThreeTaskContractSupport {
 
 function Test-PhaseFourMigrationSupport {
     $migrationText = Get-Content (Join-Path $fleetRoot "migration-review.ps1") -Raw
+    $apiContractText = Get-Content (Join-Path $fleetRoot "api-contract-review.ps1") -Raw
+    $seedFixtureText = Get-Content (Join-Path $fleetRoot "seed-fixture-review.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $addProjectText = Get-Content (Join-Path $fleetRoot "add-project.ps1") -Raw
+    $installText = Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw
     $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
 
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "profiles\backend-local.json")) -Message "Fleet includes local-only backend profile"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "profiles\backend-staging.json")) -Message "Fleet includes staging backend profile"
+    Assert-True -Condition ($addProjectText -match 'backend-local' -and $addProjectText -match 'backend-staging') -Message "add-project accepts backend Phase 4 profiles"
+    Assert-True -Condition ($installText -match 'backend-local' -and $installText -match 'backend-staging') -Message "install-harness accepts backend Phase 4 profiles"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "migration-review.ps1")) -Message "Fleet exposes Phase 4 migration review script"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "api-contract-review.ps1")) -Message "Fleet exposes Phase 4 API contract review script"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "seed-fixture-review.ps1")) -Message "Fleet exposes Phase 4 seed fixture review script"
     Assert-True -Condition ($migrationText -match 'MIGRATION_PROPOSAL\.md') -Message "Migration review requires migration proposal"
     Assert-True -Condition ($migrationText -match 'MIGRATION_APPROVAL\.md') -Message "Migration review requires migration approval"
-    foreach ($heading in @("Reversibility", "Data Impact", "Affected Tables Or Collections", "Local Run Evidence", "Rollback Plan")) {
+    foreach ($heading in @("Environment", "Reversibility", "Forward Only Justification", "Data Impact", "Data Loss Detection", "Affected Tables Or Collections", "Local Run Evidence", "Rollback Plan")) {
         Assert-True -Condition ($migrationText -match [regex]::Escape($heading)) -Message "Migration review checks $heading"
     }
+    Assert-True -Condition ($migrationText -match 'Data Loss Accepted') -Message "Migration review detects destructive data-loss operations"
+    Assert-True -Condition ($migrationText -match 'Human Approval') -Message "Migration review requires human approval for production migrations"
+    Assert-True -Condition ($apiContractText -match 'API_CONTRACT\.md' -and $apiContractText -match 'API_CONTRACT_TESTS\.md') -Message "API contract review requires contract and test evidence"
+    foreach ($heading in @("Endpoints", "Request Shapes", "Response Shapes", "Error Cases", "Auth And Permissions", "Data Access", "Local Test Evidence")) {
+        Assert-True -Condition ($apiContractText -match [regex]::Escape($heading)) -Message "API contract review checks $heading"
+    }
+    Assert-True -Condition ($seedFixtureText -match 'SEED_FIXTURE_PLAN\.md' -and $seedFixtureText -match 'SEED_FIXTURE_EVIDENCE\.md') -Message "Seed fixture review requires plan and evidence"
+    Assert-True -Condition ($seedFixtureText -match 'Test-UnsafeRealDataLine') -Message "Seed fixture review allows negative real-data guardrail language"
+    foreach ($heading in @("Seed Data Scope", "Fixture Files", "Synthetic Data Rules", "Reset Command", "Expected Records")) {
+        Assert-True -Condition ($seedFixtureText -match [regex]::Escape($heading)) -Message "Seed fixture review checks $heading"
+    }
     Assert-True -Condition ($loopText -match 'Invoke-MigrationReviewGate') -Message "Checkpoint loop runs migration review gate"
+    Assert-True -Condition ($loopText -match 'Invoke-ApiContractReviewGate') -Message "Checkpoint loop runs API contract review gate"
+    Assert-True -Condition ($loopText -match 'Invoke-SeedFixtureReviewGate') -Message "Checkpoint loop runs seed fixture review gate"
     Assert-True -Condition ($loopText -match 'class -in @\("backend", "migration"\)') -Message "Checkpoint loop gates backend and migration classes on architecture approval"
+    Assert-True -Condition ($loopText -match 'canEditBackendCode') -Message "Checkpoint loop gates backend work on backend capability"
+    Assert-True -Condition ($loopText -match 'canEditMigrations') -Message "Checkpoint loop gates migration work on migration capability"
     Assert-True -Condition ($loopText -match 'Get-MigrationApprovalStatusForLoop') -Message "Checkpoint loop checks migration approval status"
+    Assert-True -Condition ($loopText -match 'Get-ApiContractApprovalStatusForLoop') -Message "Checkpoint loop checks API contract approval status"
+    Assert-True -Condition ($loopText -match 'Get-SeedFixtureApprovalStatusForLoop') -Message "Checkpoint loop checks seed fixture approval status"
     Assert-True -Condition ($doctorText -match 'Get-MigrationApprovalStatus') -Message "Fleet doctor reports migration approval status"
+    Assert-True -Condition ($doctorText -match 'Get-ApiContractStatus') -Message "Fleet doctor reports API contract status"
+    Assert-True -Condition ($doctorText -match 'Get-SeedFixtureStatus') -Message "Fleet doctor reports seed fixture status"
     Assert-True -Condition ($doctorText -match 'Phase 4 migration proposal') -Message "Fleet doctor warns for missing or draft migration gates"
+    Assert-True -Condition ($doctorText -match 'Phase 4 API contract') -Message "Fleet doctor warns for missing or draft API contracts"
+    Assert-True -Condition ($doctorText -match 'Phase 4 seed fixture') -Message "Fleet doctor warns for missing or draft seed fixtures"
     Assert-True -Condition ($readmeText -match 'Phase 4 migration safety gate') -Message "README documents Phase 4 migration safety"
+    Assert-True -Condition ($readmeText -match 'api-contract-review\.ps1') -Message "README documents Phase 4 API contract safety"
+    Assert-True -Condition ($readmeText -match 'seed-fixture-review\.ps1') -Message "README documents Phase 4 seed fixture safety"
 }
 
 function Test-PhaseFiveSensitiveSystemsSupport {

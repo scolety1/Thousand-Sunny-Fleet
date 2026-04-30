@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Repo,
 
-    [ValidateSet("real-product", "frontend-static-demo", "docs-only", "experimental-prototype")]
+    [ValidateSet("real-product", "frontend-static-demo", "docs-only", "experimental-prototype", "backend-local", "backend-staging")]
     [string]$Profile = "frontend-static-demo",
 
     [int]$Rounds = 0,
