@@ -77,28 +77,71 @@ function Add-Hit {
 $hits = [System.Collections.Generic.List[object]]::new()
 $files = @(Get-UiFiles)
 
+function Get-ElementWindow {
+    param(
+        [string[]]$Lines,
+        [int]$Index,
+        [int]$MaxLines = 12
+    )
+
+    $end = [Math]::Min($Lines.Count - 1, $Index + $MaxLines - 1)
+    $parts = @()
+    for ($j = $Index; $j -le $end; $j++) {
+        $parts += [string]$Lines[$j]
+        $joined = $parts -join "`n"
+        if ($joined -match "/>|</(input|button|select|textarea)>|>") {
+            return $joined
+        }
+    }
+    return ($parts -join "`n")
+}
+
+function Test-WrappedByLabel {
+    param(
+        [string[]]$Lines,
+        [int]$Index
+    )
+
+    $start = [Math]::Max(0, $Index - 16)
+    $end = [Math]::Min($Lines.Count - 1, $Index + 16)
+    $before = ($Lines[$start..$Index] -join "`n")
+    $after = ($Lines[$Index..$end] -join "`n")
+    return ($before -match "(?is)<label\b[^>]*>(?:(?!</label>).)*$" -and $after -match "(?is)</label>")
+}
+
 foreach ($file in $files) {
     if (!(Test-Path -LiteralPath $file -PathType Leaf)) { continue }
     $text = Get-Content -LiteralPath $file -Raw -ErrorAction SilentlyContinue
     if ([string]::IsNullOrWhiteSpace($text)) { continue }
     $lines = @($text -split "`r?`n")
-
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $line = [string]$lines[$i]
         $lineNumber = $i + 1
+        $nearStart = [Math]::Max(0, $i - 4)
+        $nearEnd = [Math]::Min($lines.Count - 1, $i + 3)
+        $nearText = ($lines[$nearStart..$nearEnd] -join "`n")
 
         if ($file -match "\.(html|tsx|jsx|vue|svelte|astro)$") {
             if ($line -match "<img\b" -and $line -notmatch "\balt\s*=") {
                 Add-Hit -Hits $hits -Severity "RED" -File $file -Line $lineNumber -Issue "Image is missing an alt attribute." -Sample $line
             }
-            if ($line -match "<input\b" -and $line -notmatch "\b(type\s*=\s*['`"]?(hidden|submit|button|checkbox|radio)|aria-label|aria-labelledby|id\s*=|title\s*=)") {
-                Add-Hit -Hits $hits -Severity "RED" -File $file -Line $lineNumber -Issue "Input may be missing a programmatic label." -Sample $line
+            if ($line -match "<input\b") {
+                $inputBlock = Get-ElementWindow -Lines $lines -Index $i
+                if ($inputBlock -notmatch "\btype\s*=\s*['`"]?(hidden|submit|button|checkbox|radio)" -and
+                    $inputBlock -notmatch "(aria-label|aria-labelledby|id\s*=|title\s*=)" -and
+                    $nearText -notmatch "(?is)<label\b[^>]*>.*<input\b.*</label>" -and
+                    -not (Test-WrappedByLabel -Lines $lines -Index $i)) {
+                    Add-Hit -Hits $hits -Severity "RED" -File $file -Line $lineNumber -Issue "Input may be missing a programmatic label." -Sample $inputBlock
+                }
             }
-            if ($line -match "<button\b" -and $line -match ">\s*</button>") {
-                Add-Hit -Hits $hits -Severity "RED" -File $file -Line $lineNumber -Issue "Button appears to have no accessible name." -Sample $line
-            }
-            if ($line -match "<button\b" -and $line -match "\b(onClick|className|class)=" -and $line -notmatch "(aria-label|aria-labelledby|>\s*[^<{])" -and $line -notmatch "icon" ) {
-                Add-Hit -Hits $hits -Severity "YELLOW" -File $file -Line $lineNumber -Issue "Icon-style button may need an accessible label." -Sample $line
+            if ($line -match "<button\b") {
+                $buttonBlock = Get-ElementWindow -Lines $lines -Index $i
+                $buttonHasName = $buttonBlock -match "(aria-label|aria-labelledby|>\s*[^<{`\s])"
+                if ($buttonBlock -match ">\s*</button>") {
+                    Add-Hit -Hits $hits -Severity "RED" -File $file -Line $lineNumber -Issue "Button appears to have no accessible name." -Sample $buttonBlock
+                } elseif ($buttonBlock -match "\b(onClick|className|class)=" -and -not $buttonHasName -and $buttonBlock -notmatch "icon" ) {
+                    Add-Hit -Hits $hits -Severity "YELLOW" -File $file -Line $lineNumber -Issue "Icon-style button may need an accessible label." -Sample $buttonBlock
+                }
             }
             if ($line -match "<a\b" -and $line -match "href\s*=\s*['`"]#['`"]") {
                 Add-Hit -Hits $hits -Severity "YELLOW" -File $file -Line $lineNumber -Issue "Hash-only link may behave like a button or dead link." -Sample $line
@@ -109,7 +152,7 @@ foreach ($file in $files) {
         }
 
         if ($file -match "\.(css|scss|sass)$") {
-            if ($line -match "outline\s*:\s*(0|none)" -and $line -notmatch ":focus-visible|focus-visible") {
+            if ($line -match "outline\s*:\s*(0|none)" -and $nearText -notmatch ":focus-visible|focus-visible") {
                 Add-Hit -Hits $hits -Severity "RED" -File $file -Line $lineNumber -Issue "Focus outline is removed without an obvious focus-visible replacement." -Sample $line
             }
             if ($line -match "prefers-reduced-motion" ) {

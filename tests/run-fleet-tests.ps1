@@ -618,6 +618,49 @@ function Test-PhaseElevenAccessibilityReview {
     Assert-Equal -Actual $accessibilityRun.ExitCode -Expected 1 -Message "Accessibility reviewer fails on deterministic RED findings"
     $accessibilityReport = Get-Content (Join-Path $accessibilityFixture "docs\codex\ACCESSIBILITY_REVIEW.md") -Raw
     Assert-True -Condition ($accessibilityReport -match '## Verdict\s+RED' -and $accessibilityReport -match 'Image is missing an alt attribute') -Message "Accessibility report records RED alt-text finding"
+
+    $accessibleFixture = Join-Path $fixtureRoot "phase11-accessible"
+    if (Test-Path $accessibleFixture) {
+        Remove-Item -LiteralPath $accessibleFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $accessibleFixture "src") | Out-Null
+    Push-Location $accessibleFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        @"
+<main>
+  <img src='hero.png' alt='Kitchen team preparing service'>
+  <label>
+    <span>Guest count</span>
+    <input value='24' />
+  </label>
+  <button type='button'>Send brief</button>
+</main>
+"@ | Set-Content "src\App.html"
+        @"
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #f0b45b;
+}
+"@ | Set-Content "src\styles.css"
+        git add src/App.html src/styles.css
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $accessibleRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "accessibility-review.ps1"),
+        "-Repo", $accessibleFixture,
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $accessibleRun.ExitCode -Expected 0 -Message "Accessibility reviewer allows wrapped labels and focus-visible replacements"
+    $accessibleReport = Get-Content (Join-Path $accessibleFixture "docs\codex\ACCESSIBILITY_REVIEW.md") -Raw
+    Assert-True -Condition ($accessibleReport -match '## Verdict\s+GREEN') -Message "Accessibility report stays GREEN for accessible fixture"
 }
 
 function Test-ConfigResolution {
