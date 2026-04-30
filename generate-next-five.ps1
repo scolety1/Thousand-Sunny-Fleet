@@ -158,6 +158,9 @@ Rules:
 - Supported impacts: impact:standard, impact:visible, and impact:showpiece. Use impact:visible for design/copy/page/mobile tasks. Use impact:showpiece for final, demo-ready, major redesign, premium, or high-expectation creative tasks.
 - Use scope: only when the task can be safely bounded to clear path prefixes.
 - Use accept: only for task-specific checks beyond the normal external build, and only when the exact command is already documented in the ship's run policy/profile or package scripts. Do not invent npm.cmd test.
+- If accept: is omitted, the checkpoint loop will infer safe existing checks from package scripts or Python project files, such as test, lint, typecheck, pytest, or ruff when present.
+- Large Phase 3 work must be plan-first and slice-based. Use risk:high or mode:feature-pack only when SOFTWARE_FEATURE_PLAN.md names the active slice, files/modules, runtime scenarios, and acceptance commands.
+- If a request sounds large but no approved/specific plan exists, generate a planning or slice-definition task instead of one broad implementation task.
 - Each task must be small enough for one Codex implementation round.
 - Each task must include explicit forbidden scope.
 - Prefer tasks that advance the mission and reduce obvious rough edges.

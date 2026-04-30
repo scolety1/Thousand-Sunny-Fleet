@@ -287,12 +287,21 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'RUNTIME_VERIFICATION\.md') -Message "Task scope allows Fleet-generated runtime reports"
     Assert-True -Condition ($loopText -match 'SENSITIVE_SYSTEMS_REVIEW\.md') -Message "Task scope allows Fleet-generated sensitive systems reports"
     Assert-True -Condition ($loopText -match 'Invoke-TaskAcceptanceChecks') -Message "Checkpoint loop runs task-specific acceptance checks"
+    Assert-True -Condition ($loopText -match 'Get-AutomaticAcceptanceChecks') -Message "Checkpoint loop infers automatic acceptance checks"
+    Assert-True -Condition ($loopText -match 'Get-PackageScriptCommand') -Message "Automatic acceptance reads package scripts"
+    Assert-True -Condition ($loopText -match 'Get-PythonCheckCommand') -Message "Automatic acceptance reads Python project checks"
+    Assert-True -Condition ($loopText -match 'Get-TaskImplementationScale') -Message "Checkpoint loop classifies implementation scale"
+    Assert-True -Condition ($loopText -match 'Test-LargerChangePlanForLoop') -Message "Checkpoint loop gates larger changes on a slice plan"
+    Assert-True -Condition ($loopText -match 'Large Phase 3 task requires') -Message "Large implementation work is blocked until planned"
     Assert-True -Condition ($loopText -match 'High/gated task requires approved architecture plan') -Message "Checkpoint loop blocks high/gated tasks without architecture approval"
     Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
     Assert-True -Condition ($plannerText -match 'Supported classes') -Message "Nami planner is taught task classes"
     Assert-True -Condition ($plannerText -match 'Supported risks') -Message "Nami planner is taught task risks"
     Assert-True -Condition ($plannerText -match 'Supported impacts') -Message "Nami planner is taught task impacts"
+    Assert-True -Condition ($plannerText -match 'If accept: is omitted') -Message "Nami planner understands inferred acceptance checks"
+    Assert-True -Condition ($plannerText -match 'plan-first and slice-based') -Message "Nami planner plans larger changes in slices"
     Assert-True -Condition ($readmeText -match 'Phase 3 task contracts') -Message "README documents Phase 3 task contracts"
+    Assert-True -Condition ($readmeText -match 'inferred acceptance') -Message "README documents inferred Phase 3 checks"
 }
 
 function Test-PhaseFourMigrationSupport {

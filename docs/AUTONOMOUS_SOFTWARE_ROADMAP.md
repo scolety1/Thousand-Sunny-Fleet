@@ -244,7 +244,7 @@ Exit criteria:
 
 Purpose: Extend the current checkpoint loop into serious implementation work.
 
-Status: started. The checkpoint loop now parses Phase 3 task contracts from task lines, reports task class/risk/scope/acceptance in nightly reports, blocks high/gated work without approved architecture, enforces declared file scopes, and runs task-specific acceptance commands in addition to the normal external build.
+Status: complete for the first production pass. The checkpoint loop now parses Phase 3 task contracts from task lines, reports task class/risk/scope/acceptance/implementation scale in nightly reports, blocks high/gated work without approved architecture, enforces declared file scopes, runs explicit or inferred acceptance commands in addition to the normal external build, and requires broad/high-risk implementation to be planned and sliced before Codex touches code.
 
 Required upgrades:
 
@@ -262,19 +262,21 @@ Required upgrades:
   - performance
 - Add task risk levels and allowed file scopes.
 - Add per-task acceptance tests.
-- Add automatic test selection:
-  - unit tests
-  - integration tests
-  - type checks
-  - lint checks
-  - build
-  - smoke tests
-  - visual checks
-- Add larger-change handling:
-  - plan first
-  - implement in slices
-  - checkpoint after each slice
-  - summarize unresolved work
+- Automatic test selection now infers safe existing commands from the repo when `accept:` is omitted:
+  - package test scripts
+  - package lint scripts
+  - package typecheck/tsc scripts
+  - Python pytest when tests/project files are present
+  - Python ruff when configured
+  - build still runs through the normal external build gate
+  - smoke/visual checks remain controlled by runtime/visual cadence and route config
+- Larger-change handling now classifies implementation scale:
+  - small tasks can run normally
+  - high/gated/broad tasks require explicit scope
+  - broad tasks require `SOFTWARE_FEATURE_PLAN.md`
+  - Codex is instructed to implement the next named slice only
+  - checkpoint/debug/scorecard gates still run after each slice
+  - unresolved slices must be summarized for later work
 
 Exit criteria:
 

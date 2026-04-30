@@ -800,6 +800,53 @@ function Test-SoftwareFeatureModeApproval {
     return $true
 }
 
+function Get-TaskImplementationScale {
+    param([object]$Contract)
+
+    if ($null -eq $Contract) { return "small" }
+    if ([string]$Contract.mode -eq "feature-pack") { return "pack" }
+    if ([string]$Contract.risk -in @("high", "gated")) { return "large" }
+
+    $summary = [string]$Contract.summary
+    $largeIntentPattern = "(?i)\b(full|whole|entire|end-to-end|multi[- ]page|multi[- ]screen|across\s+the\s+app|major|rebuild|redesign|platform|system|workflow|module|deep)\b"
+    if ($summary -match $largeIntentPattern) { return "large" }
+
+    return "small"
+}
+
+function Test-LargerChangePlanForLoop {
+    param([object]$Contract)
+
+    $scale = Get-TaskImplementationScale -Contract $Contract
+    if ($scale -eq "small") { return $true }
+
+    if ($Contract.scope.Count -eq 0) {
+        Write-Host "Large Phase 3 task requires explicit scope: metadata so it can be sliced safely." -ForegroundColor Red
+        return $false
+    }
+
+    $planPath = "docs/codex/SOFTWARE_FEATURE_PLAN.md"
+    if (!(Test-Path $planPath)) {
+        Write-Host "Large Phase 3 task requires docs/codex/SOFTWARE_FEATURE_PLAN.md before implementation." -ForegroundColor Red
+        return $false
+    }
+
+    $text = Get-Content $planPath -Raw
+    foreach ($heading in @("Active Work Pack", "Files And Modules", "Runtime Scenarios", "Acceptance Commands")) {
+        if ($text -notmatch "(?im)^##\s+$([regex]::Escape($heading))\s*$") {
+            Write-Host "Large Phase 3 plan is missing heading: $heading" -ForegroundColor Red
+            return $false
+        }
+    }
+
+    if ($text -match "(?im)^\s*(TBD\.?|TODO|-\s+TBD\.?)\s*$") {
+        Write-Host "Large Phase 3 plan still contains TBD/TODO placeholders." -ForegroundColor Red
+        return $false
+    }
+
+    return $true
+}
+
 function Get-SensitiveIntentText {
     param([string]$Summary)
 
@@ -917,12 +964,17 @@ function Test-TaskScope {
 function Invoke-TaskAcceptanceChecks {
     param([object]$Contract)
 
-    if ($null -eq $Contract -or $Contract.acceptance.Count -eq 0) {
+    if ($null -eq $Contract) {
+        return $true
+    }
+
+    $checks = @(Get-TaskAcceptanceCommands -Contract $Contract)
+    if ($checks.Count -eq 0) {
         return $true
     }
 
     $index = 0
-    foreach ($command in @($Contract.acceptance)) {
+    foreach ($command in @($checks)) {
         $index++
         Write-Host "Running task acceptance check ${index}: $command" -ForegroundColor DarkCyan
         $logPath = Join-Path $script:RunLogRoot ("acceptance-{0}-{1}.log" -f $index, (Get-Date -Format "HHmmssfff"))
@@ -943,6 +995,92 @@ function Invoke-TaskAcceptanceChecks {
     }
 
     return $true
+}
+
+function Get-PackageScriptCommand {
+    param([string]$ScriptName)
+
+    $packagePath = Join-Path (Get-Location).Path "package.json"
+    $configuredBuildDir = Get-ConfigScalar -Name "buildDirectory" -Default "."
+    if (![string]::IsNullOrWhiteSpace($configuredBuildDir) -and $configuredBuildDir -ne ".") {
+        $resolvedBuildDir = Resolve-Path $configuredBuildDir -ErrorAction SilentlyContinue
+        if ($resolvedBuildDir) {
+            $packagePath = Join-Path $resolvedBuildDir.Path "package.json"
+        }
+    }
+
+    if (!(Test-Path -LiteralPath $packagePath)) { return "" }
+    try {
+        $package = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json
+    } catch {
+        return ""
+    }
+    $scripts = Get-ConfigPropertyValue -Object $package -Name "scripts"
+    if ($null -eq $scripts) { return "" }
+    $scriptValue = Get-ConfigPropertyValue -Object $scripts -Name $ScriptName
+    if ($null -eq $scriptValue -or [string]::IsNullOrWhiteSpace([string]$scriptValue)) { return "" }
+    return "npm.cmd run $ScriptName"
+}
+
+function Get-PythonCheckCommand {
+    param([string]$Kind)
+
+    if ($Kind -eq "test" -and (Test-Path "tests")) {
+        if ((Test-Path "pyproject.toml") -or (Test-Path "pytest.ini") -or (Test-Path "requirements.txt")) {
+            return "python -m pytest"
+        }
+    }
+    if ($Kind -eq "lint" -and (Test-Path "pyproject.toml")) {
+        $text = Get-Content "pyproject.toml" -Raw -ErrorAction SilentlyContinue
+        if ($text -match "(?im)^\s*\[tool\.ruff\]" -or $text -match "(?im)ruff") {
+            return "python -m ruff check ."
+        }
+    }
+    return ""
+}
+
+function Get-AutomaticAcceptanceChecks {
+    param([object]$Contract)
+
+    if ($null -eq $Contract) { return @() }
+
+    $taskClass = [string]$Contract.class
+    $checks = New-Object System.Collections.Generic.List[string]
+
+    $needsUnit = $taskClass -in @("feature", "bugfix", "refactor", "test", "backend", "integration", "performance", "migration")
+    $needsLint = $taskClass -in @("feature", "bugfix", "refactor", "test", "backend", "integration", "performance", "migration", "design", "copy")
+    $needsType = $taskClass -in @("feature", "bugfix", "refactor", "backend", "integration", "performance")
+
+    if ($needsUnit) {
+        foreach ($candidate in @((Get-PackageScriptCommand -ScriptName "test"), (Get-PythonCheckCommand -Kind "test"))) {
+            if (![string]::IsNullOrWhiteSpace($candidate)) { $checks.Add($candidate) | Out-Null; break }
+        }
+    }
+    if ($needsType) {
+        foreach ($script in @("typecheck", "type-check", "tsc")) {
+            $candidate = Get-PackageScriptCommand -ScriptName $script
+            if (![string]::IsNullOrWhiteSpace($candidate)) { $checks.Add($candidate) | Out-Null; break }
+        }
+    }
+    if ($needsLint) {
+        foreach ($candidate in @((Get-PackageScriptCommand -ScriptName "lint"), (Get-PythonCheckCommand -Kind "lint"))) {
+            if (![string]::IsNullOrWhiteSpace($candidate)) { $checks.Add($candidate) | Out-Null; break }
+        }
+    }
+
+    return @($checks | Select-Object -Unique)
+}
+
+function Get-TaskAcceptanceCommands {
+    param([object]$Contract)
+
+    if ($null -eq $Contract) { return @() }
+    $explicit = @($Contract.acceptance | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) })
+    if ($explicit.Count -gt 0) {
+        return $explicit
+    }
+
+    return @(Get-AutomaticAcceptanceChecks -Contract $Contract)
 }
 
 function Test-PackageAndDependencyChanges {
@@ -1133,7 +1271,9 @@ function Append-Report {
         $contractLines += "- Task mode: $($Contract.mode)"
         $contractLines += "- Task impact: $($Contract.impact)"
         $contractLines += "- Allowed scope: $(if ($Contract.scope.Count -gt 0) { $Contract.scope -join ', ' } else { 'profile/default' })"
-        $contractLines += "- Acceptance checks: $(if ($Contract.acceptance.Count -gt 0) { $Contract.acceptance -join ', ' } else { 'external build only' })"
+        $resolvedAcceptance = @(Get-TaskAcceptanceCommands -Contract $Contract)
+        $contractLines += "- Acceptance checks: $(if ($resolvedAcceptance.Count -gt 0) { $resolvedAcceptance -join ', ' } else { 'external build only' })"
+        $contractLines += "- Implementation scale: $(Get-TaskImplementationScale -Contract $Contract)"
     }
     Add-Content "docs/codex/NIGHTLY_REPORT.md" @"
 
@@ -2539,12 +2679,14 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host "----- TASK $i of $BatchSize -----" -ForegroundColor Cyan
         Write-Host "Selected task: $task" -ForegroundColor Cyan
         $taskContract = Resolve-TaskContract -Task $task
+        $taskAcceptanceCommands = @(Get-TaskAcceptanceCommands -Contract $taskContract)
+        $taskImplementationScale = Get-TaskImplementationScale -Contract $taskContract
         if ($taskContract.impact -eq "showpiece") {
             $batchImpactMode = "showpiece"
         } elseif ($taskContract.impact -eq "visible" -and $batchImpactMode -eq "standard") {
             $batchImpactMode = "visible"
         }
-        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), impact=$($taskContract.impact), scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), impact=$($taskContract.impact), scale=$taskImplementationScale, scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskAcceptanceCommands.Count -gt 0) { $taskAcceptanceCommands -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
         if ($taskContract.risk -in @("high", "gated") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
             $blockReason = "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present."
             if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
@@ -2580,6 +2722,13 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             Write-Host "Feature-pack task is not approved for autonomous implementation. Ending loop for human review." -ForegroundColor Red
             exit 1
         }
+        if (-not (Test-LargerChangePlanForLoop -Contract $taskContract)) {
+            $blockReason = "Large Phase 3 task requires a concrete slice plan before implementation."
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $blockReason -Contract $taskContract
+            Write-Host "Large Phase 3 task is not ready for autonomous implementation. Ending loop for human review." -ForegroundColor Red
+            exit 1
+        }
         $taskBase = (git rev-parse HEAD 2>$null)
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($taskBase)) {
             Write-Host "Could not determine task base commit before implementation." -ForegroundColor Red
@@ -2603,9 +2752,10 @@ Task contract:
 - Risk: $($taskContract.risk)
 - Mode: $($taskContract.mode)
 - Impact: $($taskContract.impact)
+- Implementation scale: $taskImplementationScale
 - Summary: $($taskContract.summary)
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
-- Acceptance checks: $(if ($taskContract.acceptance.Count -gt 0) { $taskContract.acceptance -join ", " } else { "External build only." })
+- Acceptance checks: $(if ($taskAcceptanceCommands.Count -gt 0) { $taskAcceptanceCommands -join ", " } else { "External build only." })
 
 Route/page context:
 $siteMapNote
@@ -2631,7 +2781,8 @@ Rules:
 9. If Impact is visible or showpiece, make a user-noticeable product change to the named screen/workflow. Tiny spacing-only, report-only, or invisible refactors do not satisfy the task. If the scope cannot support a visible improvement, leave it for a smaller follow-up task instead of pretending it is complete.
 10. For visible website/app work, remove repeated page identity and visual wrappers that create double headers, stacked intro bands, or route chrome that competes with the real page.
 11. For customer-facing copy, make each sentence answer who it is for, what the reader should do, and what they get. Avoid vague standalone phrases like artifact, workflow, polish, ready for service, manager-ready, staff-ready, bring the note, and start with X unless the concrete buyer/action/outcome is obvious.
-12. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
+12. If Implementation scale is large or pack, implement only the next slice named by the plan. Do not sprawl across unrelated files; summarize unresolved slices for later.
+13. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
@@ -2704,6 +2855,7 @@ Task contract:
 - Risk: $($taskContract.risk)
 - Mode: $($taskContract.mode)
 - Impact: $($taskContract.impact)
+- Implementation scale: $taskImplementationScale
 - Summary: $($taskContract.summary)
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 
