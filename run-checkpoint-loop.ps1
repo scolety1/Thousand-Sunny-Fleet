@@ -865,8 +865,10 @@ function Get-TaskImplementationScale {
     if ([string]$Contract.risk -in @("high", "gated")) { return "large" }
 
     $summary = [string]$Contract.summary
-    $largeIntentPattern = "(?i)\b(full|whole|entire|end-to-end|multi[- ]page|multi[- ]screen|across\s+the\s+app|major|rebuild|redesign|platform|system|workflow|module|deep)\b"
-    if ($summary -match $largeIntentPattern) { return "large" }
+    $scaleSummary = $summary -replace "(?is)\bGuardrails\s*:.*$", ""
+    $scaleSummary = $scaleSummary -replace "(?is)\bforbidden scope\b.*$", ""
+    $largeIntentPattern = "(?i)\b(full|whole|entire|end-to-end|multi[- ]page|multi[- ]screen|across\s+the\s+app|major|rebuild|redesign|platform|system|module|deep)\b|(?i)\b(full|new|entire|whole|end-to-end)\s+workflow\b"
+    if ($scaleSummary -match $largeIntentPattern) { return "large" }
 
     return "small"
 }

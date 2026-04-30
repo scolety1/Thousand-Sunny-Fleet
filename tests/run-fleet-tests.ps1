@@ -295,6 +295,8 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'Get-TaskImplementationScale') -Message "Checkpoint loop classifies implementation scale"
     Assert-True -Condition ($loopText -match 'Test-LargerChangePlanForLoop') -Message "Checkpoint loop gates larger changes on a slice plan"
     Assert-True -Condition ($loopText -match 'Large Phase 3 task requires') -Message "Large implementation work is blocked until planned"
+    Assert-True -Condition ($loopText -match 'scaleSummary\s*=\s*\$summary\s*-replace' -and $loopText -match 'Guardrails') -Message "Implementation scale ignores forbidden-scope guardrail prose"
+    Assert-True -Condition ($loopText -match 'full\|new\|entire\|whole\|end-to-end' -and $loopText -match 'workflow\\b') -Message "Implementation scale does not treat every workflow mention as large"
     Assert-True -Condition ($loopText -match 'MinLastWriteTime') -Message "Batch QA visual evidence can require fresh screenshots"
     Assert-True -Condition ($loopText -match 'High/gated task requires approved architecture plan') -Message "Checkpoint loop blocks high/gated tasks without architecture approval"
     Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
