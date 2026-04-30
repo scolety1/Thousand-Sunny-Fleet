@@ -105,8 +105,13 @@ if ($preStatus.Count -gt 0) {
 $branch = git branch --show-current
 $head = git rev-parse --short HEAD
 $status = @(git status --short 2>$null)
-$changed = @(git diff --name-status "$BaseBranch..HEAD")
-$commits = @(git log --oneline "$BaseBranch..HEAD")
+$baseExists = $false
+git rev-parse --verify "$BaseBranch^{commit}" *> $null
+if ($LASTEXITCODE -eq 0) {
+    $baseExists = $true
+}
+$changed = if ($baseExists) { @(git diff --name-status "$BaseBranch..HEAD" 2>$null) } else { @() }
+$commits = if ($baseExists) { @(git log --oneline "$BaseBranch..HEAD" 2>$null) } else { @("Base branch '$BaseBranch' not found locally; branch diff unavailable.") }
 $taskTail = if (Test-Path "docs/codex/TASK_QUEUE.md") { Get-Content "docs/codex/TASK_QUEUE.md" -Tail 120 } else { @("No task queue found.") }
 $completedTasks = if (Test-Path "docs/codex/TASK_QUEUE.md") { @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[x\]\s+(.+)" -ErrorAction SilentlyContinue | Select-Object -Last 12 | ForEach-Object { $_.Line.Trim() }) } else { @() }
 $uncheckedTasks = if (Test-Path "docs/codex/TASK_QUEUE.md") { @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]\s+(.+)" -ErrorAction SilentlyContinue | ForEach-Object { $_.Line.Trim() }) } else { @() }
@@ -120,6 +125,14 @@ $joeyVerdict = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Hea
 $joeyNextStep = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Recommended Next Step"
 $frankyVerdict = Get-MarkdownValue -Path "docs/codex/FRANKY_FORMULA_REVIEW.md" -Heading "Verdict"
 $frankyNextStep = Get-MarkdownValue -Path "docs/codex/FRANKY_FORMULA_REVIEW.md" -Heading "Stop Or Continue"
+$phaseStateText = if (Test-Path "docs/codex/PHASE_STATE.md") { Get-Content "docs/codex/PHASE_STATE.md" -Raw } else { "" }
+$currentPhaseMatch = [regex]::Match($phaseStateText, "(?im)^Current Phase:\s*(\S+)\s*$")
+$currentPhase = if ($currentPhaseMatch.Success) { $currentPhaseMatch.Groups[1].Value.Trim().ToLowerInvariant() } else { "" }
+$analyticalPhases = @("problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")
+if ($currentPhase -notin $analyticalPhases -and $frankyVerdict -match "(?i)^RED$" -and $frankyNextStep -match "(?i)stop") {
+    $frankyVerdict = "IGNORED_NON_ANALYTICAL"
+    $frankyNextStep = "ignored for non-analytical phase; do not create formula repair tasks from this stale report"
+}
 $visualSummary = Get-VisualSummary
 $buildOk = Invoke-ConfiguredBuild
 

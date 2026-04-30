@@ -50,7 +50,12 @@ if ([string]::IsNullOrWhiteSpace($Project)) {
 $branch = git branch --show-current 2>$null
 $head = git rev-parse --short HEAD 2>$null
 $dirty = @(git status --short 2>$null)
-$branchChanged = @(git diff --name-only "$BaseBranch..HEAD" 2>$null | ForEach-Object { Normalize-Path $_ })
+$baseExists = $false
+git rev-parse --verify "$BaseBranch^{commit}" *> $null
+if ($LASTEXITCODE -eq 0) {
+    $baseExists = $true
+}
+$branchChanged = if ($baseExists) { @(git diff --name-only "$BaseBranch..HEAD" 2>$null | ForEach-Object { Normalize-Path $_ }) } else { @() }
 $stagedChanged = @(git diff --cached --name-only 2>$null | ForEach-Object { Normalize-Path $_ })
 $worktreeChanged = @(git diff --name-only 2>$null | ForEach-Object { Normalize-Path $_ })
 $statusChanged = @(git status --porcelain 2>$null | ForEach-Object {
@@ -58,7 +63,7 @@ $statusChanged = @(git status --porcelain 2>$null | ForEach-Object {
         if ($line.Length -gt 3) { Normalize-Path $line.Substring(3).Trim() }
     } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
 $changed = @($branchChanged + $stagedChanged + $worktreeChanged + $statusChanged | Sort-Object -Unique)
-$changedStatus = @(git diff --name-status "$BaseBranch..HEAD" 2>$null)
+$changedStatus = if ($baseExists) { @(git diff --name-status "$BaseBranch..HEAD" 2>$null) } else { @() }
 $tracked = @(Get-TrackedFiles)
 
 $taskQueue = if (Test-Path "docs/codex/TASK_QUEUE.md") { Get-Content "docs/codex/TASK_QUEUE.md" -Raw } else { "" }
@@ -70,13 +75,23 @@ $numberProvenance = if (Test-Path "docs/codex/ANALYTICAL_NUMBER_PROVENANCE.md") 
 $calibration = if (Test-Path "docs/codex/CALIBRATION_READINESS.md") { Get-Content "docs/codex/CALIBRATION_READINESS.md" -Raw } else { "" }
 
 $formulaPathPattern = "(?i)(^|/)(models|model|scoring|score|formula|analytics|analysis|rank|ranking|valuation|projection|recommendation|services)(/|$)|(^|/)tests?/.*(score|formula|model|trade|rank|pick|keeper|import|calibration)|FORMULA_SPEC\.md|FIXTURE_TEST_PLAN\.md|MODEL_SPEC\.md|DATA_MODEL\.md"
-$formulaIntentPattern = "(?i)\b(formula|score|rank|ranking|probability|forecast|valuation|keeper|trade|pick value|confidence|calibration|expected output|fixture|model output|recommendation)\b"
+$formulaIntentPattern = "(?i)\b(formula|score|rank|ranking|probability|forecast|valuation|keeper|trade|pick value|confidence|calibration|expected output|fixture|model output)\b"
+$currentPhaseMatch = [regex]::Match($phaseState, "(?im)^Current Phase:\s*(problem-brief|data-contract|formula-spec|fixture-tests|engine-build|calibration|dashboard|scenario-tools|analysis-proof)\s*$")
+$analyticalPhaseIntent = $currentPhaseMatch.Success
+$analyticalDocsPresent = (
+    (Test-Path "docs/codex/ANALYSIS_BRIEF.md") -or
+    (Test-Path "docs/codex/DATA_CONTRACT.md") -or
+    (Test-Path "docs/codex/FORMULA_SPEC.md") -or
+    (Test-Path "docs/codex/FIXTURE_TEST_PLAN.md") -or
+    (Test-Path "docs/codex/ANALYSIS_APPROVAL.md")
+)
 
 $formulaFilesChanged = @($changed | Where-Object { $_ -match $formulaPathPattern })
+$taskFormulaIntent = ($taskQueue -match $formulaIntentPattern) -and ($analyticalPhaseIntent -or $analyticalDocsPresent)
 $formulaIntent = (
     $formulaFilesChanged.Count -gt 0 -or
-    $taskQueue -match $formulaIntentPattern -or
-    $phaseState -match "(?i)(formula-spec|fixture-tests|engine-build|calibration|dashboard|scenario-tools|analysis-proof)"
+    $taskFormulaIntent -or
+    $analyticalPhaseIntent
 )
 
 $testFilesChanged = @($changed | Where-Object { $_ -match "(?i)(^|/)tests?/|test_.*\.py$|\.test\.(js|jsx|ts|tsx)$|\.spec\.(js|jsx|ts|tsx)$" })
@@ -156,6 +171,7 @@ $lines = @(
     "## Formula Surface",
     "- Formula intent detected: $formulaIntent",
     "- Formula-sensitive changed files: $(if ($formulaFilesChanged.Count -gt 0) { $formulaFilesChanged -join ', ' } else { 'none' })",
+    "- Analytical phase/docs detected: $($analyticalPhaseIntent -or $analyticalDocsPresent)",
     "- Test files changed: $(if ($testFilesChanged.Count -gt 0) { $testFilesChanged -join ', ' } else { 'none' })",
     "- Tracked formula tests: $(if ($formulaTestsTracked.Count -gt 0) { $formulaTestsTracked -join ', ' } else { 'none' })",
     "- Dirty files: $(if ($dirty.Count -gt 0) { $dirty -join '; ' } else { 'clean' })",
