@@ -101,11 +101,12 @@ cd C:\Dev\codex-fleet
 
 `performance-review.ps1` is the Phase 12 performance reviewer layer for websites and app surfaces. Percy is deterministic and checks oversized build artifacts, missing build artifacts when a build script exists, large inline base64 assets, transition-all CSS, blur/filter usage, very short polling intervals, broad will-change usage, and eager autoplay video. The checkpoint loop can run it with `-PerformanceEvery 1`; proof/school/overnight launchers forward performance cadence so obvious page-weight and runtime-cost issues get caught before final checkpoint review.
 
-`fleet-experiment.ps1` is the Phase 13 experiment runner and parallel metrics lane. It reads an experiment manifest, validates the selected ships, refuses dirty selected repos unless explicitly allowed, and writes Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, and exact checkpoint commands. Use `-Template` to create a starter manifest, `-DryRun` to generate evidence without opening terminals, and `-SkipDoctor` only for disposable fixtures or controlled tests:
+`fleet-experiment.ps1` is the Phase 13 experiment runner and parallel metrics lane. It reads an experiment manifest, validates the selected ships, refuses dirty selected repos unless explicitly allowed, and writes Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, post-launch status, dirty-file counts, and exact checkpoint commands. Use `-Template` to create a starter manifest, `-DryRun` to generate evidence without opening terminals, `-RefreshStatus` to update an existing experiment report after ships have stopped or idled, and `-SkipDoctor` only for disposable fixtures or controlled tests:
 
 ```powershell
 .\fleet-experiment.ps1 -Template -ManifestPath .\experiments\three-ship-smoke.json
 .\fleet-experiment.ps1 -ManifestPath .\experiments\three-ship-smoke.json -DryRun
+.\fleet-experiment.ps1 -JsonOutPath .\out\fleet-experiment.json -OutPath .\out\fleet-experiment.md -RefreshStatus
 ```
 
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows. Proof runs include visual inspection, Simon, Robin, accessibility, performance, Joey, checkpoint review, and the checkpoint debugger by default; pass `-RobinEvery 0` only when intentionally skipping copy review for a non-copy technical probe.
@@ -260,7 +261,7 @@ Phase 11 accessibility review adds Ada Accessibility Review: website and app shi
 
 Phase 12 performance review adds Percy Performance Review: website and app ships can run deterministic page-weight and runtime-footgun checks for bundle size, CSS size, large assets, inline base64 media, transition-all CSS, blur/filter overuse, tiny polling intervals, and eager autoplay video before checkpoint review.
 
-Phase 13 experiment runner adds controlled parallel-run evidence: selected ships can run from one manifest with the same mission shape, capped runtime, reviewer cadence, and model budget while Fleet records speedup, efficiency, load imbalance, retry overhead, stop reasons, and exact commands for presentation or tuning work.
+Phase 13 experiment runner adds controlled parallel-run evidence: selected ships can run from one manifest with the same mission shape, capped runtime, reviewer cadence, and model budget while Fleet records speedup, efficiency, load imbalance, retry overhead, refreshed stop/idle states, dirty-file counts, and exact commands for presentation or tuning work.
 
 Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, accessibility, performance, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 

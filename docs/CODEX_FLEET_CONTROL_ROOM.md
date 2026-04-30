@@ -261,9 +261,10 @@ Phase 13 experiment runs:
 ```powershell
 .\fleet-experiment.ps1 -Template -ManifestPath .\experiments\three-ship-smoke.json
 .\fleet-experiment.ps1 -ManifestPath .\experiments\three-ship-smoke.json -DryRun
+.\fleet-experiment.ps1 -JsonOutPath .\out\fleet-experiment.json -OutPath .\out\fleet-experiment.md -RefreshStatus
 ```
 
-`fleet-experiment.ps1` is for controlled Thousand Sunny Fleet trials. It launches or dry-runs the same mission shape across selected ships, refuses dirty selected repos by default, keeps normal launch state separate, and writes Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, stop reasons, and exact commands.
+`fleet-experiment.ps1` is for controlled Thousand Sunny Fleet trials. It launches or dry-runs the same mission shape across selected ships, refuses dirty selected repos by default, keeps normal launch state separate, and writes Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, refreshed running/idle/stopped states, dirty-file counts, stop reasons, and exact commands.
 
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.

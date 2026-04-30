@@ -492,7 +492,7 @@ Exit criteria:
 
 Purpose: Add a bounded experiment lane so Fleet can launch the same mission shape across multiple ships, measure parallel performance, and produce evidence for the Thousand Sunny Fleet project without spending overnight budget blindly.
 
-Status: implemented for the first experiment lane. `fleet-experiment.ps1` can create a starter manifest, validate selected ships, refuse dirty selected repos by default, launch or dry-run one checkpoint loop per ship, and write Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, stop reasons, and exact commands.
+Status: implemented for the first experiment lane. `fleet-experiment.ps1` can create a starter manifest, validate selected ships, refuse dirty selected repos by default, launch or dry-run one checkpoint loop per ship, refresh post-launch status from an existing JSON report, and write Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, stop/idle states, dirty-file counts, and exact commands.
 
 Required upgrades:
 
@@ -512,6 +512,8 @@ Required upgrades:
   - launch time
   - active work duration
   - reviewer duration
+  - refreshed running/idle/stopped state
+  - dirty file count and dirty file list
   - repair/retry count
   - stop reason
 - Add a summary report with HPC-friendly metrics:

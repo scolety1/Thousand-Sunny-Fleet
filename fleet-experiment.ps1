@@ -12,6 +12,8 @@ param(
 
     [switch]$DryRun,
 
+    [switch]$RefreshStatus,
+
     [switch]$SkipDoctor,
 
     [switch]$AllowDirty,
@@ -201,6 +203,144 @@ function Test-RepoDirty {
     }
 }
 
+function Get-RepoStatusEntries {
+    param([string]$Repo)
+
+    if (!(Test-Path $Repo)) {
+        return @("!! repo missing: $Repo")
+    }
+
+    Push-Location $Repo
+    try {
+        return @(git status --short 2>$null)
+    } finally {
+        Pop-Location
+    }
+}
+
+function Get-RepoDirtyPaths {
+    param([string[]]$StatusEntries)
+
+    return @(
+        $StatusEntries |
+            ForEach-Object {
+                $line = [string]$_
+                if ($line.Length -ge 4) {
+                    $line.Substring(3).Trim()
+                } else {
+                    $line.Trim()
+                }
+            } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
+function Test-ReportOnlyDirtyPaths {
+    param([string[]]$DirtyPaths)
+
+    if ($DirtyPaths.Count -eq 0) { return $false }
+
+    $reportPattern = '^(docs[\\/]+codex[\\/]+(MAGIC_SCORECARD|NIGHTLY_REPORT|RUNTIME_VERIFICATION|CHECKPOINT_REPORT|VISUAL_INSPECTION|SIMON_REVIEW|ROBIN_REVIEW|JOEY_SECURITY_REVIEW|ACCESSIBILITY_REVIEW|PERFORMANCE_REVIEW|TASK_REVIEW)\.md)$'
+    foreach ($path in $DirtyPaths) {
+        if ($path -notmatch $reportPattern) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Test-ProcessAlive {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return $false }
+    $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    return ($null -ne $process)
+}
+
+function Get-ChildProcessCount {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return 0 }
+    try {
+        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue)
+        $activeChildren = @($children | Where-Object {
+            $name = [string]$_.Name
+            ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+        })
+        return $activeChildren.Count
+    } catch {
+        return 0
+    }
+}
+
+function Set-ExperimentProperty {
+    param(
+        [object]$Target,
+        [string]$Name,
+        [object]$Value
+    )
+
+    if ($Target.PSObject.Properties[$Name]) {
+        $Target.PSObject.Properties[$Name].Value = $Value
+    } else {
+        $Target | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
+    }
+}
+
+function Update-ExperimentEntryStatus {
+    param([object]$Entry)
+
+    if ([string]$Entry.status -eq "DRY_RUN") {
+        Set-ExperimentProperty -Target $Entry -Name "dirtyFiles" -Value @()
+        Set-ExperimentProperty -Target $Entry -Name "childProcessCount" -Value 0
+        Set-ExperimentProperty -Target $Entry -Name "refreshedAt" -Value (Get-Date).ToString("o")
+        return $Entry
+    }
+
+    $statusEntries = @(Get-RepoStatusEntries -Repo ([string]$Entry.repo))
+    $dirtyPaths = @(Get-RepoDirtyPaths -StatusEntries $statusEntries)
+    $reportOnlyDirty = Test-ReportOnlyDirtyPaths -DirtyPaths $dirtyPaths
+    $processId = 0
+    if ($null -ne $Entry.processId) { $processId = [int]$Entry.processId }
+    $processAlive = Test-ProcessAlive -ProcessId $processId
+    $childProcessCount = if ($processAlive) { Get-ChildProcessCount -ProcessId $processId } else { 0 }
+
+    $newStatus = "STOPPED_CLEAN"
+    $stopReason = "process stopped and repo is clean"
+
+    if ($processAlive -and $childProcessCount -gt 0) {
+        $newStatus = "RUNNING"
+        $stopReason = "launcher process is alive with child work"
+    } elseif ($processAlive -and $childProcessCount -eq 0) {
+        if ($dirtyPaths.Count -eq 0) {
+            $newStatus = "IDLE_SHELL_CLEAN"
+            $stopReason = "launcher shell is open but no child work is active"
+        } elseif ($reportOnlyDirty) {
+            $newStatus = "IDLE_SHELL_REPORTS_DIRTY"
+            $stopReason = "launcher shell is idle; only fleet report files changed"
+        } else {
+            $newStatus = "IDLE_SHELL_DIRTY_NEEDS_INSPECTION"
+            $stopReason = "launcher shell is idle with non-report repo changes"
+        }
+    } elseif ($dirtyPaths.Count -eq 0) {
+        $newStatus = "STOPPED_CLEAN"
+        $stopReason = "process stopped and repo is clean"
+    } elseif ($reportOnlyDirty) {
+        $newStatus = "STOPPED_REPORTS_DIRTY"
+        $stopReason = "process stopped; only fleet report files changed"
+    } else {
+        $newStatus = "STOPPED_DIRTY_NEEDS_INSPECTION"
+        $stopReason = "process stopped with non-report repo changes"
+    }
+
+    Set-ExperimentProperty -Target $Entry -Name "status" -Value $newStatus
+    Set-ExperimentProperty -Target $Entry -Name "stopReason" -Value $stopReason
+    Set-ExperimentProperty -Target $Entry -Name "dirtyFiles" -Value $dirtyPaths
+    Set-ExperimentProperty -Target $Entry -Name "childProcessCount" -Value $childProcessCount
+    Set-ExperimentProperty -Target $Entry -Name "refreshedAt" -Value (Get-Date).ToString("o")
+    return $Entry
+}
+
 function New-ExperimentCommand {
     param(
         [object]$Manifest,
@@ -266,6 +406,108 @@ function New-ExperimentMetrics {
     }
 }
 
+function Write-ExperimentOutputs {
+    param(
+        [object]$Experiment,
+        [string]$MarkdownPath,
+        [string]$JsonPath
+    )
+
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $MarkdownPath) | Out-Null
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $JsonPath) | Out-Null
+
+    $Experiment | ConvertTo-Json -Depth 10 | Set-Content -Path $JsonPath -Encoding UTF8
+
+    $metrics = $Experiment.metrics
+    $entries = @($Experiment.entries)
+    $mode = if ($Experiment.statusRefreshed) {
+        "STATUS REFRESH"
+    } elseif ($Experiment.dryRun) {
+        "DRY RUN"
+    } else {
+        "LIVE LAUNCH"
+    }
+
+    $lines = @(
+        "# Fleet Experiment",
+        "",
+        "- Experiment: $($Experiment.experimentName)",
+        "- ID: $($Experiment.experimentId)",
+        "- Mode: $mode",
+        "- Workload class: $($Experiment.workloadClass)",
+        "- Loop phase: $($Experiment.loopPhase)",
+        "- Model budget: $($Experiment.modelBudget)",
+        "- Batch shape: $($Experiment.batchSize) x $($Experiment.maxBatches)",
+        "- Max runtime cap: $($Experiment.maxRuntimeMinutes) minutes",
+        "- Manifest: $($Experiment.manifestPath)",
+        "- Raw JSON: $JsonPath",
+        "",
+        "## HPC Metrics",
+        "",
+        "| Metric | Value |",
+        "| --- | ---: |",
+        "| Ships | $($metrics.shipCount) |",
+        "| Serial baseline minutes | $($metrics.baselineSerialMinutes) |",
+        "| Parallel wall-clock minutes | $($metrics.parallelWallClockMinutes) |",
+        "| Speedup | $($metrics.speedup) |",
+        "| Efficiency | $($metrics.efficiency) |",
+        "| Load imbalance | $($metrics.loadImbalance) |",
+        "| Failure/retry overhead | $($metrics.failureRetryOverhead) |",
+        "",
+        "## Reviewer Cadence",
+        "",
+        "- Visual inspect every: $($Experiment.reviewerCadence.visualInspectEvery)",
+        "- Simon every: $($Experiment.reviewerCadence.simonEvery)",
+        "- Robin every: $($Experiment.reviewerCadence.robinEvery)",
+        "- Accessibility every: $($Experiment.reviewerCadence.accessibilityEvery)",
+        "- Performance every: $($Experiment.reviewerCadence.performanceEvery)",
+        "- Joey every: $($Experiment.reviewerCadence.joeyEvery)",
+        "",
+        "## Ships",
+        "",
+        "| Ship | PID | Status | Child Processes | Dirty Files | Planned Minutes | Queue Index | Stop Reason |",
+        "| --- | ---: | --- | ---: | ---: | ---: | ---: | --- |"
+    )
+
+    foreach ($entry in $entries) {
+        $dirtyCount = @($entry.dirtyFiles).Count
+        $childCount = if ($null -ne $entry.childProcessCount) { [int]$entry.childProcessCount } else { 0 }
+        $lines += "| $($entry.ship) | $($entry.processId) | $($entry.status) | $childCount | $dirtyCount | $($entry.plannedRuntimeMinutes) | $($entry.queueIndex) | $($entry.stopReason) |"
+    }
+
+    foreach ($entry in $entries) {
+        $dirtyFiles = @($entry.dirtyFiles)
+        if ($dirtyFiles.Count -gt 0) {
+            $lines += @("", "### $($entry.ship) Dirty Files", "")
+            foreach ($dirtyFile in $dirtyFiles) {
+                $lines += "- $dirtyFile"
+            }
+        }
+    }
+
+    $criteria = @(ConvertTo-ExperimentTextList -Value $Experiment.successCriteria)
+    if ($criteria.Count -gt 0) {
+        $lines += @("", "## Success Criteria", "")
+        foreach ($criterion in $criteria) {
+            $lines += "- $criterion"
+        }
+    }
+
+    $lines += @("", "## Commands", "")
+    foreach ($entry in $entries) {
+        $lines += @(
+            "### $($entry.ship)",
+            "",
+            '```powershell',
+            $entry.command,
+            '```',
+            ""
+        )
+    }
+
+    Set-Content -Path $MarkdownPath -Value $lines -Encoding UTF8
+}
+
 $manifestFullPath = Resolve-ControlPath -Path $ManifestPath
 $outFullPath = Resolve-ControlPath -Path $OutPath
 $jsonOutFullPath = Resolve-ControlPath -Path $JsonOutPath
@@ -273,6 +515,33 @@ $configFullPath = Resolve-ControlPath -Path $ConfigPath
 
 if ($Template) {
     Write-ExperimentTemplate -Path $manifestFullPath
+    exit 0
+}
+
+if ($RefreshStatus) {
+    if (!(Test-Path $jsonOutFullPath)) {
+        Stop-Experiment "Experiment JSON not found for refresh: $jsonOutFullPath"
+    }
+
+    $existingExperiment = $null
+    try {
+        $existingExperiment = Get-Content $jsonOutFullPath -Raw | ConvertFrom-Json
+    } catch {
+        Stop-Experiment "Experiment JSON is not valid: $jsonOutFullPath"
+    }
+
+    $refreshedEntries = @()
+    foreach ($entry in @($existingExperiment.entries)) {
+        $refreshedEntries += Update-ExperimentEntryStatus -Entry $entry
+    }
+    Set-ExperimentProperty -Target $existingExperiment -Name "entries" -Value $refreshedEntries
+    Set-ExperimentProperty -Target $existingExperiment -Name "statusRefreshed" -Value $true
+    Set-ExperimentProperty -Target $existingExperiment -Name "refreshedAt" -Value (Get-Date).ToString("o")
+    Set-ExperimentProperty -Target $existingExperiment -Name "writtenAt" -Value (Get-Date).ToString("o")
+
+    Write-ExperimentOutputs -Experiment $existingExperiment -MarkdownPath $outFullPath -JsonPath $jsonOutFullPath
+    Write-Host "Experiment status refreshed: $outFullPath" -ForegroundColor Green
+    Write-Host "Experiment JSON: $jsonOutFullPath" -ForegroundColor DarkCyan
     exit 0
 }
 
@@ -422,74 +691,7 @@ $json = [pscustomobject]@{
     metrics = $metrics
     entries = @($entries)
 }
-$json | ConvertTo-Json -Depth 8 | Set-Content -Path $jsonOutFullPath -Encoding UTF8
-
-$lines = @(
-    "# Fleet Experiment",
-    "",
-    "- Experiment: $experimentName",
-    "- ID: $experimentId",
-    "- Mode: $(if ($DryRun) { 'DRY RUN' } else { 'LIVE LAUNCH' })",
-    "- Workload class: $($json.workloadClass)",
-    "- Loop phase: $loopPhase",
-    "- Model budget: $modelBudget",
-    "- Batch shape: $batchSize x $maxBatches",
-    "- Max runtime cap: $maxRuntimeMinutes minutes",
-    "- Manifest: $manifestFullPath",
-    "- Raw JSON: $jsonOutFullPath",
-    "",
-    "## HPC Metrics",
-    "",
-    "| Metric | Value |",
-    "| --- | ---: |",
-    "| Ships | $($metrics.shipCount) |",
-    "| Serial baseline minutes | $($metrics.baselineSerialMinutes) |",
-    "| Parallel wall-clock minutes | $($metrics.parallelWallClockMinutes) |",
-    "| Speedup | $($metrics.speedup) |",
-    "| Efficiency | $($metrics.efficiency) |",
-    "| Load imbalance | $($metrics.loadImbalance) |",
-    "| Failure/retry overhead | $($metrics.failureRetryOverhead) |",
-    "",
-    "## Reviewer Cadence",
-    "",
-    "- Visual inspect every: $visualInspectEvery",
-    "- Simon every: $simonEvery",
-    "- Robin every: $robinEvery",
-    "- Accessibility every: $accessibilityEvery",
-    "- Performance every: $performanceEvery",
-    "- Joey every: $joeyEvery",
-    "",
-    "## Ships",
-    "",
-    "| Ship | PID | Status | Planned Minutes | Queue Index | Stop Reason |",
-    "| --- | ---: | --- | ---: | ---: | --- |"
-)
-
-foreach ($entry in $entries) {
-    $lines += "| $($entry.ship) | $($entry.processId) | $($entry.status) | $($entry.plannedRuntimeMinutes) | $($entry.queueIndex) | $($entry.stopReason) |"
-}
-
-$criteria = @(ConvertTo-ExperimentTextList -Value $manifest.successCriteria)
-if ($criteria.Count -gt 0) {
-    $lines += @("", "## Success Criteria", "")
-    foreach ($criterion in $criteria) {
-        $lines += "- $criterion"
-    }
-}
-
-$lines += @("", "## Commands", "")
-foreach ($entry in $entries) {
-    $lines += @(
-        "### $($entry.ship)",
-        "",
-        '```powershell',
-        $entry.command,
-        '```',
-        ""
-    )
-}
-
-Set-Content -Path $outFullPath -Value $lines -Encoding UTF8
+Write-ExperimentOutputs -Experiment $json -MarkdownPath $outFullPath -JsonPath $jsonOutFullPath
 Write-Host "Experiment report: $outFullPath" -ForegroundColor Green
 Write-Host "Experiment JSON: $jsonOutFullPath" -ForegroundColor DarkCyan
 exit 0

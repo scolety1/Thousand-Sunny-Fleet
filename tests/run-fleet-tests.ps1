@@ -766,6 +766,8 @@ function Test-PhaseThirteenExperimentRunner {
     Assert-True -Condition ($experimentText -match 'experimentName' -and $experimentText -match 'selectedShips' -and $experimentText -match 'workloadClass') -Message "Experiment runner reads experiment manifests"
     Assert-True -Condition ($experimentText -match 'speedup' -and $experimentText -match 'efficiency' -and $experimentText -match 'loadImbalance') -Message "Experiment runner writes HPC metrics"
     Assert-True -Condition ($experimentText -match 'AllowDirty' -and $experimentText -match 'Experiment refused because selected ship\(s\) are dirty') -Message "Experiment runner protects dirty selected ships"
+    Assert-True -Condition ($experimentText -match 'RefreshStatus' -and $experimentText -match 'IDLE_SHELL' -and $experimentText -match 'STOPPED_CLEAN') -Message "Experiment runner can refresh post-launch ship status"
+    Assert-True -Condition ($experimentText -match 'dirtyFiles' -and $experimentText -match 'STOPPED_DIRTY_NEEDS_INSPECTION') -Message "Experiment refresh records dirty files for inspection"
     Assert-True -Condition ($experimentText -notmatch 'latest-launch\.md') -Message "Experiment runner does not overwrite normal latest-launch report"
     Assert-True -Condition ($harnessText -match 'fleet-experiment\.ps1') -Message "Harness parses experiment runner"
     Assert-True -Condition ($roadmapText -match 'Phase 13 - Experiment Runner And Parallel Metrics') -Message "Roadmap documents Phase 13"
@@ -848,6 +850,20 @@ function Test-PhaseThirteenExperimentRunner {
     Assert-Equal -Actual $experimentJson.metrics.efficiency -Expected 1 -Message "Experiment metrics compute efficiency"
     Assert-True -Condition ($experimentJson.entries.Count -eq 2 -and $experimentJson.entries[0].status -eq "DRY_RUN") -Message "Experiment JSON records launched dry-run entries"
     Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'run-checkpoint-loop\.ps1') -Message "Experiment entries include checkpoint commands"
+
+    $refreshRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-OutPath", $outPath,
+        "-JsonOutPath", $jsonOut,
+        "-RefreshStatus"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $refreshRun.ExitCode -Expected 0 -Message "Experiment runner refreshes existing JSON evidence"
+    $refreshedReport = Get-Content $outPath -Raw
+    $refreshedJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
+    Assert-True -Condition ($refreshedReport -match 'STATUS REFRESH' -and $refreshedReport -match 'Dirty Files') -Message "Experiment refresh rewrites Markdown status evidence"
+    Assert-True -Condition ($refreshedJson.statusRefreshed -eq $true -and $refreshedJson.entries[0].PSObject.Properties['dirtyFiles']) -Message "Experiment refresh writes refreshed JSON fields"
 
     $invalidManifest = Join-Path $experimentRoot "experiment-invalid.json"
     [pscustomobject]@{
