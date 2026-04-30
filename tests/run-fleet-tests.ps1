@@ -1565,6 +1565,7 @@ function Test-MagicRunSupport {
     Assert-True -Condition ($loopText -match '\$checkpointExit\s+-ne\s+0[\s\S]{0,120}Release-FleetRunLock[\s\S]{0,40}exit 1') -Message "Checkpoint loop releases run lock before checkpoint review failure exit"
     Assert-True -Condition ($loopText -match '\$plannerExit\s+-ne\s+0[\s\S]{0,120}Release-FleetRunLock[\s\S]{0,40}exit 1') -Message "Checkpoint loop releases run lock before planner failure exit"
     Assert-True -Condition ($plannerText -match 'changedPackLabels' -and $plannerText -match 'User pain: \$activeWorkPack') -Message "Planner normalizes tasks to mention the active work pack before rejection"
+    Assert-True -Condition ($plannerText -match 'ignore stale or irrelevant Franky/formula-review RED signals outside analytical phases') -Message "Planner ignores stale Franky blockers for non-analytical website runs"
     Assert-True -Condition ($loopText -match 'Task impact:') -Message "Nightly report records task impact metadata"
     Assert-True -Condition ($loopText -match 'Append-MagicScorecard.+-TaskBase') -Message "Magic scorecard receives task base for materiality line counts"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw) -match 'ImpactMode') -Message "Checkpoint debugger can enforce visible-impact batches"

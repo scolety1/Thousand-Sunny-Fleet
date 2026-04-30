@@ -255,6 +255,7 @@ Rules:
   - Do not propose backend, integration, or migration implementation unless the ship profile capability allows it and the matching Phase 4 evidence exists: API_CONTRACT.md plus approved API_CONTRACT_TESTS.md for backend/integration work, SEED_FIXTURE_PLAN.md plus approved SEED_FIXTURE_EVIDENCE.md for backend/migration work, and MIGRATION_PROPOSAL.md plus approved MIGRATION_APPROVAL.md for migration work. If evidence is missing, generate a docs/codex planning/evidence task instead.
 - Do not propose package/dependency edits unless DEPENDENCY_APPROVAL.md is approved and the task explicitly asks for an approved dependency lane.
 - If the checkpoint review says RED or a required human approval is missing and Current loop phase is not repair, output one docs-only task to summarize the blocker and stop-risk, then no more tasks.
+- Exception: ignore stale or irrelevant Franky/formula-review RED signals outside analytical phases unless the current task, phase, or ship is actually formula/model/calculation work.
 - If the checkpoint review merely says "stop for human review" because Simon/Robin are YELLOW while build, security, and visual blockers are otherwise clear, do not create a docs-only stop task during shape/simplicity/polish/proof runs. Instead generate one bounded product-surface repair from the named Simon/Robin concern, or stop planning if no concrete concern is named.
 
 Repository: $($repoPath.Path)
