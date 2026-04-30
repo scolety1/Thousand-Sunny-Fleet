@@ -345,6 +345,7 @@ function New-ExperimentCommand {
     param(
         [object]$Manifest,
         [object]$Ship,
+        [string]$ConfigPath,
         [int]$BatchSize,
         [int]$MaxBatches,
         [string]$LoopPhase,
@@ -359,7 +360,7 @@ function New-ExperimentCommand {
 
     return @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($Ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -ModelBudget $ModelBudget -LoopPhase $LoopPhase -LaunchGateMode warn -KillSwitchMode warn -VisualInspectEvery $VisualInspectEvery -SimonEvery $SimonEvery -RobinEvery $RobinEvery -AccessibilityEvery $AccessibilityEvery -PerformanceEvery $PerformanceEvery -JoeyEvery $JoeyEvery -ContinueOnYellowCheckpoint -MaxTaskQuarantines 1"
+        ".\run-checkpoint-loop.ps1 -ConfigPath '$ConfigPath' -Project '$($Ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -ModelBudget $ModelBudget -LoopPhase $LoopPhase -LaunchGateMode warn -KillSwitchMode warn -VisualInspectEvery $VisualInspectEvery -SimonEvery $SimonEvery -RobinEvery $RobinEvery -AccessibilityEvery $AccessibilityEvery -PerformanceEvery $PerformanceEvery -JoeyEvery $JoeyEvery -ContinueOnYellowCheckpoint -MaxTaskQuarantines 1"
     ) -join "; "
 }
 
@@ -454,6 +455,8 @@ function Write-ExperimentOutputs {
         "| Load imbalance | $($metrics.loadImbalance) |",
         "| Failure/retry overhead | $($metrics.failureRetryOverhead) |",
         "",
+        "Metric basis: speedup, efficiency, and load imbalance are computed from the planned runtime estimates in the experiment manifest. Refreshed ship status reflects live process and dirty-file state.",
+        "",
         "## Reviewer Cadence",
         "",
         "- Visual inspect every: $($Experiment.reviewerCadence.visualInspectEvery)",
@@ -470,13 +473,14 @@ function Write-ExperimentOutputs {
     )
 
     foreach ($entry in $entries) {
-        $dirtyCount = @($entry.dirtyFiles).Count
+        $dirtyFiles = @($entry.dirtyFiles) | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+        $dirtyCount = $dirtyFiles.Count
         $childCount = if ($null -ne $entry.childProcessCount) { [int]$entry.childProcessCount } else { 0 }
         $lines += "| $($entry.ship) | $($entry.processId) | $($entry.status) | $childCount | $dirtyCount | $($entry.plannedRuntimeMinutes) | $($entry.queueIndex) | $($entry.stopReason) |"
     }
 
     foreach ($entry in $entries) {
-        $dirtyFiles = @($entry.dirtyFiles)
+        $dirtyFiles = @($entry.dirtyFiles) | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) }
         if ($dirtyFiles.Count -gt 0) {
             $lines += @("", "### $($entry.ship) Dirty Files", "")
             foreach ($dirtyFile in $dirtyFiles) {
@@ -636,7 +640,7 @@ $entries = [System.Collections.Generic.List[object]]::new()
 $queueIndex = 0
 foreach ($ship in $selectedProjects) {
     $plannedRuntime = Get-ShipRuntimeMinutes -Manifest $manifest -ShipName ([string]$ship.name) -DefaultMinutes $maxRuntimeMinutes
-    $command = New-ExperimentCommand -Manifest $manifest -Ship $ship -BatchSize $batchSize -MaxBatches $maxBatches -LoopPhase $loopPhase -ModelBudget $modelBudget -VisualInspectEvery $visualInspectEvery -SimonEvery $simonEvery -RobinEvery $robinEvery -AccessibilityEvery $accessibilityEvery -PerformanceEvery $performanceEvery -JoeyEvery $joeyEvery
+    $command = New-ExperimentCommand -Manifest $manifest -Ship $ship -ConfigPath $configFullPath -BatchSize $batchSize -MaxBatches $maxBatches -LoopPhase $loopPhase -ModelBudget $modelBudget -VisualInspectEvery $visualInspectEvery -SimonEvery $simonEvery -RobinEvery $robinEvery -AccessibilityEvery $accessibilityEvery -PerformanceEvery $performanceEvery -JoeyEvery $joeyEvery
     $queuedAt = $startedAt.AddSeconds($queueIndex)
     $processId = 0
     $launchStatus = "DRY_RUN"

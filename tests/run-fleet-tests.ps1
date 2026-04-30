@@ -206,6 +206,7 @@ function Test-FixtureGeneration {
     $parsedProjects = Get-Content $fixtureConfig -Raw | ConvertFrom-Json
     $projects = @($parsedProjects | ForEach-Object { $_ })
     Assert-Equal -Actual $projects.Count -Expected 3 -Message "Fixture config contains three ships"
+    Assert-True -Condition ((Get-Content $generator -Raw) -match 'PresentationWorkloads') -Message "Fixture generator supports presentation-specific workload tasks"
 }
 
 function Test-PhaseZeroIntakeSupport {
@@ -771,6 +772,7 @@ function Test-PhaseThirteenExperimentRunner {
     Assert-True -Condition ($experimentText -match 'RefreshStatus' -and $experimentText -match 'IDLE_SHELL' -and $experimentText -match 'STOPPED_CLEAN') -Message "Experiment runner can refresh post-launch ship status"
     Assert-True -Condition ($experimentText -match 'dirtyFiles' -and $experimentText -match 'STOPPED_DIRTY_NEEDS_INSPECTION') -Message "Experiment refresh records dirty files for inspection"
     Assert-True -Condition ($experimentText -notmatch 'latest-launch\.md') -Message "Experiment runner does not overwrite normal latest-launch report"
+    Assert-True -Condition ($experimentText -match 'Metric basis:' -and $experimentText -match 'planned runtime estimates') -Message "Experiment report labels planned HPC metrics clearly"
     Assert-True -Condition ($harnessText -match 'fleet-experiment\.ps1') -Message "Harness parses experiment runner"
     Assert-True -Condition ($roadmapText -match 'Phase 13 - Experiment Runner And Parallel Metrics') -Message "Roadmap documents Phase 13"
 
@@ -847,11 +849,13 @@ function Test-PhaseThirteenExperimentRunner {
     Assert-True -Condition (Test-Path $jsonOut) -Message "Experiment runner writes JSON evidence"
     $experimentReport = Get-Content $outPath -Raw
     Assert-True -Condition ($experimentReport -match '## HPC Metrics' -and $experimentReport -match 'Speedup' -and $experimentReport -match 'Load imbalance') -Message "Experiment report includes HPC metrics"
+    Assert-True -Condition ($experimentReport -match 'Metric basis:') -Message "Experiment Markdown explains planned versus live evidence"
     $experimentJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
     Assert-Equal -Actual $experimentJson.metrics.speedup -Expected 2 -Message "Experiment metrics compute speedup"
     Assert-Equal -Actual $experimentJson.metrics.efficiency -Expected 1 -Message "Experiment metrics compute efficiency"
     Assert-True -Condition ($experimentJson.entries.Count -eq 2 -and $experimentJson.entries[0].status -eq "DRY_RUN") -Message "Experiment JSON records launched dry-run entries"
     Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'run-checkpoint-loop\.ps1') -Message "Experiment entries include checkpoint commands"
+    Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match [regex]::Escape("-ConfigPath '$experimentConfig'")) -Message "Experiment entries pass the selected fixture config to checkpoint loops"
 
     $refreshRun = Invoke-Checked -FilePath "powershell" -Arguments @(
         "-NoProfile",

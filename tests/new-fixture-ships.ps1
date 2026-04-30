@@ -4,7 +4,9 @@ param(
 
     [switch]$Force,
 
-    [switch]$UseRealModels
+    [switch]$UseRealModels,
+
+    [switch]$PresentationWorkloads
 )
 
 $ErrorActionPreference = "Stop"
@@ -76,15 +78,33 @@ function New-FixtureRepo {
         "- Build command must stay local.",
         "- Do not touch secrets, auth, deploys, package files, or generated output."
     )
-    Write-TextFile -Path (Join-Path $repo "docs\codex\TASK_QUEUE.md") -Lines @(
-        "# Fixture Task Queue",
-        "",
-        "## Tasks",
-        "",
-        "- [ ] Fixture safe task: improve one line of fixture copy. Do not touch secrets, auth, deploys, dependencies, or generated output.",
-        "  - [ ] Fixture indented task: prove whitespace-tolerant task parsing. Do not touch secrets, auth, deploys, dependencies, or generated output.",
-        "- [x] Fixture completed task: already done."
-    )
+    $taskLines = if ($PresentationWorkloads) {
+        $workloadLabel = if ($DocsOnly) {
+            "analytical model brief"
+        } elseif ($RealProductLike) {
+            "interactive app shell"
+        } else {
+            "simple website"
+        }
+        @(
+            "# Fixture Task Queue",
+            "",
+            "## Tasks",
+            "",
+            "- [ ] User pain: presenter needs the $workloadLabel workload to show one obvious parallel-worker outcome. Target: fixture surface. Change: make one tiny visible or reportable improvement that proves this worker advanced independently. Remove/simplify: keep the change to one file and avoid broad polish. Guardrails: no auth, backend, payments, package/dependency files, deploy config, secrets, generated output, or unrelated files. Acceptance: local fixture build or docs-only check passes. Check: report the changed file and leave the repo clean after commit. [class:copy risk:low mode:single impact:visible scope:src/,app-vNext/src/,docs/codex/]"
+        )
+    } else {
+        @(
+            "# Fixture Task Queue",
+            "",
+            "## Tasks",
+            "",
+            "- [ ] Fixture safe task: improve one line of fixture copy. Do not touch secrets, auth, deploys, dependencies, or generated output.",
+            "  - [ ] Fixture indented task: prove whitespace-tolerant task parsing. Do not touch secrets, auth, deploys, dependencies, or generated output.",
+            "- [x] Fixture completed task: already done."
+        )
+    }
+    Write-TextFile -Path (Join-Path $repo "docs\codex\TASK_QUEUE.md") -Lines $taskLines
     Write-TextFile -Path (Join-Path $repo "docs\codex\NIGHTLY_REPORT.md") -Lines @(
         "# Fixture Nightly Report",
         "",
