@@ -1829,6 +1829,7 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($autopilotText -match '\$null -eq \$process\.ExitCode') -Message "Overnight autopilot handles blank completed process exit codes"
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
     Assert-True -Condition ($overnightText -match 'maxPlannerBatches\s*=\s*Get-MinPositive\s+-Value\s+\$ShipMaxPlannerBatches\s+-Cap\s+4') -Message "Cheap overnight runs allow follow-up planner batches"
+    Assert-True -Condition ($overnightText -match 'run-checkpoint-loop\.ps1 -ConfigPath') -Message "Overnight launcher forwards config path to checkpoint loops"
     Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
     Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
     Assert-True -Condition ($readmeText -match 'start-overnight-autopilot\.ps1') -Message "README documents overnight autopilot wrapper"
