@@ -34,6 +34,8 @@ param(
 
     [switch]$RequirePhaseValidation,
 
+    [switch]$UseGlobalRunShape,
+
     [ValidateSet("off", "warn", "enforce")]
     [string]$LaunchGateMode = "warn",
 
@@ -212,12 +214,12 @@ $manifestMode = if ($DryRun) { "school-proof" } else { "school" }
 $latestManifestFile = if ($DryRun) { "latest-proof-launch.md" } else { "latest-launch.md" }
 $manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode $manifestMode -ConfigPath $ConfigPath -ProjectFilter $manifestProjectFilter -LatestFileName $latestManifestFile
 foreach ($ship in $shipsToLaunch) {
-    $shipBatchSize = Get-ShipInt -Ship $ship -Name "schoolBatchSize" -Default $BatchSize
-    $shipMaxBatches = Get-ShipInt -Ship $ship -Name "schoolMaxBatches" -Default $MaxBatches
-    $shipVisualEvery = Get-ShipInt -Ship $ship -Name "schoolVisualInspectEvery" -Default 2
-    $shipSimonEvery = Get-ShipInt -Ship $ship -Name "schoolSimonEvery" -Default 2
-    $shipRobinEvery = Get-ShipInt -Ship $ship -Name "schoolRobinEvery" -Default 2
-    $shipJoeyEvery = Get-ShipInt -Ship $ship -Name "schoolJoeyEvery" -Default 4
+    $shipBatchSize = if ($UseGlobalRunShape) { $BatchSize } else { Get-ShipInt -Ship $ship -Name "schoolBatchSize" -Default $BatchSize }
+    $shipMaxBatches = if ($UseGlobalRunShape) { $MaxBatches } else { Get-ShipInt -Ship $ship -Name "schoolMaxBatches" -Default $MaxBatches }
+    $shipVisualEvery = if ($UseGlobalRunShape) { 2 } else { Get-ShipInt -Ship $ship -Name "schoolVisualInspectEvery" -Default 2 }
+    $shipSimonEvery = if ($UseGlobalRunShape) { 2 } else { Get-ShipInt -Ship $ship -Name "schoolSimonEvery" -Default 2 }
+    $shipRobinEvery = if ($UseGlobalRunShape) { 2 } else { Get-ShipInt -Ship $ship -Name "schoolRobinEvery" -Default 2 }
+    $shipJoeyEvery = if ($UseGlobalRunShape) { 4 } else { Get-ShipInt -Ship $ship -Name "schoolJoeyEvery" -Default 4 }
     $budgetShape = Resolve-BudgetShape -ShipBatchSize $shipBatchSize -ShipMaxBatches $shipMaxBatches -ShipVisualEvery $shipVisualEvery -ShipSimonEvery $shipSimonEvery -ShipRobinEvery $shipRobinEvery -ShipJoeyEvery $shipJoeyEvery
 
     $command = @(

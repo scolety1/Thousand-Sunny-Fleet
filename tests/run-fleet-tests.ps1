@@ -1057,6 +1057,7 @@ function Test-PhaseLoopSupport {
     Assert-True -Condition ($schoolText -match '\$LoopPhase') -Message "School launcher exposes LoopPhase"
     Assert-True -Condition ($overnightText -match '\$LoopPhase') -Message "Overnight launcher exposes LoopPhase"
     Assert-True -Condition ($cellarText -match '\$LoopPhase') -Message "Cellar launcher exposes LoopPhase"
+    Assert-True -Condition ($schoolText -match 'UseGlobalRunShape') -Message "School launcher can force global run shape for tiny tests"
     Assert-True -Condition ($schoolText -match 'repair' -and $overnightText -match 'repair' -and $cellarText -match 'repair') -Message "Launchers expose repair loop phase"
     Assert-True -Condition ($schoolText -match 'problem-brief' -and $overnightText -match 'formula-spec' -and $cellarText -match 'analysis-proof') -Message "Launchers expose analytical loop phases"
     Assert-True -Condition ($schoolText -match 'RequirePhaseValidation') -Message "School launcher can require phase validation"
