@@ -137,6 +137,26 @@ if ($Validate) {
     }
 
     $phaseForValidation = Get-ExistingValue -Text $text -Name "Current Phase" -Default ""
+    $websitePhases = @("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")
+    if ($phaseForValidation -in $websitePhases) {
+        $stageRulesPath = Join-Path $repoPath.Path "docs\codex\WEBSITE_STAGE_RULES.md"
+        if (!(Test-Path -LiteralPath $stageRulesPath)) {
+            $errors += "WEBSITE_STAGE_RULES.md is required for website phase '$phaseForValidation'. Run fleet-website-stages.ps1 -Project $Project -WriteReference from the fleet control room."
+        } else {
+            $stageRulesText = Get-Content -LiteralPath $stageRulesPath -Raw
+            foreach ($stage in $websitePhases) {
+                if ($stageRulesText -notmatch "(?m)^## $([regex]::Escape($stage))\s*$") {
+                    $errors += "WEBSITE_STAGE_RULES.md is missing the '$stage' stage contract."
+                }
+            }
+            foreach ($requiredPhrase in @("Allowed work:", "Forbidden work:", "Exit criteria:", "Reviewer gates:", "Auto-advance rule:", "Stop rules:")) {
+                if ($stageRulesText -notmatch [regex]::Escape($requiredPhrase)) {
+                    $errors += "WEBSITE_STAGE_RULES.md is missing '$requiredPhrase'."
+                }
+            }
+        }
+    }
+
     $featureLockForValidation = Get-ExistingValue -Text $text -Name "No More Features Lock" -Default ""
     if ($phaseForValidation -in @("simplicity", "polish", "proof", "parked", "repair", "analysis-proof") -and $featureLockForValidation -ne "true") {
         $errors += "No More Features Lock must be true in $phaseForValidation phase."

@@ -120,6 +120,26 @@ foreach ($ship in @(Get-Projects)) {
             $issues.Add("Current Phase is not recognized: $phase") | Out-Null
         }
 
+        $websitePhases = @("brief", "foundation", "shape", "simplicity", "polish", "proof", "parked")
+        if ($phase -in $websitePhases) {
+            $stageRulesPath = Join-Path $repo "docs\codex\WEBSITE_STAGE_RULES.md"
+            if (!(Test-Path -LiteralPath $stageRulesPath)) {
+                $issues.Add("WEBSITE_STAGE_RULES.md missing for website phase; run fleet-website-stages.ps1 -Project $name -WriteReference") | Out-Null
+            } else {
+                $stageRulesText = Get-Content -LiteralPath $stageRulesPath -Raw
+                foreach ($stage in $websitePhases) {
+                    if ($stageRulesText -notmatch "(?m)^## $([regex]::Escape($stage))\s*$") {
+                        $issues.Add("WEBSITE_STAGE_RULES.md missing '$stage' stage contract") | Out-Null
+                    }
+                }
+                foreach ($requiredPhrase in @("Allowed work:", "Forbidden work:", "Exit criteria:", "Reviewer gates:", "Auto-advance rule:", "Stop rules:")) {
+                    if ($stageRulesText -notmatch [regex]::Escape($requiredPhrase)) {
+                        $issues.Add("WEBSITE_STAGE_RULES.md missing '$requiredPhrase'") | Out-Null
+                    }
+                }
+            }
+        }
+
         foreach ($field in $requiredFields) {
             $value = Get-PhaseValue -Text $text -Name $field
             if ([string]::IsNullOrWhiteSpace($value) -or $value -match '^TODO:') {
