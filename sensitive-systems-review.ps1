@@ -5,7 +5,9 @@ param(
 
     [string]$OutFile = "docs/codex/SENSITIVE_SYSTEMS_REVIEW.md",
 
-    [switch]$ValidateOnly
+    [switch]$ValidateOnly,
+
+    [switch]$Template
 )
 
 $ErrorActionPreference = "Continue"
@@ -21,6 +23,11 @@ function Test-ApprovedFile {
     if (!(Test-Path $Path)) { return $false }
     $text = Get-Content $Path -Raw
     return ($text -match "(?im)^\s*Status:\s*APPROVED\s*$")
+}
+
+function Test-ApprovedStatusText {
+    param([string]$Text)
+    return ($Text -match "(?im)^\s*(Status|Approval Status):\s*APPROVED\s*$")
 }
 
 function Test-Heading {
@@ -52,16 +59,100 @@ Set-Location $repoPath.Path
 git rev-parse --show-toplevel *> $null
 if ($LASTEXITCODE -ne 0) { Stop-WithMessage "Repo is not a git repository: $($repoPath.Path)" }
 
+if ($Template) {
+    New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+    $templates = @{
+        "docs/codex/EXTERNAL_SERVICES.md" = @(
+            "# External Services Registry",
+            "",
+            "Status: DRAFT",
+            "",
+            "## Services",
+            "",
+            "- List each external API, SaaS, analytics, model provider, webhook, or hosted database touched by this work.",
+            "",
+            "## Environment Variables",
+            "",
+            "- List required env vars by name only. Never paste values.",
+            "",
+            "## Scopes",
+            "",
+            "- Describe read/write permissions and the smallest useful scope.",
+            "",
+            "## Cost Risk",
+            "",
+            "- Describe rate, usage, and billing risk.",
+            "",
+            "## Data Sent",
+            "",
+            "- Describe customer/user/business data sent to the service.",
+            "",
+            "## Approval Status",
+            "",
+            "Approval Status: DRAFT"
+        )
+        "docs/codex/AUTH_POLICY.md" = @(
+            "# Auth Policy",
+            "",
+            "Status: DRAFT",
+            "",
+            "## Auth Surface",
+            "",
+            "## Roles And Permissions",
+            "",
+            "## Session Rules",
+            "",
+            "## Local Test Evidence"
+        )
+        "docs/codex/AUTH_APPROVAL.md" = @("# Auth Approval", "", "Status: DRAFT")
+        "docs/codex/PAYMENT_RISK.md" = @(
+            "# Payment Risk",
+            "",
+            "Status: DRAFT",
+            "",
+            "## Payment Surface",
+            "",
+            "## Test Mode Evidence",
+            "",
+            "## Refund Or Failure Handling"
+        )
+        "docs/codex/PAYMENT_APPROVAL.md" = @("# Payment Approval", "", "Status: DRAFT")
+        "docs/codex/DEPLOYMENT_RISK.md" = @(
+            "# Deployment Risk",
+            "",
+            "Status: DRAFT",
+            "",
+            "## Deployment Surface",
+            "",
+            "## Config Files",
+            "",
+            "## Rollback Plan",
+            "",
+            "## Human Release Control"
+        )
+        "docs/codex/DEPLOYMENT_APPROVAL.md" = @("# Deployment Approval", "", "Status: DRAFT")
+    }
+    foreach ($path in $templates.Keys) {
+        if (!(Test-Path -LiteralPath $path)) {
+            Set-Content -Path $path -Value $templates[$path]
+        }
+    }
+    Write-Host "Sensitive systems templates are ready." -ForegroundColor Green
+    exit 0
+}
+
 $issues = [System.Collections.Generic.List[string]]::new()
 
 $diff = @(git diff --cached --unified=0 2>$null)
 $addedLines = @($diff | Where-Object { ([string]$_).StartsWith("+") -and !([string]$_).StartsWith("+++") })
 $registryAddedLines = [System.Collections.Generic.List[string]]::new()
+$changedPaths = [System.Collections.Generic.List[string]]::new()
 $currentDiffPath = ""
 foreach ($line in @($diff)) {
     $text = [string]$line
     if ($text.StartsWith("+++ b/")) {
         $currentDiffPath = $text.Substring(6)
+        $changedPaths.Add($currentDiffPath) | Out-Null
         continue
     }
     if (!$text.StartsWith("+") -or $text.StartsWith("+++")) { continue }
@@ -70,7 +161,8 @@ foreach ($line in @($diff)) {
 }
 
 $sensitiveIntentText = Remove-NegativeSensitiveClauses -Text ($registryAddedLines -join "`n")
-$needsRegistry = ($sensitiveIntentText -match "(?i)\bfetch\s*\(|\baxios\b|\bopenai\b|\banthropic\b|\bgemini\b|\bstripe\b|\bsupabase\b|\bfirebase\b|\bhttps?://")
+$needsRegistry = ($sensitiveIntentText -match "(?i)\bfetch\s*\(|\baxios\b|\bopenai\b|\banthropic\b|\bgemini\b|\bstripe\b|\bsupabase\b|\bfirebase\b|\bhttps?://|\bprocess\.env\b|\bimport\.meta\.env\b|\bVITE_[A-Z0-9_]+\b|\bREACT_APP_[A-Z0-9_]+\b|\bNEXT_PUBLIC_[A-Z0-9_]+\b")
+$deploymentPathChanged = (@($changedPaths) -match "(?i)(^|/)(\.github/workflows/|firebase\.json$|vercel\.json$|netlify\.toml$|wrangler\.toml$|CNAME$|Dockerfile$|docker-compose\.ya?ml$|deploy|hosting)").Count -gt 0
 
 $registryPath = "docs/codex/EXTERNAL_SERVICES.md"
 if (Test-Path $registryPath) {
@@ -79,6 +171,9 @@ if (Test-Path $registryPath) {
         if (!(Test-Heading -Text $registry -Heading $heading)) {
             $issues.Add("EXTERNAL_SERVICES.md missing heading: $heading.") | Out-Null
         }
+    }
+    if ($needsRegistry -and !(Test-ApprovedStatusText -Text $registry)) {
+        $issues.Add("EXTERNAL_SERVICES.md is required for this staged external/env work but is not Approval Status: APPROVED.") | Out-Null
     }
 } elseif ($needsRegistry) {
     $issues.Add("Missing docs/codex/EXTERNAL_SERVICES.md for external service work.") | Out-Null
@@ -90,6 +185,15 @@ if ((Test-Path "docs/codex/AUTH_POLICY.md") -and !(Test-ApprovedFile -Path "docs
 
 if ((Test-Path "docs/codex/PAYMENT_RISK.md") -and !(Test-ApprovedFile -Path "docs/codex/PAYMENT_APPROVAL.md")) {
     $issues.Add("PAYMENT_RISK.md exists but PAYMENT_APPROVAL.md is not Status: APPROVED.") | Out-Null
+}
+
+if ($deploymentPathChanged) {
+    if (!(Test-Path "docs/codex/DEPLOYMENT_RISK.md")) {
+        $issues.Add("Deployment config changed but DEPLOYMENT_RISK.md is missing.") | Out-Null
+    }
+    if (!(Test-ApprovedFile -Path "docs/codex/DEPLOYMENT_APPROVAL.md")) {
+        $issues.Add("Deployment config changed but DEPLOYMENT_APPROVAL.md is not Status: APPROVED.") | Out-Null
+    }
 }
 
 $secretPatterns = @(
@@ -134,7 +238,8 @@ $lines += "## Required Gates"
 $lines += ""
 $lines += "- Auth changes require AUTH_POLICY.md and AUTH_APPROVAL.md."
 $lines += "- Payment changes require PAYMENT_RISK.md and PAYMENT_APPROVAL.md."
-$lines += "- External services require EXTERNAL_SERVICES.md."
+$lines += "- External services and env-var additions require approved EXTERNAL_SERVICES.md."
+$lines += "- Deployment config changes require DEPLOYMENT_RISK.md and DEPLOYMENT_APPROVAL.md."
 $lines += "- Production credentials and payment activation remain human-controlled."
 
 if (!$ValidateOnly -or $issues.Count -gt 0) {

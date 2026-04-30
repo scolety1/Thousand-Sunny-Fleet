@@ -82,7 +82,7 @@ cd C:\Dev\codex-fleet
 
 `api-contract-review.ps1` and `seed-fixture-review.ps1` are the Phase 4 backend/data safety gates. Backend and integration tasks require approved `API_CONTRACT.md` plus `API_CONTRACT_TESTS.md`; backend and migration tasks require approved `SEED_FIXTURE_PLAN.md` plus `SEED_FIXTURE_EVIDENCE.md`. Use the `backend-local` or `backend-staging` profile only when the ship has approved architecture and real local evaluators.
 
-`sensitive-systems-review.ps1` is the Phase 5 auth, payment, secrets, and external-service gate. It scans staged diffs for common secret patterns and validates `EXTERNAL_SERVICES.md`, `AUTH_POLICY.md`/`AUTH_APPROVAL.md`, and `PAYMENT_RISK.md`/`PAYMENT_APPROVAL.md` when those sensitive areas are in play. The checkpoint loop runs this gate before every Fleet commit.
+`sensitive-systems-review.ps1` is the Phase 5 auth, payment, secrets, deployment-config, env-var, and external-service gate. It scans staged diffs for common secret patterns and validates `EXTERNAL_SERVICES.md`, `AUTH_POLICY.md`/`AUTH_APPROVAL.md`, `PAYMENT_RISK.md`/`PAYMENT_APPROVAL.md`, and `DEPLOYMENT_RISK.md`/`DEPLOYMENT_APPROVAL.md` when those sensitive areas are in play. Use `.\sensitive-systems-review.ps1 -Repo C:\Dev\my-project -Template` to scaffold the approval docs. The checkpoint loop runs this gate before every Fleet commit.
 
 `runtime-verify.ps1` is the Phase 6 runtime verification gate. It reads `docs/codex/RUNTIME_CHECKS.md` and writes `docs/codex/RUNTIME_VERIFICATION.md`. Checks can be `command: ...`, `url: ...`, or `text: file => expected text`. Integration/performance tasks and tasks with `accept:` commands trigger runtime verification during the checkpoint loop.
 
