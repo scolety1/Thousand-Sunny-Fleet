@@ -1772,6 +1772,7 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Resolve-SupervisorState') -Message "Supervisor classifies ship state"
     Assert-True -Condition ($supervisorText -match 'Alias\("Projects"\)') -Message "Supervisor accepts Projects alias for smoke checks"
     Assert-True -Condition ($supervisorText -match '\$selectedProjects') -Message "Supervisor supports multiple selected projects"
+    Assert-True -Condition ($supervisorText -match 'Project not found') -Message "Supervisor rejects unknown selected projects"
     Assert-True -Condition ($supervisorText -match 'ExcludeProject') -Message "Supervisor can exclude docked ships"
     Assert-True -Condition ($supervisorText -match 'PROGRESSING') -Message "Supervisor reports progressing ships"
     Assert-True -Condition ($supervisorText -match 'IDLE_RUNNING') -Message "Supervisor reports idle running ships"

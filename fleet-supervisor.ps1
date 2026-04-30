@@ -577,6 +577,12 @@ function Write-SupervisorReport {
     $projects = @($parsedProjects | ForEach-Object { $_ })
     $selectedProjects = @($Project | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { [string]$_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     if ($selectedProjects.Count -gt 0) {
+        $availableProjectNames = @($projects | ForEach-Object { [string]$_.name })
+        $missingProjectNames = @($selectedProjects | Where-Object { $availableProjectNames -notcontains $_ })
+        if ($missingProjectNames.Count -gt 0) {
+            Write-Host "Project not found: $($missingProjectNames -join ', ')" -ForegroundColor Red
+            exit 1
+        }
         $projects = @($projects | Where-Object { $selectedProjects -contains [string]$_.name })
     }
     $exclude = @($ExcludeProject | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { [string]$_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
