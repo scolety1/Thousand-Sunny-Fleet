@@ -525,6 +525,8 @@ function Test-PhaseTenSpecialistReviewers {
     Assert-True -Condition ($frankyText -match 'taskFormulaIntent' -and $frankyText -match 'analyticalPhaseIntent') -Message "Franky does not treat generic website task wording as formula work"
     Assert-True -Condition ($checkpointText -match 'IGNORED_NON_ANALYTICAL') -Message "Checkpoint review ignores stale Franky RED reports outside analytical phases"
     Assert-True -Condition ($doctorText -match 'FRANKY_FORMULA_REVIEW\.md' -and $doctorText -match 'Franky') -Message "Fleet doctor reports Franky status"
+    Assert-True -Condition ($doctorText -match 'frankyRelevant') -Message "Fleet doctor only blocks on Franky when formula review is relevant"
+    Assert-True -Condition ($doctorText -match 'checkpointRedIsStale') -Message "Fleet doctor can downgrade stale checkpoint REDs from cleared reviewer gates"
     Assert-True -Condition ($readmeText -match 'Phase 10 specialist reviewer') -Message "README documents Phase 10 specialist reviewer layer"
     Assert-True -Condition ($roadmapText -match 'Phase 10 - Specialist Reviewer Layer') -Message "Roadmap documents Phase 10"
 

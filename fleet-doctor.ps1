@@ -432,6 +432,7 @@ function Get-ShipDiagnosis {
     $taskCount = Get-UncheckedTaskCount
     $firstTask = Get-FirstUncheckedTask
     $checkpoint = Get-MarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
+    $checkpointText = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "" }
     $simon = Get-MarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
     $robin = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
     $accessibility = Get-MarkdownValue -Path "docs/codex/ACCESSIBILITY_REVIEW.md" -Heading "Verdict"
@@ -630,14 +631,28 @@ function Get-ShipDiagnosis {
         Add-Finding -Findings $findings -Level "WARN" -Message "No visualPaths configured."
     }
 
+    $frankyRelevant = ($analysisGateNeeded -or $firstTask -match "(?i)\b(formula|score|rank|probability|valuation|keeper|trade|pick value|confidence|calibration)\b")
+    $checkpointRedIsStale = $false
+    if ([string]$checkpoint -match "^RED\b") {
+        $checkpointMentionsFranky = $checkpointText -match "(?i)Franky|formula review"
+        $checkpointMentionsAccessibility = $checkpointText -match "(?i)accessibility"
+        if (($checkpointMentionsFranky -and -not $frankyRelevant) -or
+            ($checkpointMentionsAccessibility -and [string]$accessibility -notmatch "^RED\b")) {
+            $checkpointRedIsStale = $true
+            Add-Finding -Findings $findings -Level "WARN" -Message "Checkpoint verdict is RED, but it appears stale after a cleared or irrelevant reviewer gate; rerun checkpoint review before final parking."
+        }
+    }
     foreach ($verdict in @(
-        @{ name = "checkpoint"; value = $checkpoint },
-        @{ name = "Simon"; value = $simon },
-        @{ name = "Robin"; value = $robin },
-        @{ name = "Accessibility"; value = $accessibility },
-        @{ name = "Joey"; value = $joey },
-        @{ name = "Franky"; value = $franky }
+        @{ name = "checkpoint"; value = $checkpoint; relevant = (-not $checkpointRedIsStale) },
+        @{ name = "Simon"; value = $simon; relevant = $true },
+        @{ name = "Robin"; value = $robin; relevant = $true },
+        @{ name = "Accessibility"; value = $accessibility; relevant = $true },
+        @{ name = "Joey"; value = $joey; relevant = $true },
+        @{ name = "Franky"; value = $franky; relevant = $frankyRelevant }
     )) {
+        if (-not $verdict.relevant) {
+            continue
+        }
         if ([string]$verdict.value -match "^RED\b") {
             Add-Finding -Findings $findings -Level "FAIL" -Message "$($verdict.name) verdict is RED."
         } elseif ([string]$verdict.value -match "^YELLOW\b") {
@@ -651,7 +666,7 @@ function Get-ShipDiagnosis {
 
     $failCount = @($findings | Where-Object { $_.level -eq "FAIL" }).Count
     $batchSize = if ($taskCount -eq 0) { 2 } else { [Math]::Min(3, [Math]::Max(1, $taskCount)) }
-    $frankyFlag = if ($analysisGateNeeded -or $firstTask -match "(?i)\b(formula|score|rank|probability|valuation|keeper|trade|pick value|confidence|calibration)\b") { " -FrankyEvery 1" } else { "" }
+    $frankyFlag = if ($frankyRelevant) { " -FrankyEvery 1" } else { "" }
     $recommended = ".\run-checkpoint-loop.ps1 -Project $name -BatchSize $batchSize -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -AccessibilityEvery 1 -JoeyEvery 1$frankyFlag -ContinueOnYellowCheckpoint"
 
     return [pscustomobject]@{
