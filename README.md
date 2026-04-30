@@ -55,6 +55,7 @@ cd C:\Dev\codex-fleet
 .\visual-inspect.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\simon-design-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\robin-copy-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
+.\performance-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\joey-security-review.ps1 -Repo C:\Dev\restaurant-automation-demo -Project RestaurantDemo
 .\make-context-bundles.ps1
 .\run-fleet.ps1
@@ -98,7 +99,9 @@ cd C:\Dev\codex-fleet
 
 `accessibility-review.ps1` is the Phase 11 accessibility reviewer layer for websites and app surfaces. Ada is deterministic and checks missing image alt text, unlabeled inputs, empty or icon-only buttons, dead hash links, vague link text, and removed focus outlines. The checkpoint loop can run it with `-AccessibilityEvery 1`; proof/school/overnight launchers forward accessibility cadence so accessibility can be part of normal polish without needing a browser model call.
 
-`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows. Proof runs include visual inspection, Simon, Robin, Joey, checkpoint review, and the checkpoint debugger by default; pass `-RobinEvery 0` only when intentionally skipping copy review for a non-copy technical probe.
+`performance-review.ps1` is the Phase 12 performance reviewer layer for websites and app surfaces. Percy is deterministic and checks oversized build artifacts, missing build artifacts when a build script exists, large inline base64 assets, transition-all CSS, blur/filter usage, very short polling intervals, broad will-change usage, and eager autoplay video. The checkpoint loop can run it with `-PerformanceEvery 1`; proof/school/overnight launchers forward performance cadence so obvious page-weight and runtime-cost issues get caught before final checkpoint review.
+
+`launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows. Proof runs include visual inspection, Simon, Robin, accessibility, performance, Joey, checkpoint review, and the checkpoint debugger by default; pass `-RobinEvery 0` only when intentionally skipping copy review for a non-copy technical probe.
 
 Trial overnight launches start ships back-to-back by default. Pass `-LaunchDelaySeconds 90` only when you explicitly want spaced departures.
 
@@ -183,7 +186,7 @@ Use `-FailOnHigh` when you want high-risk copy smoke findings to return a nonzer
 Run a mission-driven branch in reviewed batches:
 
 ```powershell
-.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -PushCheckpoint
+.\run-checkpoint-loop.ps1 -Project RestaurantDemo -BatchSize 5 -MaxBatches 2 -VisualEvery 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -AccessibilityEvery 1 -PerformanceEvery 1 -JoeyEvery 1 -ContinueOnYellowCheckpoint -PushCheckpoint
 ```
 
 The checkpoint loop:
@@ -193,13 +196,15 @@ The checkpoint loop:
 - runs external builds
 - commits each successful task
 - stages only the files it intentionally changed instead of using `git add .`
-- writes `docs/codex/CHECKPOINT_REVIEW.md` after fresh visual, Simon, Robin, and Joey gates
-- includes completed task, changed file, latest visual, latest Simon, latest Robin, latest Joey, and next-batch guidance in checkpoint reviews
+- writes `docs/codex/CHECKPOINT_REVIEW.md` after fresh visual, Simon, Robin, accessibility, performance, and Joey gates
+- includes completed task, changed file, latest visual, latest Simon, latest Robin, latest accessibility, latest performance, latest Joey, and next-batch guidance in checkpoint reviews
 - runs the checkpoint debugger unless `-SkipDebug` is passed
 - optionally runs visual smoke checks with `-VisualEvery N`
 - optionally writes visual bug reports with `-VisualInspectEvery N`
 - optionally runs Simon design reviews with `-SimonEvery N`
 - optionally runs Robin copy reviews with `-RobinEvery N`
+- optionally runs accessibility reviews with `-AccessibilityEvery N`
+- optionally runs performance reviews with `-PerformanceEvery N`
 - optionally runs Joey security reviews with `-JoeyEvery N`
 - can continue through non-blocking YELLOW checkpoint reviews with `-ContinueOnYellowCheckpoint`
 - generates/imports the next five tasks when the queue is empty
@@ -215,7 +220,7 @@ Long-running steps are wrapped by the fleet watchdog, including Codex implementa
 
 `-ContinueOnYellowCheckpoint` is intended for unattended runs. RED reviews, human-stop recommendations, failed builds, blocked files, Joey RED reports, Robin RED reports, and blocking visual issues still stop the loop. A YELLOW review becomes a warning when the follow-up gates stay clean.
 
-Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Robin copy review, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Robin/Joey repair orders take priority over fresh feature work.
+Nami's task planner reads the mission, run policy, checkpoint review, Simon design review, visual bug report, Robin copy review, accessibility review, performance review, Joey security review, recent commits, completed tasks, and nightly report. Simon/visual/Robin/accessibility/performance/Joey repair orders take priority over fresh feature work.
 
 When present, Nami also reads `MAGIC_MISSION.md`, `WORK_PACKS.md`, `WORK_PACK_STATUS.md`, and `MAGIC_SCORECARD.md`. Those files turn overnight planning from isolated polish tasks into coherent work-pack progress: one product direction, one active pack, and a memory of weak or blocked slices to avoid. If `WORK_PACK_STATUS.md` names an active pack, planner output must mention that active pack before the tasks can be imported.
 
@@ -246,7 +251,9 @@ Phase 10 specialist reviewers give the Fleet domain-specific stoppers. The first
 
 Phase 11 accessibility review adds Ada Accessibility Review: website and app ships can run deterministic accessibility smoke checks for alt text, labels, focus visibility, dead links, and vague controls before checkpoint review.
 
-Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, accessibility, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
+Phase 12 performance review adds Percy Performance Review: website and app ships can run deterministic page-weight and runtime-footgun checks for bundle size, CSS size, large assets, inline base64 media, transition-all CSS, blur/filter overuse, tiny polling intervals, and eager autoplay video before checkpoint review.
+
+Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, accessibility, performance, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 

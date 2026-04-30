@@ -509,6 +509,7 @@ function Test-PhaseTenSpecialistReviewers {
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
     $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
 
@@ -574,6 +575,7 @@ function Test-PhaseElevenAccessibilityReview {
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
     $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
@@ -663,6 +665,96 @@ button:focus-visible {
     Assert-Equal -Actual $accessibleRun.ExitCode -Expected 0 -Message "Accessibility reviewer allows wrapped labels and focus-visible replacements"
     $accessibleReport = Get-Content (Join-Path $accessibleFixture "docs\codex\ACCESSIBILITY_REVIEW.md") -Raw
     Assert-True -Condition ($accessibleReport -match '## Verdict\s+GREEN') -Message "Accessibility report stays GREEN for accessible fixture"
+}
+
+function Test-PhaseTwelvePerformanceReview {
+    $performanceText = Get-Content (Join-Path $fleetRoot "performance-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "performance-review.ps1")) -Message "Fleet exposes Phase 12 performance reviewer"
+    Assert-True -Condition ($performanceText -match 'PERFORMANCE_REVIEW\.md') -Message "Performance reviewer writes performance reports"
+    Assert-True -Condition ($performanceText -match 'MaxBundleKb' -and $performanceText -match 'MaxCssKb' -and $performanceText -match 'Largest Artifacts') -Message "Performance reviewer checks build artifact budgets"
+    Assert-True -Condition ($performanceText -match 'transition-all|Transitioning all properties' -and $performanceText -match 'setInterval') -Message "Performance reviewer checks source-level runtime footguns"
+    Assert-True -Condition ($loopText -match '\[int\]\$PerformanceEvery' -and $loopText -match 'performance-review\.ps1') -Message "Checkpoint loop can run performance review"
+    Assert-True -Condition ($loopText -match 'PERFORMANCE_REVIEW') -Message "Task materiality treats performance report as Fleet-generated report"
+    Assert-True -Condition ($checkpointText -match 'Performance verdict' -and $checkpointText -match 'performance review') -Message "Checkpoint review reads performance status"
+    Assert-True -Condition ($doctorText -match 'PERFORMANCE_REVIEW\.md|performance') -Message "Fleet doctor reports performance status"
+    Assert-True -Condition ($plannerText -match 'PERFORMANCE_REVIEW\.md' -and $plannerText -match 'Performance review') -Message "Nami planner reads performance repair signals"
+    Assert-True -Condition ($proofText -match 'PerformanceEvery' -and $schoolText -match 'PerformanceEvery' -and $overnightText -match 'PerformanceEvery') -Message "Launchers forward performance cadence"
+    Assert-True -Condition ($readmeText -match 'Phase 12 performance review') -Message "README documents Phase 12 performance review"
+    Assert-True -Condition ($roadmapText -match 'Phase 12 - Performance Reviewer Layer') -Message "Roadmap documents Phase 12"
+
+    $performanceFixture = Join-Path $fixtureRoot "phase12-performance-red"
+    if (Test-Path $performanceFixture) {
+        Remove-Item -LiteralPath $performanceFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $performanceFixture "dist\assets") | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $performanceFixture "src") | Out-Null
+    Push-Location $performanceFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "x" * 2200 | Set-Content "dist\assets\app.js"
+        ".card { transition: all 300ms ease; }" | Set-Content "src\App.css"
+        $inline = ".hero { background-image: url(data:image/png;base64,$(('A' * 360))); }"
+        $inline | Add-Content "src\App.css"
+        git add . | Out-Null
+        git commit -m "fixture" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $performanceRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "performance-review.ps1"),
+        "-Repo", $performanceFixture,
+        "-MaxBundleKb", "1",
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $performanceRun.ExitCode -Expected 1 -Message "Performance reviewer fails on deterministic RED findings"
+    $performanceReport = Get-Content (Join-Path $performanceFixture "docs\codex\PERFORMANCE_REVIEW.md") -Raw
+    Assert-True -Condition ($performanceReport -match '## Verdict\s+RED' -and $performanceReport -match 'JavaScript bundle exceeds') -Message "Performance report records RED bundle finding"
+    Assert-True -Condition ($performanceReport -match 'Transitioning all properties' -and $performanceReport -match 'Large inline base64') -Message "Performance report records source warnings"
+
+    $performantFixture = Join-Path $fixtureRoot "phase12-performance-green"
+    if (Test-Path $performantFixture) {
+        Remove-Item -LiteralPath $performantFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $performantFixture "dist\assets") | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $performantFixture "src") | Out-Null
+    Push-Location $performantFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "console.log('ok')" | Set-Content "dist\assets\app.js"
+        ".card { transition: opacity 160ms ease; }" | Set-Content "src\App.css"
+        git add . | Out-Null
+        git commit -m "fixture" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $performantRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "performance-review.ps1"),
+        "-Repo", $performantFixture,
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $performantRun.ExitCode -Expected 0 -Message "Performance reviewer allows small artifacts and targeted transitions"
+    $performantReport = Get-Content (Join-Path $performantFixture "docs\codex\PERFORMANCE_REVIEW.md") -Raw
+    Assert-True -Condition ($performantReport -match '## Verdict\s+GREEN') -Message "Performance report stays GREEN for performant fixture"
 }
 
 function Test-ConfigResolution {
@@ -955,6 +1047,7 @@ function Test-CheckpointGateOrder {
     $simonIndex = $loopText.IndexOf('if ($SimonEvery -gt 0')
     $robinIndex = $loopText.IndexOf('if ($RobinEvery -gt 0')
     $accessibilityIndex = $loopText.IndexOf('if ($AccessibilityEvery -gt 0')
+    $performanceIndex = $loopText.IndexOf('if ($PerformanceEvery -gt 0')
     $joeyIndex = $loopText.IndexOf('if ($JoeyEvery -gt 0')
     $frankyIndex = $loopText.IndexOf('$frankyShouldRun')
     $checkpointIndex = $loopText.IndexOf('$checkpointText = Invoke-CheckpointReviewGate -Batch $batch')
@@ -964,9 +1057,10 @@ function Test-CheckpointGateOrder {
     Assert-True -Condition ($simonIndex -gt $visualIndex) -Message "Simon runs after visual inspect"
     Assert-True -Condition ($robinIndex -gt $simonIndex) -Message "Robin runs after Simon"
     Assert-True -Condition ($accessibilityIndex -gt $robinIndex) -Message "Accessibility review runs after Robin"
-    Assert-True -Condition ($joeyIndex -gt $accessibilityIndex) -Message "Joey runs after accessibility review"
+    Assert-True -Condition ($performanceIndex -gt $accessibilityIndex) -Message "Performance review runs after accessibility review"
+    Assert-True -Condition ($joeyIndex -gt $performanceIndex) -Message "Joey runs after performance review"
     Assert-True -Condition ($frankyIndex -gt $joeyIndex) -Message "Franky runs after Joey when enabled"
-    Assert-True -Condition ($checkpointIndex -gt $frankyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, accessibility, Joey, and Franky"
+    Assert-True -Condition ($checkpointIndex -gt $frankyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, accessibility, performance, Joey, and Franky"
     Assert-True -Condition ($debugIndex -gt $checkpointIndex) -Message "Debugger runs after final checkpoint"
 }
 
@@ -1638,6 +1732,7 @@ Test-PhaseEightMaintenanceSupport
 Test-PhaseNineAutopilotSupport
 Test-PhaseTenSpecialistReviewers
 Test-PhaseElevenAccessibilityReview
+Test-PhaseTwelvePerformanceReview
 Test-ConfigResolution
 Test-DoctorAndReadiness
 Test-MaintenanceDirtySkip

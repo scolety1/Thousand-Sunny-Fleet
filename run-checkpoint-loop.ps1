@@ -39,6 +39,8 @@ param(
 
     [int]$AccessibilityTimeoutSeconds = 300,
 
+    [int]$PerformanceTimeoutSeconds = 300,
+
     [int]$JoeyTimeoutSeconds = 300,
 
     [int]$FrankyTimeoutSeconds = 300,
@@ -71,6 +73,8 @@ param(
     [int]$RobinEvery = 0,
 
     [int]$AccessibilityEvery = 0,
+
+    [int]$PerformanceEvery = 0,
 
     [int]$JoeyEvery = 0,
 
@@ -178,6 +182,8 @@ foreach ($timeoutSpec in @(
     @{ name = "SimonTimeoutSeconds"; value = $SimonTimeoutSeconds },
     @{ name = "RobinTimeoutSeconds"; value = $RobinTimeoutSeconds },
     @{ name = "VisualTimeoutSeconds"; value = $VisualTimeoutSeconds },
+    @{ name = "AccessibilityTimeoutSeconds"; value = $AccessibilityTimeoutSeconds },
+    @{ name = "PerformanceTimeoutSeconds"; value = $PerformanceTimeoutSeconds },
     @{ name = "JoeyTimeoutSeconds"; value = $JoeyTimeoutSeconds },
     @{ name = "DebugTimeoutSeconds"; value = $DebugTimeoutSeconds }
 )) {
@@ -211,6 +217,10 @@ if ($FrankyEvery -lt 0) {
 }
 if ($AccessibilityEvery -lt 0) {
     Stop-Usage "-AccessibilityEvery must be 0 or greater."
+}
+
+if ($PerformanceEvery -lt 0) {
+    Stop-Usage "-PerformanceEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -640,7 +650,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|ACCESSIBILITY_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|ACCESSIBILITY_REVIEW|PERFORMANCE_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -3340,6 +3350,31 @@ REVIEW_FINDING: P2: short description
             $stopAfterCheckpointExitCode = 1
             $stopAfterCheckpointReason = "Accessibility review requested a human stop."
             Write-Host "Accessibility review requested a human stop. A final checkpoint will be written before stopping." -ForegroundColor Red
+        }
+    }
+
+    if ($PerformanceEvery -gt 0 -and ($batch % $PerformanceEvery -eq 0)) {
+        $performanceArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "performance-review.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-FailOnRed"
+        )
+        $performanceExit = Invoke-FleetPowerShell -Arguments $performanceArgs -LogName "performance-review-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "performance" -Default $PerformanceTimeoutSeconds)
+        $performancePassed = $performanceExit -eq 0
+        $performanceText = if (Test-Path "docs/codex/PERFORMANCE_REVIEW.md") { Get-Content "docs/codex/PERFORMANCE_REVIEW.md" -Raw } else { "" }
+        Stage-Files -Paths @("docs/codex/PERFORMANCE_REVIEW.md")
+        $pendingPerformanceCommit = @(git diff --cached --name-only)
+        if ($pendingPerformanceCommit.Count -gt 0) {
+            if (-not (Invoke-FleetCommit -Message "Codex performance review batch $batch")) { exit 1 }
+        }
+        if (-not $performancePassed -or $performanceText -match "(?is)## Verdict\s+RED\b" -or $performanceText -match "(?i)stop for human performance review") {
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = 1
+            $stopAfterCheckpointReason = "Performance review requested a human stop."
+            Write-Host "Performance review requested a human stop. A final checkpoint will be written before stopping." -ForegroundColor Red
         }
     }
 

@@ -470,6 +470,24 @@ Exit criteria:
 
 - Website/app ships can run a low-cost accessibility gate before checkpoint review, and RED accessibility findings can stop a loop before the fleet treats the surface as ready.
 
+### Phase 12 - Performance Reviewer Layer
+
+Purpose: Add a deterministic performance reviewer so websites and app surfaces do not quietly become bloated, slow, or runtime-expensive while the fleet is polishing visuals and copy.
+
+Status: implemented for the first performance lane. `performance-review.ps1` scans build artifacts and source files for oversized JavaScript/CSS/static assets, missing build artifacts when a build script exists, large inline base64 assets, transition-all CSS, blur/filter usage, very short polling intervals, broad will-change usage, and eager autoplay video. The checkpoint loop accepts `-PerformanceEvery`, proof/school/overnight launchers forward performance cadence, Fleet Doctor reports performance verdicts, and checkpoint review reads `PERFORMANCE_REVIEW.md` before producing the final verdict.
+
+Required upgrades:
+
+- Add Percy Performance Review for deterministic page-weight and runtime-cost smoke checks.
+- Wire performance review into checkpoint loops after accessibility and before security/formula gates.
+- Add Fleet Doctor visibility for performance verdicts.
+- Forward performance cadence through launchers.
+- Keep the check deterministic and bounded; deeper Lighthouse/browser performance audits can be a later phase.
+
+Exit criteria:
+
+- Website/app ships can run a low-cost performance gate before checkpoint review, and RED performance findings can stop a loop before the fleet treats the surface as ready.
+
 ## Reviewer Roles To Add
 
 Existing roles cover checkpoint, design, copy, and security. Sophisticated software needs more reviewers.
@@ -480,7 +498,7 @@ Existing roles cover checkpoint, design, copy, and security. Sophisticated softw
 - Backend Reviewer: API behavior, persistence, error handling, observability.
 - Migration Reviewer: data safety and rollback.
 - Dependency Reviewer: package risk, license, maintenance.
-- Performance Reviewer: load time, runtime cost, query cost, bundle size.
+- Performance Reviewer: load time, runtime cost, query cost, bundle size. First deterministic pass implemented in Phase 12.
 - Accessibility Reviewer: keyboard, screen reader, contrast, motion. First deterministic pass implemented in Phase 11.
 - Release Manager: deployment plan and rollback.
 - Product Manager: task priority and user-value fit.

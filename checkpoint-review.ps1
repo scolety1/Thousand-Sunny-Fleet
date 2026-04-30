@@ -123,6 +123,8 @@ $robinVerdict = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Headi
 $robinNextStep = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Stop Or Continue"
 $accessibilityVerdict = Get-MarkdownValue -Path "docs/codex/ACCESSIBILITY_REVIEW.md" -Heading "Verdict"
 $accessibilityNextStep = Get-MarkdownValue -Path "docs/codex/ACCESSIBILITY_REVIEW.md" -Heading "Stop Or Continue"
+$performanceVerdict = Get-MarkdownValue -Path "docs/codex/PERFORMANCE_REVIEW.md" -Heading "Verdict"
+$performanceNextStep = Get-MarkdownValue -Path "docs/codex/PERFORMANCE_REVIEW.md" -Heading "Stop Or Continue"
 $joeyVerdict = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
 $joeyNextStep = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Recommended Next Step"
 $frankyVerdict = Get-MarkdownValue -Path "docs/codex/FRANKY_FORMULA_REVIEW.md" -Heading "Verdict"
@@ -148,7 +150,7 @@ Write a concise markdown review to this exact structure:
 ## Verdict
 Use exactly one: GREEN, YELLOW, or RED.
 Verdict rules:
-- RED only for build failure, unsafe/risky changes, high visual issues, accessibility/security/formula blockers, or a review gate that explicitly says stop.
+- RED only for build failure, unsafe/risky changes, high visual issues, accessibility/performance/security/formula blockers, or a review gate that explicitly says stop.
 - GREEN when build passed, the working tree is clean, no unchecked tasks remain, and there are no high/medium visual issues or blocking review signals. This means the ship is parked/ready, even if no new code landed in this checkpoint window.
 - YELLOW for non-blocking polish debt, medium review concerns, or meaningful follow-up work that should shape the next task.
 - Do not downgrade solely because no new code, commits, or task movement happened in this checkpoint window. An empty queue can be a successful stopping point.
@@ -170,7 +172,7 @@ Bullets:
 - queue status
 
 ## Follow-Up Gate Status
-Bullets for visual bug report, Simon design review, Robin copy review, accessibility review, Joey security review, Franky formula review, and whether they should influence the next tasks.
+Bullets for visual bug report, Simon design review, Robin copy review, accessibility review, performance review, Joey security review, Franky formula review, and whether they should influence the next tasks.
 
 ## Recommended Next Step
 Choose one: continue, patch first, stop for human review.
@@ -198,6 +200,8 @@ Robin verdict: $robinVerdict
 Robin stop/continue: $robinNextStep
 Accessibility verdict: $accessibilityVerdict
 Accessibility stop/continue: $accessibilityNextStep
+Performance verdict: $performanceVerdict
+Performance stop/continue: $performanceNextStep
 Joey verdict: $joeyVerdict
 Joey next step: $joeyNextStep
 Franky verdict: $frankyVerdict

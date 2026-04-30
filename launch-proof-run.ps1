@@ -14,6 +14,8 @@ param(
 
     [int]$AccessibilityEvery = 1,
 
+    [int]$PerformanceEvery = 1,
+
     [switch]$SkipDoctor,
 
     [switch]$PushCheckpoint,
@@ -58,6 +60,7 @@ Assert-NoFleetSafeStopRequests -FleetRoot $fleetRoot -ProjectFilter $Project -Ex
 if ($MaxTaskQuarantines -lt 0) { Stop-WithMessage "-MaxTaskQuarantines must be 0 or greater." }
 if ($RobinEvery -lt 0) { Stop-WithMessage "-RobinEvery must be 0 or greater." }
 if ($AccessibilityEvery -lt 0) { Stop-WithMessage "-AccessibilityEvery must be 0 or greater." }
+if ($PerformanceEvery -lt 0) { Stop-WithMessage "-PerformanceEvery must be 0 or greater." }
 
 if (!$SkipDoctor) {
     $doctorArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $fleetRoot "fleet-doctor.ps1"), "-ConfigPath", $ConfigPath)
@@ -75,10 +78,10 @@ $manifest = New-FleetLaunchManifest -FleetRoot $fleetRoot -Mode "proof" -ConfigP
 foreach ($ship in $shipsToLaunch) {
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize 1 -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery $RobinEvery -AccessibilityEvery $AccessibilityEvery -JoeyEvery 1 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize 1 -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery $RobinEvery -AccessibilityEvery $AccessibilityEvery -PerformanceEvery $PerformanceEvery -JoeyEvery 1 -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching proof run for $($ship.name) with Robin every $RobinEvery and accessibility every $AccessibilityEvery batch(es)..." -ForegroundColor Cyan
+    Write-Host "Launching proof run for $($ship.name) with Robin every $RobinEvery, accessibility every $AccessibilityEvery, and performance every $PerformanceEvery batch(es)..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
         Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun

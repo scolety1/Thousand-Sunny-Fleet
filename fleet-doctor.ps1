@@ -416,6 +416,7 @@ function Get-ShipDiagnosis {
             simon = "missing"
             robin = "missing"
             accessibility = "missing"
+            performance = "missing"
             joey = "missing"
             franky = "missing"
             launchReady = $false
@@ -436,6 +437,7 @@ function Get-ShipDiagnosis {
     $simon = Get-MarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
     $robin = Get-MarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
     $accessibility = Get-MarkdownValue -Path "docs/codex/ACCESSIBILITY_REVIEW.md" -Heading "Verdict"
+    $performance = Get-MarkdownValue -Path "docs/codex/PERFORMANCE_REVIEW.md" -Heading "Verdict"
     $joey = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
     $franky = Get-MarkdownValue -Path "docs/codex/FRANKY_FORMULA_REVIEW.md" -Heading "Verdict"
     $missionExists = Test-Path "docs/codex/MISSION.md"
@@ -636,8 +638,10 @@ function Get-ShipDiagnosis {
     if ([string]$checkpoint -match "^RED\b") {
         $checkpointMentionsFranky = $checkpointText -match "(?i)Franky|formula review"
         $checkpointMentionsAccessibility = $checkpointText -match "(?i)accessibility"
+        $checkpointMentionsPerformance = $checkpointText -match "(?i)performance"
         if (($checkpointMentionsFranky -and -not $frankyRelevant) -or
-            ($checkpointMentionsAccessibility -and [string]$accessibility -notmatch "^RED\b")) {
+            ($checkpointMentionsAccessibility -and [string]$accessibility -notmatch "^RED\b") -or
+            ($checkpointMentionsPerformance -and [string]$performance -notmatch "^RED\b")) {
             $checkpointRedIsStale = $true
             Add-Finding -Findings $findings -Level "WARN" -Message "Checkpoint verdict is RED, but it appears stale after a cleared or irrelevant reviewer gate; rerun checkpoint review before final parking."
         }
@@ -647,6 +651,7 @@ function Get-ShipDiagnosis {
         @{ name = "Simon"; value = $simon; relevant = $true },
         @{ name = "Robin"; value = $robin; relevant = $true },
         @{ name = "Accessibility"; value = $accessibility; relevant = $true },
+        @{ name = "Performance"; value = $performance; relevant = $true },
         @{ name = "Joey"; value = $joey; relevant = $true },
         @{ name = "Franky"; value = $franky; relevant = $frankyRelevant }
     )) {
@@ -667,7 +672,7 @@ function Get-ShipDiagnosis {
     $failCount = @($findings | Where-Object { $_.level -eq "FAIL" }).Count
     $batchSize = if ($taskCount -eq 0) { 2 } else { [Math]::Min(3, [Math]::Max(1, $taskCount)) }
     $frankyFlag = if ($frankyRelevant) { " -FrankyEvery 1" } else { "" }
-    $recommended = ".\run-checkpoint-loop.ps1 -Project $name -BatchSize $batchSize -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -AccessibilityEvery 1 -JoeyEvery 1$frankyFlag -ContinueOnYellowCheckpoint"
+    $recommended = ".\run-checkpoint-loop.ps1 -Project $name -BatchSize $batchSize -MaxBatches 1 -VisualInspectEvery 1 -SimonEvery 1 -RobinEvery 1 -AccessibilityEvery 1 -PerformanceEvery 1 -JoeyEvery 1$frankyFlag -ContinueOnYellowCheckpoint"
 
     return [pscustomobject]@{
         name = $name
@@ -695,6 +700,7 @@ function Get-ShipDiagnosis {
         simon = $simon
         robin = $robin
         accessibility = $accessibility
+        performance = $performance
         joey = $joey
         franky = $franky
         launchReady = ($failCount -eq 0)
@@ -712,13 +718,13 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "| Ship | Ready | Type | Risk | Architecture | Analysis | Calibration | Dependencies | Migrations | API Contracts | Seed Fixtures | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Accessibility | Joey | Franky |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- |"
+    "| Ship | Ready | Type | Risk | Architecture | Analysis | Calibration | Dependencies | Migrations | API Contracts | Seed Fixtures | Sensitive | Runtime | Maintenance | Autopilot | Branch | HEAD | Dirty | Tasks | Checkpoint | Simon | Robin | Accessibility | Performance | Joey | Franky |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
 )
 
 foreach ($diagnosis in $diagnoses) {
     $ready = if ($diagnosis.launchReady) { "YES" } else { "NO" }
-    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.analysis) | $($diagnosis.calibration) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.apiContracts) | $($diagnosis.seedFixtures) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.accessibility) | $($diagnosis.joey) | $($diagnosis.franky) |"
+    $lines += "| $($diagnosis.name) | $ready | $($diagnosis.projectType) | $($diagnosis.riskTier) | $($diagnosis.architecture) | $($diagnosis.analysis) | $($diagnosis.calibration) | $($diagnosis.dependencies) | $($diagnosis.migrations) | $($diagnosis.apiContracts) | $($diagnosis.seedFixtures) | $($diagnosis.sensitiveSystems) | $($diagnosis.runtime) | $($diagnosis.maintenance) | $($diagnosis.autopilot) | $($diagnosis.branch) | $($diagnosis.head) | $($diagnosis.dirty) | $($diagnosis.uncheckedTasks) | $($diagnosis.checkpoint) | $($diagnosis.simon) | $($diagnosis.robin) | $($diagnosis.accessibility) | $($diagnosis.performance) | $($diagnosis.joey) | $($diagnosis.franky) |"
 }
 
 $lines += ""
@@ -746,6 +752,7 @@ foreach ($diagnosis in $diagnoses) {
     $lines += "- Maintenance lane: $($diagnosis.maintenance)"
     $lines += "- Limited autopilot: $($diagnosis.autopilot)"
     $lines += "- Accessibility review: $($diagnosis.accessibility)"
+    $lines += "- Performance review: $($diagnosis.performance)"
     $lines += "- Franky formula review: $($diagnosis.franky)"
     $lines += "- First unchecked task: $firstTaskText"
     $lines += "- Recommended command: $($diagnosis.recommendedCommand)"
@@ -765,7 +772,7 @@ if (!$Quiet) {
     foreach ($diagnosis in $diagnoses) {
         $color = if ($diagnosis.launchReady) { "Green" } else { "Red" }
         $status = if ($diagnosis.launchReady) { "healthy" } else { "not ready" }
-        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), analysis $($diagnosis.analysis), calibration $($diagnosis.calibration), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), api contracts $($diagnosis.apiContracts), seed fixtures $($diagnosis.seedFixtures), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Accessibility $($diagnosis.accessibility), Joey $($diagnosis.joey), Franky $($diagnosis.franky)." -ForegroundColor $color
+        Write-Host "Chopper says $($diagnosis.name) is ${status}: $($diagnosis.projectType), $($diagnosis.riskTier), architecture $($diagnosis.architecture), analysis $($diagnosis.analysis), calibration $($diagnosis.calibration), dependencies $($diagnosis.dependencies), migrations $($diagnosis.migrations), api contracts $($diagnosis.apiContracts), seed fixtures $($diagnosis.seedFixtures), sensitive $($diagnosis.sensitiveSystems), runtime $($diagnosis.runtime), maintenance $($diagnosis.maintenance), autopilot $($diagnosis.autopilot), $($diagnosis.dirty), tasks $($diagnosis.uncheckedTasks), checkpoint $($diagnosis.checkpoint), Simon $($diagnosis.simon), Robin $($diagnosis.robin), Accessibility $($diagnosis.accessibility), Performance $($diagnosis.performance), Joey $($diagnosis.joey), Franky $($diagnosis.franky)." -ForegroundColor $color
         if (!$diagnosis.launchReady) {
             $diagnosis.findings | Where-Object { $_.level -eq "FAIL" } | ForEach-Object {
                 Write-Host "  - $($_.message)" -ForegroundColor Red
