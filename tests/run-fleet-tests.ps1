@@ -869,6 +869,7 @@ function Test-DebuggerReportFileAllowance {
     Assert-True -Condition ($debugText -match 'expectedReportFilePattern') -Message "Debugger identifies expected Codex report files"
     Assert-True -Condition ($debugText -match 'batchChangedForLimit') -Message "Debugger uses a non-report file count for hard batch limits"
     Assert-True -Condition ($debugText -match 'Too many non-report files changed') -Message "Debugger batch limit message distinguishes report-file overhead"
+    Assert-True -Condition ($debugText -match '\$verdict\s+-eq\s+"YELLOW"\s+-and\s+\$AllowYellowCheckpoint' -and $debugText -match 'YELLOW continuation is allowed') -Message "Debugger downgrades explicit yellow human-review stops to warnings"
 }
 
 function Test-ShipPreviewRefreshSupport {

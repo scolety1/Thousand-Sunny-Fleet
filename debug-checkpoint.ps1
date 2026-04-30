@@ -235,7 +235,11 @@ if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") {
         Add-Issue "FAIL" "Checkpoint verdict is not GREEN."
     }
     if ($review -match "(?im)^## Recommended Next Step\s*\r?\n\s*stop for human review\s*$") {
-        Add-Issue "FAIL" "Checkpoint review requested human stop."
+        if ($verdict -eq "YELLOW" -and $AllowYellowCheckpoint) {
+            Add-Issue "WARN" "Checkpoint review requested human stop, but YELLOW continuation is allowed for this run."
+        } else {
+            Add-Issue "FAIL" "Checkpoint review requested human stop."
+        }
     }
 } else {
     Add-Issue "WARN" "Missing docs/codex/CHECKPOINT_REVIEW.md."
