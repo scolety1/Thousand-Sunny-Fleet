@@ -66,6 +66,34 @@ function Get-PolicyValue {
     return ""
 }
 
+function Get-MarkdownListSection {
+    param([string]$Text, [string]$Heading)
+
+    $match = [regex]::Match($Text, "(?ims)^##\s+$([regex]::Escape($Heading))\s*\r?\n(?<body>.*?)(?=^##\s+|\z)")
+    if (!$match.Success) { return @() }
+    $body = $match.Groups["body"].Value
+    return @($body -split "\r?\n" | Where-Object { $_ -match "^\s*-\s+(.+?)\s*$" } | ForEach-Object {
+            ([regex]::Match($_, "^\s*-\s+(.+?)\s*$")).Groups[1].Value.Trim().ToLowerInvariant()
+        })
+}
+
+function Get-InlinePolicyList {
+    param([string]$Text, [string]$Name)
+
+    $value = Get-PolicyValue -Text $Text -Name $Name
+    if ([string]::IsNullOrWhiteSpace($value)) { return @() }
+    return @($value -split "," | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+}
+
+function Test-PolicyTextContainsAny {
+    param([string]$Text, [string[]]$Terms)
+
+    foreach ($term in $Terms) {
+        if ($Text -match [regex]::Escape($term)) { return $true }
+    }
+    return $false
+}
+
 function Write-AutopilotTemplates {
     foreach ($ship in Get-ProjectList) {
         $repo = [string](Get-ConfigPropertyValue -Object $ship -Name "repo")
@@ -125,6 +153,15 @@ Notes:
 function Get-AutopilotStatus {
     param([string]$Repo)
 
+    $requiredSafeLanes = @(
+        "content typo fixes",
+        "docs updates",
+        "non-sensitive ui polish",
+        "test-backed bug fixes",
+        "staging report generation"
+    )
+    $humanApprovalTerms = @("pricing", "production deploy", "payment", "auth", "permission", "mass email", "data deletion", "legal", "compliance", "customer data")
+
     Push-Location $Repo
     try {
         $policyExists = Test-Path $PolicyFile
@@ -135,14 +172,19 @@ function Get-AutopilotStatus {
                 spendingLimit = "unknown"
                 customerData = "unknown"
                 escalation = "unknown"
+                safeLanes = @()
+                approvedLanes = @()
                 reasons = @("Autopilot policy is missing.")
             }
         }
 
         $policyText = Get-Content $PolicyFile -Raw
+        $approvalText = if ($approvalExists) { Get-Content "docs/codex/AUTOPILOT_APPROVAL.md" -Raw } else { "" }
         $spendingLimit = Get-PolicyValue -Text $policyText -Name "Spending Limit"
         $customerData = Get-PolicyValue -Text $policyText -Name "Customer Data"
         $escalation = Get-PolicyValue -Text $policyText -Name "Escalation"
+        $safeLanes = @(Get-MarkdownListSection -Text $policyText -Heading "Safe Automatic Lanes")
+        $approvedLanes = @(Get-InlinePolicyList -Text $approvalText -Name "Approved Lanes")
         $reasons = [System.Collections.Generic.List[string]]::new()
 
         if ([string]::IsNullOrWhiteSpace($spendingLimit)) { $reasons.Add("Spending limit is missing.") | Out-Null }
@@ -151,6 +193,18 @@ function Get-AutopilotStatus {
         if ([string]::IsNullOrWhiteSpace($customerData)) { $reasons.Add("Customer-data handling rule is missing.") | Out-Null }
         if ([string]::IsNullOrWhiteSpace($escalation)) { $reasons.Add("Escalation rule is missing.") | Out-Null }
 
+        foreach ($lane in $requiredSafeLanes) {
+            if ($safeLanes -notcontains $lane) {
+                $reasons.Add("Safe automatic lane missing: $lane.") | Out-Null
+            }
+        }
+
+        foreach ($lane in $safeLanes) {
+            if (Test-PolicyTextContainsAny -Text $lane -Terms $humanApprovalTerms) {
+                $reasons.Add("Safe lane mentions human-approval-only action: $lane.") | Out-Null
+            }
+        }
+
         foreach ($blockedTerm in @("pricing", "production deploy", "payment", "auth", "mass email", "data deletion", "legal")) {
             if ($policyText -notmatch [regex]::Escape($blockedTerm)) {
                 $reasons.Add("Human-approval rule missing for $blockedTerm.") | Out-Null
@@ -158,6 +212,19 @@ function Get-AutopilotStatus {
         }
 
         $approved = ($approvalExists -and (Test-ApprovedStatus -Path "docs/codex/AUTOPILOT_APPROVAL.md"))
+        if ($approved) {
+            if ($approvedLanes.Count -eq 0) {
+                $reasons.Add("Approved autopilot lanes are missing.") | Out-Null
+            }
+            foreach ($lane in $approvedLanes) {
+                if ($safeLanes -notcontains $lane) {
+                    $reasons.Add("Approved lane is not listed as a safe automatic lane: $lane.") | Out-Null
+                }
+                if (Test-PolicyTextContainsAny -Text $lane -Terms $humanApprovalTerms) {
+                    $reasons.Add("Approved lane mentions human-approval-only action: $lane.") | Out-Null
+                }
+            }
+        }
         $status = if ($reasons.Count -gt 0) {
             "blocked"
         } elseif (!$approved) {
@@ -171,6 +238,8 @@ function Get-AutopilotStatus {
             spendingLimit = if ([string]::IsNullOrWhiteSpace($spendingLimit)) { "missing" } else { $spendingLimit }
             customerData = if ([string]::IsNullOrWhiteSpace($customerData)) { "missing" } else { $customerData }
             escalation = if ([string]::IsNullOrWhiteSpace($escalation)) { "missing" } else { $escalation }
+            safeLanes = @($safeLanes)
+            approvedLanes = @($approvedLanes)
             reasons = @($reasons)
         }
     } finally {
@@ -207,13 +276,15 @@ foreach ($ship in Get-ProjectList) {
             spendingLimit = "unknown"
             customerData = "unknown"
             escalation = "unknown"
+            safeLanes = @()
+            approvedLanes = @()
             dirty = "dirty $($dirty.Count)"
             reasons = @("Working tree is dirty; limited autopilot requires a clean ship or explicit -IncludeDirty approval.")
         }
         continue
     }
     $status = Get-AutopilotStatus -Repo $repoPath.Path
-    $results += [pscustomobject]@{ name = $name; repo = $repoPath.Path; status = $status.status; spendingLimit = $status.spendingLimit; customerData = $status.customerData; escalation = $status.escalation; dirty = if ($dirty.Count -eq 0) { "clean" } else { "dirty $($dirty.Count)" }; reasons = @($status.reasons) }
+    $results += [pscustomobject]@{ name = $name; repo = $repoPath.Path; status = $status.status; spendingLimit = $status.spendingLimit; customerData = $status.customerData; escalation = $status.escalation; safeLanes = @($status.safeLanes); approvedLanes = @($status.approvedLanes); dirty = if ($dirty.Count -eq 0) { "clean" } else { "dirty $($dirty.Count)" }; reasons = @($status.reasons) }
 }
 
 if ($ValidateOnly) {
@@ -270,6 +341,8 @@ foreach ($result in $results) {
     $lines += "- Status: $($result.status)"
     $lines += "- Dirty: $($result.dirty)"
     $lines += "- Escalation: $($result.escalation)"
+    $lines += "- Safe lanes: $(if ($result.safeLanes.Count -gt 0) { $result.safeLanes -join ', ' } else { 'none' })"
+    $lines += "- Approved lanes: $(if ($result.approvedLanes.Count -gt 0) { $result.approvedLanes -join ', ' } else { 'none' })"
     $lines += ""
     $lines += "Reasons:"
     if ($result.reasons.Count -eq 0) {

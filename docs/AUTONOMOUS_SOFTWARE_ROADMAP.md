@@ -405,7 +405,7 @@ Exit criteria:
 
 Purpose: Automate low-risk business operations while preserving human control over reputation, money, and user trust.
 
-Status: started. `fleet-autopilot-policy.ps1` now validates limited-autopilot policy and approval artifacts, requires spending limits, customer-data handling rules, escalation rules, and explicit human approval for sensitive business actions, and writes an audit log for each policy review.
+Status: implemented. `fleet-autopilot-policy.ps1` now validates limited-autopilot policy and approval artifacts, requires spending limits, customer-data handling rules, escalation rules, concrete safe automatic lanes, and explicit human approval for sensitive business actions, fails closed on dirty ships, writes Markdown and JSON reports, and writes an audit log for each policy review.
 
 Required upgrades:
 
