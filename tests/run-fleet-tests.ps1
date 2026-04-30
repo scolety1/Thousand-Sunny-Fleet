@@ -455,6 +455,7 @@ function Test-PhaseEightMaintenanceSupport {
     Assert-True -Condition ($maintenanceText -match '\\bRED\\b') -Message "Maintenance lane avoids substring matches for RED"
     Assert-True -Condition ($maintenanceText -match 'Test-InformationalMaintenanceLine') -Message "Maintenance lane skips informational review boilerplate"
     Assert-True -Condition ($maintenanceText -match 'Task\\s\+attempted') -Message "Maintenance lane skips task-attempted prose"
+    Assert-True -Condition ($maintenanceText -match 'Technical Debt\|Findings\|Verdict') -Message "Maintenance lane skips report/template headings"
     Assert-True -Condition ($maintenanceText -match '\[string\]\$JsonOutFile' -and $maintenanceText -match 'ConvertTo-Json') -Message "Maintenance lane writes machine-readable JSON"
     Assert-True -Condition ($maintenanceText -match '\[int\]\$TailLines' -and $maintenanceText -match 'Get-Content[\s\S]+-Tail') -Message "Maintenance lane can tail long reports"
     Assert-True -Condition ($maintenanceText -match 'HashSet\[string\]' -or $maintenanceText -match 'System\.Collections\.Generic\.HashSet') -Message "Maintenance lane de-duplicates repeated signals"

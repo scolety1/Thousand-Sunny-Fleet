@@ -100,7 +100,8 @@ function Test-InformationalMaintenanceLine {
     return ($Line -match "(?i)^\s*-\s+A\s+GREEN\s+result\s+means\b" -or
         $Line -match "(?i)^\s*-\s+Human\s+review\s+is\s+still\s+required\b" -or
         $Line -match "(?i)^\s*-\s+Local\s+storage\s+is\s+allowed\b" -or
-        $Line -match "(?i)^\s*-\s+Task\s+attempted:")
+        $Line -match "(?i)^\s*-\s+Task\s+attempted:" -or
+        $Line -match "(?i)^\s*#+\s*(Technical Debt|Findings|Verdict|Maintenance Queue|Maintenance Windows)\s*$")
 }
 
 function Add-ReportSignalItems {
