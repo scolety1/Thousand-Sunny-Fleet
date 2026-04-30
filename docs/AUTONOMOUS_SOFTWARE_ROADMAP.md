@@ -358,7 +358,7 @@ Exit criteria:
 
 Purpose: Let Fleet prepare releases while keeping production control explicit.
 
-Status: started. `release-readiness.ps1` now generates a release evidence package with build, commits, changed files, checkpoint/security/runtime/migration/sensitive gates, deployment plan, post-deploy smoke plan, rollback plan, and human release approval status. It never deploys.
+Status: started. `release-readiness.ps1` now generates a release evidence package with build, commits, changed files, checkpoint/security/runtime/visual/migration/sensitive gates, deployment plan, post-deploy smoke plan, rollback plan, and human release approval status. It can scaffold the required release docs, validates required release-plan sections, writes a machine-readable JSON companion report, and never deploys.
 
 Required upgrades:
 

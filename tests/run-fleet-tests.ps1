@@ -425,10 +425,16 @@ function Test-PhaseSevenReleaseSupport {
     Assert-True -Condition ($releaseText -match 'ROLLBACK_PLAN\.md') -Message "Release readiness checks rollback plan"
     Assert-True -Condition ($releaseText -match 'RELEASE_APPROVAL\.md') -Message "Release readiness checks human release approval"
     Assert-True -Condition ($releaseText -match 'RUNTIME_VERIFICATION\.md') -Message "Release readiness includes runtime evidence"
+    Assert-True -Condition ($releaseText -match 'VISUAL_BUGS\.md') -Message "Release readiness includes visual evidence"
     Assert-True -Condition ($releaseText -match 'MIGRATION_REVIEW\.md') -Message "Release readiness includes migration evidence"
     Assert-True -Condition ($releaseText -match 'SENSITIVE_SYSTEMS_REVIEW\.md') -Message "Release readiness includes sensitive systems evidence"
+    Assert-True -Condition ($releaseText -match '\[string\]\$JsonOutFile' -and $releaseText -match 'ConvertTo-Json') -Message "Release readiness writes machine-readable JSON"
+    Assert-True -Condition ($releaseText -match '\[switch\]\$Template' -and $releaseText -match 'Ensure-ReleaseTemplates') -Message "Release readiness can scaffold release templates"
+    Assert-True -Condition ($releaseText -match 'Test-RequiredSections' -and $releaseText -match 'Deployment Target' -and $releaseText -match 'Smoke Checklist' -and $releaseText -match 'Rollback Steps') -Message "Release readiness validates release plan sections"
+    Assert-True -Condition ($releaseText -match '\[switch\]\$TreatWarningsAsBlockers') -Message "Release readiness can fail closed on warnings"
     Assert-True -Condition ($releaseText -match 'This report never deploys') -Message "Release readiness explicitly does not deploy"
     Assert-True -Condition ($readmeText -match 'Phase 7 release and operations gate') -Message "README documents Phase 7 release readiness"
+    Assert-True -Condition ($readmeText -match 'release templates' -and $readmeText -match 'machine-readable JSON') -Message "README documents Phase 7 templates and JSON output"
 }
 
 function Test-PhaseEightMaintenanceSupport {
