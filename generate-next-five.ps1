@@ -424,7 +424,24 @@ if ($unshapedTasks.Count -gt 0) {
 
 if (![string]::IsNullOrWhiteSpace($activeWorkPack)) {
     $activePackNumber = [regex]::Match($activeWorkPack, "Pack\s+\d+").Value
-    $packTasks = @($tasks | Where-Object { $_ -notmatch [regex]::Escape($activeWorkPack) -and $_ -notmatch [regex]::Escape($activePackNumber) })
+    $normalizedTasks = @()
+    $changedPackLabels = $false
+    foreach ($task in $tasks) {
+        if ($task -match [regex]::Escape($activeWorkPack) -or (![string]::IsNullOrWhiteSpace($activePackNumber) -and $task -match [regex]::Escape($activePackNumber))) {
+            $normalizedTasks += $task
+            continue
+        }
+
+        $normalizedTasks += ($task -replace "User pain:\s*", "User pain: $activeWorkPack - ")
+        $changedPackLabels = $true
+    }
+
+    if ($changedPackLabels) {
+        Set-Content -Path $outPath -Encoding UTF8 -Value ($normalizedTasks -join "`n")
+        $tasks = @($normalizedTasks)
+    }
+
+    $packTasks = @($tasks | Where-Object { $_ -notmatch [regex]::Escape($activeWorkPack) -and (![string]::IsNullOrWhiteSpace($activePackNumber) -and $_ -notmatch [regex]::Escape($activePackNumber)) })
     if ($packTasks.Count -gt 0) {
         Write-Host "Planner produced task(s) that do not mention the active work pack: $activeWorkPack" -ForegroundColor Red
         $packTasks | ForEach-Object { Write-Host "  $_" }

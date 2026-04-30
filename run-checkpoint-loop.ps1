@@ -2869,10 +2869,19 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             "-RateLimitMaxCooldowns", $plannerRateLimitMaxCooldowns
         )
         $plannerExit = Invoke-FleetPowerShell -Arguments $plannerArgs -LogName "planner-batch-$batch.log" -TimeoutSeconds ($plannerTimeout + ($plannerRateLimitCooldown * $plannerRateLimitMaxCooldowns) + 120)
-        if ($plannerExit -ne 0) { exit 1 }
-        if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) { exit 1 }
+        if ($plannerExit -ne 0) {
+            Release-FleetRunLock
+            exit 1
+        }
+        if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) {
+            Release-FleetRunLock
+            exit 1
+        }
         Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
-        if (-not (Invoke-FleetCommit -Message "Codex checkpoint planner tasks batch $batch")) { exit 1 }
+        if (-not (Invoke-FleetCommit -Message "Codex checkpoint planner tasks batch $batch")) {
+            Release-FleetRunLock
+            exit 1
+        }
     }
 
     for ($i = 1; $i -le $BatchSize; $i++) {
