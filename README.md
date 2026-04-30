@@ -94,6 +94,8 @@ cd C:\Dev\codex-fleet
 
 `fleet-autopilot-policy.ps1` is the Phase 9 limited business autopilot gate. It validates `AUTOPILOT_POLICY.md` and `AUTOPILOT_APPROVAL.md`, requires explicit rules for spending limits, customer-data handling, escalation, and concrete safe automatic lanes, writes a Markdown report, JSON report, and audit log under `.codex-local/audit/`, fails closed on dirty ships unless `-IncludeDirty` is explicitly passed, and never spends money, deploys, emails customers, changes auth/payments, edits legal text, or touches customer data. Approved autopilot lanes must be listed in the policy safe-lane section and must not contain human-approval-only actions.
 
+`franky-formula-review.ps1` is the Phase 10 specialist reviewer layer for analytical and formula-heavy ships. Franky is deterministic and checks `FORMULA_SPEC.md`, `FIXTURE_TEST_PLAN.md`, formula-oriented tests, analytical number provenance, and calibration visibility before formula work can pretend to be insight. The checkpoint loop can run it with `-FrankyEvery 1`, and analytical phases auto-run it before the final checkpoint.
+
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows. Proof runs include visual inspection, Simon, Robin, Joey, checkpoint review, and the checkpoint debugger by default; pass `-RobinEvery 0` only when intentionally skipping copy review for a non-copy technical probe.
 
 Trial overnight launches start ships back-to-back by default. Pass `-LaunchDelaySeconds 90` only when you explicitly want spaced departures.
@@ -238,7 +240,9 @@ Phase 8 maintenance is an intake lane, not a repair bot. `fleet-maintenance.ps1`
 
 Phase 9 limited autopilot is policy-first. `fleet-autopilot-policy.ps1` can prepare templates and validate whether a ship has approved safe lanes, zero spending, customer-data rules, escalation rules, machine-readable audit evidence, and explicit human approval for reputation, money, auth, payments, legal text, mass email, data deletion, and production deploy decisions.
 
-Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, and Joey reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
+Phase 10 specialist reviewers give the Fleet domain-specific stoppers. The first reviewer is Franky Formula Review: formula/model work must show a spec, fixtures, expected outputs, tests, provenance, and calibration caveats before the loop treats analytical output as trustworthy.
+
+Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 

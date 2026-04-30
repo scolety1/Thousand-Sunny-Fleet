@@ -504,6 +504,28 @@ function Test-PhaseNineAutopilotSupport {
     Assert-True -Condition ($roadmapText -match 'fleet-autopilot-policy\.ps1') -Message "Roadmap marks Phase 9 as started"
 }
 
+function Test-PhaseTenSpecialistReviewers {
+    $frankyText = Get-Content (Join-Path $fleetRoot "franky-formula-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "franky-formula-review.ps1")) -Message "Fleet exposes Phase 10 Franky formula reviewer"
+    Assert-True -Condition ($frankyText -match 'FRANKY_FORMULA_REVIEW\.md') -Message "Franky writes formula review reports"
+    Assert-True -Condition ($frankyText -match 'FORMULA_SPEC\.md' -and $frankyText -match 'FIXTURE_TEST_PLAN\.md') -Message "Franky checks formula spec and fixture plan"
+    Assert-True -Condition ($frankyText -match 'Expected Outputs' -and $frankyText -match 'Formula Tests') -Message "Franky requires expected outputs and formula tests"
+    Assert-True -Condition ($frankyText -match 'fake-confidence soup') -Message "Franky names fake-confidence risk"
+    Assert-True -Condition ($loopText -match '\[int\]\$FrankyEvery' -and $loopText -match 'franky-formula-review\.ps1') -Message "Checkpoint loop can run Franky"
+    Assert-True -Condition ($loopText -match 'frankyAutoPhases' -and $loopText -match 'engine-build') -Message "Checkpoint loop auto-runs Franky in analytical phases"
+    Assert-True -Condition ($loopText -match 'FRANKY_FORMULA_REVIEW') -Message "Task materiality treats Franky report as Fleet-generated report"
+    Assert-True -Condition ($checkpointText -match 'Franky formula review' -and $checkpointText -match 'Franky verdict') -Message "Checkpoint review reads Franky status"
+    Assert-True -Condition ($doctorText -match 'FRANKY_FORMULA_REVIEW\.md' -and $doctorText -match 'Franky') -Message "Fleet doctor reports Franky status"
+    Assert-True -Condition ($readmeText -match 'Phase 10 specialist reviewer') -Message "README documents Phase 10 specialist reviewer layer"
+    Assert-True -Condition ($roadmapText -match 'Phase 10 - Specialist Reviewer Layer') -Message "Roadmap documents Phase 10"
+}
+
 function Test-ConfigResolution {
     foreach ($name in @("FixtureStaticDemo", "FixtureDocsOnly", "FixtureRealProduct")) {
         $result = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -794,6 +816,7 @@ function Test-CheckpointGateOrder {
     $simonIndex = $loopText.IndexOf('if ($SimonEvery -gt 0')
     $robinIndex = $loopText.IndexOf('if ($RobinEvery -gt 0')
     $joeyIndex = $loopText.IndexOf('if ($JoeyEvery -gt 0')
+    $frankyIndex = $loopText.IndexOf('$frankyShouldRun')
     $checkpointIndex = $loopText.IndexOf('$checkpointText = Invoke-CheckpointReviewGate -Batch $batch')
     $debugIndex = $loopText.IndexOf('if (!$SkipDebug)')
 
@@ -801,7 +824,8 @@ function Test-CheckpointGateOrder {
     Assert-True -Condition ($simonIndex -gt $visualIndex) -Message "Simon runs after visual inspect"
     Assert-True -Condition ($robinIndex -gt $simonIndex) -Message "Robin runs after Simon"
     Assert-True -Condition ($joeyIndex -gt $robinIndex) -Message "Joey runs after Robin"
-    Assert-True -Condition ($checkpointIndex -gt $joeyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, and Joey"
+    Assert-True -Condition ($frankyIndex -gt $joeyIndex) -Message "Franky runs after Joey when enabled"
+    Assert-True -Condition ($checkpointIndex -gt $frankyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, Joey, and Franky"
     Assert-True -Condition ($debugIndex -gt $checkpointIndex) -Message "Debugger runs after final checkpoint"
 }
 
@@ -1469,6 +1493,7 @@ Test-PhaseSixRuntimeVerificationSupport
 Test-PhaseSevenReleaseSupport
 Test-PhaseEightMaintenanceSupport
 Test-PhaseNineAutopilotSupport
+Test-PhaseTenSpecialistReviewers
 Test-ConfigResolution
 Test-DoctorAndReadiness
 Test-MaintenanceDirtySkip

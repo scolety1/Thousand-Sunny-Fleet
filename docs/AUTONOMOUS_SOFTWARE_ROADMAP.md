@@ -434,10 +434,29 @@ Exit criteria:
 
 - Fleet can operate low-risk lanes overnight and produce a morning business report, while sensitive decisions wait for approval.
 
+### Phase 10 - Specialist Reviewer Layer
+
+Purpose: Add domain-specific reviewers that stop polished nonsense before it becomes trusted output.
+
+Status: implemented for the first reviewer. `franky-formula-review.ps1` now reviews analytical and formula-heavy ships for concrete formula specs, fixture data, expected outputs, formula tests, number provenance, and calibration visibility. The checkpoint loop accepts `-FrankyEvery`, auto-runs Franky during analytical phases, stages `FRANKY_FORMULA_REVIEW.md`, and stops on RED formula findings before the final checkpoint.
+
+Required upgrades:
+
+- Add Franky Formula Review for deterministic formula/model correctness checks.
+- Wire Franky into analytical phases automatically.
+- Add Fleet Doctor visibility for Franky verdicts.
+- Make final checkpoint happen after specialist reviewers.
+- Keep future reviewers role-specific, deterministic where possible, and bounded to their evidence lane.
+
+Exit criteria:
+
+- Formula-heavy ships cannot continue with missing specs, missing fixtures, missing expected outputs, or missing formula-test evidence.
+
 ## Reviewer Roles To Add
 
 Existing roles cover checkpoint, design, copy, and security. Sophisticated software needs more reviewers.
 
+- Franky Formula Review: formula specs, fixture expectations, tests, provenance, calibration caveats.
 - Architect: system design, boundaries, data model, dependencies.
 - Test Lead: test plan, coverage risk, missing workflow tests.
 - Backend Reviewer: API behavior, persistence, error handling, observability.

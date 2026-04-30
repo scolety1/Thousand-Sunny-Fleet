@@ -39,6 +39,8 @@ param(
 
     [int]$JoeyTimeoutSeconds = 300,
 
+    [int]$FrankyTimeoutSeconds = 300,
+
     [int]$DebugTimeoutSeconds = 300,
 
     [int]$RateLimitCooldownSeconds = 3600,
@@ -67,6 +69,8 @@ param(
     [int]$RobinEvery = 0,
 
     [int]$JoeyEvery = 0,
+
+    [int]$FrankyEvery = 0,
 
     [switch]$PushCheckpoint,
 
@@ -196,6 +200,10 @@ if ($RobinEvery -lt 0) {
 
 if ($JoeyEvery -lt 0) {
     Stop-Usage "-JoeyEvery must be 0 or greater."
+}
+
+if ($FrankyEvery -lt 0) {
+    Stop-Usage "-FrankyEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -625,7 +633,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -3291,6 +3299,34 @@ REVIEW_FINDING: P2: short description
             $stopAfterCheckpointExitCode = 1
             $stopAfterCheckpointReason = "Joey requested a human security stop."
             Write-Host "Joey requested a human security stop. A final checkpoint will be written before stopping." -ForegroundColor Red
+        }
+    }
+
+    $effectivePhaseForFranky = Resolve-EffectiveLoopPhaseForGate
+    $frankyAutoPhases = @("formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")
+    $frankyShouldRun = ($FrankyEvery -gt 0 -and ($batch % $FrankyEvery -eq 0)) -or ($effectivePhaseForFranky -in $frankyAutoPhases)
+    if ($frankyShouldRun) {
+        $frankyArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "franky-formula-review.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-BaseBranch", $BaseBranch
+        )
+        $frankyExit = Invoke-FleetPowerShell -Arguments $frankyArgs -LogName "franky-formula-review-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "franky" -Default $FrankyTimeoutSeconds)
+        $frankyPassed = $frankyExit -eq 0
+        $frankyText = if (Test-Path "docs/codex/FRANKY_FORMULA_REVIEW.md") { Get-Content "docs/codex/FRANKY_FORMULA_REVIEW.md" -Raw } else { "" }
+        Stage-Files -Paths @("docs/codex/FRANKY_FORMULA_REVIEW.md")
+        $pendingFrankyCommit = @(git diff --cached --name-only)
+        if ($pendingFrankyCommit.Count -gt 0) {
+            if (-not (Invoke-FleetCommit -Message "Codex Franky formula review batch $batch")) { exit 1 }
+        }
+        if (-not $frankyPassed -or $frankyText -match "(?is)## Verdict\s+RED\b" -or $frankyText -match "(?i)stop for human formula review") {
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = 1
+            $stopAfterCheckpointReason = "Franky requested a human formula stop."
+            Write-Host "Franky requested a human formula stop. A final checkpoint will be written before stopping." -ForegroundColor Red
         }
     }
 
