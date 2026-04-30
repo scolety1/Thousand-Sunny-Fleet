@@ -6,6 +6,10 @@ param(
 
     [string]$OutFile = "out\fleet-maintenance.md",
 
+    [string]$JsonOutFile = "out\fleet-maintenance.json",
+
+    [int]$TailLines = 260,
+
     [switch]$Template,
 
     [switch]$ValidateOnly,
@@ -19,6 +23,14 @@ function Stop-WithMessage {
     param([string]$Message)
     Write-Host $Message -ForegroundColor Red
     exit 1
+}
+
+function Ensure-OutputParent {
+    param([string]$Path)
+    $parent = Split-Path -Parent $Path
+    if (![string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
 }
 
 function Get-ConfigPropertyValue {
@@ -92,16 +104,31 @@ function Add-ReportSignalItems {
         [System.Collections.Generic.List[object]]$Items,
         [string]$Path,
         [string]$Lane,
-        [string]$Source
+        [string]$Source,
+        [int]$MaxTailLines = 0
     )
 
     if (!(Test-Path $Path)) { return }
     $signalPattern = "\bRED\b|\bYELLOW\b|\bP1\b|\bP2\b|\bTODO\b|\bFIXME\b|flaky|regression|slow|timeout|deprecated|vulnerab|outdated|debt|\berror\b|\bfail(?:ed|ure|s)?\b"
-    $matches = @(Select-String -Path $Path -Pattern $signalPattern -CaseSensitive:$false -ErrorAction SilentlyContinue | Select-Object -First 8)
-    foreach ($match in $matches) {
-        if (Test-InformationalMaintenanceLine -Line $match.Line) { continue }
-        $priority = Get-MaintenanceSignalPriority -Line $match.Line
-        Add-MaintenanceItem -Items $Items -Lane $Lane -Priority $priority -Source "$Source line $($match.LineNumber)" -Summary $match.Line.Trim()
+    $lines = if ($MaxTailLines -gt 0) {
+        @(Get-Content -Path $Path -Tail $MaxTailLines -ErrorAction SilentlyContinue)
+    } else {
+        @(Get-Content -Path $Path -ErrorAction SilentlyContinue)
+    }
+    $seen = [System.Collections.Generic.HashSet[string]]::new()
+    $matchCount = 0
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = [string]$lines[$i]
+        if ($line -notmatch $signalPattern) { continue }
+        if (Test-InformationalMaintenanceLine -Line $line) { continue }
+        $summary = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($summary)) { continue }
+        if (!$seen.Add($summary)) { continue }
+        $priority = Get-MaintenanceSignalPriority -Line $summary
+        $sourceLine = if ($MaxTailLines -gt 0) { "$Source recent line $($i + 1)" } else { "$Source line $($i + 1)" }
+        Add-MaintenanceItem -Items $Items -Lane $Lane -Priority $priority -Source $sourceLine -Summary $summary
+        $matchCount++
+        if ($matchCount -ge 8) { break }
     }
 }
 
@@ -232,14 +259,15 @@ foreach ($ship in Get-ProjectList) {
 
         foreach ($gate in @(
             @{ path = "docs/codex/CHECKPOINT_REVIEW.md"; lane = "bug-triage"; source = "checkpoint" },
-            @{ path = "docs/codex/NIGHTLY_REPORT.md"; lane = "issue-intake"; source = "nightly report" },
+            @{ path = "docs/codex/NIGHTLY_REPORT.md"; lane = "issue-intake"; source = "nightly report"; tail = $TailLines },
             @{ path = "docs/codex/RUNTIME_VERIFICATION.md"; lane = "performance-regression"; source = "runtime verification" },
             @{ path = "docs/codex/JOEY_SECURITY_REVIEW.md"; lane = "security-maintenance"; source = "Joey security" },
             @{ path = "docs/codex/MIGRATION_REVIEW.md"; lane = "data-maintenance"; source = "migration review" },
             @{ path = "docs/codex/DEPENDENCY_PROPOSAL.md"; lane = "dependency-review"; source = "dependency proposal" },
             @{ path = "docs/codex/TECH_DEBT.md"; lane = "technical-debt"; source = "technical debt" }
         )) {
-            Add-ReportSignalItems -Items $items -Path $gate.path -Lane $gate.lane -Source $gate.source
+            $tail = if ($null -ne $gate.tail) { [int]$gate.tail } else { 0 }
+            Add-ReportSignalItems -Items $items -Path $gate.path -Lane $gate.lane -Source $gate.source -MaxTailLines $tail
         }
 
         $checkpoint = Get-MarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
@@ -300,7 +328,16 @@ foreach ($result in $results) {
     }
 }
 
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
+Ensure-OutputParent -Path $OutFile
 Set-Content -Path $OutFile -Value $lines
+Ensure-OutputParent -Path $JsonOutFile
+[pscustomobject]@{
+    generated = $timestamp
+    tailLines = $TailLines
+    includeDirty = [bool]$IncludeDirty
+    readOnly = $true
+    projects = $results
+} | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOutFile
 Write-Host "Maintenance report: $OutFile" -ForegroundColor Green
+Write-Host "Maintenance JSON: $JsonOutFile" -ForegroundColor Green
 exit 0

@@ -385,7 +385,7 @@ Exit criteria:
 
 Purpose: Let Fleet keep mature software healthy.
 
-Status: started. `fleet-maintenance.ps1` now provides a Phase 8 intake lane that scans existing local reports for bugs, dependency-review signals, flaky-test/performance regression signals, and technical debt, writes `out/fleet-maintenance.md`, and can install maintenance queue/window templates when a ship is ready.
+Status: started. `fleet-maintenance.ps1` now provides a Phase 8 intake lane that scans existing local reports for bugs, dependency-review signals, flaky-test/performance regression signals, and technical debt, writes Markdown plus JSON reports, tail-scans long reports to avoid stale-noise loops, de-duplicates repeated signals, and can install maintenance queue/window templates when a ship is ready.
 
 Required upgrades:
 
