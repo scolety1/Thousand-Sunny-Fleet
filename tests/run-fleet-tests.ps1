@@ -1770,6 +1770,8 @@ function Test-LongRunSupervisorSupport {
     $roadmapText = Get-Content (Join-Path $fleetRoot "docs\TWELVE_HOUR_MAGIC_ROADMAP.md") -Raw
 
     Assert-True -Condition ($supervisorText -match 'Resolve-SupervisorState') -Message "Supervisor classifies ship state"
+    Assert-True -Condition ($supervisorText -match 'Alias\("Projects"\)') -Message "Supervisor accepts Projects alias for smoke checks"
+    Assert-True -Condition ($supervisorText -match '\$selectedProjects') -Message "Supervisor supports multiple selected projects"
     Assert-True -Condition ($supervisorText -match 'ExcludeProject') -Message "Supervisor can exclude docked ships"
     Assert-True -Condition ($supervisorText -match 'PROGRESSING') -Message "Supervisor reports progressing ships"
     Assert-True -Condition ($supervisorText -match 'IDLE_RUNNING') -Message "Supervisor reports idle running ships"
@@ -1883,6 +1885,7 @@ function Test-ProductAdmissionGateSupport {
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-product-dashboard.ps1")) -Message "Fleet exposes product dashboard"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-kill-switch.ps1")) -Message "Fleet exposes kill switch"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1")) -Message "Fleet exposes product docs backfill tool"
+    Assert-True -Condition ($dashboardText -match 'Alias\("OutFile"\)') -Message "Product dashboard accepts OutFile alias for smoke checks"
 
     Assert-True -Condition ($admissionText -match 'SHIP_SCORECARD\.md') -Message "Admission gate reads scorecard"
     Assert-True -Condition ($admissionText -match 'USER_JOB\.md') -Message "Admission gate requires user job"

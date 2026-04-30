@@ -2,6 +2,7 @@
 param(
     [string]$ConfigPath = ".\projects.json",
 
+    [Alias("OutFile")]
     [string]$OutMarkdown = "out\fleet-product-dashboard.md",
 
     [string]$OutHtml = "out\fleet-product-dashboard.html",

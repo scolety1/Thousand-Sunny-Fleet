@@ -2,7 +2,8 @@
 param(
     [string]$ConfigPath = ".\projects.json",
 
-    [string]$Project = "",
+    [Alias("Projects")]
+    [string[]]$Project = @(),
 
     [string[]]$ExcludeProject = @(),
 
@@ -574,8 +575,9 @@ function Write-SupervisorReport {
 
     $parsedProjects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
     $projects = @($parsedProjects | ForEach-Object { $_ })
-    if (![string]::IsNullOrWhiteSpace($Project)) {
-        $projects = @($projects | Where-Object { [string]$_.name -ceq $Project })
+    $selectedProjects = @($Project | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { [string]$_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    if ($selectedProjects.Count -gt 0) {
+        $projects = @($projects | Where-Object { $selectedProjects -contains [string]$_.name })
     }
     $exclude = @($ExcludeProject | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { [string]$_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     if ($exclude.Count -gt 0) {
