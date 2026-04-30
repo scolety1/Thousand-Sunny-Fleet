@@ -1711,16 +1711,6 @@ function New-ReplacementTaskLine {
         [object]$Contract = $null
     )
 
-    $summary = if ($null -ne $Contract -and ![string]::IsNullOrWhiteSpace([string]$Contract.summary)) {
-        [string]$Contract.summary
-    } else {
-        [string]$Task
-    }
-    $summary = ($summary -replace "\s+", " ").Trim()
-    if ($summary.Length -gt 420) {
-        $summary = $summary.Substring(0, 420).Trim()
-    }
-
     $taskClass = if ($null -ne $Contract -and ![string]::IsNullOrWhiteSpace([string]$Contract.class)) { [string]$Contract.class } else { "design" }
     if ($taskClass -in @("backend", "migration", "integration", "performance")) {
         $taskClass = "docs"
@@ -1742,7 +1732,12 @@ function New-ReplacementTaskLine {
         $safeReason = $safeReason.Substring(0, 220).Trim()
     }
 
-    return "- [ ] Auto recovery retry: make a smaller safe slice of the quarantined task '$summary' that avoids the failure reason '$safeReason'; change only one narrow UI/content/module area, prefer deleting awkward complexity over adding new systems, and do not touch backend, auth, payments, Firebase rules/config, package/dependency files, generated output, deployment config, secrets, or unrelated files. [class:$taskClass risk:low mode:single scope:$($safeScope -join ',')]"
+    $metadata = "class:$taskClass risk:low mode:single impact:visible scope:$($safeScope -join ',')"
+    if ($null -ne $Contract -and $Contract.acceptance.Count -gt 0) {
+        $metadata += " accept:$($Contract.acceptance -join '; ')"
+    }
+
+    return "- [ ] Auto recovery retry: make one narrow safe slice in $($safeScope[0]) that avoids this failure: $safeReason. Change one visible UI or copy area, prefer deleting awkward complexity over adding new systems, and preserve backend, auth, payments, Firebase rules/config, package/dependency files, generated output, deployment config, secrets, and unrelated files. [$metadata]"
 }
 
 function Add-ReplacementTaskAfterQuarantine {

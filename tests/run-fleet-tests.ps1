@@ -720,6 +720,9 @@ function Test-TaskQuarantineSupport {
     Assert-True -Condition ($loopText -match 'git restore --worktree') -Message "Checkpoint loop restores tracked worktree edits during quarantine cleanup"
     Assert-True -Condition ($loopText -match 'Codex changed HEAD during implementation') -Message "Checkpoint loop stops if Codex commits during implementation"
     Assert-True -Condition ($loopText -match 'Codex quarantine failed task batch') -Message "Checkpoint loop commits quarantine notes separately"
+    Assert-True -Condition ($loopText -match 'Auto recovery retry: make one narrow safe slice') -Message "Auto recovery retries are rewritten as small safe slices"
+    Assert-True -Condition ($loopText -match 'impact:visible') -Message "Auto recovery retry metadata includes visible impact"
+    Assert-True -Condition ($loopText -notmatch 'quarantined task .\$summary') -Message "Auto recovery retries do not quote the original large task summary"
 
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
     Assert-True -Condition ($schoolText -match '-QuarantineFailedTasks') -Message "School launcher can pass quarantine mode to ships"
