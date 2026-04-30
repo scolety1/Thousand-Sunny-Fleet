@@ -14,7 +14,11 @@ param(
 
     [switch]$ValidateOnly,
 
-    [switch]$IncludeDirty
+    [switch]$IncludeDirty,
+
+    [switch]$QueueTasks,
+
+    [int]$MaxQueueItems = 3
 )
 
 $ErrorActionPreference = "Continue"
@@ -132,6 +136,63 @@ function Add-ReportSignalItems {
     }
 }
 
+function Get-MaintenanceTaskClass {
+    param([string]$Lane)
+
+    switch ($Lane) {
+        "performance-regression" { return "performance" }
+        "dependency-review" { return "docs" }
+        "technical-debt" { return "refactor" }
+        "security-maintenance" { return "bugfix" }
+        "data-maintenance" { return "docs" }
+        default { return "bugfix" }
+    }
+}
+
+function ConvertTo-MaintenanceTaskLine {
+    param([object]$Item)
+
+    $taskClass = Get-MaintenanceTaskClass -Lane ([string]$Item.lane)
+    $summary = ([string]$Item.summary).Replace("`r", " ").Replace("`n", " ").Trim()
+    $source = ([string]$Item.source).Replace("`r", " ").Replace("`n", " ").Trim()
+    if ($summary.Length -gt 220) { $summary = $summary.Substring(0, 217) + "..." }
+
+    return "- [ ] Maintenance: investigate $($Item.priority)-priority $($Item.lane) signal from $source. Evidence: $summary. Guardrails: preserve user work; do not edit auth, payments, secrets, package files, deployment config, generated output, or unrelated features. Acceptance: issue is reproduced or ruled out, the smallest safe fix or note is applied, and the relevant local build/test/check command passes. [class:$taskClass risk:low mode:single impact:standard scope:src/,tests/,docs/codex/]"
+}
+
+function Write-MaintenanceQueueTasks {
+    param(
+        [System.Collections.Generic.List[object]]$Items,
+        [int]$Limit = 3
+    )
+
+    $queuePath = "docs/codex/MAINTENANCE_QUEUE.md"
+    if (!(Test-Path $queuePath)) { return 0 }
+    $existing = Get-Content -Path $queuePath -Raw
+    $orderedItems = @($Items | Where-Object { $_.lane -ne "intake" -and $_.lane -ne "recurring-maintenance" -and $_.lane -ne "active-work" } | Sort-Object @{ Expression = {
+                switch ($_.priority) {
+                    "high" { 0 }
+                    "medium" { 1 }
+                    default { 2 }
+                }
+            } }, lane | Select-Object -First $Limit)
+    if ($orderedItems.Count -eq 0) { return 0 }
+
+    $newLines = [System.Collections.Generic.List[string]]::new()
+    $newLines.Add("") | Out-Null
+    $newLines.Add("## Fleet Maintenance Intake $((Get-Date).ToString('yyyy-MM-dd HH:mm'))") | Out-Null
+    foreach ($item in $orderedItems) {
+        $line = ConvertTo-MaintenanceTaskLine -Item $item
+        if ($existing -notlike "*$($item.summary)*" -and $existing -notlike "*$line*") {
+            $newLines.Add($line) | Out-Null
+        }
+    }
+    if ($newLines.Count -le 2) { return 0 }
+
+    Add-Content -Path $queuePath -Value @($newLines)
+    return ($newLines.Count - 2)
+}
+
 function Write-MaintenanceTemplates {
     foreach ($ship in Get-ProjectList) {
         $repo = [string](Get-ConfigPropertyValue -Object $ship -Name "repo")
@@ -155,6 +216,8 @@ Define when Fleet may perform low-risk maintenance.
 - Window:
 - Allowed lanes: bugs, tests, docs, performance, debt, dependency-review
 - Disallowed without human approval: production deploys, auth, payment, secrets, migrations, package changes
+- Queue task limit per intake run: 3
+- Preferred cadence: after product work is parked or before a planned overnight run
 "@
             }
             if (!(Test-Path $queue)) {
@@ -272,6 +335,11 @@ foreach ($ship in Get-ProjectList) {
 
         $checkpoint = Get-MarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
         $runtime = Get-MarkdownValue -Path "docs/codex/RUNTIME_VERIFICATION.md" -Heading "Verdict"
+        $queuedTasks = if ($QueueTasks -and $queue -eq "configured" -and $windows -eq "configured") {
+            Write-MaintenanceQueueTasks -Items $items -Limit $MaxQueueItems
+        } else {
+            0
+        }
         $status = if (@($items | Where-Object { $_.priority -eq "high" }).Count -gt 0) {
             "NEEDS TRIAGE"
         } elseif ($items.Count -gt 0) {
@@ -289,6 +357,7 @@ foreach ($ship in Get-ProjectList) {
             dirty = if ($dirty.Count -eq 0) { "clean" } else { "dirty $($dirty.Count)" }
             checkpoint = $checkpoint
             runtime = $runtime
+            queuedTasks = $queuedTasks
         }
     } finally {
         Pop-Location
@@ -300,13 +369,18 @@ $lines = @(
     "",
     "Generated: $timestamp",
     "",
-    "Phase 8 autonomous maintenance intake. This report does not edit ships, update dependencies, deploy, or spend money.",
+    $(if ($QueueTasks) {
+        "Phase 8 autonomous maintenance intake. Queue mode may append bounded low-risk items to configured MAINTENANCE_QUEUE.md files, but it does not update dependencies, deploy, or spend money."
+    } else {
+        "Phase 8 autonomous maintenance intake. This report does not edit ships, update dependencies, deploy, or spend money."
+    }),
     "",
-    "| Ship | Status | Queue | Windows | Dirty | Checkpoint | Runtime | Items |",
-    "| --- | --- | --- | --- | --- | --- | --- | ---: |"
+    "| Ship | Status | Queue | Windows | Dirty | Checkpoint | Runtime | Items | Queued |",
+    "| --- | --- | --- | --- | --- | --- | --- | ---: | ---: |"
 )
 foreach ($result in $results) {
-    $lines += "| $($result.name) | $($result.status) | $($result.queue) | $($result.windows) | $($result.dirty) | $($result.checkpoint) | $($result.runtime) | $($result.items.Count) |"
+    $queuedTasks = if ($null -ne $result.queuedTasks) { $result.queuedTasks } else { 0 }
+    $lines += "| $($result.name) | $($result.status) | $($result.queue) | $($result.windows) | $($result.dirty) | $($result.checkpoint) | $($result.runtime) | $($result.items.Count) | $queuedTasks |"
 }
 
 foreach ($result in $results) {
@@ -317,6 +391,9 @@ foreach ($result in $results) {
     $lines += "- Status: $($result.status)"
     $lines += "- Maintenance queue: $($result.queue)"
     $lines += "- Maintenance windows: $($result.windows)"
+    if ($null -ne $result.queuedTasks -and $result.queuedTasks -gt 0) {
+        $lines += "- Queued maintenance tasks: $($result.queuedTasks)"
+    }
     $lines += ""
     $lines += "Items:"
     if ($result.items.Count -eq 0) {
@@ -335,7 +412,9 @@ Ensure-OutputParent -Path $JsonOutFile
     generated = $timestamp
     tailLines = $TailLines
     includeDirty = [bool]$IncludeDirty
-    readOnly = $true
+    queueTasks = [bool]$QueueTasks
+    maxQueueItems = $MaxQueueItems
+    readOnly = (-not [bool]$QueueTasks)
     projects = $results
 } | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOutFile
 Write-Host "Maintenance report: $OutFile" -ForegroundColor Green

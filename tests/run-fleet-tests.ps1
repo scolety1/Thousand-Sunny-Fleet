@@ -458,6 +458,9 @@ function Test-PhaseEightMaintenanceSupport {
     Assert-True -Condition ($maintenanceText -match '\[string\]\$JsonOutFile' -and $maintenanceText -match 'ConvertTo-Json') -Message "Maintenance lane writes machine-readable JSON"
     Assert-True -Condition ($maintenanceText -match '\[int\]\$TailLines' -and $maintenanceText -match 'Get-Content[\s\S]+-Tail') -Message "Maintenance lane can tail long reports"
     Assert-True -Condition ($maintenanceText -match 'HashSet\[string\]' -or $maintenanceText -match 'System\.Collections\.Generic\.HashSet') -Message "Maintenance lane de-duplicates repeated signals"
+    Assert-True -Condition ($maintenanceText -match '\[switch\]\$QueueTasks') -Message "Maintenance lane can opt into writing queue tasks"
+    Assert-True -Condition ($maintenanceText -match '\[int\]\$MaxQueueItems') -Message "Maintenance lane caps queued maintenance tasks"
+    Assert-True -Condition ($maintenanceText -match 'Write-MaintenanceQueueTasks') -Message "Maintenance lane has a bounded queue writer"
     foreach ($signal in @("dependency-review", "performance-regression", "flaky", "bug-triage", "issue-intake")) {
         Assert-True -Condition ($maintenanceText -match [regex]::Escape($signal)) -Message "Maintenance lane handles $signal signals"
     }
@@ -614,6 +617,69 @@ function Test-MaintenanceDirtySkip {
         Assert-True -Condition ($report -match "Use -IncludeDirty") -Message "Maintenance report explains dirty-scan opt-in"
     } finally {
         Remove-Item -LiteralPath (Join-Path $project.repo "dirty-maintenance-fixture.txt") -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-MaintenanceQueueWriter {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    $outFile = Join-Path $fixtureRoot "maintenance-queue-writer.md"
+    $jsonFile = Join-Path $fixtureRoot "maintenance-queue-writer.json"
+
+    $template = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-maintenance.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Project", "FixtureStaticDemo",
+        "-Template"
+    )
+    Assert-Equal -Actual $template.exitCode -Expected 0 -Message "Maintenance templates can be installed for fixture ship"
+
+    Push-Location $project.repo
+    try {
+        Set-Content -Path "docs\codex\RUNTIME_VERIFICATION.md" -Value @(
+            "# Runtime Verification",
+            "",
+            "## Verdict",
+            "YELLOW",
+            "",
+            "## Findings",
+            "- timeout regression detected in fixture route"
+        )
+        & git add -- docs/codex/MAINTENANCE_QUEUE.md docs/codex/MAINTENANCE_WINDOWS.md docs/codex/TECH_DEBT.md docs/codex/RUNTIME_VERIFICATION.md
+        & git commit -m "fixture maintenance setup" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits maintenance setup"
+    } finally {
+        Pop-Location
+    }
+
+    $maintenance = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-maintenance.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Project", "FixtureStaticDemo",
+        "-OutFile", $outFile,
+        "-JsonOutFile", $jsonFile,
+        "-QueueTasks",
+        "-MaxQueueItems", "1"
+    )
+    Assert-Equal -Actual $maintenance.exitCode -Expected 0 -Message "Maintenance queue writer succeeds"
+    $queue = Get-Content (Join-Path $project.repo "docs\codex\MAINTENANCE_QUEUE.md") -Raw
+    Assert-True -Condition ($queue -match "Fleet Maintenance Intake") -Message "Maintenance queue writer appends an intake section"
+    Assert-True -Condition ($queue -match "timeout regression detected") -Message "Maintenance queue writer includes report evidence"
+    Assert-True -Condition ($queue -match "class:performance") -Message "Maintenance queue writer maps performance signals to performance tasks"
+    $json = Get-Content $jsonFile -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $json.readOnly -Expected $false -Message "Maintenance JSON reports queue mode as not read-only"
+    Assert-Equal -Actual $json.maxQueueItems -Expected 1 -Message "Maintenance JSON records queue cap"
+
+    Push-Location $project.repo
+    try {
+        & git add -- docs/codex/MAINTENANCE_QUEUE.md
+        & git commit -m "fixture queued maintenance item" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits queued maintenance item"
+    } finally {
+        Pop-Location
     }
 }
 
@@ -1396,6 +1462,7 @@ Test-PhaseNineAutopilotSupport
 Test-ConfigResolution
 Test-DoctorAndReadiness
 Test-MaintenanceDirtySkip
+Test-MaintenanceQueueWriter
 Test-DebugCheckpoint
 Test-SafeStaging
 Test-ReadOnlyDirtyGuard
