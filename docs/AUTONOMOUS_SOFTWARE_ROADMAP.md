@@ -535,6 +535,33 @@ Exit criteria:
 
 - Fleet can run a small controlled experiment across several safe ships and produce a reproducible Markdown/JSON report showing parallel execution, load imbalance, speedup, and failure overhead.
 
+### Phase 14 - Staging Deploy Gate
+
+Purpose: Let Fleet prepare and validate staging-only deploy evidence without blurring it into production release authority.
+
+Status: implemented for the first staging gate. `staging-deploy.ps1` can scaffold staging deploy plan, approval, smoke, and rollback docs; validate that the staging target, URL, command, data-safety notes, and human approval are filled in; reject common production deploy commands; write Markdown plus JSON evidence; and optionally print the approved staging command for a human to run. The checkpoint loop recognizes `class:staging-deploy` and runs the staging gate after task implementation. The gate does not execute deploy commands and does not approve production deploy.
+
+Required upgrades:
+
+- Add staging-only deploy templates:
+  - staging target
+  - staging URL
+  - build command
+  - deploy command
+  - staging environment variables
+  - data safety
+  - owner
+- Add staging approval separate from release approval.
+- Add staging post-deploy smoke plan.
+- Add staging rollback plan.
+- Reject production-looking deploy commands from the staging lane.
+- Write machine-readable staging readiness evidence.
+- Let checkpoint tasks use `class:staging-deploy` for staging evidence work.
+
+Exit criteria:
+
+- Fleet can tell whether a ship is ready for a human-run staging deploy command, while production deploy remains explicitly outside the staging lane.
+
 ## Reviewer Roles To Add
 
 Existing roles cover checkpoint, design, copy, and security. Sophisticated software needs more reviewers.

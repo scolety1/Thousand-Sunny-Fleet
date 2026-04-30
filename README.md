@@ -28,6 +28,7 @@ cd C:\Dev\codex-fleet
 .\runtime-verify.ps1 -Repo C:\Dev\my-project -Template
 .\software-feature-mode.ps1 -Repo C:\Dev\my-project -Template
 .\release-readiness.ps1 -Project EasyLife
+.\staging-deploy.ps1 -Project EasyLife -Template
 .\fleet-maintenance.ps1
 .\fleet-autopilot-policy.ps1
 .\launch-proof-run.ps1 -Project RestaurantDemo
@@ -90,6 +91,8 @@ cd C:\Dev\codex-fleet
 `software-feature-mode.ps1` is the Devil Fruit Phase 5 gate for sophisticated software work. It prepares or validates `SOFTWARE_FEATURE_PLAN.md`, `SOFTWARE_FEATURE_APPROVAL.md`, `RUNTIME_CHECKS.md`, and optional dependency proposal/approval docs. Checkpoint tasks using `mode:feature-pack` require approved architecture, approved feature plan, explicit `scope:`, explicit `accept:`, runtime scenarios, and dependency approval plus enabled package/dependency capabilities before package files may change.
 
 `release-readiness.ps1` is the Phase 7 release and operations gate. It writes `out/release-readiness.md` plus machine-readable JSON with build status, commits, changed files, checkpoint/security/runtime/visual/migration/sensitive-system gates, deployment plan status, post-deploy smoke plan status, rollback plan status, and release approval status. Use `-Template` to create release templates for `DEPLOYMENT_PLAN.md`, `POST_DEPLOY_SMOKE.md`, `ROLLBACK_PLAN.md`, and `RELEASE_APPROVAL.md`; use `-TreatWarningsAsBlockers` when a release review should fail closed instead of entering human-review state. It never deploys.
+
+`staging-deploy.ps1` is the Phase 14 staging deploy gate. It scaffolds and validates `STAGING_DEPLOY_PLAN.md`, `STAGING_DEPLOY_APPROVAL.md`, `STAGING_POST_DEPLOY_SMOKE.md`, and `STAGING_ROLLBACK_PLAN.md`, rejects common production deploy commands, writes Markdown plus JSON evidence, and can print the approved staging command for a human to run with `-PrintCommand`. It does not execute deploy commands and it does not approve production deploy.
 
 `fleet-maintenance.ps1` is the Phase 8 autonomous maintenance intake lane. It scans existing local reports for issue intake, bug triage, flaky-test/performance/dependency/debt signals, and writes `out/fleet-maintenance.md` plus `out/fleet-maintenance.json`. Long reports are tail-scanned by default with `-TailLines` so stale failures do not drown out current work, and repeated signals are de-duplicated. Dirty ships are skipped by default so active work is not inspected; use `-IncludeDirty` only for an approved rescue or review. Use `-Template` to install `MAINTENANCE_QUEUE.md`, `MAINTENANCE_WINDOWS.md`, and `TECH_DEBT.md` when a ship is ready for recurring maintenance. By default it is report-only; pass `-QueueTasks -MaxQueueItems 3` to append bounded low-risk maintenance tasks into configured ship queues.
 
@@ -262,6 +265,8 @@ Phase 11 accessibility review adds Ada Accessibility Review: website and app shi
 Phase 12 performance review adds Percy Performance Review: website and app ships can run deterministic page-weight and runtime-footgun checks for bundle size, CSS size, large assets, inline base64 media, transition-all CSS, blur/filter overuse, tiny polling intervals, and eager autoplay video before checkpoint review.
 
 Phase 13 experiment runner adds controlled parallel-run evidence: selected ships can run from one manifest with the same mission shape, capped runtime, reviewer cadence, and model budget while Fleet records speedup, efficiency, load imbalance, retry overhead, refreshed stop/idle states, dirty-file counts, and exact commands for presentation or tuning work.
+
+Phase 14 staging deploy gate separates staging deploy readiness from production release. `staging-deploy.ps1` can prepare staging-only deploy docs, validate approval/smoke/rollback evidence, reject production deploy commands, and print a human-run staging command without executing it.
 
 Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, accessibility, performance, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 

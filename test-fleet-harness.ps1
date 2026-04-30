@@ -196,6 +196,7 @@ foreach ($script in @(
     ".\fleet-website-stages.ps1",
     ".\fleet-completion-contract.ps1",
     ".\fleet-experiment.ps1",
+    ".\staging-deploy.ps1",
     ".\harbor-master.ps1",
     ".\tools\codex-fleet-launcher.ps1",
     ".\tools\codex-fleet-runtime.ps1"

@@ -568,7 +568,7 @@ function Test-OvernightBudgetExceeded {
 function Resolve-TaskContract {
     param([string]$Task)
 
-    $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "design", "copy", "backend", "migration", "integration", "performance")
+    $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "design", "copy", "backend", "migration", "integration", "performance", "staging-deploy")
     $allowedRisks = @("low", "medium", "high", "gated")
     $allowedModes = @("single", "feature-pack")
     $allowedImpacts = @("standard", "visible", "showpiece")
@@ -1106,8 +1106,8 @@ function Get-AutomaticAcceptanceChecks {
     $taskClass = [string]$Contract.class
     $checks = New-Object System.Collections.Generic.List[string]
 
-    $needsUnit = $taskClass -in @("feature", "bugfix", "refactor", "test", "backend", "integration", "performance", "migration")
-    $needsLint = $taskClass -in @("feature", "bugfix", "refactor", "test", "backend", "integration", "performance", "migration", "design", "copy")
+    $needsUnit = $taskClass -in @("feature", "bugfix", "refactor", "test", "backend", "integration", "performance", "migration", "staging-deploy")
+    $needsLint = $taskClass -in @("feature", "bugfix", "refactor", "test", "backend", "integration", "performance", "migration", "design", "copy", "staging-deploy")
     $needsType = $taskClass -in @("feature", "bugfix", "refactor", "backend", "integration", "performance")
 
     if ($needsUnit) {
@@ -1302,6 +1302,31 @@ function Invoke-RuntimeVerificationGate {
     ) -LogName ("runtime-verification-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "visual" -Default $VisualTimeoutSeconds)
 
     Stage-Files -Paths @("docs/codex/RUNTIME_VERIFICATION.md")
+    return ($exitCode -eq 0)
+}
+
+function Invoke-StagingDeployGate {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or $Contract.class -ne "staging-deploy") {
+        return $true
+    }
+
+    $reviewScript = Join-Path $fleetRoot "staging-deploy.ps1"
+    if (!(Test-Path -LiteralPath $reviewScript)) {
+        Write-Host "Staging deploy gate script not found: $reviewScript" -ForegroundColor Red
+        return $false
+    }
+
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $reviewScript,
+        "-ConfigPath", $ConfigPath,
+        "-Project", $script:projectConfig.name,
+        "-AllowDirty"
+    ) -LogName ("staging-deploy-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+
     return ($exitCode -eq 0)
 }
 
@@ -1737,7 +1762,7 @@ function New-ReplacementTaskLine {
     )
 
     $taskClass = if ($null -ne $Contract -and ![string]::IsNullOrWhiteSpace([string]$Contract.class)) { [string]$Contract.class } else { "design" }
-    if ($taskClass -in @("backend", "migration", "integration", "performance")) {
+    if ($taskClass -in @("backend", "migration", "integration", "performance", "staging-deploy")) {
         $taskClass = "docs"
     }
 
@@ -2982,10 +3007,11 @@ Rules:
 8. When adding or changing user-facing routes, update docs/codex/SITE_MAP.md and docs/codex/visual-routes.json when they are in task scope.
 9. If Impact is visible or showpiece, make a user-noticeable product change to the named screen/workflow. Tiny spacing-only, report-only, or invisible refactors do not satisfy the task. If the scope cannot support a visible improvement, leave it for a smaller follow-up task instead of pretending it is complete.
 10. For visible website/app work, remove repeated page identity and visual wrappers that create double headers, stacked intro bands, or route chrome that competes with the real page.
-11. For customer-facing copy, make each sentence answer who it is for, what the reader should do, and what they get. Avoid vague standalone phrases like artifact, workflow, polish, ready for service, manager-ready, staff-ready, bring the note, and start with X unless the concrete buyer/action/outcome is obvious.
-12. If Implementation scale is large or pack, implement only the next slice named by the plan. Do not sprawl across unrelated files; summarize unresolved slices for later.
-13. For backend, integration, or migration tasks, follow the approved API contract, seed fixture plan, migration proposal, and local evidence exactly. Do not invent endpoints, schemas, production data access, or irreversible migrations beyond those approved docs.
-14. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
+11. For class:staging-deploy tasks, prepare or validate staging-only plans and smoke/rollback evidence. Do not run deploy commands and do not convert staging approval into production approval.
+12. For customer-facing copy, make each sentence answer who it is for, what the reader should do, and what they get. Avoid vague standalone phrases like artifact, workflow, polish, ready for service, manager-ready, staff-ready, bring the note, and start with X unless the concrete buyer/action/outcome is obvious.
+13. If Implementation scale is large or pack, implement only the next slice named by the plan. Do not sprawl across unrelated files; summarize unresolved slices for later.
+14. For backend, integration, or migration tasks, follow the approved API contract, seed fixture plan, migration proposal, and local evidence exactly. Do not invent endpoints, schemas, production data access, or irreversible migrations beyond those approved docs.
+15. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
@@ -3058,6 +3084,12 @@ Rules:
             $runtimeFailedFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "Runtime verification gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged $runtimeFailedFiles -BuildResult "Failed" -Risk "Runtime verification gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-StagingDeployGate -Contract $taskContract)) {
+            $stagingFailedFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Staging deploy gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $stagingFailedFiles -BuildResult "Blocked" -Risk "Staging deploy gate failed." -Contract $taskContract
             exit 1
         }
 
@@ -3148,6 +3180,12 @@ REVIEW_FINDING: P2: short description
             $finalRuntimeFiles = @(Get-TaskChangedFiles)
             if (Invoke-TaskQuarantine -Task $task -Reason "Final runtime verification gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
             Append-Report -Task $task -FilesChanged $finalRuntimeFiles -BuildResult "Failed" -Risk "Final runtime verification gate failed." -Contract $taskContract
+            exit 1
+        }
+        if (-not (Invoke-StagingDeployGate -Contract $taskContract)) {
+            $finalStagingFiles = @(Get-TaskChangedFiles)
+            if (Invoke-TaskQuarantine -Task $task -Reason "Final staging deploy gate failed." -Batch $batch -TaskIndex $i -TaskBase $taskBase) { continue }
+            Append-Report -Task $task -FilesChanged $finalStagingFiles -BuildResult "Blocked" -Risk "Final staging deploy gate failed." -Contract $taskContract
             exit 1
         }
 

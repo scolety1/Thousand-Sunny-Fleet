@@ -896,6 +896,146 @@ function Test-PhaseThirteenExperimentRunner {
     Assert-Equal -Actual $dirtyRun.ExitCode -Expected 1 -Message "Experiment runner refuses dirty selected ships"
 }
 
+function Test-PhaseFourteenStagingDeploySupport {
+    $stagingText = Get-Content (Join-Path $fleetRoot "staging-deploy.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $harnessText = Get-Content (Join-Path $fleetRoot "test-fleet-harness.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "staging-deploy.ps1")) -Message "Fleet exposes Phase 14 staging deploy gate"
+    Assert-True -Condition ($stagingText -match 'STAGING_DEPLOY_PLAN\.md' -and $stagingText -match 'STAGING_DEPLOY_APPROVAL\.md') -Message "Staging gate checks staging plan and approval"
+    Assert-True -Condition ($stagingText -match 'STAGING_POST_DEPLOY_SMOKE\.md' -and $stagingText -match 'STAGING_ROLLBACK_PLAN\.md') -Message "Staging gate checks smoke and rollback plans"
+    Assert-True -Condition ($stagingText -match 'productionDeployAllowed\s*=\s*\$false' -and $stagingText -match 'This report does not deploy') -Message "Staging gate explicitly separates production deploy"
+    Assert-True -Condition ($stagingText -match 'firebase deploy' -and $stagingText -match 'vercel --prod' -and $stagingText -match 'netlify deploy --prod') -Message "Staging gate rejects common production deploy commands"
+    Assert-True -Condition ($stagingText -match '\[switch\]\$PrintCommand' -and $stagingText -match 'Staging command for human execution') -Message "Staging gate can print command evidence without executing it"
+    Assert-True -Condition ($loopText -match 'staging-deploy' -and $loopText -match 'Invoke-StagingDeployGate') -Message "Checkpoint loop knows staging-deploy task class"
+    Assert-True -Condition ($harnessText -match 'staging-deploy\.ps1') -Message "Harness parses staging deploy gate"
+    Assert-True -Condition ($readmeText -match 'Phase 14 staging deploy gate') -Message "README documents Phase 14"
+    Assert-True -Condition ($roadmapText -match 'Phase 14 - Staging Deploy Gate') -Message "Roadmap documents Phase 14"
+
+    $stagingRoot = Join-Path $fixtureRoot "phase14-staging"
+    if (Test-Path $stagingRoot) {
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+    }
+    $shipRepo = Join-Path $stagingRoot "Ship"
+    New-Item -ItemType Directory -Force -Path $shipRepo | Out-Null
+    Push-Location $shipRepo
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "fixture" | Set-Content -Path "README.md"
+        git add README.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $stagingConfig = Join-Path $stagingRoot "projects.json"
+    @(
+        [pscustomobject]@{
+            name = "StagingFixture"
+            repo = $shipRepo
+            riskTier = "staging"
+            capabilities = [pscustomobject]@{
+                canDeploy = $false
+            }
+        }
+    ) | ConvertTo-Json -Depth 6 | Set-Content -Path $stagingConfig -Encoding UTF8
+
+    $templateRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "staging-deploy.ps1"),
+        "-ConfigPath", $stagingConfig,
+        "-Project", "StagingFixture",
+        "-Template"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $templateRun.ExitCode -Expected 0 -Message "Staging gate scaffolds templates"
+
+    Push-Location $shipRepo
+    try {
+        @"
+# Staging Deploy Plan
+
+Status: APPROVED
+
+## Staging Target
+Cloudflare Pages preview branch for staging only.
+
+## Staging URL
+https://staging.example.test
+
+## Build Command
+npm.cmd run build
+
+## Deploy Command
+npx wrangler pages deploy dist --branch staging
+
+## Environment Variables
+None.
+
+## Data Safety
+Synthetic fixture data only.
+
+## Owner
+Codex Fleet Test
+"@ | Set-Content -Path "docs/codex/STAGING_DEPLOY_PLAN.md" -Encoding UTF8
+        @"
+# Staging Deploy Approval
+
+Status: APPROVED
+
+## Approval
+Approved for staging command print only.
+
+## Notes
+No production deploy approval.
+"@ | Set-Content -Path "docs/codex/STAGING_DEPLOY_APPROVAL.md" -Encoding UTF8
+        git add docs/codex/STAGING_DEPLOY_PLAN.md docs/codex/STAGING_DEPLOY_APPROVAL.md docs/codex/STAGING_POST_DEPLOY_SMOKE.md docs/codex/STAGING_ROLLBACK_PLAN.md
+        git commit -m "approve staging docs" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $outPath = Join-Path $stagingRoot "staging.md"
+    $jsonOut = Join-Path $stagingRoot "staging.json"
+    $validRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "staging-deploy.ps1"),
+        "-ConfigPath", $stagingConfig,
+        "-Project", "StagingFixture",
+        "-OutFile", $outPath,
+        "-JsonOutFile", $jsonOut,
+        "-PrintCommand"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $validRun.ExitCode -Expected 0 -Message "Staging gate accepts approved staging fixture"
+    $stagingReport = Get-Content $outPath -Raw
+    $stagingJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
+    Assert-True -Condition ($stagingReport -match 'READY FOR HUMAN STAGING REVIEW' -and $stagingReport -match 'npx wrangler pages deploy dist --branch staging') -Message "Staging report prints human-run staging command"
+    Assert-True -Condition ($stagingJson.neverDeploys -eq $true -and $stagingJson.productionDeployAllowed -eq $false) -Message "Staging JSON records non-deploy safety"
+
+    Push-Location $shipRepo
+    try {
+        (Get-Content "docs/codex/STAGING_DEPLOY_PLAN.md" -Raw).Replace("npx wrangler pages deploy dist --branch staging", "firebase deploy") | Set-Content -Path "docs/codex/STAGING_DEPLOY_PLAN.md" -Encoding UTF8
+    } finally {
+        Pop-Location
+    }
+    $prodCommandRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "staging-deploy.ps1"),
+        "-ConfigPath", $stagingConfig,
+        "-Project", "StagingFixture",
+        "-OutFile", $outPath,
+        "-JsonOutFile", $jsonOut,
+        "-AllowDirty"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $prodCommandRun.ExitCode -Expected 1 -Message "Staging gate rejects production deploy command"
+}
+
 function Test-ConfigResolution {
     foreach ($name in @("FixtureStaticDemo", "FixtureDocsOnly", "FixtureRealProduct")) {
         $result = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -1873,6 +2013,7 @@ Test-PhaseTenSpecialistReviewers
 Test-PhaseElevenAccessibilityReview
 Test-PhaseTwelvePerformanceReview
 Test-PhaseThirteenExperimentRunner
+Test-PhaseFourteenStagingDeploySupport
 Test-ConfigResolution
 Test-DoctorAndReadiness
 Test-MaintenanceDirtySkip

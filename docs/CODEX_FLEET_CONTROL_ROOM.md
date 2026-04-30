@@ -266,6 +266,15 @@ Phase 13 experiment runs:
 
 `fleet-experiment.ps1` is for controlled Thousand Sunny Fleet trials. It launches or dry-runs the same mission shape across selected ships, refuses dirty selected repos by default, keeps normal launch state separate, and writes Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, refreshed running/idle/stopped states, dirty-file counts, stop reasons, and exact commands.
 
+Phase 14 staging deploy checks:
+
+```powershell
+.\staging-deploy.ps1 -Project EasyLife -Template
+.\staging-deploy.ps1 -Project EasyLife -PrintCommand
+```
+
+`staging-deploy.ps1` is a staging-only readiness gate. It validates `STAGING_DEPLOY_PLAN.md`, `STAGING_DEPLOY_APPROVAL.md`, `STAGING_POST_DEPLOY_SMOKE.md`, and `STAGING_ROLLBACK_PLAN.md`, rejects production-looking deploy commands, writes Markdown plus JSON evidence, and can print the staging command for a human to run. It does not execute deploy commands and does not approve production release. Use `class:staging-deploy` only for staging evidence/plan work, not production deployment.
+
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.
