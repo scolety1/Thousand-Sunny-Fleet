@@ -488,6 +488,51 @@ Exit criteria:
 
 - Website/app ships can run a low-cost performance gate before checkpoint review, and RED performance findings can stop a loop before the fleet treats the surface as ready.
 
+### Phase 13 - Experiment Runner And Parallel Metrics
+
+Purpose: Add a bounded experiment lane so Fleet can launch the same mission shape across multiple ships, measure parallel performance, and produce evidence for the Thousand Sunny Fleet project without spending overnight budget blindly.
+
+Status: prepared. The current control-room tests, harness self-test, phase audit, and Phase 12 performance smoke are passing, so Phase 13 can start from a clean base.
+
+Required upgrades:
+
+- Add an experiment manifest format that defines:
+  - experiment name
+  - selected ships
+  - workload class
+  - shared task parameters
+  - loop phase
+  - model budget
+  - max runtime
+  - reviewer cadence
+  - success criteria
+- Add an experiment launcher that can run a controlled batch without overwriting normal fleet launch state.
+- Add per-ship timing capture:
+  - queue time
+  - launch time
+  - active work duration
+  - reviewer duration
+  - repair/retry count
+  - stop reason
+- Add a summary report with HPC-friendly metrics:
+  - serial baseline estimate
+  - parallel wall-clock time
+  - speedup
+  - efficiency
+  - load imbalance
+  - failure/retry overhead
+  - reviewer gate overhead
+- Add safety limits so experiments cannot run forever:
+  - hard wall-clock cap
+  - per-ship retry cap
+  - rate-limit stop behavior
+  - dirty active work preservation
+- Add tests that verify dry-run experiment manifests, expected ship filtering, timing report creation, and invalid manifest rejection.
+
+Exit criteria:
+
+- Fleet can run a small controlled experiment across several safe ships and produce a reproducible Markdown/JSON report showing parallel execution, load imbalance, speedup, and failure overhead.
+
 ## Reviewer Roles To Add
 
 Existing roles cover checkpoint, design, copy, and security. Sophisticated software needs more reviewers.
