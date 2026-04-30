@@ -122,6 +122,7 @@ function Resolve-BudgetShape {
         [int]$ShipVisualEvery,
         [int]$ShipSimonEvery,
         [int]$ShipRobinEvery,
+        [int]$ShipAccessibilityEvery,
         [int]$ShipJoeyEvery
     )
 
@@ -132,6 +133,7 @@ function Resolve-BudgetShape {
             visualEvery = if ($ShipVisualEvery -gt 0) { [Math]::Max($ShipVisualEvery, 2) } else { 0 }
             simonEvery = if ($ShipSimonEvery -gt 0) { [Math]::Max($ShipSimonEvery, 2) } else { 0 }
             robinEvery = if ($ShipRobinEvery -gt 0) { [Math]::Max($ShipRobinEvery, 3) } else { 0 }
+            accessibilityEvery = if ($ShipAccessibilityEvery -gt 0) { [Math]::Max($ShipAccessibilityEvery, 4) } else { 0 }
             joeyEvery = if ($ShipJoeyEvery -gt 0) { [Math]::Max($ShipJoeyEvery, 6) } else { 0 }
         }
     }
@@ -143,6 +145,7 @@ function Resolve-BudgetShape {
             visualEvery = if ($ShipVisualEvery -gt 0) { 1 } else { 0 }
             simonEvery = if ($ShipSimonEvery -gt 0) { 1 } else { 0 }
             robinEvery = if ($ShipRobinEvery -gt 0) { 1 } else { 0 }
+            accessibilityEvery = if ($ShipAccessibilityEvery -gt 0) { 1 } else { 0 }
             joeyEvery = $ShipJoeyEvery
         }
     }
@@ -153,6 +156,7 @@ function Resolve-BudgetShape {
         visualEvery = $ShipVisualEvery
         simonEvery = $ShipSimonEvery
         robinEvery = $ShipRobinEvery
+        accessibilityEvery = $ShipAccessibilityEvery
         joeyEvery = $ShipJoeyEvery
     }
 }
@@ -219,15 +223,16 @@ foreach ($ship in $shipsToLaunch) {
     $shipVisualEvery = if ($UseGlobalRunShape) { 2 } else { Get-ShipInt -Ship $ship -Name "schoolVisualInspectEvery" -Default 2 }
     $shipSimonEvery = if ($UseGlobalRunShape) { 2 } else { Get-ShipInt -Ship $ship -Name "schoolSimonEvery" -Default 2 }
     $shipRobinEvery = if ($UseGlobalRunShape) { 2 } else { Get-ShipInt -Ship $ship -Name "schoolRobinEvery" -Default 2 }
+    $shipAccessibilityEvery = if ($UseGlobalRunShape) { 3 } else { Get-ShipInt -Ship $ship -Name "schoolAccessibilityEvery" -Default 3 }
     $shipJoeyEvery = if ($UseGlobalRunShape) { 4 } else { Get-ShipInt -Ship $ship -Name "schoolJoeyEvery" -Default 4 }
-    $budgetShape = Resolve-BudgetShape -ShipBatchSize $shipBatchSize -ShipMaxBatches $shipMaxBatches -ShipVisualEvery $shipVisualEvery -ShipSimonEvery $shipSimonEvery -ShipRobinEvery $shipRobinEvery -ShipJoeyEvery $shipJoeyEvery
+    $budgetShape = Resolve-BudgetShape -ShipBatchSize $shipBatchSize -ShipMaxBatches $shipMaxBatches -ShipVisualEvery $shipVisualEvery -ShipSimonEvery $shipSimonEvery -ShipRobinEvery $shipRobinEvery -ShipAccessibilityEvery $shipAccessibilityEvery -ShipJoeyEvery $shipJoeyEvery
 
     $command = @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -ModelBudget $BudgetMode -LoopPhase $LoopPhase -LaunchGateMode $LaunchGateMode -KillSwitchMode $KillSwitchMode -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
+        ".\run-checkpoint-loop.ps1 -Project '$($ship.name)' -BatchSize $($budgetShape.batchSize) -MaxBatches $($budgetShape.maxBatches) -ModelBudget $BudgetMode -LoopPhase $LoopPhase -LaunchGateMode $LaunchGateMode -KillSwitchMode $KillSwitchMode -VisualInspectEvery $($budgetShape.visualEvery) -SimonEvery $($budgetShape.simonEvery) -RobinEvery $($budgetShape.robinEvery) -AccessibilityEvery $($budgetShape.accessibilityEvery) -JoeyEvery $($budgetShape.joeyEvery) -ContinueOnYellowCheckpoint -RateLimitCooldownSeconds $RateLimitCooldownSeconds -RateLimitMaxCooldowns $RateLimitMaxCooldowns -MaxTaskQuarantines $MaxTaskQuarantines$(if ($QuarantineFailedTasks) { ' -QuarantineFailedTasks' } else { '' })$(if ($PushCheckpoint) { ' -PushCheckpoint' } else { '' })"
     ) -join "; "
 
-    Write-Host "Launching school run for $($ship.name): budget $BudgetMode, batch $($budgetShape.batchSize) x $($budgetShape.maxBatches), visual $($budgetShape.visualEvery), Simon $($budgetShape.simonEvery), Robin $($budgetShape.robinEvery), Joey $($budgetShape.joeyEvery)..." -ForegroundColor Cyan
+    Write-Host "Launching school run for $($ship.name): budget $BudgetMode, batch $($budgetShape.batchSize) x $($budgetShape.maxBatches), visual $($budgetShape.visualEvery), Simon $($budgetShape.simonEvery), Robin $($budgetShape.robinEvery), accessibility $($budgetShape.accessibilityEvery), Joey $($budgetShape.joeyEvery)..." -ForegroundColor Cyan
     if ($DryRun) {
         Write-Host $command
         Add-FleetLaunchManifestEntry -Manifest $manifest -Ship $ship.name -Command $command -DryRun

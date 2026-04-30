@@ -567,6 +567,59 @@ function Test-PhaseTenSpecialistReviewers {
     Assert-True -Condition ($frankyWebsiteReport -match 'Formula intent detected: False') -Message "Franky reports no formula intent for website simplicity phase"
 }
 
+function Test-PhaseElevenAccessibilityReview {
+    $accessibilityText = Get-Content (Join-Path $fleetRoot "accessibility-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "accessibility-review.ps1")) -Message "Fleet exposes Phase 11 accessibility reviewer"
+    Assert-True -Condition ($accessibilityText -match 'ACCESSIBILITY_REVIEW\.md') -Message "Accessibility reviewer writes accessibility reports"
+    Assert-True -Condition ($accessibilityText -match 'missing an alt attribute' -and $accessibilityText -match 'programmatic label') -Message "Accessibility reviewer checks alt text and input labels"
+    Assert-True -Condition ($accessibilityText -match 'Focus outline is removed' -and $accessibilityText -match 'Hash-only link') -Message "Accessibility reviewer checks focus and dead links"
+    Assert-True -Condition ($loopText -match '\[int\]\$AccessibilityEvery' -and $loopText -match 'accessibility-review\.ps1') -Message "Checkpoint loop can run accessibility review"
+    Assert-True -Condition ($loopText -match 'ACCESSIBILITY_REVIEW') -Message "Task materiality treats accessibility report as Fleet-generated report"
+    Assert-True -Condition ($checkpointText -match 'Accessibility verdict' -and $checkpointText -match 'accessibility review') -Message "Checkpoint review reads accessibility status"
+    Assert-True -Condition ($doctorText -match 'ACCESSIBILITY_REVIEW\.md|accessibility') -Message "Fleet doctor reports accessibility status"
+    Assert-True -Condition ($proofText -match 'AccessibilityEvery' -and $schoolText -match 'AccessibilityEvery' -and $overnightText -match 'AccessibilityEvery') -Message "Launchers forward accessibility cadence"
+    Assert-True -Condition ($readmeText -match 'Phase 11 accessibility review') -Message "README documents Phase 11 accessibility review"
+    Assert-True -Condition ($roadmapText -match 'Phase 11 - Accessibility Reviewer Layer') -Message "Roadmap documents Phase 11"
+
+    $accessibilityFixture = Join-Path $fixtureRoot "phase11-accessibility"
+    if (Test-Path $accessibilityFixture) {
+        Remove-Item -LiteralPath $accessibilityFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $accessibilityFixture "src") | Out-Null
+    Push-Location $accessibilityFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "<main><img src='hero.png'><button></button><a href='#'>learn more</a></main>" | Set-Content "src\App.html"
+        "button:focus { outline: none; }" | Set-Content "src\styles.css"
+        git add src/App.html src/styles.css
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $accessibilityRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "accessibility-review.ps1"),
+        "-Repo", $accessibilityFixture,
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $accessibilityRun.ExitCode -Expected 1 -Message "Accessibility reviewer fails on deterministic RED findings"
+    $accessibilityReport = Get-Content (Join-Path $accessibilityFixture "docs\codex\ACCESSIBILITY_REVIEW.md") -Raw
+    Assert-True -Condition ($accessibilityReport -match '## Verdict\s+RED' -and $accessibilityReport -match 'Image is missing an alt attribute') -Message "Accessibility report records RED alt-text finding"
+}
+
 function Test-ConfigResolution {
     foreach ($name in @("FixtureStaticDemo", "FixtureDocsOnly", "FixtureRealProduct")) {
         $result = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -856,6 +909,7 @@ function Test-CheckpointGateOrder {
     $visualIndex = $loopText.IndexOf('if ($VisualInspectEvery -gt 0')
     $simonIndex = $loopText.IndexOf('if ($SimonEvery -gt 0')
     $robinIndex = $loopText.IndexOf('if ($RobinEvery -gt 0')
+    $accessibilityIndex = $loopText.IndexOf('if ($AccessibilityEvery -gt 0')
     $joeyIndex = $loopText.IndexOf('if ($JoeyEvery -gt 0')
     $frankyIndex = $loopText.IndexOf('$frankyShouldRun')
     $checkpointIndex = $loopText.IndexOf('$checkpointText = Invoke-CheckpointReviewGate -Batch $batch')
@@ -864,9 +918,10 @@ function Test-CheckpointGateOrder {
     Assert-True -Condition ($visualIndex -ge 0) -Message "Checkpoint loop contains visual inspect gate"
     Assert-True -Condition ($simonIndex -gt $visualIndex) -Message "Simon runs after visual inspect"
     Assert-True -Condition ($robinIndex -gt $simonIndex) -Message "Robin runs after Simon"
-    Assert-True -Condition ($joeyIndex -gt $robinIndex) -Message "Joey runs after Robin"
+    Assert-True -Condition ($accessibilityIndex -gt $robinIndex) -Message "Accessibility review runs after Robin"
+    Assert-True -Condition ($joeyIndex -gt $accessibilityIndex) -Message "Joey runs after accessibility review"
     Assert-True -Condition ($frankyIndex -gt $joeyIndex) -Message "Franky runs after Joey when enabled"
-    Assert-True -Condition ($checkpointIndex -gt $frankyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, Joey, and Franky"
+    Assert-True -Condition ($checkpointIndex -gt $frankyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, accessibility, Joey, and Franky"
     Assert-True -Condition ($debugIndex -gt $checkpointIndex) -Message "Debugger runs after final checkpoint"
 }
 
@@ -1535,6 +1590,7 @@ Test-PhaseSevenReleaseSupport
 Test-PhaseEightMaintenanceSupport
 Test-PhaseNineAutopilotSupport
 Test-PhaseTenSpecialistReviewers
+Test-PhaseElevenAccessibilityReview
 Test-ConfigResolution
 Test-DoctorAndReadiness
 Test-MaintenanceDirtySkip

@@ -37,6 +37,8 @@ param(
 
     [int]$VisualTimeoutSeconds = 900,
 
+    [int]$AccessibilityTimeoutSeconds = 300,
+
     [int]$JoeyTimeoutSeconds = 300,
 
     [int]$FrankyTimeoutSeconds = 300,
@@ -67,6 +69,8 @@ param(
     [int]$SimonEvery = 0,
 
     [int]$RobinEvery = 0,
+
+    [int]$AccessibilityEvery = 0,
 
     [int]$JoeyEvery = 0,
 
@@ -204,6 +208,9 @@ if ($JoeyEvery -lt 0) {
 
 if ($FrankyEvery -lt 0) {
     Stop-Usage "-FrankyEvery must be 0 or greater."
+}
+if ($AccessibilityEvery -lt 0) {
+    Stop-Usage "-AccessibilityEvery must be 0 or greater."
 }
 
 function Get-ProjectConfig {
@@ -633,7 +640,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|ACCESSIBILITY_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -3274,6 +3281,31 @@ REVIEW_FINDING: P2: short description
             $stopAfterCheckpointExitCode = [Math]::Max($stopAfterCheckpointExitCode, 0)
             $stopAfterCheckpointReason = "Robin requested a human copy stop."
             Write-Host "Robin requested a human copy stop. A final checkpoint will be written before stopping." -ForegroundColor Yellow
+        }
+    }
+
+    if ($AccessibilityEvery -gt 0 -and ($batch % $AccessibilityEvery -eq 0)) {
+        $accessibilityArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "accessibility-review.ps1"),
+            "-Repo", $repoPath,
+            "-Project", $script:projectConfig.name,
+            "-FailOnRed"
+        )
+        $accessibilityExit = Invoke-FleetPowerShell -Arguments $accessibilityArgs -LogName "accessibility-review-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "accessibility" -Default $AccessibilityTimeoutSeconds)
+        $accessibilityPassed = $accessibilityExit -eq 0
+        $accessibilityText = if (Test-Path "docs/codex/ACCESSIBILITY_REVIEW.md") { Get-Content "docs/codex/ACCESSIBILITY_REVIEW.md" -Raw } else { "" }
+        Stage-Files -Paths @("docs/codex/ACCESSIBILITY_REVIEW.md")
+        $pendingAccessibilityCommit = @(git diff --cached --name-only)
+        if ($pendingAccessibilityCommit.Count -gt 0) {
+            if (-not (Invoke-FleetCommit -Message "Codex accessibility review batch $batch")) { exit 1 }
+        }
+        if (-not $accessibilityPassed -or $accessibilityText -match "(?is)## Verdict\s+RED\b" -or $accessibilityText -match "(?i)stop for human accessibility review") {
+            $stopAfterCheckpoint = $true
+            $stopAfterCheckpointExitCode = 1
+            $stopAfterCheckpointReason = "Accessibility review requested a human stop."
+            Write-Host "Accessibility review requested a human stop. A final checkpoint will be written before stopping." -ForegroundColor Red
         }
     }
 

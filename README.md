@@ -96,6 +96,8 @@ cd C:\Dev\codex-fleet
 
 `franky-formula-review.ps1` is the Phase 10 specialist reviewer layer for analytical and formula-heavy ships. Franky is deterministic and checks `FORMULA_SPEC.md`, `FIXTURE_TEST_PLAN.md`, formula-oriented tests, analytical number provenance, and calibration visibility before formula work can pretend to be insight. The checkpoint loop can run it with `-FrankyEvery 1`, and analytical phases auto-run it before the final checkpoint.
 
+`accessibility-review.ps1` is the Phase 11 accessibility reviewer layer for websites and app surfaces. Ada is deterministic and checks missing image alt text, unlabeled inputs, empty or icon-only buttons, dead hash links, vague link text, and removed focus outlines. The checkpoint loop can run it with `-AccessibilityEvery 1`; proof/school/overnight launchers forward accessibility cadence so accessibility can be part of normal polish without needing a browser model call.
+
 `launch-proof-run.ps1`, `launch-school-run.ps1`, and `launch-overnight-run.ps1` are preset launchers for checkpoint loops. They run Chopper first unless `-SkipDoctor` is passed, then start one PowerShell window per ship. Use `-Project ShipName` to launch only one ship, `-ExcludeProject ShipName` to leave a ship docked, or `-DryRun` to print the commands without opening windows. Proof runs include visual inspection, Simon, Robin, Joey, checkpoint review, and the checkpoint debugger by default; pass `-RobinEvery 0` only when intentionally skipping copy review for a non-copy technical probe.
 
 Trial overnight launches start ships back-to-back by default. Pass `-LaunchDelaySeconds 90` only when you explicitly want spaced departures.
@@ -242,7 +244,9 @@ Phase 9 limited autopilot is policy-first. `fleet-autopilot-policy.ps1` can prep
 
 Phase 10 specialist reviewers give the Fleet domain-specific stoppers. The first reviewer is Franky Formula Review: formula/model work must show a spec, fixtures, expected outputs, tests, provenance, and calibration caveats before the loop treats analytical output as trustworthy.
 
-Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
+Phase 11 accessibility review adds Ada Accessibility Review: website and app ships can run deterministic accessibility smoke checks for alt text, labels, focus visibility, dead links, and vague controls before checkpoint review.
+
+Nami and the checkpoint reviewer run in read-only Codex mode and fail if they dirty anything outside their report file. The final checkpoint review runs after fresh visual inspection, Simon, Robin, accessibility, Joey, and Franky reports so its verdict reflects the latest gates rather than stale reports from a previous batch. Task review responses are parsed for unresolved `P1`/`P2` findings before a task can be marked complete.
 
 When `-PushCheckpoint` is used, projects without an `origin` remote print a warning and keep running. Projects with an `origin` remote still push the checkpoint branch.
 

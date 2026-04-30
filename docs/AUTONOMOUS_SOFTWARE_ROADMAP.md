@@ -452,6 +452,24 @@ Exit criteria:
 
 - Formula-heavy ships cannot continue with missing specs, missing fixtures, missing expected outputs, or missing formula-test evidence.
 
+### Phase 11 - Accessibility Reviewer Layer
+
+Purpose: Add a deterministic accessibility reviewer so polished website/app surfaces do not ship with obvious keyboard, label, alt text, or focus problems.
+
+Status: implemented for the first accessibility lane. `accessibility-review.ps1` scans UI source files for missing image alt text, unlabeled inputs, empty/icon-only buttons, dead hash links, vague link text, and removed focus outlines. The checkpoint loop accepts `-AccessibilityEvery`, proof/school/overnight launchers forward accessibility cadence, Fleet Doctor reports accessibility verdicts, and checkpoint review reads `ACCESSIBILITY_REVIEW.md` before producing the final verdict.
+
+Required upgrades:
+
+- Add Ada Accessibility Review for deterministic accessibility smoke checks.
+- Wire accessibility review into checkpoint loops before security/formula gates.
+- Add Fleet Doctor visibility for accessibility verdicts.
+- Forward accessibility cadence through launchers.
+- Keep the check deterministic and bounded; deeper browser/screen-reader audits can be a later phase.
+
+Exit criteria:
+
+- Website/app ships can run a low-cost accessibility gate before checkpoint review, and RED accessibility findings can stop a loop before the fleet treats the surface as ready.
+
 ## Reviewer Roles To Add
 
 Existing roles cover checkpoint, design, copy, and security. Sophisticated software needs more reviewers.
@@ -463,7 +481,7 @@ Existing roles cover checkpoint, design, copy, and security. Sophisticated softw
 - Migration Reviewer: data safety and rollback.
 - Dependency Reviewer: package risk, license, maintenance.
 - Performance Reviewer: load time, runtime cost, query cost, bundle size.
-- Accessibility Reviewer: keyboard, screen reader, contrast, motion.
+- Accessibility Reviewer: keyboard, screen reader, contrast, motion. First deterministic pass implemented in Phase 11.
 - Release Manager: deployment plan and rollback.
 - Product Manager: task priority and user-value fit.
 - Operator: logs, alerts, incident readiness, maintenance.
