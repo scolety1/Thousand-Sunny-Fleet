@@ -521,9 +521,50 @@ function Test-PhaseTenSpecialistReviewers {
     Assert-True -Condition ($loopText -match 'frankyAutoPhases' -and $loopText -match 'engine-build') -Message "Checkpoint loop auto-runs Franky in analytical phases"
     Assert-True -Condition ($loopText -match 'FRANKY_FORMULA_REVIEW') -Message "Task materiality treats Franky report as Fleet-generated report"
     Assert-True -Condition ($checkpointText -match 'Franky formula review' -and $checkpointText -match 'Franky verdict') -Message "Checkpoint review reads Franky status"
+    Assert-True -Condition ($frankyText -match 'baseExists' -and $checkpointText -match 'baseExists') -Message "Franky and checkpoint review tolerate missing local base branches"
+    Assert-True -Condition ($frankyText -match 'taskFormulaIntent' -and $frankyText -match 'analyticalPhaseIntent') -Message "Franky does not treat generic website task wording as formula work"
+    Assert-True -Condition ($checkpointText -match 'IGNORED_NON_ANALYTICAL') -Message "Checkpoint review ignores stale Franky RED reports outside analytical phases"
     Assert-True -Condition ($doctorText -match 'FRANKY_FORMULA_REVIEW\.md' -and $doctorText -match 'Franky') -Message "Fleet doctor reports Franky status"
     Assert-True -Condition ($readmeText -match 'Phase 10 specialist reviewer') -Message "README documents Phase 10 specialist reviewer layer"
     Assert-True -Condition ($roadmapText -match 'Phase 10 - Specialist Reviewer Layer') -Message "Roadmap documents Phase 10"
+
+    $frankyFixture = Join-Path $fixtureRoot "phase10-website-franky"
+    if (Test-Path $frankyFixture) {
+        Remove-Item -LiteralPath $frankyFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $frankyFixture "docs\codex") | Out-Null
+    Push-Location $frankyFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "# Website fixture" | Set-Content README.md
+        @(
+            "# Phase State",
+            "",
+            "Current Phase: simplicity"
+        ) | Set-Content "docs\codex\PHASE_STATE.md"
+        @(
+            "# Task Queue",
+            "",
+            "- [ ] User pain: recommendation copy is too vague. Target: src. Change: simplify the help text. Remove/simplify: remove one label. Guardrails: no backend. Acceptance: build."
+        ) | Set-Content "docs\codex\TASK_QUEUE.md"
+        git add README.md docs/codex/PHASE_STATE.md docs/codex/TASK_QUEUE.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $frankyWebsite = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "franky-formula-review.ps1"),
+        "-Repo", $frankyFixture,
+        "-OutFile", "docs/codex/FRANKY_FORMULA_REVIEW.md"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $frankyWebsite.ExitCode -Expected 0 -Message "Franky allows non-analytical website tasks with recommendation wording"
+    $frankyWebsiteReport = Get-Content (Join-Path $frankyFixture "docs\codex\FRANKY_FORMULA_REVIEW.md") -Raw
+    Assert-True -Condition ($frankyWebsiteReport -match 'Formula intent detected: False') -Message "Franky reports no formula intent for website simplicity phase"
 }
 
 function Test-ConfigResolution {
