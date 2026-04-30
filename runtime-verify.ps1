@@ -30,15 +30,29 @@ function Get-CheckLines {
 
 function Invoke-CommandCheck {
     param([string]$Command)
-    $result = & powershell -NoProfile -ExecutionPolicy Bypass -Command $Command *> $null
-    return ($LASTEXITCODE -eq 0)
+    $job = Start-Job -ScriptBlock {
+        param([string]$InnerCommand)
+        & powershell -NoProfile -ExecutionPolicy Bypass -Command $InnerCommand *> $null
+        return $LASTEXITCODE
+    } -ArgumentList $Command
+
+    $completed = Wait-Job -Job $job -Timeout $TimeoutSeconds
+    if ($null -eq $completed) {
+        Stop-Job -Job $job -ErrorAction SilentlyContinue
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+        return $false
+    }
+
+    $exitCode = Receive-Job -Job $job -ErrorAction SilentlyContinue
+    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    return ([int]$exitCode -eq 0)
 }
 
 function Invoke-UrlCheck {
     param([string]$Url)
     try {
         $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec ([Math]::Min(15, $TimeoutSeconds))
-        return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500)
+        return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
     } catch {
         return $false
     }
@@ -52,7 +66,7 @@ function Invoke-TextCheck {
     $needle = $parts[1].Trim()
     if (!(Test-Path $path)) { return $false }
     $text = Get-Content $path -Raw
-    return ($text -like "*$needle*")
+    return ($text.Contains($needle))
 }
 
 $repoPath = Resolve-Path -LiteralPath $Repo -ErrorAction SilentlyContinue
