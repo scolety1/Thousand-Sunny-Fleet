@@ -757,6 +757,129 @@ function Test-PhaseTwelvePerformanceReview {
     Assert-True -Condition ($performantReport -match '## Verdict\s+GREEN') -Message "Performance report stays GREEN for performant fixture"
 }
 
+function Test-PhaseThirteenExperimentRunner {
+    $experimentText = Get-Content (Join-Path $fleetRoot "fleet-experiment.ps1") -Raw
+    $harnessText = Get-Content (Join-Path $fleetRoot "test-fleet-harness.ps1") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-experiment.ps1")) -Message "Fleet exposes Phase 13 experiment runner"
+    Assert-True -Condition ($experimentText -match 'experimentName' -and $experimentText -match 'selectedShips' -and $experimentText -match 'workloadClass') -Message "Experiment runner reads experiment manifests"
+    Assert-True -Condition ($experimentText -match 'speedup' -and $experimentText -match 'efficiency' -and $experimentText -match 'loadImbalance') -Message "Experiment runner writes HPC metrics"
+    Assert-True -Condition ($experimentText -match 'AllowDirty' -and $experimentText -match 'Experiment refused because selected ship\(s\) are dirty') -Message "Experiment runner protects dirty selected ships"
+    Assert-True -Condition ($experimentText -notmatch 'latest-launch\.md') -Message "Experiment runner does not overwrite normal latest-launch report"
+    Assert-True -Condition ($harnessText -match 'fleet-experiment\.ps1') -Message "Harness parses experiment runner"
+    Assert-True -Condition ($roadmapText -match 'Phase 13 - Experiment Runner And Parallel Metrics') -Message "Roadmap documents Phase 13"
+
+    $experimentRoot = Join-Path $fixtureRoot "phase13-experiment"
+    if (Test-Path $experimentRoot) {
+        Remove-Item -LiteralPath $experimentRoot -Recurse -Force
+    }
+    $shipA = Join-Path $experimentRoot "ShipA"
+    $shipB = Join-Path $experimentRoot "ShipB"
+    New-Item -ItemType Directory -Force -Path $shipA | Out-Null
+    New-Item -ItemType Directory -Force -Path $shipB | Out-Null
+    foreach ($repo in @($shipA, $shipB)) {
+        Push-Location $repo
+        try {
+            git init | Out-Null
+            git config user.email "codex@example.local"
+            git config user.name "Codex Fleet Test"
+            "ok" | Set-Content "README.md"
+            git add README.md | Out-Null
+            git commit -m "fixture" | Out-Null
+        } finally {
+            Pop-Location
+        }
+    }
+
+    $experimentConfig = Join-Path $experimentRoot "projects.json"
+    @(
+        [pscustomobject]@{ name = "ExperimentA"; repo = $shipA },
+        [pscustomobject]@{ name = "ExperimentB"; repo = $shipB }
+    ) | ConvertTo-Json -Depth 4 | Set-Content -Path $experimentConfig -Encoding UTF8
+
+    $manifest = Join-Path $experimentRoot "experiment.json"
+    [pscustomobject]@{
+        experimentName = "phase13-smoke"
+        selectedShips = @("ExperimentA", "ExperimentB")
+        workloadClass = "test-workload"
+        sharedTaskParameters = "same bounded task"
+        loopPhase = "simplicity"
+        modelBudget = "cheap"
+        batchSize = 1
+        maxBatches = 1
+        maxRuntimeMinutes = 30
+        baselineSerialMinutes = 60
+        reviewerCadence = [pscustomobject]@{
+            visualInspectEvery = 1
+            simonEvery = 1
+            robinEvery = 1
+            accessibilityEvery = 1
+            performanceEvery = 1
+            joeyEvery = 0
+        }
+        successCriteria = @("report metrics", "do not touch dirty ships")
+        perShipRuntimeMinutes = [pscustomobject]@{
+            ExperimentA = 20
+            ExperimentB = 30
+        }
+    } | ConvertTo-Json -Depth 8 | Set-Content -Path $manifest -Encoding UTF8
+
+    $outPath = Join-Path $experimentRoot "experiment.md"
+    $jsonOut = Join-Path $experimentRoot "experiment-output.json"
+    $experimentRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $manifest,
+        "-ConfigPath", $experimentConfig,
+        "-OutPath", $outPath,
+        "-JsonOutPath", $jsonOut,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $experimentRun.ExitCode -Expected 0 -Message "Experiment runner accepts a valid dry-run manifest"
+    Assert-True -Condition (Test-Path $outPath) -Message "Experiment runner writes Markdown evidence"
+    Assert-True -Condition (Test-Path $jsonOut) -Message "Experiment runner writes JSON evidence"
+    $experimentReport = Get-Content $outPath -Raw
+    Assert-True -Condition ($experimentReport -match '## HPC Metrics' -and $experimentReport -match 'Speedup' -and $experimentReport -match 'Load imbalance') -Message "Experiment report includes HPC metrics"
+    $experimentJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $experimentJson.metrics.speedup -Expected 2 -Message "Experiment metrics compute speedup"
+    Assert-Equal -Actual $experimentJson.metrics.efficiency -Expected 1 -Message "Experiment metrics compute efficiency"
+    Assert-True -Condition ($experimentJson.entries.Count -eq 2 -and $experimentJson.entries[0].status -eq "DRY_RUN") -Message "Experiment JSON records launched dry-run entries"
+    Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'run-checkpoint-loop\.ps1') -Message "Experiment entries include checkpoint commands"
+
+    $invalidManifest = Join-Path $experimentRoot "experiment-invalid.json"
+    [pscustomobject]@{
+        experimentName = "phase13-invalid"
+        selectedShips = @("ExperimentA", "MissingShip")
+        loopPhase = "simplicity"
+        modelBudget = "cheap"
+    } | ConvertTo-Json -Depth 4 | Set-Content -Path $invalidManifest -Encoding UTF8
+    $invalidRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $invalidManifest,
+        "-ConfigPath", $experimentConfig,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $invalidRun.ExitCode -Expected 1 -Message "Experiment runner rejects unknown ships"
+
+    "dirty" | Set-Content (Join-Path $shipA "dirty.txt")
+    $dirtyRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $manifest,
+        "-ConfigPath", $experimentConfig,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $dirtyRun.ExitCode -Expected 1 -Message "Experiment runner refuses dirty selected ships"
+}
+
 function Test-ConfigResolution {
     foreach ($name in @("FixtureStaticDemo", "FixtureDocsOnly", "FixtureRealProduct")) {
         $result = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -1733,6 +1856,7 @@ Test-PhaseNineAutopilotSupport
 Test-PhaseTenSpecialistReviewers
 Test-PhaseElevenAccessibilityReview
 Test-PhaseTwelvePerformanceReview
+Test-PhaseThirteenExperimentRunner
 Test-ConfigResolution
 Test-DoctorAndReadiness
 Test-MaintenanceDirtySkip

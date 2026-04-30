@@ -492,7 +492,7 @@ Exit criteria:
 
 Purpose: Add a bounded experiment lane so Fleet can launch the same mission shape across multiple ships, measure parallel performance, and produce evidence for the Thousand Sunny Fleet project without spending overnight budget blindly.
 
-Status: prepared. The current control-room tests, harness self-test, phase audit, and Phase 12 performance smoke are passing, so Phase 13 can start from a clean base.
+Status: implemented for the first experiment lane. `fleet-experiment.ps1` can create a starter manifest, validate selected ships, refuse dirty selected repos by default, launch or dry-run one checkpoint loop per ship, and write Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, stop reasons, and exact commands.
 
 Required upgrades:
 

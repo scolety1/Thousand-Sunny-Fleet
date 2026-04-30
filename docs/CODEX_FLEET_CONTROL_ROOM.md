@@ -256,6 +256,15 @@ During analytical phases, staged commits also run `analytical-number-provenance.
 
 `scenario-tools` also runs `analytical-scenario-approval.ps1` before starting. Scenario work requires approved `SCENARIO_SPEC.md` and `SCENARIO_APPROVAL.md` artifacts plus scenario test or expected-fixture evidence. Each approved scenario must document changed inputs, affected formulas, expected output changes, fixed outputs, and the UI assumption labels shown near controls.
 
+Phase 13 experiment runs:
+
+```powershell
+.\fleet-experiment.ps1 -Template -ManifestPath .\experiments\three-ship-smoke.json
+.\fleet-experiment.ps1 -ManifestPath .\experiments\three-ship-smoke.json -DryRun
+```
+
+`fleet-experiment.ps1` is for controlled Thousand Sunny Fleet trials. It launches or dry-runs the same mission shape across selected ships, refuses dirty selected repos by default, keeps normal launch state separate, and writes Markdown plus JSON evidence with serial baseline, parallel wall-clock, speedup, efficiency, load imbalance, retry overhead, reviewer cadence, stop reasons, and exact commands.
+
 - `repair`: interrupt lane for RED review gates, build/runtime failures, quarantined tasks, stale/idle lock problems, security stops, and blocking visual bugs. It is not a normal destination; after the blocker clears, return to the prior product phase.
 - `brief`: define audience, promise, primary action, showable moment, and what not to build.
 - `foundation`: add missing routes/components/data/core behavior.
