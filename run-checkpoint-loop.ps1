@@ -1230,7 +1230,7 @@ function Invoke-FleetCommit {
 function Mark-FirstUncheckedTaskComplete {
     $path = "docs/codex/TASK_QUEUE.md"
     $updated = $false
-    $newLines = foreach ($line in Get-Content $path) {
+    $newLines = foreach ($line in Get-Content $path -Encoding UTF8) {
         if (-not $updated -and $line -match "^(\s*-\s+)\[ \](\s+.+)$") {
             $updated = $true
             "$($Matches[1])[x]$($Matches[2])"
@@ -1238,13 +1238,13 @@ function Mark-FirstUncheckedTaskComplete {
             $line
         }
     }
-    Set-Content $path $newLines
+    Set-Content -Path $path -Value $newLines -Encoding UTF8
 }
 
 function Mark-FirstUncheckedTaskQuarantined {
     $path = "docs/codex/TASK_QUEUE.md"
     $updated = $false
-    $newLines = foreach ($line in Get-Content $path) {
+    $newLines = foreach ($line in Get-Content $path -Encoding UTF8) {
         if (-not $updated -and $line -match "^(\s*-\s+)\[ \](\s+.+)$") {
             $updated = $true
             "$($Matches[1])[!]$($Matches[2])"
@@ -1252,17 +1252,39 @@ function Mark-FirstUncheckedTaskQuarantined {
             $line
         }
     }
-    Set-Content $path $newLines
+    Set-Content -Path $path -Value $newLines -Encoding UTF8
+}
+
+function Repair-FleetMojibake {
+    param([string]$Text)
+
+    if ($null -eq $Text) { return "" }
+    $value = [string]$Text
+    $pairs = @(
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x2122), "'"),
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x02DC), "'"),
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x0153), '"'),
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x009D), '"'),
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x201C), "-"),
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x201D), "-"),
+        @(([string]([char]0x00E2) + [char]0x20AC + [char]0x00A6), "...")
+    )
+    foreach ($pair in $pairs) {
+        $value = $value.Replace([string]$pair[0], [string]$pair[1])
+    }
+    return $value
 }
 
 function Append-Report {
     param([string]$Task, [string[]]$FilesChanged, [string]$BuildResult, [string]$Risk, [object]$Contract = $null, [string]$TaskBase = "")
     if (!(Test-Path "docs/codex/NIGHTLY_REPORT.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
-        "# Codex Nightly Report`n" | Set-Content "docs/codex/NIGHTLY_REPORT.md"
+        "# Codex Nightly Report`n" | Set-Content "docs/codex/NIGHTLY_REPORT.md" -Encoding UTF8
     }
 
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $Task = Repair-FleetMojibake -Text $Task
+    $Risk = Repair-FleetMojibake -Text $Risk
     $files = if ($FilesChanged.Count -gt 0) { ($FilesChanged | ForEach-Object { "- $_" }) -join "`n" } else { "- None" }
     $contractLines = @()
     if ($null -ne $Contract) {
@@ -1275,7 +1297,7 @@ function Append-Report {
         $contractLines += "- Acceptance checks: $(if ($resolvedAcceptance.Count -gt 0) { $resolvedAcceptance -join ', ' } else { 'external build only' })"
         $contractLines += "- Implementation scale: $(Get-TaskImplementationScale -Contract $Contract)"
     }
-    Add-Content "docs/codex/NIGHTLY_REPORT.md" @"
+    Add-Content -Path "docs/codex/NIGHTLY_REPORT.md" -Encoding UTF8 -Value @"
 
 ## $date
 
@@ -1295,10 +1317,12 @@ function Append-MagicScorecard {
 
     if (!(Test-Path "docs/codex/MAGIC_SCORECARD.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
-        "# Magic Scorecard`n`nThis file is appended by Codex Fleet after checkpoint-loop tasks.`n" | Set-Content "docs/codex/MAGIC_SCORECARD.md"
+        "# Magic Scorecard`n`nThis file is appended by Codex Fleet after checkpoint-loop tasks.`n" | Set-Content "docs/codex/MAGIC_SCORECARD.md" -Encoding UTF8
     }
 
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $Task = Repair-FleetMojibake -Text $Task
+    $Risk = Repair-FleetMojibake -Text $Risk
     $status = switch -Regex ($BuildResult) {
         "Passed" { "moved-forward"; break }
         "Quarantined" { "learned-from-failure"; break }
@@ -1315,7 +1339,7 @@ function Append-MagicScorecard {
     $afterEvidenceItems = @(Get-LatestVisualEvidenceForLoop)
     $afterEvidence = if ($afterEvidenceItems.Count -gt 0) { ($afterEvidenceItems | ForEach-Object { "- $_" }) -join "`n" } else { "- None recorded after task." }
     $simonScore = Get-SimonImprovementScoreForLoop
-    Add-Content "docs/codex/MAGIC_SCORECARD.md" @"
+    Add-Content -Path "docs/codex/MAGIC_SCORECARD.md" -Encoding UTF8 -Value @"
 
 ## $date
 
@@ -1377,12 +1401,12 @@ function Append-BatchQualityScorecard {
 
     if (!(Test-Path "docs/codex/MAGIC_SCORECARD.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
-        "# Magic Scorecard`n`nThis file is appended by Codex Fleet after checkpoint-loop tasks.`n" | Set-Content "docs/codex/MAGIC_SCORECARD.md"
+        "# Magic Scorecard`n`nThis file is appended by Codex Fleet after checkpoint-loop tasks.`n" | Set-Content "docs/codex/MAGIC_SCORECARD.md" -Encoding UTF8
     }
 
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $activePack = Get-ActiveWorkPackForLoop
-    $freshEvidenceItems = @(Get-LatestVisualEvidenceForLoop)
+    $freshEvidenceItems = @(Get-LatestVisualEvidenceForLoop -MinLastWriteTime $script:CurrentBatchStartedAt)
     $freshEvidence = if ($freshEvidenceItems.Count -gt 0) { ($freshEvidenceItems | ForEach-Object { "- $_" }) -join "`n" } else { "- None recorded after batch QA." }
     $checkpointVerdict = Get-ReviewVerdictForLoop -Path "docs/codex/CHECKPOINT_REVIEW.md"
     $simonVerdict = Get-ReviewVerdictForLoop -Path "docs/codex/SIMON_DESIGN_REVIEW.md"
@@ -1392,7 +1416,7 @@ function Append-BatchQualityScorecard {
     $debugResult = Get-DebugResultForLoop -LogName $DebugLogName
     $debugStatus = if ([string]::IsNullOrWhiteSpace($DebugLogName)) { "not-run" } elseif ($DebugExit -eq 0) { "passed" } else { "failed" }
 
-    Add-Content "docs/codex/MAGIC_SCORECARD.md" @"
+    Add-Content -Path "docs/codex/MAGIC_SCORECARD.md" -Encoding UTF8 -Value @"
 
 ## Batch $Batch QA - $date
 
@@ -1448,18 +1472,21 @@ function Get-ActiveWorkPackForLoop {
 }
 
 function Get-LatestVisualEvidenceForLoop {
+    param([datetime]$MinLastWriteTime = [datetime]::MinValue)
+
     $results = [System.Collections.Generic.List[string]]::new()
 
     if (Test-Path "docs/codex/VISUAL_BUGS.md") {
         $visualText = Get-Content "docs/codex/VISUAL_BUGS.md" -Raw
         $artifactMatch = [regex]::Match($visualText, "(?im)^Artifacts:\s*(.+)$")
-        if ($artifactMatch.Success) {
+        if ($artifactMatch.Success -and $MinLastWriteTime -eq [datetime]::MinValue) {
             $results.Add("Visual report artifacts: $($artifactMatch.Groups[1].Value.Trim())") | Out-Null
         }
     }
 
     $latestVisualDir = @(Get-ChildItem ".codex-logs" -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -match "^visual(-inspect)?-" } |
+        Where-Object { $_.LastWriteTime -ge $MinLastWriteTime } |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1)
 
@@ -1909,17 +1936,17 @@ function Invoke-ProjectGuardrails {
 
 function Import-NextTasks {
     param([string]$Path)
-    $tasks = @(Get-Content $Path | Where-Object { $_ -match "^\s*-\s+\[ \]\s+.+" })
+    $tasks = @(Get-Content $Path -Encoding UTF8 | Where-Object { $_ -match "^\s*-\s+\[ \]\s+.+" } | ForEach-Object { Repair-FleetMojibake -Text $_ })
     if ($tasks.Count -eq 0) {
         Write-Host "No valid tasks found in $Path" -ForegroundColor Red
         return $false
     }
     if (!(Test-Path "docs/codex/TASK_QUEUE.md")) {
         New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
-        "# Codex Task Queue`n`n## Tasks`n" | Set-Content "docs/codex/TASK_QUEUE.md"
+        "# Codex Task Queue`n`n## Tasks`n" | Set-Content "docs/codex/TASK_QUEUE.md" -Encoding UTF8
     }
-    Add-Content "docs/codex/TASK_QUEUE.md" "`n## Checkpoint Planner Tasks $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
-    $tasks | Select-Object -First $BatchSize | ForEach-Object { Add-Content "docs/codex/TASK_QUEUE.md" $_ }
+    Add-Content -Path "docs/codex/TASK_QUEUE.md" -Encoding UTF8 -Value "`n## Checkpoint Planner Tasks $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
+    $tasks | Select-Object -First $BatchSize | ForEach-Object { Add-Content -Path "docs/codex/TASK_QUEUE.md" -Encoding UTF8 -Value $_ }
     return $true
 }
 
@@ -2622,6 +2649,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
 
     Write-Host ""
     Write-Host "===== CHECKPOINT BATCH $batch of $MaxBatches =====" -ForegroundColor Cyan
+    $script:CurrentBatchStartedAt = Get-Date
 
     $batchBase = (git rev-parse HEAD 2>$null)
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($batchBase)) {
