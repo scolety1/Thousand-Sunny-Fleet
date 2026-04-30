@@ -1841,19 +1841,53 @@ function Restore-TaskChanges {
     }
 
     $repoFullPath = [System.IO.Path]::GetFullPath($repoPath)
+    $repoRootForCompare = $repoFullPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    function Invoke-GitRestorePaths {
+        param(
+            [string]$Mode,
+            [string[]]$Paths
+        )
+
+        $safePaths = @()
+        foreach ($path in $Paths) {
+            $relativePath = ([string]$path).Replace("\", "/").Trim()
+            if ([string]::IsNullOrWhiteSpace($relativePath)) { continue }
+            if ($relativePath -eq "/" -or $relativePath -eq "." -or [System.IO.Path]::IsPathRooted($relativePath)) {
+                Write-Host "Refusing to restore unsafe path: $relativePath" -ForegroundColor Red
+                return $false
+            }
+            $target = [System.IO.Path]::GetFullPath((Join-Path $repoFullPath $relativePath))
+            if (!$target.StartsWith($repoRootForCompare, [System.StringComparison]::OrdinalIgnoreCase) -and
+                ![string]::Equals($target, $repoFullPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase)) {
+                Write-Host "Refusing to restore path outside repo: $relativePath" -ForegroundColor Red
+                return $false
+            }
+            $safePaths += $relativePath
+        }
+
+        if ($safePaths.Count -eq 0) { return $true }
+
+        $args = @("restore")
+        if (![string]::IsNullOrWhiteSpace($Mode)) {
+            $args += $Mode
+        }
+        $args += "--"
+        $args += $safePaths
+        & git @args
+        return ($LASTEXITCODE -eq 0)
+    }
+
     $stagedPaths = @(git diff --cached --name-only) | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
 
     if ($stagedPaths.Count -gt 0) {
-        & git restore --staged -- @stagedPaths
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Invoke-GitRestorePaths -Mode "--staged" -Paths $stagedPaths)) {
             return $false
         }
     }
 
     $worktreePaths = @(git diff --name-only) | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
     if ($worktreePaths.Count -gt 0) {
-        & git restore --worktree -- @worktreePaths
-        if ($LASTEXITCODE -ne 0) {
+        if (-not (Invoke-GitRestorePaths -Mode "--worktree" -Paths $worktreePaths)) {
             return $false
         }
     }
@@ -1862,7 +1896,7 @@ function Restore-TaskChanges {
     foreach ($path in $untrackedPaths) {
         if ([string]::IsNullOrWhiteSpace($path)) { continue }
         $target = [System.IO.Path]::GetFullPath((Join-Path $repoFullPath $path))
-        if (!$target.StartsWith($repoFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        if (!$target.StartsWith($repoRootForCompare, [System.StringComparison]::OrdinalIgnoreCase)) {
             Write-Host "Refusing to remove untracked path outside repo: $path" -ForegroundColor Red
             return $false
         }
