@@ -44,6 +44,29 @@ function Get-MarkdownValue {
     return "unknown"
 }
 
+function Get-VisualEvidenceStatus {
+    param([string]$Path)
+    if (!(Test-Path -LiteralPath $Path)) { return "missing" }
+    $text = Get-Content -LiteralPath $Path -Raw
+    $verdict = Get-MarkdownValue -Path $Path -Heading "Verdict"
+    if ($verdict -ne "unknown") { return $verdict }
+    $statusMatch = [regex]::Match($text, "(?im)^\s*Status:\s*(.+?)\s*$")
+    if (!$statusMatch.Success) { return "unknown" }
+    $status = $statusMatch.Groups[1].Value.Trim()
+    if ($status -match "No Blocking Visual Bugs") { return "GREEN" }
+    if ($status -match "Needs Fixes") { return "RED" }
+    return $status
+}
+
+function Test-BackendEvidenceRelevant {
+    param([object]$ProjectConfig)
+    $projectType = [string](Get-ConfigPropertyValue -Object $ProjectConfig -Name "projectType")
+    $capabilities = Get-ConfigPropertyValue -Object $ProjectConfig -Name "capabilities"
+    $canEditBackend = [bool](Get-ConfigPropertyValue -Object $capabilities -Name "canEditBackendCode")
+    $canEditMigrations = [bool](Get-ConfigPropertyValue -Object $capabilities -Name "canEditMigrations")
+    return ($canEditBackend -or $canEditMigrations -or $projectType -in @("full-stack-web", "data-pipeline", "ai-workflow"))
+}
+
 function Test-ApprovedStatus {
     param([string]$Path)
     if (!(Test-Path $Path)) { return $false }
@@ -227,12 +250,13 @@ foreach ($projectConfig in $projects) {
     $checkpoint = Get-MarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
     $joey = Get-MarkdownValue -Path "docs/codex/JOEY_SECURITY_REVIEW.md" -Heading "Verdict"
     $runtime = Get-MarkdownValue -Path "docs/codex/RUNTIME_VERIFICATION.md" -Heading "Verdict"
-    $visual = Get-MarkdownValue -Path "docs/codex/VISUAL_BUGS.md" -Heading "Verdict"
+    $visual = Get-VisualEvidenceStatus -Path "docs/codex/VISUAL_BUGS.md"
     $migration = Get-MarkdownValue -Path "docs/codex/MIGRATION_REVIEW.md" -Heading "Verdict"
     $apiContract = Get-MarkdownValue -Path "docs/codex/API_CONTRACT_REVIEW.md" -Heading "Verdict"
     $seedFixture = Get-MarkdownValue -Path "docs/codex/SEED_FIXTURE_REVIEW.md" -Heading "Verdict"
     $sensitive = Get-MarkdownValue -Path "docs/codex/SENSITIVE_SYSTEMS_REVIEW.md" -Heading "Verdict"
 
+    $backendEvidenceRelevant = Test-BackendEvidenceRelevant -ProjectConfig $projectConfig
     foreach ($gate in @(
         @{ name = "checkpoint"; value = $checkpoint },
         @{ name = "Joey"; value = $joey },
@@ -245,7 +269,8 @@ foreach ($projectConfig in $projects) {
     )) {
         if ([string]$gate.value -match "^RED\b") { Add-Reason -Reasons $reasons -Message "$($gate.name) gate is RED." }
         elseif ([string]$gate.value -match "^YELLOW\b") { Add-Reason -Reasons $warnings -Message "$($gate.name) gate is YELLOW." }
-        elseif ([string]$gate.value -eq "missing" -and $gate.name -in @("runtime", "visual", "migration", "sensitive systems")) { Add-Reason -Reasons $warnings -Message "$($gate.name) report is missing." }
+        elseif ([string]$gate.value -eq "missing" -and $gate.name -in @("runtime", "visual", "sensitive systems")) { Add-Reason -Reasons $warnings -Message "$($gate.name) report is missing." }
+        elseif ([string]$gate.value -eq "missing" -and $gate.name -in @("migration", "API contract", "seed fixture") -and $backendEvidenceRelevant) { Add-Reason -Reasons $warnings -Message "$($gate.name) report is missing." }
     }
 
     if (Get-UncheckedTaskCount -gt 0) { Add-Reason -Reasons $warnings -Message "Unchecked tasks remain." }
