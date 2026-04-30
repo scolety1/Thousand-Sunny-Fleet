@@ -101,6 +101,7 @@ function Test-InformationalMaintenanceLine {
         $Line -match "(?i)^\s*-\s+Human\s+review\s+is\s+still\s+required\b" -or
         $Line -match "(?i)^\s*-\s+Local\s+storage\s+is\s+allowed\b" -or
         $Line -match "(?i)^\s*-\s+Task\s+attempted:" -or
+        $Line -match "(?i)^\s*(GREEN|YELLOW|RED)\s*$" -or
         $Line -match "(?i)^\s*#+\s*(Technical Debt|Findings|Verdict|Maintenance Queue|Maintenance Windows)\s*$")
 }
 
@@ -138,7 +139,15 @@ function Add-ReportSignalItems {
 }
 
 function Get-MaintenanceTaskClass {
-    param([string]$Lane)
+    param(
+        [string]$Lane,
+        [string]$Source = "",
+        [string]$Summary = ""
+    )
+
+    $combined = "$Source $Summary"
+    if ($combined -match "(?i)\bSimon\b|design|visual") { return "design" }
+    if ($combined -match "(?i)\bRobin\b|copy|wording|language") { return "copy" }
 
     switch ($Lane) {
         "performance-regression" { return "performance" }
@@ -153,9 +162,9 @@ function Get-MaintenanceTaskClass {
 function ConvertTo-MaintenanceTaskLine {
     param([object]$Item)
 
-    $taskClass = Get-MaintenanceTaskClass -Lane ([string]$Item.lane)
     $summary = ([string]$Item.summary).Replace("`r", " ").Replace("`n", " ").Trim()
     $source = ([string]$Item.source).Replace("`r", " ").Replace("`n", " ").Trim()
+    $taskClass = Get-MaintenanceTaskClass -Lane ([string]$Item.lane) -Source $source -Summary $summary
     if ($summary.Length -gt 220) { $summary = $summary.Substring(0, 217) + "..." }
 
     return "- [ ] Maintenance: investigate $($Item.priority)-priority $($Item.lane) signal from $source. Evidence: $summary. Guardrails: preserve user work; do not edit auth, payments, secrets, package files, deployment config, generated output, or unrelated features. Acceptance: issue is reproduced or ruled out, the smallest safe fix or note is applied, and the relevant local build/test/check command passes. [class:$taskClass risk:low mode:single impact:standard scope:src/,tests/,docs/codex/]"

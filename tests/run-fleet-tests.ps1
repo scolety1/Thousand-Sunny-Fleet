@@ -455,6 +455,7 @@ function Test-PhaseEightMaintenanceSupport {
     Assert-True -Condition ($maintenanceText -match '\\bRED\\b') -Message "Maintenance lane avoids substring matches for RED"
     Assert-True -Condition ($maintenanceText -match 'Test-InformationalMaintenanceLine') -Message "Maintenance lane skips informational review boilerplate"
     Assert-True -Condition ($maintenanceText -match 'Task\\s\+attempted') -Message "Maintenance lane skips task-attempted prose"
+    Assert-True -Condition ($maintenanceText -match 'GREEN\|YELLOW\|RED') -Message "Maintenance lane skips bare verdict lines"
     Assert-True -Condition ($maintenanceText -match 'Technical Debt\|Findings\|Verdict') -Message "Maintenance lane skips report/template headings"
     Assert-True -Condition ($maintenanceText -match '\[string\]\$JsonOutFile' -and $maintenanceText -match 'ConvertTo-Json') -Message "Maintenance lane writes machine-readable JSON"
     Assert-True -Condition ($maintenanceText -match '\[int\]\$TailLines' -and $maintenanceText -match 'Get-Content[\s\S]+-Tail') -Message "Maintenance lane can tail long reports"
@@ -462,6 +463,7 @@ function Test-PhaseEightMaintenanceSupport {
     Assert-True -Condition ($maintenanceText -match '\[switch\]\$QueueTasks') -Message "Maintenance lane can opt into writing queue tasks"
     Assert-True -Condition ($maintenanceText -match '\[int\]\$MaxQueueItems') -Message "Maintenance lane caps queued maintenance tasks"
     Assert-True -Condition ($maintenanceText -match 'Write-MaintenanceQueueTasks') -Message "Maintenance lane has a bounded queue writer"
+    Assert-True -Condition ($maintenanceText -match 'Simon' -and $maintenanceText -match 'return "design"' -and $maintenanceText -match 'Robin' -and $maintenanceText -match 'return "copy"') -Message "Maintenance queue maps reviewer findings to design/copy task classes"
     foreach ($signal in @("dependency-review", "performance-regression", "flaky", "bug-triage", "issue-intake")) {
         Assert-True -Condition ($maintenanceText -match [regex]::Escape($signal)) -Message "Maintenance lane handles $signal signals"
     }
