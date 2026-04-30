@@ -86,12 +86,16 @@ function New-FixtureRepo {
         } else {
             "simple website"
         }
+        $taskClass = if ($DocsOnly) { "docs" } else { "copy" }
+        $taskImpact = if ($DocsOnly) { "standard" } else { "visible" }
+        $taskScope = if ($DocsOnly) { "docs/codex/" } else { "src/,app-vNext/src/,docs/codex/" }
+        $target = if ($DocsOnly) { "fixture report" } else { "fixture surface" }
         @(
             "# Fixture Task Queue",
             "",
             "## Tasks",
             "",
-            "- [ ] User pain: presenter needs the $workloadLabel workload to show one obvious parallel-worker outcome. Target: fixture surface. Change: make one tiny visible or reportable improvement that proves this worker advanced independently. Remove/simplify: keep the change to one file and avoid broad polish. Guardrails: no auth, backend, payments, package/dependency files, deploy config, secrets, generated output, or unrelated files. Acceptance: local fixture build or docs-only check passes. Check: report the changed file and leave the repo clean after commit. [class:copy risk:low mode:single impact:visible scope:src/,app-vNext/src/,docs/codex/]"
+            "- [ ] User pain: presenter needs the $workloadLabel workload to show one obvious parallel-worker outcome. Target: $target. Change: make one tiny visible or reportable improvement that proves this worker advanced independently. Remove/simplify: keep the change to one file and avoid broad polish. Guardrails: no auth, backend, payments, package/dependency files, deploy config, secrets, generated output, or unrelated files. Acceptance: local fixture build or docs-only check passes. Check: report the changed file and leave the repo clean after commit. [class:$taskClass risk:low mode:single impact:$taskImpact scope:$taskScope]"
         )
     } else {
         @(

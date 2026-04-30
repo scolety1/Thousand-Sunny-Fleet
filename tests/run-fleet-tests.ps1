@@ -199,6 +199,7 @@ function Test-RuntimeHelpers {
 
 function Test-FixtureGeneration {
     $generator = Join-Path $fleetRoot "tests\new-fixture-ships.ps1"
+    $generatorText = Get-Content $generator -Raw
     $result = Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $generator, "-Force")
     Assert-Equal -Actual $result.exitCode -Expected 0 -Message "Fixture ship generator exits successfully"
     Assert-True -Condition (Test-Path $fixtureConfig) -Message "Fixture project config exists"
@@ -206,7 +207,8 @@ function Test-FixtureGeneration {
     $parsedProjects = Get-Content $fixtureConfig -Raw | ConvertFrom-Json
     $projects = @($parsedProjects | ForEach-Object { $_ })
     Assert-Equal -Actual $projects.Count -Expected 3 -Message "Fixture config contains three ships"
-    Assert-True -Condition ((Get-Content $generator -Raw) -match 'PresentationWorkloads') -Message "Fixture generator supports presentation-specific workload tasks"
+    Assert-True -Condition ($generatorText -match 'PresentationWorkloads') -Message "Fixture generator supports presentation-specific workload tasks"
+    Assert-True -Condition ($generatorText -match 'impact:\$taskImpact' -and $generatorText -match '\$DocsOnly.+standard') -Message "Presentation docs-only fixtures use standard impact instead of visible-impact"
 }
 
 function Test-PhaseZeroIntakeSupport {
@@ -856,6 +858,7 @@ function Test-PhaseThirteenExperimentRunner {
     Assert-True -Condition ($experimentJson.entries.Count -eq 2 -and $experimentJson.entries[0].status -eq "DRY_RUN") -Message "Experiment JSON records launched dry-run entries"
     Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'run-checkpoint-loop\.ps1') -Message "Experiment entries include checkpoint commands"
     Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match [regex]::Escape("-ConfigPath '$experimentConfig'")) -Message "Experiment entries pass the selected fixture config to checkpoint loops"
+    Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'QuarantineFailedTasks') -Message "Experiment entries restore and quarantine failed task changes"
 
     $refreshRun = Invoke-Checked -FilePath "powershell" -Arguments @(
         "-NoProfile",

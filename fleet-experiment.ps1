@@ -360,7 +360,7 @@ function New-ExperimentCommand {
 
     return @(
         "Set-Location '$fleetRoot'",
-        ".\run-checkpoint-loop.ps1 -ConfigPath '$ConfigPath' -Project '$($Ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -ModelBudget $ModelBudget -LoopPhase $LoopPhase -LaunchGateMode warn -KillSwitchMode warn -VisualInspectEvery $VisualInspectEvery -SimonEvery $SimonEvery -RobinEvery $RobinEvery -AccessibilityEvery $AccessibilityEvery -PerformanceEvery $PerformanceEvery -JoeyEvery $JoeyEvery -ContinueOnYellowCheckpoint -MaxTaskQuarantines 1"
+        ".\run-checkpoint-loop.ps1 -ConfigPath '$ConfigPath' -Project '$($Ship.name)' -BatchSize $BatchSize -MaxBatches $MaxBatches -ModelBudget $ModelBudget -LoopPhase $LoopPhase -LaunchGateMode warn -KillSwitchMode warn -VisualInspectEvery $VisualInspectEvery -SimonEvery $SimonEvery -RobinEvery $RobinEvery -AccessibilityEvery $AccessibilityEvery -PerformanceEvery $PerformanceEvery -JoeyEvery $JoeyEvery -ContinueOnYellowCheckpoint -MaxTaskQuarantines 1 -QuarantineFailedTasks"
     ) -join "; "
 }
 
