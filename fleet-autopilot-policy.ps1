@@ -8,9 +8,13 @@ param(
 
     [string]$OutFile = "out\fleet-autopilot-policy.md",
 
+    [string]$JsonOutFile = "out\fleet-autopilot-policy.json",
+
     [switch]$Template,
 
-    [switch]$ValidateOnly
+    [switch]$ValidateOnly,
+
+    [switch]$IncludeDirty
 )
 
 $ErrorActionPreference = "Continue"
@@ -19,6 +23,14 @@ function Stop-WithMessage {
     param([string]$Message)
     Write-Host $Message -ForegroundColor Red
     exit 1
+}
+
+function Ensure-OutputParent {
+    param([string]$Path)
+    $parent = Split-Path -Parent $Path
+    if (![string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
 }
 
 function Get-ConfigPropertyValue {
@@ -178,11 +190,30 @@ foreach ($ship in Get-ProjectList) {
     $name = [string](Get-ConfigPropertyValue -Object $ship -Name "name")
     $repoPath = Resolve-Path -LiteralPath $repo -ErrorAction SilentlyContinue
     if (!$repoPath) {
-        $results += [pscustomobject]@{ name = $name; repo = $repo; status = "blocked"; spendingLimit = "unknown"; customerData = "unknown"; escalation = "unknown"; reasons = @("Repo missing.") }
+        $results += [pscustomobject]@{ name = $name; repo = $repo; status = "blocked"; spendingLimit = "unknown"; customerData = "unknown"; escalation = "unknown"; dirty = "n/a"; reasons = @("Repo missing.") }
+        continue
+    }
+    Push-Location $repoPath.Path
+    try {
+        $dirty = @(git status --short 2>$null)
+    } finally {
+        Pop-Location
+    }
+    if ($dirty.Count -gt 0 -and !$IncludeDirty) {
+        $results += [pscustomobject]@{
+            name = $name
+            repo = $repoPath.Path
+            status = "blocked"
+            spendingLimit = "unknown"
+            customerData = "unknown"
+            escalation = "unknown"
+            dirty = "dirty $($dirty.Count)"
+            reasons = @("Working tree is dirty; limited autopilot requires a clean ship or explicit -IncludeDirty approval.")
+        }
         continue
     }
     $status = Get-AutopilotStatus -Repo $repoPath.Path
-    $results += [pscustomobject]@{ name = $name; repo = $repoPath.Path; status = $status.status; spendingLimit = $status.spendingLimit; customerData = $status.customerData; escalation = $status.escalation; reasons = @($status.reasons) }
+    $results += [pscustomobject]@{ name = $name; repo = $repoPath.Path; status = $status.status; spendingLimit = $status.spendingLimit; customerData = $status.customerData; escalation = $status.escalation; dirty = if ($dirty.Count -eq 0) { "clean" } else { "dirty $($dirty.Count)" }; reasons = @($status.reasons) }
 }
 
 if ($ValidateOnly) {
@@ -202,6 +233,7 @@ $audit = [pscustomobject]@{
     generated = $timestamp
     action = "autopilot-policy-review"
     note = "No ship edits, spending, deploys, emails, auth/payment changes, or customer-data actions were performed."
+    includeDirty = [bool]$IncludeDirty
     results = $results
 }
 $audit | ConvertTo-Json -Depth 8 | Set-Content -Path $auditPath
@@ -223,11 +255,11 @@ $lines = @(
     "",
     "Phase 9 limited business autopilot policy gate. This report does not spend money, deploy, email customers, change auth or payments, edit legal text, or touch customer data.",
     "",
-    "| Ship | Status | Spending Limit | Customer Data |",
-    "| --- | --- | --- | --- |"
+    "| Ship | Status | Dirty | Spending Limit | Customer Data |",
+    "| --- | --- | --- | --- | --- |"
 )
 foreach ($result in $results) {
-    $lines += "| $($result.name) | $($result.status) | $($result.spendingLimit) | $($result.customerData) |"
+    $lines += "| $($result.name) | $($result.status) | $($result.dirty) | $($result.spendingLimit) | $($result.customerData) |"
 }
 
 foreach ($result in $results) {
@@ -236,6 +268,7 @@ foreach ($result in $results) {
     $lines += ""
     $lines += "- Repo: $($result.repo)"
     $lines += "- Status: $($result.status)"
+    $lines += "- Dirty: $($result.dirty)"
     $lines += "- Escalation: $($result.escalation)"
     $lines += ""
     $lines += "Reasons:"
@@ -246,9 +279,18 @@ foreach ($result in $results) {
     }
 }
 
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
+Ensure-OutputParent -Path $OutFile
 Set-Content -Path $OutFile -Value $lines
+Ensure-OutputParent -Path $JsonOutFile
+[pscustomobject]@{
+    generated = $timestamp
+    overall = $overall
+    auditLog = $auditPath
+    includeDirty = [bool]$IncludeDirty
+    results = $results
+} | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOutFile
 Write-Host "Autopilot policy report: $OutFile" -ForegroundColor Green
+Write-Host "Autopilot policy JSON: $JsonOutFile" -ForegroundColor Green
 Write-Host "Overall: $overall"
 
 if ($overall -eq "BLOCKED") { exit 1 }
