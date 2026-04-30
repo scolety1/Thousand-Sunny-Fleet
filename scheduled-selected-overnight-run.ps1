@@ -1,5 +1,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
+    [string]$ConfigPath = ".\projects.json",
+
     [string]$RunLabel = "scheduled",
 
     [string[]]$Project = @("RestaurantDemo", "ShiftPlate", "EasyLife"),
@@ -199,7 +201,12 @@ if ($skipDoctorForAnalysis) {
     Write-ScheduledLog "Analytical loop phase detected; bypassing visual/design doctor launch gate for formula-first work."
 }
 
-$projectsJson = @(Get-Content ".\projects.json" -Raw | ConvertFrom-Json | ForEach-Object { $_ })
+if (!(Test-Path -LiteralPath $ConfigPath)) {
+    Write-ScheduledLog "Project config not found: $ConfigPath"
+    exit 1
+}
+
+$projectsJson = @(Get-Content $ConfigPath -Raw | ConvertFrom-Json | ForEach-Object { $_ })
 $selectedProjectNames = @($Project)
 $exclude = @($projectsJson | Where-Object { $selectedProjectNames -notcontains [string]$_.name } | ForEach-Object { [string]$_.name })
 $blocking = @()
@@ -251,7 +258,7 @@ $launchArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
     "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
-    "-ExcludeProject", ($exclude -join ","),
+    "-ConfigPath", $ConfigPath,
     "-ExpectedProject", ($Project -join ","),
     "-BudgetMode", $BudgetMode,
     "-LoopPhase", $LoopPhase,
@@ -272,6 +279,9 @@ $launchArgs = @(
     "-QuarantineFailedTasks",
     "-UseGlobalRunShape"
 )
+if ($exclude.Count -gt 0) {
+    $launchArgs += @("-ExcludeProject", ($exclude -join ","))
+}
 if ($skipDoctorForAnalysis) {
     $launchArgs += "-SkipDoctor"
 }

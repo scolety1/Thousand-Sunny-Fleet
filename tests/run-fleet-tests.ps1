@@ -1834,7 +1834,9 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($readmeText -match 'start-overnight-autopilot\.ps1') -Message "README documents overnight autopilot wrapper"
     $selectedOvernightText = Get-Content (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1") -Raw
     Assert-True -Condition ($selectedOvernightText -match 'BudgetMode') -Message "Selected overnight wrapper forwards budget mode"
+    Assert-True -Condition ($selectedOvernightText -match 'ConfigPath') -Message "Selected overnight wrapper supports trial configs"
     Assert-True -Condition ($selectedOvernightText -match 'LoopPhase') -Message "Selected overnight wrapper forwards loop phase"
+    Assert-True -Condition ($selectedOvernightText -match '\$exclude\.Count -gt 0') -Message "Selected overnight wrapper omits empty exclusions"
     Assert-True -Condition ($selectedOvernightText -match 'MaxCompletedTasks') -Message "Selected overnight wrapper forwards task budget"
     Assert-True -Condition ($selectedOvernightText -match 'LaunchGateMode') -Message "Selected overnight wrapper forwards launch gate mode"
     Assert-True -Condition ($selectedOvernightText -match 'KillSwitchMode') -Message "Selected overnight wrapper forwards kill switch mode"
