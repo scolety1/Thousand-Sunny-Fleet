@@ -931,6 +931,7 @@ function Get-SensitiveIntentText {
     if ([string]::IsNullOrWhiteSpace($Summary)) { return "" }
 
     $text = [string]$Summary
+    $text = [regex]::Replace($text, "(?is)\s*;?\s*guardrails\s*:.*$", "")
     $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s+scope\s*:.*$", "")
     $text = [regex]::Replace($text, "(?is)\s*;?\s*forbidden\s*:.*$", "")
     $sensitiveWords = "auth|login|oauth|permission|payment|payments|stripe|checkout|billing|backend|api|apis|external\s+service|database|firestore|firebase|analytics|tracking"
