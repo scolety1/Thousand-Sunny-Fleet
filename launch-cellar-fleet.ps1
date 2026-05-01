@@ -13,6 +13,10 @@ param(
     [ValidateSet("auto", "brief", "foundation", "shape", "simplicity", "polish", "proof", "parked", "repair", "problem-brief", "data-contract", "formula-spec", "fixture-tests", "engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof")]
     [string]$LoopPhase = "auto",
 
+    [int]$BatchSize = 0,
+
+    [int]$MaxBatches = 0,
+
     [int]$RateLimitCooldownSeconds = 3600,
 
     [int]$RateLimitMaxCooldowns = 4,
@@ -28,6 +32,8 @@ param(
     [switch]$SkipDoctor,
 
     [switch]$RequirePhaseValidation,
+
+    [switch]$UseGlobalRunShape,
 
     [ValidateSet("off", "warn", "enforce")]
     [string]$LaunchGateMode = "warn",
@@ -88,6 +94,9 @@ if ($Mode -in @("school", "overnight")) {
     $args += @("-LoopPhase", $LoopPhase)
 }
 
+if ($BatchSize -gt 0) { $args += @("-BatchSize", $BatchSize) }
+if ($MaxBatches -gt 0) { $args += @("-MaxBatches", $MaxBatches) }
+
 if ($excludeNames.Count -gt 0) {
     $args += @("-ExcludeProject", ($excludeNames -join ","))
 }
@@ -99,6 +108,7 @@ if ($QuarantineFailedTasks) { $args += "-QuarantineFailedTasks" }
 if ($AllowSafeStopRequests) { $args += "-AllowSafeStopRequests" }
 if ($SkipDoctor) { $args += "-SkipDoctor" }
 if ($RequirePhaseValidation) { $args += "-RequirePhaseValidation" }
+if ($UseGlobalRunShape) { $args += "-UseGlobalRunShape" }
 if (![string]::IsNullOrWhiteSpace($LaunchGateMode)) { $args += @("-LaunchGateMode", $LaunchGateMode) }
 if (![string]::IsNullOrWhiteSpace($KillSwitchMode)) { $args += @("-KillSwitchMode", $KillSwitchMode) }
 if ($DryRun) { $args += "-DryRun" }
