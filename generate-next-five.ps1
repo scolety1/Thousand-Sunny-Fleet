@@ -66,6 +66,8 @@ $productUsefulnessReview = if (Test-Path "docs/codex/PRODUCT_USEFULNESS_REVIEW.m
 $informationStaging = if (Test-Path "docs/codex/INFORMATION_STAGING.md") { Get-Content "docs/codex/INFORMATION_STAGING.md" -Raw } else { "No information staging file found." }
 $operatingMode = if (Test-Path "docs/codex/OPERATING_MODE.md") { Get-Content "docs/codex/OPERATING_MODE.md" -Raw } else { "No operating mode file found." }
 $referenceBrief = if (Test-Path "docs/codex/REFERENCE_BRIEF.md") { Get-Content "docs/codex/REFERENCE_BRIEF.md" -Raw } elseif (Test-Path "docs/codex/CREATIVE_BRIEF.md") { Get-Content "docs/codex/CREATIVE_BRIEF.md" -Raw } else { "No reference brief file found." }
+$cellarReferencePath = Join-Path $fleetRoot "docs\cellar-reference-direction.md"
+$cellarReferenceDirection = if (Test-Path -LiteralPath $cellarReferencePath) { Get-Content -LiteralPath $cellarReferencePath -Raw } else { "No fleet-level Cellar reference direction found." }
 $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
@@ -211,6 +213,7 @@ Rules:
 - Treat OPERATING_MODE.md as a first-class instruction. It does not replace phases; it tells you what kind of judgment belongs inside the phase.
 - If operating mode is hospitality-studio, plan like a restaurant creative director before coding: choose one surface type, protect the first-screen contract, avoid dashboard/feature dumping, keep copy concrete, and put secondary information behind clear discovery controls.
 - If operating mode is hospitality-studio, treat REFERENCE_BRIEF.md as first-class creative direction. Tasks must preserve its reference qualities, first-screen rules, forbidden patterns, and acceptance lens.
+- If operating mode is hospitality-studio, also treat the fleet-level Cellar reference direction as first-class creative direction. Use the guest-facing reference set for public restaurant/wine/events pages and the manager-facing reference set for internal tools. Do not copy exact layouts, text, branding, images, icons, menu items, or trade dress.
 - If operating mode is hospitality-studio and no reference brief exists, generate a docs-first task to create docs/codex/REFERENCE_BRIEF.md before showpiece implementation, unless the current loop phase is repair and a blocking runtime issue must be cleared.
 - If operating mode is formula-lab, prioritize formulas, fixtures, provenance, calibration, and tests over visual polish. Never create persuasive model output without deterministic proof.
 - If operating mode is software-engineering, prefer narrow code slices, tests, runtime verification, and security guardrails. Do not broaden scope for visual taste.
@@ -350,6 +353,9 @@ $operatingMode
 
 Reference brief:
 $referenceBrief
+
+Fleet-level Cellar reference direction:
+$cellarReferenceDirection
 
 Magic mission:
 $magicMission

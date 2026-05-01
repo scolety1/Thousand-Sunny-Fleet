@@ -3069,11 +3069,14 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
 
         $siteMapNote = if (Test-Path "docs/codex/SITE_MAP.md") { Get-Content "docs/codex/SITE_MAP.md" -Raw } else { "No SITE_MAP.md present." }
         $visualRouteNote = if (Test-Path "docs/codex/visual-routes.json") { Get-Content "docs/codex/visual-routes.json" -Raw } else { "No visual-routes.json present." }
+        $referenceBriefNote = if (Test-Path "docs/codex/REFERENCE_BRIEF.md") { Get-Content "docs/codex/REFERENCE_BRIEF.md" -Raw } elseif (Test-Path "docs/codex/CREATIVE_BRIEF.md") { Get-Content "docs/codex/CREATIVE_BRIEF.md" -Raw } else { "No REFERENCE_BRIEF.md present." }
+        $cellarReferencePath = Join-Path $fleetRoot "docs\cellar-reference-direction.md"
+        $cellarReferenceNote = if (Test-Path -LiteralPath $cellarReferencePath) { Get-Content -LiteralPath $cellarReferencePath -Raw } else { "No fleet-level Cellar reference direction present." }
         $simonNote = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No SIMON_DESIGN_REVIEW.md present." }
         $robinNote = if (Test-Path "docs/codex/ROBIN_COPY_REVIEW.md") { Get-Content "docs/codex/ROBIN_COPY_REVIEW.md" -Raw } else { "No ROBIN_COPY_REVIEW.md present." }
 
         $prompt = @"
-Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, docs/codex/TASK_QUEUE.md, docs/codex/SITE_MAP.md if present, docs/codex/visual-routes.json if present, docs/codex/SIMON_DESIGN_REVIEW.md if present, and docs/codex/ROBIN_COPY_REVIEW.md if present.
+Read docs/codex/MISSION.md if present, docs/codex/RUN_POLICY.md if present, docs/codex/TASK_QUEUE.md, docs/codex/SITE_MAP.md if present, docs/codex/visual-routes.json if present, docs/codex/REFERENCE_BRIEF.md if present, docs/codex/SIMON_DESIGN_REVIEW.md if present, and docs/codex/ROBIN_COPY_REVIEW.md if present.
 
 Implement only this selected task:
 $task
@@ -3093,6 +3096,12 @@ $siteMapNote
 
 Visual routes:
 $visualRouteNote
+
+Reference brief:
+$referenceBriefNote
+
+Fleet-level Cellar reference direction:
+$cellarReferenceNote
 
 Simon design context:
 $simonNote
@@ -3115,7 +3124,8 @@ Rules:
 12. For customer-facing copy, make each sentence answer who it is for, what the reader should do, and what they get. Avoid vague standalone phrases like artifact, workflow, polish, ready for service, manager-ready, staff-ready, bring the note, and start with X unless the concrete buyer/action/outcome is obvious.
 13. If Implementation scale is large or pack, implement only the next slice named by the plan. Do not sprawl across unrelated files; summarize unresolved slices for later.
 14. For backend, integration, or migration tasks, follow the approved API contract, seed fixture plan, migration proposal, and local evidence exactly. Do not invent endpoints, schemas, production data access, or irreversible migrations beyond those approved docs.
-15. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
+15. For hospitality-studio work, use the guest-facing reference set for public restaurant/wine/events pages and the manager-facing reference set for internal tools. Borrow quality, restraint, information staging, and mobile hierarchy only; do not copy exact layouts, text, branding, images, icons, menu items, or trade dress.
+16. End your response with one short line: VISIBLE_IMPACT: what the user will actually notice.
 "@
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
