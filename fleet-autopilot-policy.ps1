@@ -4,6 +4,8 @@ param(
 
     [string]$Project = "",
 
+    [string[]]$ExcludeProject = @(),
+
     [string]$PolicyFile = "docs/codex/AUTOPILOT_POLICY.md",
 
     [string]$OutFile = "out\fleet-autopilot-policy.md",
@@ -45,9 +47,16 @@ function Get-ProjectList {
     if (!(Test-Path $ConfigPath)) { Stop-WithMessage "Config not found: $ConfigPath" }
     $parsedProjects = Get-Content $ConfigPath -Raw | ConvertFrom-Json
     $projects = @($parsedProjects | ForEach-Object { $_ })
+    $exclude = @($ExcludeProject | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { [string]$_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     if (![string]::IsNullOrWhiteSpace($Project)) {
         $projects = @($projects | Where-Object { [string]$_.name -ceq $Project })
         if ($projects.Count -ne 1) { Stop-WithMessage "Project not found: $Project" }
+    }
+    if ($exclude.Count -gt 0) {
+        $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
+    }
+    if ($projects.Count -eq 0) {
+        Stop-WithMessage "No projects selected for autopilot policy review after applying -Project and -ExcludeProject."
     }
     return $projects
 }
@@ -305,6 +314,7 @@ $audit = [pscustomobject]@{
     action = "autopilot-policy-review"
     note = "No ship edits, spending, deploys, emails, auth/payment changes, or customer-data actions were performed."
     includeDirty = [bool]$IncludeDirty
+    excludedProjects = @($ExcludeProject)
     results = $results
 }
 $audit | ConvertTo-Json -Depth 8 | Set-Content -Path $auditPath
@@ -360,6 +370,7 @@ Ensure-OutputParent -Path $JsonOutFile
     overall = $overall
     auditLog = $auditPath
     includeDirty = [bool]$IncludeDirty
+    excludedProjects = @($ExcludeProject)
     results = $results
 } | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOutFile
 Write-Host "Autopilot policy report: $OutFile" -ForegroundColor Green

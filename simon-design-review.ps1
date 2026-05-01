@@ -51,6 +51,9 @@ $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISS
 $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
+$informationStaging = if (Test-Path "docs/codex/INFORMATION_STAGING.md") { Get-Content "docs/codex/INFORMATION_STAGING.md" -Raw } else { "No information staging file found." }
+$operatingMode = if (Test-Path "docs/codex/OPERATING_MODE.md") { Get-Content "docs/codex/OPERATING_MODE.md" -Raw } else { "No operating mode file found." }
+$referenceBrief = if (Test-Path "docs/codex/REFERENCE_BRIEF.md") { Get-Content "docs/codex/REFERENCE_BRIEF.md" -Raw } elseif (Test-Path "docs/codex/CREATIVE_BRIEF.md") { Get-Content "docs/codex/CREATIVE_BRIEF.md" -Raw } else { "No reference brief file found." }
 $magicScorecard = if (Test-Path "docs/codex/MAGIC_SCORECARD.md") { Get-Content "docs/codex/MAGIC_SCORECARD.md" -Tail 160 } else { @("No magic scorecard found.") }
 $runPolicy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy file found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
@@ -133,6 +136,13 @@ Rules:
 - If visual bugs are reported, use them as evidence, but also judge the design quality.
 - Treat "double header", repeated section intro, or visually loud route controls as mission-breaking clutter on restaurant, portfolio, product, or demo sites. The user should see the actual product/example first, not a wrapper explaining the page twice.
 - For demo/business sites, route navigation should be useful but quiet. If nav pills, action bars, or explanatory wrappers compete with the main demo, mark the review YELLOW and make the Priority Fix reduce chrome before adding new sections.
+- Enforce progressive disclosure. The first screen should show the primary job, not every useful feature. Secondary actions should be easy to find but quieter; detail/internal information should live behind buttons, tabs, accordions, drawers, detail views, or staff mode.
+- For restaurant/hospitality demos, distinguish the customer-facing restaurant website from the internal operations tool. A public wine/menu/private-events page should feel like a real restaurant page first; staff notes, cellar locations, prep details, and manager-only context should not compete on the guest-facing first screen.
+- If OPERATING_MODE.md says hospitality-studio, act as creative director first: judge atmosphere, restraint, hierarchy, progressive disclosure, and whether the page feels like a real hospitality brand or tool instead of a feature dump.
+- If REFERENCE_BRIEF.md exists, judge against it directly. If the current design ignores its reference qualities, first-screen rules, or forbidden patterns, mark at least YELLOW and make that the Priority Fix.
+- If OPERATING_MODE.md says formula-lab, do not request restaurant-style polish; judge trust, formula visibility, source clarity, and confidence presentation.
+- For product ships like EasyLife or CursorPets, distinguish the public/product demo surface from the working app surface. If marketing explanation crowds the actual app, call it out.
+- If INFORMATION_STAGING.md is present and the design violates its first-screen job, primary content, secondary actions, detail content, or internal-only content, mark the review at least YELLOW and make that the Priority Fix.
 - For analytical software, judge clarity without encouraging fake insight. Prefer table-first, source-visible, confidence-aware layouts. If formulas/tests/calibration are not clearly evidenced, do not ask for larger dashboards, prediction cards, persuasive narrative insight, or flashy scenario UI.
 - For scenario tools, prefer bounded, plainly labeled controls that show assumptions, changed inputs, affected formulas, and fixed outputs. Do not encourage strategy-mode theatrics or slider-heavy UI unless the scenario spec and tests are approved.
 - Use MAGIC_MISSION.md, WORK_PACKS.md, WORK_PACK_STATUS.md, and MAGIC_SCORECARD.md to judge whether the current branch is advancing the active work pack or merely changing things.
@@ -167,6 +177,15 @@ $workPacks
 
 Work pack status:
 $workPackStatus
+
+Information staging:
+$informationStaging
+
+Operating mode:
+$operatingMode
+
+Reference brief:
+$referenceBrief
 
 Magic scorecard tail:
 $($magicScorecard -join "`n")

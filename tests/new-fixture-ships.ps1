@@ -181,11 +181,11 @@ function New-FixtureRepo {
 
     $models = if ($UseRealModels) {
         [pscustomobject]@{
-            implement = @("gpt-5.5", "gpt-5.4")
-            review = @("gpt-5.5", "gpt-5.4")
-            planner = @("gpt-5.5", "gpt-5.4")
-            checkpoint = @("gpt-5.5", "gpt-5.4")
-            simon = @("gpt-5.5", "gpt-5.4")
+            implement = @("gpt-5.4-mini", "gpt-5.4")
+            review = @("gpt-5.4-mini", "gpt-5.4")
+            planner = @("gpt-5.4-mini", "gpt-5.4")
+            checkpoint = @("gpt-5.4-mini", "gpt-5.4")
+            simon = @("gpt-5.4-mini", "gpt-5.4")
         }
     } else {
         [pscustomobject]@{

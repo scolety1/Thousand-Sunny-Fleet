@@ -117,6 +117,25 @@ function Get-FirstUsefulVersion {
     }
 }
 
+function Get-SurfaceSplit {
+    param([object]$Ship)
+
+    $name = [string](Get-ConfigValue -Object $Ship -Name "name" -Default "Ship")
+    $demo = Get-ShipKind -Ship $Ship
+    switch ($name) {
+        "EasyLife" { return @{ Public = "Product/demo surface: explain the personal assistant vision and install/login path."; App = "Working app surface: tasks, notes, calendar, and planning modules with the next useful action first."; Internal = "Settings, account, data, assistant explanations, and history."; Primary = "Help the logged-in user decide what to do next."; Secondary = "Switch modules, add item, brain dump, review calendar."; Detail = "Task details, note metadata, repeat/custom scheduling, undo history, settings."; Hidden = "Marketing copy, settings, account controls, assistant implementation details." } }
+        "CursorPets" { return @{ Public = "Product/demo surface: show Mochi, install/open actions, and compatibility."; App = "Working app surface: the desktop pet interaction itself."; Internal = "Debug controls, sizing/window settings, behavior tuning."; Primary = "Let the user see, launch, and interact with Mochi."; Secondary = "Download/open, size controls, hide window, behavior settings."; Detail = "Install help, desktop permissions, personal ranking notes."; Hidden = "Founder notes, implementation details, long explanations." } }
+        "RestaurantDemo" { return @{ Public = "Customer-facing sales surface: show restaurant operators examples of custom workflow fixes."; App = "Working demo surfaces: wine list, manager brief, events intake, order sheet, or training hub examples."; Internal = "Build notes, workflow configuration, fake-data disclaimers."; Primary = "Make a restaurant operator understand one useful offer fast."; Secondary = "Open demo examples, contact, compare workflows."; Detail = "Process details, technical explanation, implementation notes."; Hidden = "Internal build language, broad automation claims, long feature explanations." } }
+        "ShiftPlate" { return @{ Public = "Product/demo surface: explain the kitchen special generator briefly."; App = "Working app surface: enter mise, window, headcount, then review options."; Internal = "Recipe heuristics, rejected ideas, service-plan logic."; Primary = "Generate three credible special ideas from available ingredients."; Secondary = "Make cheaper/fancier after options exist, print/share recipe."; Detail = "Recipe detail, prep timing, allergens, pass note."; Hidden = "Long reasoning, unused ingredients, service plan outside selected option." } }
+        default {
+            if ($demo -match "wine|beverage|cellar|bottle|manager|brief|event|order|training|restaurant") {
+                return @{ Public = "Customer-facing restaurant example: a believable fake restaurant brand and guest-ready page."; App = "Working tool demo: one restaurant workflow opened from a clear action."; Internal = "Staff-only notes, setup details, fake data caveats, and implementation context."; Primary = "Show the main restaurant job first, such as browse the wine list, read today's brief, request an event, count items, or open training."; Secondary = "Help me choose, filters, staff pick, send/share, approve, or open demo."; Detail = "Tasting notes, pairings, reservation details, task notes, vendor notes, recipe/service details."; Hidden = "Staff-only service notes, cellar locations, broad software explanation, and all secondary modules on first load." }
+            }
+            return @{ Public = "Public/product demo surface: explain the product and show the first useful example."; App = "Working app/tool surface: perform the primary workflow."; Internal = "Settings, diagnostics, implementation details, and admin-only notes."; Primary = "Let the user complete the first useful workflow."; Secondary = "Navigation, filters, helper actions, and optional modes."; Detail = "Expanded notes, history, configuration, and advanced options."; Hidden = "Marketing copy inside app screens, internal notes, diagnostics, and full-system explanation." }
+        }
+    }
+}
+
 function Get-ScoreForShip {
     param([object]$Ship)
 
@@ -378,6 +397,60 @@ If three consecutive runs produce no meaningful product improvement, park the sh
 "@
 }
 
+function New-InformationStagingDoc {
+    param([object]$Ship)
+
+    $split = Get-SurfaceSplit -Ship $Ship
+    return @"
+# Information Staging
+
+Use this file to prevent the fleet from dumping every useful feature onto the first screen. The first screen should show the primary job. Secondary information should be obvious but quiet. Detail and internal information should be one click or tap away.
+
+## Surface Split
+
+Public/customer-facing surface: $($split.Public)
+
+Working app/internal tool surface: $($split.App)
+
+Internal/admin-only surface: $($split.Internal)
+
+Rule: do not blend these surfaces on the same first screen unless a task explicitly creates a mode switch or detail view.
+
+## First Screen Contract
+
+First screen job: $($split.Primary)
+
+Primary content: $($split.Primary)
+
+Secondary actions: $($split.Secondary)
+
+Detail content: $($split.Detail)
+
+Not visible at first: $($split.Hidden)
+
+How deeper information opens: clear buttons, tabs, accordions, drawers, cards, detail views, or staff/internal mode. Do not add a wall of sections just because the information is useful.
+
+Required task metadata: every visible UI/product task must include `First screen: ...` so the planner, launch gate, and reviewers know what must stay dominant.
+
+## Progressive Disclosure Rules
+
+- Show the thing the user came for before helper features.
+- Keep the primary content visually dominant.
+- Put helper tools behind obvious actions.
+- Put long notes, metadata, service details, settings, and internal context behind detail views.
+- Prefer fewer visible sections with stronger navigation over one oversized dashboard page.
+- If adding a useful detail makes the first screen busier, move another detail out of first view.
+
+## Restaurant Demo Rule
+
+Customer-facing restaurant examples should feel like real restaurant websites first. A wine list should primarily show wines. A private-events page should primarily show the event request path. A manager brief or order sheet should be opened as a working tool, not mixed into the guest-facing restaurant homepage.
+
+## Product Demo Rule
+
+Product ships should separate the public/product demo from the actual app. Marketing explanation belongs on public/demo pages. The working app should use direct labels and prioritize doing the job.
+"@
+}
+
 function Get-BackfillDocs {
     param([object]$Ship)
 
@@ -387,6 +460,7 @@ function Get-BackfillDocs {
         "docs\codex\SHIP_SCORECARD.md" = (New-ScorecardDoc -Ship $Ship)
         "docs\codex\SHIP_ADMISSION.md" = (New-AdmissionDoc -Ship $Ship)
         "docs\codex\PRODUCT_USEFULNESS.md" = (New-UsefulnessDoc -Ship $Ship)
+        "docs\codex\INFORMATION_STAGING.md" = (New-InformationStagingDoc -Ship $Ship)
     }
 }
 

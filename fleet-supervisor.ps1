@@ -23,11 +23,11 @@ param(
 
     [switch]$AutoSafeStop,
 
-    [string[]]$AutoSafeStopStates = @("BUDGET_STOP", "LOOPING_QUALITY", "IDLE_RUNNING", "BLOCKED_REVIEW"),
+    [string[]]$AutoSafeStopStates = @("BUDGET_STOP", "LOOPING_QUALITY", "IDLE_RUNNING", "BLOCKED_REVIEW", "BLOCKED_STAGING"),
 
     [switch]$AutoRepair,
 
-    [string[]]$AutoRepairStates = @("BUDGET_STOP", "LOOPING_QUALITY", "BLOCKED_REVIEW"),
+    [string[]]$AutoRepairStates = @("BUDGET_STOP", "LOOPING_QUALITY", "BLOCKED_REVIEW", "BLOCKED_STAGING"),
 
     [switch]$ClearSafeStopAfterRepair,
 
@@ -73,6 +73,121 @@ function Get-UncheckedCount {
     }
 
     return @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue).Count
+}
+
+function Get-FirstUncheckedTaskLine {
+    if (!(Test-Path "docs/codex/TASK_QUEUE.md")) {
+        return ""
+    }
+
+    foreach ($line in Get-Content "docs/codex/TASK_QUEUE.md") {
+        if ($line -match "^\s*-\s+\[ \]\s+(.+)$") {
+            return $matches[1].Trim()
+        }
+    }
+
+    return ""
+}
+
+function Get-SectionText {
+    param(
+        [string]$Text,
+        [string]$Heading
+    )
+
+    $pattern = "(?ims)^##\s+$([regex]::Escape($Heading))\s*\r?\n(.*?)(?=^##\s+|\z)"
+    $match = [regex]::Match($Text, $pattern)
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return ""
+}
+
+function Get-LineValue {
+    param(
+        [string]$Text,
+        [string]$Label
+    )
+
+    $pattern = "(?im)^\s*$([regex]::Escape($Label))\s*:\s*(.+?)\s*$"
+    $match = [regex]::Match($Text, $pattern)
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return ""
+}
+
+function Test-PlaceholderText {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $true }
+    return ($Value.Trim() -match "^(TODO|TBD|N/A|none|missing|\.\.\.)$" -or $Value -match "\.\.\.")
+}
+
+function Test-UiOrProductTask {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    return ($Task -match "(?i)\bclass:(feature|design|copy)\b" -or $Task -match "(?i)\bimpact:(visible|showpiece)\b")
+}
+
+function Get-TaskSurfaceCount {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return 0 }
+    return @([regex]::Matches($Task, "(?i)(?:^|[\s\[])surface:(public|app|internal|mixed)\b")).Count
+}
+
+function Get-TaskFirstScreenValue {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return "" }
+    $match = [regex]::Match($Task, "(?i)\bFirst screen:\s*(.+?)(?=\s+Remove/simplify:|\s+Guardrails:|\s+Acceptance:|\s+Check:|\s+\[[^\]]+\]|\s*$)")
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return ""
+}
+
+function Get-TaskStagingMetadataStatus {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return "no task" }
+    if (!(Test-UiOrProductTask -Task $Task)) { return "task not staged" }
+
+    $surfaceCount = Get-TaskSurfaceCount -Task $Task
+    if ($surfaceCount -eq 0) { return "task missing surface" }
+    if ($surfaceCount -gt 1) { return "task multiple surfaces" }
+
+    $firstScreen = Get-TaskFirstScreenValue -Task $Task
+    if (Test-PlaceholderText -Value $firstScreen) { return "task missing first screen" }
+
+    return "task staged"
+}
+
+function Get-InformationStagingStatus {
+    param([string]$FirstTask)
+
+    $path = "docs/codex/INFORMATION_STAGING.md"
+    if (!(Test-Path $path)) { return "missing doc" }
+    $text = Get-Content $path -Raw
+
+    foreach ($heading in @("Surface Split", "First Screen Contract", "Progressive Disclosure Rules")) {
+        if ([string]::IsNullOrWhiteSpace((Get-SectionText -Text $text -Heading $heading))) {
+            return "doc missing: $heading"
+        }
+    }
+
+    foreach ($label in @("First screen job", "Primary content", "Secondary actions", "Detail content", "Not visible at first", "How deeper information opens")) {
+        $value = Get-LineValue -Text $text -Label $label
+        if (Test-PlaceholderText -Value $value) { return "doc incomplete: $label" }
+    }
+
+    $taskStatus = Get-TaskStagingMetadataStatus -Task $FirstTask
+    if ($taskStatus -eq "task staged") { return "ready" }
+    if ($taskStatus -eq "task not staged" -or $taskStatus -eq "no task") { return "doc ready" }
+    return $taskStatus
+}
+
+function Test-StagingNeedsAttention {
+    param([string]$StagingDecision)
+
+    if ([string]::IsNullOrWhiteSpace($StagingDecision)) { return $true }
+    return ($StagingDecision -match "^(missing|doc missing|doc incomplete|task missing|task multiple)")
 }
 
 function Get-LastReportLine {
@@ -344,7 +459,8 @@ function Complete-SupervisorRepairPhaseIfClear {
     if ($Row.dirty -ne "clean" -or $Row.lockActive) {
         return [pscustomobject]@{ completed = $false; reason = "ship is active or dirty"; returnPhase = "" }
     }
-    if ($Row.budget -match "^OVER" -or ![string]::IsNullOrWhiteSpace([string]$Row.qualityQuarantine) -or $Row.checkpoint -match "RED" -or $Row.simon -match "RED" -or $Row.robin -match "RED" -or $Row.joey -match "RED") {
+    $hasQueuedWork = ([int]$Row.tasks -gt 0)
+    if ($Row.budget -match "^OVER" -or ![string]::IsNullOrWhiteSpace([string]$Row.qualityQuarantine) -or $Row.checkpoint -match "RED" -or $Row.simon -match "RED" -or $Row.robin -match "RED" -or $Row.joey -match "RED" -or ($hasQueuedWork -and (Test-StagingNeedsAttention -StagingDecision ([string]$Row.staging)))) {
         return [pscustomobject]@{ completed = $false; reason = "repair blocker still present"; returnPhase = "" }
     }
     if (Test-UncheckedAutoRepairTask) {
@@ -369,7 +485,10 @@ function New-AutoRepairTaskLine {
     $pack = if ([string]::IsNullOrWhiteSpace([string]$Row.activePack) -or [string]$Row.activePack -eq "missing") { "the active work pack" } else { [string]$Row.activePack }
     $reason = ([string]$Row.recommendation).Trim()
     if ([string]::IsNullOrWhiteSpace($reason)) { $reason = "repair the current supervisor finding" }
-    return "- [ ] Repair lane for $($Row.state) in ${pack}: inspect the latest MAGIC_SCORECARD, QUALITY_QUARANTINE, Simon, Robin, Joey, Visual, and nightly report notes, then make exactly one smallest blocker-clearing repair that addresses '$reason'; preserve the prior product phase, prefer reducing churn over adding features, keep No More Features Lock true, and avoid backend, secrets, package/dependency files, deployment config, generated output, broad rewrites, and unrelated files. [class:bugfix risk:low mode:single impact:visible scope:src/,app-vNext/src/,css/,js/,wine.html,index.html]"
+    if ([string]$Row.state -eq "BLOCKED_STAGING") {
+        return "- [ ] Repair lane for BLOCKED_STAGING in ${pack}: fix the information-staging launch blocker '$reason'. Target: docs/codex/INFORMATION_STAGING.md and the first unchecked TASK_QUEUE.md task only. Change: complete the surface split or first-screen metadata so the next visible/product task has exactly one surface tag and a concrete first-screen job. First screen: keep the documented primary screen job dominant while moving detail/internal content behind a clear opener. Remove/simplify: placeholder staging fields, missing surface metadata, duplicate surface metadata, or missing First screen text. Guardrails: documentation/task metadata repair only unless the staging contract explicitly needs one tiny matching source-label adjustment; no backend, auth, payments, secrets, package/dependency files, deployment config, generated output, broad rewrites, or unrelated files. Acceptance: fleet-launch-gate reports READY or WARN for this ship and fleet-product-dashboard shows staging as ready/doc ready. Check: run the launch gate and product dashboard for this ship. [class:bugfix risk:low mode:single impact:standard surface:mixed scope:docs/codex/]"
+    }
+    return "- [ ] Repair lane for $($Row.state) in ${pack}: inspect the latest MAGIC_SCORECARD, QUALITY_QUARANTINE, Simon, Robin, Joey, Visual, and nightly report notes, then make exactly one smallest blocker-clearing repair that addresses '$reason'; preserve the prior product phase, prefer reducing churn over adding features, keep No More Features Lock true. First screen: keep the current primary screen job dominant and move repaired helper/detail content behind the existing clear action. Avoid backend, secrets, package/dependency files, deployment config, generated output, broad rewrites, and unrelated files. [class:bugfix risk:low mode:single impact:visible surface:mixed scope:src/,app-vNext/src/,css/,js/,wine.html,index.html]"
 }
 
 function Add-SupervisorAutoRepairTask {
@@ -541,6 +660,9 @@ function Resolve-SupervisorState {
     if ($Row.checkpoint -match "RED" -or $Row.robin -match "RED" -or $Row.joey -match "RED") {
         return "BLOCKED_REVIEW"
     }
+    if ((Test-StagingNeedsAttention -StagingDecision ([string]$Row.staging)) -and $Row.tasks -gt 0) {
+        return "BLOCKED_STAGING"
+    }
     if ($Row.lockActive) {
         if ($Row.minutesSinceProgress -ge $IdleMinutes) { return "IDLE_RUNNING" }
         return "PROGRESSING"
@@ -561,6 +683,7 @@ function Get-Recommendation {
         "^READY$" { return "eligible for launch" }
         "BLOCKED_DIRTY" { return "do not touch unless rescue is approved" }
         "BLOCKED_REVIEW" { return "human review before more tasks" }
+        "BLOCKED_STAGING" { return "fix staging contract before launch" }
         "LOOPING_QUALITY" { return "repair active pack before fresh work" }
         "BUDGET_STOP" { return "pause ship and inspect results" }
         default { return "inspect" }
@@ -604,14 +727,14 @@ function Write-SupervisorReport {
         "Window: last 12 hours",
         "Budgets: task commits <= $MaxTaskCommits, task quarantines <= $MaxQuarantines, quality stops <= $MaxQualityStops, repair attempts <= $MaxRepairAttempts",
         "",
-        "| Ship | State | Phase | Repair Attempts | Branch | HEAD | Dirty | Tasks | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
-        "| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- |"
+        "| Ship | State | Phase | Repair Attempts | Branch | HEAD | Dirty | Tasks | Staging | Lock | Child Work | Active Pack | Simon Score | Budget | Recommendation | Last Report |",
+        "| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |"
     )
 
     foreach ($project in $projects) {
         if (!(Test-Path $project.repo)) {
             $rows += [pscustomobject]@{
-                ship = $project.name; state = "BLOCKED_MISSING"; phase = "missing"; repairAttempts = 0; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
+                ship = $project.name; state = "BLOCKED_MISSING"; phase = "missing"; repairAttempts = 0; branch = "missing repo"; head = "n/a"; dirty = "n/a"; tasks = 0; staging = "missing repo"; lock = "n/a"; childSummary = ""; activePack = "missing"; simonScore = "missing"; budget = "n/a"; recommendation = "repo not found"; report = $project.repo
             }
             continue
         }
@@ -623,6 +746,8 @@ function Write-SupervisorReport {
         $dirty = @(git status --short 2>$null)
         $dirtyText = if ($dirty.Count -eq 0) { "clean" } else { "dirty $($dirty.Count)" }
         $tasks = Get-UncheckedCount
+        $firstTask = Get-FirstUncheckedTaskLine
+        $staging = Get-InformationStagingStatus -FirstTask $firstTask
         $checkpoint = Get-FirstMarkdownValue -Path "docs/codex/CHECKPOINT_REVIEW.md" -Heading "Verdict"
         $simon = Get-FirstMarkdownValue -Path "docs/codex/SIMON_DESIGN_REVIEW.md" -Heading "Verdict"
         $robin = Get-FirstMarkdownValue -Path "docs/codex/ROBIN_COPY_REVIEW.md" -Heading "Verdict"
@@ -652,6 +777,7 @@ function Write-SupervisorReport {
             head = $head
             dirty = $dirtyText
             tasks = $tasks
+            staging = $staging
             lock = $lockStatus.text
             lockActive = $lockStatus.active
             lockIdleShell = $lockStatus.idleShell
@@ -725,7 +851,7 @@ function Write-SupervisorReport {
 
     foreach ($row in $rows) {
         $child = if ([string]::IsNullOrWhiteSpace([string]$row.childSummary)) { "-" } else { [string]$row.childSummary }
-        $lines += "| $($row.ship) | $($row.state) | $($row.phase) | $($row.repairAttempts)/$MaxRepairAttempts | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
+        $lines += "| $($row.ship) | $($row.state) | $($row.phase) | $($row.repairAttempts)/$MaxRepairAttempts | $($row.branch) | $($row.head) | $($row.dirty) | $($row.tasks) | $($row.staging) | $($row.lock) | $child | $($row.activePack) | $($row.simonScore) | $($row.budget) | $($row.recommendation) | $($row.report) |"
     }
 
     $lines += ""
@@ -736,6 +862,7 @@ function Write-SupervisorReport {
     $lines += '- For `IDLE_RUNNING`, inspect the latest `.codex-logs` output first; if no progress continues, request a safe stop.'
     $lines += '- For `LOOPING_QUALITY`, let Nami plan a smaller active-pack repair before fresh feature work.'
     $lines += '- For `BUDGET_STOP`, pause that ship and inspect commits, screenshots, and scorecard before continuing.'
+    $lines += '- For `BLOCKED_STAGING`, fix `INFORMATION_STAGING.md` or the next task metadata before launch.'
     if ($AutoSafeStop) {
         $lines += "- Auto safe-stop is enabled for states: $($AutoSafeStopStates -join ', ')."
     }

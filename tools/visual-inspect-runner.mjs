@@ -15,6 +15,7 @@ const {
   routes,
   paths = ["/"],
   viewports: configuredViewports,
+  informationStaging,
 } = options;
 
 if (!baseUrl || !outDir) {
@@ -118,6 +119,84 @@ function joinUrl(base, route) {
 
 function severityRank(severity) {
   return { high: 0, medium: 1, low: 2 }[severity] ?? 3;
+}
+
+function normalizeText(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function extractSignalTerms(value) {
+  const stop = new Set([
+    "the", "and", "with", "from", "that", "this", "into", "behind", "clear", "first",
+    "screen", "surface", "content", "action", "actions", "details", "internal", "primary",
+    "secondary", "user", "users", "guest", "guests", "staff", "tool", "demo", "page",
+  ]);
+  return normalizeText(value)
+    .split(/[,.;:/|]|\band\b|\bor\b/i)
+    .map((part) => normalizeText(part).toLowerCase())
+    .filter((part) => part.length >= 4)
+    .filter((part) => !stop.has(part))
+    .slice(0, 10);
+}
+
+function addInformationStagingFindings(result) {
+  if (!informationStaging) return;
+  const audit = result.audit ?? {};
+  audit.findings = Array.isArray(audit.findings) ? audit.findings : [];
+  const metrics = audit.firstScreenMetrics ?? {};
+  const firstScreenText = normalizeText(metrics.text).toLowerCase();
+  const wordCount = Number(metrics.wordCount ?? 0);
+  const interactiveCount = Number(metrics.interactiveCount ?? 0);
+  const headingCount = Number(metrics.headingCount ?? 0);
+  const isMobile = result.viewport.toLowerCase().includes("mobile");
+  const maxWords = isMobile ? 130 : 190;
+  const maxActions = isMobile ? 9 : 14;
+
+  if (wordCount > maxWords && interactiveCount > Math.max(4, Math.floor(maxActions / 2))) {
+    audit.findings.push({
+      severity: "medium",
+      type: "information-staging-overload",
+      selector: "first-screen",
+      message: "First screen looks overloaded for the documented information-staging contract.",
+      evidence: `${wordCount} words and ${interactiveCount} interactive controls above the fold`,
+    });
+  }
+
+  if (interactiveCount > maxActions) {
+    audit.findings.push({
+      severity: "medium",
+      type: "information-staging-too-many-actions",
+      selector: "first-screen",
+      message: "First screen exposes too many actions before the user reaches the primary job.",
+      evidence: `${interactiveCount} interactive controls above the fold`,
+    });
+  }
+
+  if (headingCount > 5) {
+    audit.findings.push({
+      severity: "low",
+      type: "information-staging-too-many-headings",
+      selector: "first-screen",
+      message: "First screen has too many competing headings for a calm staged layout.",
+      evidence: `${headingCount} headings above the fold`,
+    });
+  }
+
+  const hiddenTerms = [
+    ...extractSignalTerms(informationStaging.notVisibleAtFirst),
+    ...extractSignalTerms(informationStaging.detailContent),
+  ].filter((term, index, list) => list.indexOf(term) === index);
+
+  const matchedHidden = hiddenTerms.filter((term) => firstScreenText.includes(term)).slice(0, 5);
+  if (matchedHidden.length > 0) {
+    audit.findings.push({
+      severity: "medium",
+      type: "information-staging-detail-visible",
+      selector: "first-screen",
+      message: "Detail or internal content appears on the first screen instead of behind a clear action.",
+      evidence: matchedHidden.join(", "),
+    });
+  }
 }
 
 async function runRouteViewport(routeConfig, viewportName, viewport) {
@@ -284,6 +363,22 @@ async function runRouteViewport(routeConfig, viewportName, viewport) {
         };
       }).slice(0, 12);
 
+      const firstScreenElements = elements.filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.bottom > 0 && rect.top < viewportHeight * 0.95;
+      });
+      const firstScreenText = firstScreenElements
+        .filter((element) => element.matches('h1, h2, h3, h4, p, li, label, button, a, input, textarea, select, [role="button"]'))
+        .map((element) => textOf(element))
+        .filter(Boolean)
+        .join(" ");
+      const firstScreenInteractive = firstScreenElements.filter((element) =>
+        element.matches('button, a, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])')
+      );
+      const firstScreenHeadings = firstScreenElements.filter((element) =>
+        element.matches('h1, h2, h3, h4, [role="heading"]')
+      );
+
       return {
         title: document.title || "",
         bodyTextLength: document.body ? document.body.innerText.length : 0,
@@ -291,6 +386,12 @@ async function runRouteViewport(routeConfig, viewportName, viewport) {
         viewportHeight,
         scrollWidth: maxScrollWidth,
         scrollHeight: document.documentElement.scrollHeight,
+        firstScreenMetrics: {
+          text: firstScreenText.slice(0, 2500),
+          wordCount: firstScreenText.split(/\\s+/).filter(Boolean).length,
+          interactiveCount: firstScreenInteractive.length,
+          headingCount: firstScreenHeadings.length,
+        },
         findings,
         fixed
       };
@@ -331,7 +432,7 @@ async function runRouteViewport(routeConfig, viewportName, viewport) {
   await client.send("Page.close").catch(() => {});
   client.close();
 
-  return {
+  const result = {
     route,
     label: routeConfig.label ?? route,
     viewport: viewportName,
@@ -342,6 +443,8 @@ async function runRouteViewport(routeConfig, viewportName, viewport) {
     ),
     audit: auditResult.result.value,
   };
+  addInformationStagingFindings(result);
+  return result;
 }
 
 const defaultViewports = [
@@ -403,6 +506,7 @@ const summary = {
   viewports: viewports.map(([name, viewport]) => ({ name, ...viewport })),
   results,
   findings: allFindings,
+  informationStaging: informationStaging ?? null,
   passed: !allFindings.some((finding) => finding.severity === "high"),
 };
 

@@ -7,7 +7,11 @@ param(
 
     [string]$Project = "",
 
-    [string]$OutFile = "docs/codex/FRANKY_FORMULA_REVIEW.md"
+    [string]$OutFile = "docs/codex/FRANKY_FORMULA_REVIEW.md",
+
+    [string]$JsonOutFile = "docs/codex/FRANKY_FORMULA_REVIEW.json",
+
+    [switch]$Template
 )
 
 $ErrorActionPreference = "Continue"
@@ -15,6 +19,25 @@ $ErrorActionPreference = "Continue"
 function Normalize-Path {
     param([string]$Path)
     return ([string]$Path).Replace("\", "/")
+}
+
+function Ensure-OutputParent {
+    param([string]$Path)
+    $parent = Split-Path -Parent $Path
+    if (![string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
+}
+
+function New-TemplateFileIfMissing {
+    param([string]$Path, [string[]]$Lines)
+    if (Test-Path -LiteralPath $Path) {
+        Write-Host "Template already exists: $Path"
+        return
+    }
+    Ensure-OutputParent -Path $Path
+    $Lines -join "`n" | Set-Content -LiteralPath $Path -Encoding UTF8
+    Write-Host "Created template: $Path"
 }
 
 function Get-MarkdownValue {
@@ -45,6 +68,67 @@ Set-Location $repoPath.Path
 
 if ([string]::IsNullOrWhiteSpace($Project)) {
     $Project = Split-Path -Leaf $repoPath.Path
+}
+
+if ($Template) {
+    New-TemplateFileIfMissing -Path "docs/codex/FORMULA_SPEC.md" -Lines @(
+        "# Formula Spec",
+        "",
+        "Project: $Project",
+        "",
+        "## Formulas",
+        "TBD: list each deterministic formula by name with weights, constants, and tie-break rules.",
+        "",
+        "## Inputs",
+        "TBD: list every required input column, unit, accepted range, default, and missing-data rule.",
+        "",
+        "## Outputs",
+        "TBD: list every score, rank, probability, recommendation, and confidence label shown to users.",
+        "",
+        "## Guardrails",
+        "- Do not present uncalibrated probabilities as certainty.",
+        "- Do not mix official/source rankings with private strategy scores unless the formula says how.",
+        "- Every visible number needs a source, formula, or fixture-backed derivation."
+    )
+    New-TemplateFileIfMissing -Path "docs/codex/FIXTURE_TEST_PLAN.md" -Lines @(
+        "# Fixture Test Plan",
+        "",
+        "Project: $Project",
+        "",
+        "## Fixture Data",
+        "TBD: add small hand-checkable input rows that cover normal, edge, and missing-data cases.",
+        "",
+        "## Expected Outputs",
+        "TBD: add hand-calculated expected results for each important formula and recommendation.",
+        "",
+        "## Formula Tests",
+        "TBD: name the exact tests or acceptance commands that prove the fixture outputs match the code."
+    )
+    New-TemplateFileIfMissing -Path "docs/codex/ANALYTICAL_NUMBER_PROVENANCE.md" -Lines @(
+        "# Analytical Number Provenance",
+        "",
+        "## Verdict",
+        "YELLOW",
+        "",
+        "## Source Map",
+        "TBD: map every user-facing number to a formula, fixture, source file, or imported dataset.",
+        "",
+        "## Unverified Numbers",
+        "TBD: list numbers that are demo-only, manually seeded, or still need source verification."
+    )
+    New-TemplateFileIfMissing -Path "docs/codex/CALIBRATION_READINESS.md" -Lines @(
+        "# Calibration Readiness",
+        "",
+        "## Verdict",
+        "YELLOW",
+        "",
+        "## Calibration Status",
+        "TBD: explain whether probabilities/scores are calibrated, heuristic-only, or demo-only.",
+        "",
+        "## User-Facing Caveats",
+        "TBD: define the exact caveats needed anywhere confidence, probability, or recommendation labels appear."
+    )
+    exit 0
 }
 
 $branch = git branch --show-current 2>$null
@@ -99,51 +183,54 @@ $formulaTestsTracked = @($tracked | Where-Object { $_ -match "(?i)(^|/)tests?/.*
 
 $issues = [System.Collections.Generic.List[object]]::new()
 function Add-Issue {
-    param([string]$Level, [string]$Message)
-    $issues.Add([pscustomobject]@{ level = $Level; message = $Message }) | Out-Null
+    param([string]$Level, [string]$Message, [string]$Action = "")
+    if ([string]::IsNullOrWhiteSpace($Action)) {
+        $Action = "Review the finding and add concrete formula evidence before treating analytical output as trustworthy."
+    }
+    $issues.Add([pscustomobject]@{ level = $Level; message = $Message; action = $Action }) | Out-Null
 }
 
 if (!$formulaIntent) {
-    Add-Issue -Level "INFO" -Message "No formula-sensitive task, phase, or file change detected."
+    Add-Issue -Level "INFO" -Message "No formula-sensitive task, phase, or file change detected." -Action "No formula repair needed."
 } else {
     if ([string]::IsNullOrWhiteSpace($formulaSpec)) {
-        Add-Issue -Level "RED" -Message "Formula-sensitive work is present but docs/codex/FORMULA_SPEC.md is missing."
+        Add-Issue -Level "RED" -Message "Formula-sensitive work is present but docs/codex/FORMULA_SPEC.md is missing." -Action "Create docs/codex/FORMULA_SPEC.md with concrete Formulas, Inputs, and Outputs sections."
     } else {
         foreach ($heading in @("Formulas", "Inputs", "Outputs")) {
             if (-not (Test-ConcreteSection -Text $formulaSpec -Heading $heading)) {
-                Add-Issue -Level "RED" -Message "FORMULA_SPEC.md needs concrete non-placeholder content under '$heading'."
+                Add-Issue -Level "RED" -Message "FORMULA_SPEC.md needs concrete non-placeholder content under '$heading'." -Action "Replace the '$heading' placeholder with specific formula evidence, not TBD/unknown/later language."
             }
         }
     }
 
     if ([string]::IsNullOrWhiteSpace($fixturePlan)) {
-        Add-Issue -Level "RED" -Message "Formula-sensitive work is present but docs/codex/FIXTURE_TEST_PLAN.md is missing."
+        Add-Issue -Level "RED" -Message "Formula-sensitive work is present but docs/codex/FIXTURE_TEST_PLAN.md is missing." -Action "Create docs/codex/FIXTURE_TEST_PLAN.md with fixture rows, hand-calculated expected outputs, and the formula tests that assert them."
     } else {
         foreach ($heading in @("Fixture Data", "Expected Outputs", "Formula Tests")) {
             if (-not (Test-ConcreteSection -Text $fixturePlan -Heading $heading)) {
-                Add-Issue -Level "RED" -Message "FIXTURE_TEST_PLAN.md needs concrete non-placeholder content under '$heading'."
+                Add-Issue -Level "RED" -Message "FIXTURE_TEST_PLAN.md needs concrete non-placeholder content under '$heading'." -Action "Fill '$heading' with hand-checkable evidence tied to actual tests."
             }
         }
     }
 
     if ($analysisApproval -notmatch "(?im)^\s*Status:\s*APPROVED\s*$") {
-        Add-Issue -Level "YELLOW" -Message "Analysis approval is missing or not approved; formula work should stay narrow until approved."
+        Add-Issue -Level "YELLOW" -Message "Analysis approval is missing or not approved; formula work should stay narrow until approved." -Action "Keep the next task to evidence or fixture setup until docs/codex/ANALYSIS_APPROVAL.md is explicitly approved."
     }
 
     if ($formulaFilesChanged.Count -gt 0 -and $testFilesChanged.Count -eq 0 -and $formulaTestsTracked.Count -eq 0) {
-        Add-Issue -Level "RED" -Message "Formula/model files changed but no formula-oriented tests are changed or tracked."
+        Add-Issue -Level "RED" -Message "Formula/model files changed but no formula-oriented tests are changed or tracked." -Action "Add or update formula-oriented tests before continuing formula/model implementation."
     } elseif ($formulaFilesChanged.Count -gt 0 -and $testFilesChanged.Count -eq 0) {
-        Add-Issue -Level "YELLOW" -Message "Formula/model files changed without changed tests; verify existing formula tests assert the new behavior."
+        Add-Issue -Level "YELLOW" -Message "Formula/model files changed without changed tests; verify existing formula tests assert the new behavior." -Action "Either update the relevant formula tests or cite the existing tests that assert this changed behavior."
     }
 
     if ($numberProvenance -match "(?is)## Verdict\s+RED\b") {
-        Add-Issue -Level "RED" -Message "Analytical number provenance is RED."
+        Add-Issue -Level "RED" -Message "Analytical number provenance is RED." -Action "Resolve ANALYTICAL_NUMBER_PROVENANCE.md before exposing generated numbers as reliable."
     } elseif ([string]::IsNullOrWhiteSpace($numberProvenance)) {
-        Add-Issue -Level "YELLOW" -Message "No analytical number provenance report found."
+        Add-Issue -Level "YELLOW" -Message "No analytical number provenance report found." -Action "Run analytical-number-provenance or document where each user-facing number comes from."
     }
 
     if ($calibration -match "(?is)## Verdict\s+RED\b") {
-        Add-Issue -Level "YELLOW" -Message "Calibration readiness is RED; do not present formula outputs as reliable insight."
+        Add-Issue -Level "YELLOW" -Message "Calibration readiness is RED; do not present formula outputs as reliable insight." -Action "Add calibration caveats or calibration evidence before presenting probabilities/recommendations as trusted."
     }
 }
 
@@ -183,6 +270,17 @@ foreach ($issue in $issues) {
     $lines += "- [$($issue.level)] $($issue.message)"
 }
 
+$requiredActions = @($issues | Where-Object { $_.level -in @("RED", "YELLOW") } | ForEach-Object { $_.action } | Where-Object { ![string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+if ($requiredActions.Count -gt 0) {
+    $lines += @(
+        "",
+        "## Required Actions"
+    )
+    foreach ($action in $requiredActions) {
+        $lines += "- $action"
+    }
+}
+
 $lines += @(
     "",
     "## Formula Evidence Rules",
@@ -192,18 +290,54 @@ $lines += @(
     "- User-facing scores, ranks, probabilities, and recommendations must be computed, sourced, or fixture-backed.",
     "- Calibration gaps must be visible; do not let the UI imply certainty the model has not earned.",
     "",
+    "## Repair Task Draft"
+)
+
+if ($verdict -eq "RED") {
+    $lines += "- [ ] User pain: Analytical output is blocked by missing formula evidence. Target: docs/codex formula evidence and related tests. Change: resolve Franky's RED findings by adding concrete formulas, fixture rows, expected outputs, and formula test evidence. Remove/simplify: remove placeholder/TBD formula language and unsupported numeric claims. Guardrails: no UI polish, no unrelated feature work, no source-data invention. Acceptance: powershell -NoProfile -ExecutionPolicy Bypass -File ..\codex-fleet\franky-formula-review.ps1 -Repo . [class:test risk:medium mode:single scope:docs/codex/,tests/,src/]"
+} else {
+    $lines += "No RED formula repair task needed."
+}
+
+$lines += @(
+    "",
     "## Stop Or Continue",
     $nextStep
 )
 
 $parent = Split-Path -Parent $OutFile
-if (![string]::IsNullOrWhiteSpace($parent)) {
-    New-Item -ItemType Directory -Force -Path $parent | Out-Null
-}
+Ensure-OutputParent -Path $OutFile
 $lines -join "`n" | Set-Content $OutFile -Encoding UTF8
+
+if (![string]::IsNullOrWhiteSpace($JsonOutFile)) {
+    Ensure-OutputParent -Path $JsonOutFile
+    [pscustomobject]@{
+        project = $Project
+        branch = [string]$branch
+        head = [string]$head
+        baseBranch = $BaseBranch
+        generatedAt = $date
+        verdict = $verdict
+        nextStep = $nextStep
+        formulaIntent = [bool]$formulaIntent
+        formulaSensitiveChangedFiles = @($formulaFilesChanged)
+        analyticalPhaseOrDocsDetected = [bool]($analyticalPhaseIntent -or $analyticalDocsPresent)
+        testFilesChanged = @($testFilesChanged)
+        trackedFormulaTests = @($formulaTestsTracked)
+        issueCounts = [pscustomobject]@{
+            red = $redCount
+            yellow = $yellowCount
+            total = $issues.Count
+        }
+        issues = @($issues)
+    } | ConvertTo-Json -Depth 6 | Set-Content $JsonOutFile -Encoding UTF8
+}
 
 Write-Host "Franky formula review: $verdict"
 Write-Host "Report: $OutFile"
+if (![string]::IsNullOrWhiteSpace($JsonOutFile)) {
+    Write-Host "JSON: $JsonOutFile"
+}
 
 if ($verdict -eq "RED") { exit 1 }
 exit 0

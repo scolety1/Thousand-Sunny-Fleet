@@ -209,6 +209,7 @@ function Test-FixtureGeneration {
     Assert-Equal -Actual $projects.Count -Expected 3 -Message "Fixture config contains three ships"
     Assert-True -Condition ($generatorText -match 'PresentationWorkloads') -Message "Fixture generator supports presentation-specific workload tasks"
     Assert-True -Condition ($generatorText -match 'impact:\$taskImpact' -and $generatorText -match '\$DocsOnly.+standard') -Message "Presentation docs-only fixtures use standard impact instead of visible-impact"
+    Assert-True -Condition ($generatorText -match 'UseRealModels' -and $generatorText -match 'gpt-5\.4-mini') -Message "Fixture generator can use supported low-cost real models for live smoke runs"
 }
 
 function Test-PhaseZeroIntakeSupport {
@@ -298,14 +299,24 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'Get-TaskImplementationScale') -Message "Checkpoint loop classifies implementation scale"
     Assert-True -Condition ($loopText -match 'Test-LargerChangePlanForLoop') -Message "Checkpoint loop gates larger changes on a slice plan"
     Assert-True -Condition ($loopText -match 'Large Phase 3 task requires') -Message "Large implementation work is blocked until planned"
+    Assert-True -Condition ($loopText -match 'User pain: the previous task was quarantined before implementation') -Message "Auto recovery rewrites broad blocked tasks as product-shaped slices"
+    Assert-True -Condition ($loopText -match 'First screen: keep the current primary screen job dominant') -Message "Auto recovery replacement tasks preserve first-screen dominance"
+    foreach ($label in @("Target:", "Change:", "First screen:", "Remove/simplify:", "Guardrails:", "Acceptance:", "Check:")) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($label)) -Message "Auto recovery replacement tasks include $label"
+    }
+    Assert-True -Condition ($loopText -match 'make exactly one narrow safe slice') -Message "Auto recovery replacement task is explicitly narrow"
     Assert-True -Condition ($loopText -match 'scaleSummary\s*=\s*\$summary\s*-replace' -and $loopText -match 'Guardrails') -Message "Implementation scale ignores forbidden-scope guardrail prose"
     Assert-True -Condition ($loopText -match 'full\|new\|entire\|whole\|end-to-end' -and $loopText -match 'workflow\\b') -Message "Implementation scale does not treat every workflow mention as large"
+    Assert-True -Condition ($loopText -match 'Implementation guardrail warning ignored: docs/codex/TASK_QUEUE\.md') -Message "Implementation guardrails allow task queue tracking dirt"
     Assert-True -Condition ($loopText -match 'MinLastWriteTime') -Message "Batch QA visual evidence can require fresh screenshots"
     Assert-True -Condition ($loopText -match 'High/gated task requires approved architecture plan') -Message "Checkpoint loop blocks high/gated tasks without architecture approval"
     Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
     Assert-True -Condition ($plannerText -match 'Supported classes') -Message "Nami planner is taught task classes"
     Assert-True -Condition ($plannerText -match 'Supported risks') -Message "Nami planner is taught task risks"
     Assert-True -Condition ($plannerText -match 'Supported impacts') -Message "Nami planner is taught task impacts"
+    Assert-True -Condition ($plannerText -match 'Test-FleetTaskRequiresSurface' -and $plannerText -match 'Get-FleetTaskSurfaceCount' -and $plannerText -match 'exactly one surface metadata') -Message "Nami planner enforces exactly one surface metadata value"
+    Assert-True -Condition ($plannerText -match 'Test-FleetTaskHasFirstScreenField' -and $plannerText -match 'First screen:') -Message "Nami planner enforces first-screen task metadata"
+    Assert-True -Condition ($plannerText -match 'insert "First screen: \.\.\." between Change and Remove/simplify') -Message "Nami planner gives first-screen metadata a clear task order"
     Assert-True -Condition ($plannerText -match 'If accept: is omitted') -Message "Nami planner understands inferred acceptance checks"
     Assert-True -Condition ($plannerText -match 'plan-first and slice-based') -Message "Nami planner plans larger changes in slices"
     Assert-True -Condition ($readmeText -match 'Phase 3 task contracts') -Message "README documents Phase 3 task contracts"
@@ -481,11 +492,14 @@ function Test-PhaseEightMaintenanceSupport {
 
 function Test-PhaseNineAutopilotSupport {
     $autopilotText = Get-Content (Join-Path $fleetRoot "fleet-autopilot-policy.ps1") -Raw
+    $overnightAutopilotText = Get-Content (Join-Path $fleetRoot "start-overnight-autopilot.ps1") -Raw
     $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
     $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
     $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
 
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-autopilot-policy.ps1")) -Message "Fleet exposes Phase 9 autopilot policy script"
+    Assert-True -Condition ($autopilotText -match '\[string\[\]\]\$ExcludeProject' -and $autopilotText -match 'excludedProjects') -Message "Autopilot gate supports excluded docked ships"
+    Assert-True -Condition ($autopilotText -match 'No projects selected for autopilot policy review') -Message "Autopilot gate fails closed when exclusions remove every selected ship"
     Assert-True -Condition ($autopilotText -match 'AUTOPILOT_POLICY\.md') -Message "Autopilot gate validates policy artifact"
     Assert-True -Condition ($autopilotText -match 'AUTOPILOT_APPROVAL\.md') -Message "Autopilot gate validates approval artifact"
     Assert-True -Condition ($autopilotText -match '\[string\]\$JsonOutFile' -and $autopilotText -match 'ConvertTo-Json') -Message "Autopilot gate writes machine-readable JSON"
@@ -503,6 +517,8 @@ function Test-PhaseNineAutopilotSupport {
     }
     Assert-True -Condition ($autopilotText -match '\.codex-local\\audit') -Message "Autopilot gate writes an audit log"
     Assert-True -Condition ($autopilotText -match 'does not spend money, deploy, email customers') -Message "Autopilot report states sensitive actions are not performed"
+    Assert-True -Condition ($overnightAutopilotText -match '\[switch\]\$RequireAutopilotPolicy' -and $overnightAutopilotText -match 'fleet-autopilot-policy\.ps1') -Message "Overnight autopilot can require Phase 9 policy before launch"
+    Assert-True -Condition ($overnightAutopilotText -match 'Phase 9 Autopilot Policy Gate' -and $overnightAutopilotText -match 'autopilot policy blocked') -Message "Overnight autopilot fails closed when policy is blocked"
     Assert-True -Condition ($doctorText -match 'Get-AutopilotStatus') -Message "Fleet doctor reports autopilot status"
     Assert-True -Condition ($doctorText -match 'Phase 9 limited autopilot') -Message "Fleet doctor warns for missing autopilot policy"
     Assert-True -Condition ($readmeText -match 'Phase 9 limited business autopilot gate') -Message "README documents Phase 9 autopilot gate"
@@ -523,9 +539,14 @@ function Test-PhaseTenSpecialistReviewers {
     Assert-True -Condition ($frankyText -match 'FORMULA_SPEC\.md' -and $frankyText -match 'FIXTURE_TEST_PLAN\.md') -Message "Franky checks formula spec and fixture plan"
     Assert-True -Condition ($frankyText -match 'Expected Outputs' -and $frankyText -match 'Formula Tests') -Message "Franky requires expected outputs and formula tests"
     Assert-True -Condition ($frankyText -match 'fake-confidence soup') -Message "Franky names fake-confidence risk"
+    Assert-True -Condition ($frankyText -match '\[switch\]\$Template' -and $frankyText -match 'New-TemplateFileIfMissing') -Message "Franky can scaffold analytical evidence templates"
+    Assert-True -Condition ($frankyText -match 'JsonOutFile' -and $frankyText -match 'ConvertTo-Json') -Message "Franky writes machine-readable formula verdict JSON"
+    Assert-True -Condition ($frankyText -match 'Required Actions' -and $frankyText -match 'Repair Task Draft') -Message "Franky reports concrete repair actions"
+    Assert-True -Condition ($frankyText -match 'action = \$Action' -and $frankyText -match 'unsupported numeric claims') -Message "Franky JSON/issues include actionable formula repair guidance"
     Assert-True -Condition ($loopText -match '\[int\]\$FrankyEvery' -and $loopText -match 'franky-formula-review\.ps1') -Message "Checkpoint loop can run Franky"
     Assert-True -Condition ($loopText -match 'frankyAutoPhases' -and $loopText -match 'engine-build') -Message "Checkpoint loop auto-runs Franky in analytical phases"
     Assert-True -Condition ($loopText -match 'FRANKY_FORMULA_REVIEW') -Message "Task materiality treats Franky report as Fleet-generated report"
+    Assert-True -Condition ($loopText -match 'FRANKY_FORMULA_REVIEW\.json') -Message "Checkpoint loop stages Franky's structured JSON evidence"
     Assert-True -Condition ($checkpointText -match 'Franky formula review' -and $checkpointText -match 'Franky verdict') -Message "Checkpoint review reads Franky status"
     Assert-True -Condition ($frankyText -match 'baseExists' -and $checkpointText -match 'baseExists') -Message "Franky and checkpoint review tolerate missing local base branches"
     Assert-True -Condition ($frankyText -match 'taskFormulaIntent' -and $frankyText -match 'analyticalPhaseIntent') -Message "Franky does not treat generic website task wording as formula work"
@@ -573,6 +594,34 @@ function Test-PhaseTenSpecialistReviewers {
     Assert-Equal -Actual $frankyWebsite.ExitCode -Expected 0 -Message "Franky allows non-analytical website tasks with recommendation wording"
     $frankyWebsiteReport = Get-Content (Join-Path $frankyFixture "docs\codex\FRANKY_FORMULA_REVIEW.md") -Raw
     Assert-True -Condition ($frankyWebsiteReport -match 'Formula intent detected: False') -Message "Franky reports no formula intent for website simplicity phase"
+    Assert-True -Condition (Test-Path (Join-Path $frankyFixture "docs\codex\FRANKY_FORMULA_REVIEW.json")) -Message "Franky writes JSON evidence for website fixture"
+
+    $frankyTemplateFixture = Join-Path $fixtureRoot "phase10-franky-template"
+    if (Test-Path $frankyTemplateFixture) {
+        Remove-Item -LiteralPath $frankyTemplateFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $frankyTemplateFixture | Out-Null
+    Push-Location $frankyTemplateFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "# Formula fixture" | Set-Content README.md
+        git add README.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $frankyTemplateRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "franky-formula-review.ps1"),
+        "-Repo", $frankyTemplateFixture,
+        "-Template"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $frankyTemplateRun.ExitCode -Expected 0 -Message "Franky template mode exits cleanly"
+    Assert-True -Condition ((Test-Path (Join-Path $frankyTemplateFixture "docs\codex\FORMULA_SPEC.md")) -and (Test-Path (Join-Path $frankyTemplateFixture "docs\codex\FIXTURE_TEST_PLAN.md"))) -Message "Franky template mode creates formula spec and fixture plan"
 }
 
 function Test-PhaseElevenAccessibilityReview {
@@ -1364,8 +1413,9 @@ function Test-TaskQuarantineSupport {
     Assert-True -Condition ($loopText -match 'Mode "--worktree"') -Message "Checkpoint loop restores tracked worktree edits during quarantine cleanup"
     Assert-True -Condition ($loopText -match 'Codex changed HEAD during implementation') -Message "Checkpoint loop stops if Codex commits during implementation"
     Assert-True -Condition ($loopText -match 'Codex quarantine failed task batch') -Message "Checkpoint loop commits quarantine notes separately"
-    Assert-True -Condition ($loopText -match 'Auto recovery retry: make one narrow safe slice') -Message "Auto recovery retries are rewritten as small safe slices"
+    Assert-True -Condition ($loopText -match 'make exactly one narrow safe slice') -Message "Auto recovery retries are rewritten as small safe slices"
     Assert-True -Condition ($loopText -match 'impact:visible') -Message "Auto recovery retry metadata includes visible impact"
+    Assert-True -Condition ($loopText -match 'surface:mixed') -Message "Auto recovery retry metadata includes surface"
     Assert-True -Condition ($loopText -notmatch 'quarantined task .\$summary') -Message "Auto recovery retries do not quote the original large task summary"
 
     $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
@@ -1479,8 +1529,16 @@ function Test-FleetVisualQaLaneSupport {
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "set-ship-pages.ps1")) -Message "Fleet exposes reusable ship page configuration"
     Assert-True -Condition ($visualInspectText -match '\$RouteConfig') -Message "Visual inspect accepts an explicit route config"
     Assert-True -Condition ($visualInspectText -match 'docs\\codex\\visual-routes\.json') -Message "Visual inspect auto-discovers ship route maps"
+    Assert-True -Condition ($visualInspectText -match 'Get-InformationStagingContract') -Message "Visual inspect reads information staging contracts"
+    Assert-True -Condition ($visualInspectText -match 'Information Staging Review') -Message "Visual inspect writes staging review section"
+    Assert-True -Condition ($visualInspectText -match 'information-staging-\*') -Message "Visual inspect creates staging repair task wording"
+    Assert-True -Condition ($visualInspectText -match 'User pain: the first screen is exposing too much information' -and $visualInspectText -match 'Target:' -and $visualInspectText -match 'Acceptance: visual inspect reports no') -Message "Visual inspect staging repair tasks are product-shaped"
     Assert-True -Condition ($visualRunnerText -match 'requiredText') -Message "Visual runner supports route-specific required text"
     Assert-True -Condition ($visualRunnerText -match 'configuredViewports') -Message "Visual runner supports configured viewports"
+    Assert-True -Condition ($visualRunnerText -match 'firstScreenMetrics') -Message "Visual runner captures first-screen metrics"
+    Assert-True -Condition ($visualRunnerText -match 'Array\.isArray\(audit\.findings\)') -Message "Visual runner normalizes missing findings before staging checks"
+    Assert-True -Condition ($visualRunnerText -match 'information-staging-overload') -Message "Visual runner flags overloaded first screens"
+    Assert-True -Condition ($visualRunnerText -match 'information-staging-detail-visible') -Message "Visual runner flags detail/internal content visible too early"
     Assert-True -Condition ($fleetVisualText -match 'out\\fleet-visual-check\.md') -Message "Fleet visual check writes a fleet summary"
     Assert-True -Condition ($fleetVisualText -match 'visual-inspect\.ps1') -Message "Fleet visual check delegates to visual inspect"
     Assert-True -Condition ($fleetVisualText -match 'visualServeDirectory') -Message "Fleet visual check supports visual-only serve directories"
@@ -1490,6 +1548,21 @@ function Test-FleetVisualQaLaneSupport {
     Assert-True -Condition ($fleetVisualText -match 'WriteShipReports' -and $visualInspectText -match 'SkipShipReport') -Message "Direct visual checks can avoid dirtying ship report files"
     Assert-True -Condition ($fleetVisualText -match 'VerboseRunner' -and $visualInspectText -match '\$Quiet') -Message "Direct visual checks quiet noisy runner output by default"
     Assert-True -Condition ($fleetVisualText -match 'WARN' -and $fleetVisualText -match 'topFindings') -Message "Fleet visual check reports non-blocking warning summaries"
+    Assert-True -Condition ($fleetVisualText -match 'QueueStagingRepairs') -Message "Fleet visual check can queue staging repair tasks on request"
+    Assert-True -Condition ($fleetVisualText -match 'ValidateQueuedStagingRepairs') -Message "Fleet visual check can validate queued staging repairs on request"
+    Assert-True -Condition ($fleetVisualText -match 'Test-RepoDirty' -and $fleetVisualText -match 'initiallyDirty') -Message "Fleet visual check protects dirty repos before queueing staging repairs"
+    Assert-True -Condition ($fleetVisualText -match 'Get-VisualStagingRepairTasks' -and $fleetVisualText -match 'Add-VisualStagingRepairTasksToQueue') -Message "Fleet visual check extracts and queues staging repair tasks"
+    Assert-True -Condition ($fleetVisualText -match 'Invoke-StagingRepairLaunchGate' -and $fleetVisualText -match 'fleet-launch-gate\.ps1') -Message "Fleet visual check validates queued staging repairs with launch gate"
+    Assert-True -Condition ($fleetVisualText -match 'Resolve-Path -LiteralPath \$ConfigPath' -and $fleetVisualText -match 'Push-Location \$fleetRoot') -Message "Queued staging repair launch-gate validation runs from fleet root with a resolved config path"
+    Assert-True -Condition ($fleetVisualText -match 'Launch gate\\s\+' -and $fleetVisualText -match 'READY\|WARN\|BLOCK') -Message "Queued staging repair launch-gate validation parses anchored gate status"
+    Assert-True -Condition ($fleetVisualText -match 'stagingRepairLaunchGateStatus' -and $fleetVisualText -match 'stagingRepairLaunchGateReportDir') -Message "Fleet visual check records queued staging repair launch-gate status and report path"
+    Assert-True -Condition ($fleetVisualText -match 'out\\launch-gates\\visual-staging') -Message "Queued staging repair validation writes isolated launch-gate reports"
+    Assert-True -Condition ($fleetVisualText -match 'TASK_QUEUE\.md' -and $fleetVisualText -match 'Visual staging repair tasks') -Message "Fleet visual check writes staged visual repair tasks into the task queue"
+    Assert-True -Condition ($fleetVisualText -match '\.Contains\(\$task\)') -Message "Fleet visual check de-duplicates staging repair tasks with literal matching"
+    Assert-True -Condition ($fleetVisualText -match 'information staging\|information-staging') -Message "Fleet visual check queues only information-staging repair tasks"
+    Assert-True -Condition ($fleetVisualText -match 'Staging repair queue skipped: repo was dirty before visual QA') -Message "Fleet visual check reports skipped dirty staging queues"
+    Assert-True -Condition ($fleetVisualText -match 'Queued staging repair tasks') -Message "Fleet visual check reports queued staging repairs"
+    Assert-True -Condition ($fleetVisualText -match 'Staging repair launch gate') -Message "Fleet visual check reports queued staging repair launch-gate status"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "tools\visual-smoke-runner.mjs") -Raw) -match 'filteredConsoleIssues') -Message "Visual smoke filters ignored console noise from recorded results"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'visualServeDirectory') -Message "Checkpoint visual gates support visual-only serve directories"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-smoke.ps1") -Raw) -match 'static-preview-server\.ps1') -Message "Visual smoke supports static preview ships"
@@ -1498,6 +1571,7 @@ function Test-FleetVisualQaLaneSupport {
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'SITE_MAP\.md' -and (Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw) -match 'visual-routes\.json') -Message "Planner and implementation prompts include route/page context"
     Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw) -match 'SITE_MAP\.md' -and (Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw) -match 'visual-routes\.json') -Message "Harness install provides route planning docs"
     Assert-True -Condition ($readmeText -match 'fleet-visual-check\.ps1') -Message "README documents the direct visual QA lane"
+    Assert-True -Condition ($readmeText -match 'QueueStagingRepairs' -and $readmeText -match 'Visual staging repair tasks' -and $readmeText -match 'repo was already dirty' -and $readmeText -match 'ValidateQueuedStagingRepairs') -Message "README documents staged visual repair queueing"
     Assert-True -Condition ($readmeText -match 'set-ship-pages\.ps1') -Message "README documents reusable ship page configuration"
 }
 
@@ -1801,7 +1875,7 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Safe Stops Requested') -Message "Supervisor reports auto safe-stop actions"
     Assert-True -Condition ($supervisorText -match '\$Row\.budget -match "\^OVER"') -Message "Supervisor prioritizes budget stops even while active work is dirty"
     Assert-True -Condition ($supervisorText -match 'AutoRepair') -Message "Supervisor exposes auto-repair mode"
-    Assert-True -Condition ($supervisorText -match 'AutoRepairStates = @\("BUDGET_STOP", "LOOPING_QUALITY", "BLOCKED_REVIEW"\)') -Message "Supervisor auto-repair defaults to blocker states"
+    Assert-True -Condition ($supervisorText -match 'AutoRepairStates = @\("BUDGET_STOP", "LOOPING_QUALITY", "BLOCKED_REVIEW", "BLOCKED_STAGING"\)') -Message "Supervisor auto-repair defaults to blocker states"
     Assert-True -Condition ($supervisorText -match 'Add-SupervisorAutoRepairTask') -Message "Supervisor can queue repair tasks"
     Assert-True -Condition ($supervisorText -match 'Set-SupervisorRepairPhase') -Message "Supervisor enters repair phase before repair tasks"
     Assert-True -Condition ($supervisorText -match 'Complete-SupervisorRepairPhaseIfClear') -Message "Supervisor exits repair phase after blockers clear"
@@ -1816,6 +1890,12 @@ function Test-LongRunSupervisorSupport {
     Assert-True -Condition ($supervisorText -match 'Start-SupervisorRepairRun') -Message "Supervisor can relaunch one repair batch"
     Assert-True -Condition ($supervisorText -match '-LoopPhase", "repair"') -Message "Supervisor relaunches repair batches in repair phase"
     Assert-True -Condition ($supervisorText -match 'Repair lane') -Message "Supervisor queues explicit repair-lane tasks"
+    Assert-True -Condition ($supervisorText -match 'BLOCKED_STAGING') -Message "Supervisor classifies information-staging blockers"
+    Assert-True -Condition ($supervisorText -match 'Get-InformationStagingStatus' -and $supervisorText -match 'Get-TaskStagingMetadataStatus' -and $supervisorText -match 'Test-StagingNeedsAttention') -Message "Supervisor evaluates information-staging contracts"
+    Assert-True -Condition ($supervisorText -match '\$hasQueuedWork -and \(Test-StagingNeedsAttention') -Message "Supervisor only treats staging as repair blocker when queued work exists"
+    Assert-True -Condition ($supervisorText -match 'fix staging contract before launch') -Message "Supervisor recommends staging repair before launch"
+    Assert-True -Condition ($supervisorText -match '\| Ship \| State \| Phase \| Repair Attempts \| Branch \| HEAD \| Dirty \| Tasks \| Staging \|') -Message "Supervisor report includes staging column"
+    Assert-True -Condition ($supervisorText -match 'First screen:' -and $supervisorText -match 'surface:mixed' -and $supervisorText -match 'scope:docs/codex/') -Message "Supervisor staging repair tasks are launch-gate shaped"
     Assert-True -Condition ($supervisorText -match 'Repair Runs Launched') -Message "Supervisor reports repair relaunches"
     Assert-True -Condition ($supervisorText -match 'Child Work') -Message "Supervisor report separates active child work from idle shells"
     Assert-True -Condition ($supervisorText -match 'childSummary') -Message "Supervisor tracks active child process names"
@@ -1892,7 +1972,12 @@ function Test-ProductAdmissionGateSupport {
     $launchGateText = Get-Content (Join-Path $fleetRoot "fleet-launch-gate.ps1") -Raw
     $killSwitchText = Get-Content (Join-Path $fleetRoot "fleet-kill-switch.ps1") -Raw
     $backfillText = Get-Content (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1") -Raw
+    $operatingModeText = Get-Content (Join-Path $fleetRoot "fleet-operating-mode.ps1") -Raw
+    $referenceText = Get-Content (Join-Path $fleetRoot "fleet-reference-brief.ps1") -Raw
+    $resetCellarText = Get-Content (Join-Path $fleetRoot "reset-cellar-hospitality-fleet.ps1") -Raw
     $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $simonText = Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw
+    $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
     $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
     $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
 
@@ -1902,6 +1987,8 @@ function Test-ProductAdmissionGateSupport {
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-product-dashboard.ps1")) -Message "Fleet exposes product dashboard"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-kill-switch.ps1")) -Message "Fleet exposes kill switch"
     Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1")) -Message "Fleet exposes product docs backfill tool"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-operating-mode.ps1")) -Message "Fleet exposes operating mode writer"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-reference-brief.ps1")) -Message "Fleet exposes hospitality reference brief gate"
     Assert-True -Condition ($dashboardText -match 'Alias\("OutFile"\)') -Message "Product dashboard accepts OutFile alias for smoke checks"
 
     Assert-True -Condition ($admissionText -match 'SHIP_SCORECARD\.md') -Message "Admission gate reads scorecard"
@@ -1910,15 +1997,51 @@ function Test-ProductAdmissionGateSupport {
     Assert-True -Condition ($usefulnessText -match 'NEEDS HUMAN DIRECTION') -Message "Usefulness gate can stop unclear ships"
     Assert-True -Condition ($launchGateText -match 'Test-TaskHasProductShape') -Message "Launch gate requires product-shaped tasks"
     Assert-True -Condition ($launchGateText -match 'Test-HasLocalEvaluator') -Message "Launch gate requires local evaluator"
+    Assert-True -Condition ($launchGateText -match 'Test-IsUiOrProductShip') -Message "Launch gate detects UI/product ships"
+    Assert-True -Condition ($launchGateText -match 'Test-HasInformationStaging') -Message "Launch gate requires information staging"
+    Assert-True -Condition ($launchGateText -match 'Test-HasOperatingMode') -Message "Launch gate checks operating mode presence"
+    Assert-True -Condition ($launchGateText -match 'Test-HasReferenceBrief' -and $launchGateText -match 'REFERENCE_BRIEF\.md') -Message "Launch gate checks hospitality reference brief presence"
+    Assert-True -Condition ($launchGateText -match 'Test-TaskRequiresSurface' -and $launchGateText -match 'Get-TaskSurfaceCount' -and $launchGateText -match 'choose exactly one') -Message "Launch gate requires exactly one surface metadata value"
+    Assert-True -Condition ($launchGateText -match 'Get-InformationStagingMissingFields' -and $launchGateText -match 'Test-TaskHasFirstScreenField') -Message "Launch gate requires first-screen contract fields"
+    Assert-True -Condition ($launchGateText -match 'Test-IsPlaceholderText') -Message "Launch gate rejects placeholder first-screen text"
+    Assert-True -Condition ($launchGateText -match 'surface:public' -and $launchGateText -match 'surface:mixed') -Message "Launch gate recognizes allowed surfaces"
+    Assert-True -Condition ($launchGateText -match 'INFORMATION_STAGING\.md' -and $launchGateText -match 'first-screen contract') -Message "Launch gate blocks missing staging doctrine"
     Assert-True -Condition ($dashboardText -match 'fleet-launch-gate\.ps1') -Message "Product dashboard includes launch gate state"
     Assert-True -Condition ($dashboardText -match 'product-usefulness\.ps1') -Message "Product dashboard includes usefulness state"
+    Assert-True -Condition ($dashboardText -match 'Get-InformationStagingStatus' -and $dashboardText -match 'Get-TaskStagingMetadataStatus') -Message "Product dashboard reports information staging status"
+    Assert-True -Condition ($dashboardText -match 'task missing surface' -and $dashboardText -match 'task missing first screen') -Message "Product dashboard diagnoses staging task metadata problems"
+    Assert-True -Condition ($dashboardText -match 'fix staging contract') -Message "Product dashboard recommends staging contract repair before launch"
+    Assert-True -Condition ($dashboardText -match 'Test-StagingNeedsAttention' -and $dashboardText -match 'Get-StagingAction' -and $dashboardText -match 'Staging Attention') -Message "Product dashboard summarizes staging blockers for captain review"
+    Assert-True -Condition ($dashboardText -match 'Resolve-FleetOutputPath' -and $dashboardText -match 'IsPathRooted') -Message "Product dashboard supports absolute report paths"
     Assert-True -Condition ($killSwitchText -match 'FlatRunThreshold') -Message "Kill switch tracks repeated weak loops"
     Assert-True -Condition ($killSwitchText -match 'WriteParkingReason') -Message "Kill switch can write parking reason when asked"
     Assert-True -Condition ($loopText -match 'KillSwitchMode') -Message "Checkpoint loop supports kill-switch mode"
     Assert-True -Condition ($plannerText -match 'User pain:') -Message "Planner requires product-shaped task user pain"
     Assert-True -Condition ($plannerText -match 'Remove/simplify:') -Message "Planner requires simplification field"
+    Assert-True -Condition ($plannerText -match 'INFORMATION_STAGING\.md') -Message "Planner reads information staging doctrine"
+    Assert-True -Condition ($plannerText -match 'OPERATING_MODE\.md' -and $plannerText -match 'hospitality-studio' -and $plannerText -match 'formula-lab') -Message "Planner reads operating mode doctrine"
+    Assert-True -Condition ($plannerText -match 'REFERENCE_BRIEF\.md' -and $plannerText -match 'reference qualities' -and $plannerText -match 'forbidden patterns') -Message "Planner reads hospitality reference brief doctrine"
+    Assert-True -Condition ($plannerText -match 'first-screen job' -and $plannerText -match 'secondary/detail/internal information') -Message "Planner enforces progressive disclosure"
+    Assert-True -Condition ($plannerText -match 'surface:public' -and $plannerText -match 'surface:app' -and $plannerText -match 'surface:internal') -Message "Planner supports surface split metadata"
+    Assert-True -Condition ($plannerText -match 'customer-facing restaurant example' -and $plannerText -match 'working operations tool') -Message "Planner separates restaurant public demos from internal tools"
     Assert-True -Condition ($backfillText -match 'PRODUCT_USEFULNESS\.md') -Message "Backfill creates usefulness docs"
+    Assert-True -Condition ($backfillText -match 'INFORMATION_STAGING\.md') -Message "Backfill creates information staging docs"
+    Assert-True -Condition ($backfillText -match 'Public/customer-facing surface' -and $backfillText -match 'Working app/internal tool surface') -Message "Backfill records public/app surface split"
+    Assert-True -Condition ($backfillText -match 'Required task metadata' -and $backfillText -match 'First screen:') -Message "Backfill documents required first-screen task metadata"
+    Assert-True -Condition ($backfillText -match 'Restaurant Demo Rule' -and $backfillText -match 'Product Demo Rule') -Message "Backfill includes restaurant and product demo staging rules"
     Assert-True -Condition ($backfillText -match 'IsPathRooted') -Message "Backfill supports absolute report paths"
+    Assert-True -Condition ($simonText -match 'progressive disclosure' -and $simonText -match 'INFORMATION_STAGING\.md') -Message "Simon enforces information staging"
+    Assert-True -Condition ($simonText -match 'OPERATING_MODE\.md' -and $simonText -match 'hospitality-studio' -and $simonText -match 'formula-lab') -Message "Simon respects operating modes"
+    Assert-True -Condition ($simonText -match 'REFERENCE_BRIEF\.md' -and $simonText -match 'reference qualities') -Message "Simon judges against the reference brief"
+    Assert-True -Condition ($simonText -match 'customer-facing restaurant website' -and $simonText -match 'internal operations tool') -Message "Simon separates restaurant website and internal tool surfaces"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-inspect.ps1") -Raw) -match 'Information Staging Review') -Message "Visual inspection surfaces staging review output"
+    Assert-True -Condition ($robinText -match 'information staging' -and $robinText -match 'guest-facing language from staff/internal language') -Message "Robin enforces staged customer/internal copy"
+    Assert-True -Condition ($robinText -match 'OPERATING_MODE\.md' -and $robinText -match 'AI-brochure' -and $robinText -match 'mathematical humility') -Message "Robin respects operating modes"
+    Assert-True -Condition ($robinText -match 'REFERENCE_BRIEF\.md' -and $robinText -match 'staging failure') -Message "Robin enforces the reference brief"
+    Assert-True -Condition ($operatingModeText -match 'hospitality-studio' -and $operatingModeText -match 'formula-lab' -and $operatingModeText -match 'software-engineering' -and $operatingModeText -match 'demo-forge') -Message "Operating mode writer supports all four fleet brains"
+    Assert-True -Condition ($referenceText -match 'Reference Brief Gate' -and $referenceText -match 'hospitality-studio' -and $referenceText -match 'Do not copy') -Message "Reference brief gate writes hospitality creative doctrine"
+    Assert-True -Condition ($resetCellarText -match 'REFERENCE_BRIEF\.md' -and $resetCellarText -match 'New-ReferenceBrief') -Message "Cellar reset seeds reference briefs"
+    Assert-True -Condition ($readmeText -match 'INFORMATION_STAGING\.md' -and $readmeText -match 'progressive-disclosure contract') -Message "README documents information staging"
     Assert-True -Condition ($readmeText -match 'fleet-backfill-product-docs\.ps1') -Message "README documents backfill tool"
 
     $fixtureBackfillReport = Join-Path $fixtureRoot "product-gate-backfill.md"
@@ -1934,7 +2057,7 @@ function Test-ProductAdmissionGateSupport {
     Assert-Equal -Actual $backfill.ExitCode -Expected 0 -Message "Backfill applies to fixture ship"
     Assert-True -Condition (Test-Path $fixtureBackfillReport) -Message "Backfill writes requested report path"
 
-    foreach ($doc in @("USER_JOB.md", "EVALUATORS.md", "SHIP_SCORECARD.md", "SHIP_ADMISSION.md", "PRODUCT_USEFULNESS.md")) {
+    foreach ($doc in @("USER_JOB.md", "EVALUATORS.md", "SHIP_SCORECARD.md", "SHIP_ADMISSION.md", "PRODUCT_USEFULNESS.md", "INFORMATION_STAGING.md")) {
         Assert-True -Condition (Test-Path (Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\$doc")) -Message "Backfill created $doc"
     }
 
@@ -1989,6 +2112,178 @@ function Test-ProductAdmissionGateSupport {
         "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single scope:src/]"
     )
 
+    $launchMissingSurface = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMissingSurface.ExitCode -Expected 0 -Message "Launch gate runs when surface metadata is missing"
+    Assert-True -Condition (($launchMissingSurface.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks missing surface metadata"
+    Assert-True -Condition (($launchMissingSurface.Output -join "`n") -match 'surface:public') -Message "Launch gate reports required surface metadata"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. First screen: show the homepage promise and one primary action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public surface:app scope:src/]"
+    )
+
+    $launchMultipleSurface = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMultipleSurface.ExitCode -Expected 0 -Message "Launch gate runs when surface metadata is duplicated"
+    Assert-True -Condition (($launchMultipleSurface.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks multiple surface metadata values"
+    Assert-True -Condition (($launchMultipleSurface.Output -join "`n") -match 'exactly one') -Message "Launch gate tells planner to choose exactly one surface"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public scope:src/]"
+    )
+
+    $launchMissingFirstScreen = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMissingFirstScreen.ExitCode -Expected 0 -Message "Launch gate runs when first-screen task metadata is missing"
+    Assert-True -Condition (($launchMissingFirstScreen.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks missing first-screen task metadata"
+    Assert-True -Condition (($launchMissingFirstScreen.Output -join "`n") -match 'First screen') -Message "Launch gate reports required first-screen metadata"
+
+    $dashboardMissingFirstScreenReport = Join-Path $fixtureRoot "product-dashboard-missing-first-screen.md"
+    $dashboardMissingFirstScreen = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-product-dashboard.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-OutMarkdown", $dashboardMissingFirstScreenReport,
+        "-NoHtml"
+    ) -TimeoutSeconds 90
+    Assert-Equal -Actual $dashboardMissingFirstScreen.ExitCode -Expected 0 -Message "Product dashboard runs when task staging metadata is incomplete"
+    $dashboardMissingFirstScreenText = Get-Content -LiteralPath $dashboardMissingFirstScreenReport -Raw
+    Assert-True -Condition ($dashboardMissingFirstScreenText -match 'Staging Attention') -Message "Product dashboard writes staging attention section"
+    Assert-True -Condition ($dashboardMissingFirstScreenText -match 'FixtureStaticDemo: task missing first screen -> fix staging contract') -Message "Product dashboard calls out missing first-screen task metadata"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. First screen: TODO. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public scope:src/]"
+    )
+
+    $launchPlaceholderFirstScreen = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchPlaceholderFirstScreen.ExitCode -Expected 0 -Message "Launch gate runs when first-screen task metadata is placeholder"
+    Assert-True -Condition (($launchPlaceholderFirstScreen.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks placeholder first-screen task metadata"
+    Assert-True -Condition (($launchPlaceholderFirstScreen.Output -join "`n") -match 'First screen') -Message "Launch gate reports placeholder first-screen task metadata"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. First screen: show the homepage promise and one primary action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public scope:src/]"
+    )
+
+    $stagingPath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\INFORMATION_STAGING.md"
+    $stagingText = Get-Content -LiteralPath $stagingPath -Raw
+    Remove-Item -LiteralPath $stagingPath -Force
+    $launchMissingStaging = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMissingStaging.ExitCode -Expected 0 -Message "Launch gate runs when information staging is missing"
+    Assert-True -Condition (($launchMissingStaging.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks missing information staging"
+    Assert-True -Condition (($launchMissingStaging.Output -join "`n") -match 'INFORMATION_STAGING\.md') -Message "Launch gate reports missing information staging"
+    Set-Content -LiteralPath $stagingPath -Value $stagingText
+
+    $incompleteStagingText = $stagingText -replace '(?im)^First screen job:\s*.+$', 'First screen job: TODO'
+    Set-Content -LiteralPath $stagingPath -Value $incompleteStagingText
+    $launchIncompleteStaging = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchIncompleteStaging.ExitCode -Expected 0 -Message "Launch gate runs when first-screen contract fields are incomplete"
+    Assert-True -Condition (($launchIncompleteStaging.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks incomplete first-screen contract fields"
+    Assert-True -Condition (($launchIncompleteStaging.Output -join "`n") -match 'First screen job') -Message "Launch gate reports incomplete first-screen field names"
+    Set-Content -LiteralPath $stagingPath -Value $stagingText
+
+    $operatingModePath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\OPERATING_MODE.md"
+    Set-Content -LiteralPath $operatingModePath -Value @(
+        "# Operating Mode",
+        "",
+        "Project: FixtureStaticDemo",
+        "",
+        "Mode: hospitality-studio",
+        "",
+        "## Planning Rules",
+        "",
+        "Plan the first useful public demo surface before coding.",
+        "",
+        "## First Screen Contract",
+        "",
+        "Show one promise and one primary action before secondary details.",
+        "",
+        "## Required Gates",
+        "",
+        "Build check, visual check, product truth, and information staging."
+    )
+    $referenceBriefPath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\REFERENCE_BRIEF.md"
+    Set-Content -LiteralPath $referenceBriefPath -Value @(
+        "# Creative Reference Brief",
+        "",
+        "Project: FixtureStaticDemo",
+        "",
+        "Mode: hospitality-studio",
+        "",
+        "## Surface Type",
+        "",
+        "Customer-facing public demo.",
+        "",
+        "## Reference Qualities",
+        "",
+        "- Calm, editorial, restrained, and not dumped all at once.",
+        "- Borrow quality only. Do not copy any source layout, wording, brand, or trade dress.",
+        "",
+        "## Emotional Target",
+        "",
+        "Clear and useful.",
+        "",
+        "## First Screen Rules",
+        "",
+        "- One promise, one primary action, one preview.",
+        "",
+        "## Forbidden Patterns",
+        "",
+        "- Dashboard dump.",
+        "- Everything visible at once.",
+        "",
+        "## Acceptance Lens",
+        "",
+        "A stranger should understand the job in under 30 seconds."
+    )
+
     $launchReady = Invoke-Checked -FilePath "powershell" -Arguments @(
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
@@ -1998,7 +2293,7 @@ function Test-ProductAdmissionGateSupport {
         "-Mode", "warn"
     ) -TimeoutSeconds 60
     Assert-Equal -Actual $launchReady.ExitCode -Expected 0 -Message "Launch gate runs after product-shaped task"
-    Assert-True -Condition (($launchReady.Output -join "`n") -match 'Launch gate FixtureStaticDemo: WARN') -Message "Product-shaped task downgrades fixture from block to usefulness warning"
+    Assert-True -Condition (($launchReady.Output -join "`n") -match 'Launch gate FixtureStaticDemo: READY') -Message "Product-shaped task with matching simplicity phase is launch-ready"
 
     $killWatch = Invoke-Checked -FilePath "powershell" -Arguments @(
         "-NoProfile",
@@ -2010,6 +2305,96 @@ function Test-ProductAdmissionGateSupport {
     ) -TimeoutSeconds 60
     Assert-Equal -Actual $killWatch.ExitCode -Expected 0 -Message "Kill switch reruns after product-shaped task"
     Assert-True -Condition (($killWatch.Output -join "`n") -match 'Kill switch FixtureStaticDemo: WATCH') -Message "Kill switch watches simplify lane instead of killing ready product-shaped task"
+
+    $dashboardReport = Join-Path $fixtureRoot "product-dashboard-staging.md"
+    $dashboard = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-product-dashboard.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-OutMarkdown", $dashboardReport,
+        "-NoHtml"
+    ) -TimeoutSeconds 90
+    Assert-Equal -Actual $dashboard.ExitCode -Expected 0 -Message "Product dashboard runs after staging metadata is ready"
+    $dashboardReportText = Get-Content -LiteralPath $dashboardReport -Raw
+    Assert-True -Condition ($dashboardReportText -match '\| Ship \| Group \| Launch \| Admission \| Score \| Usefulness \| Staging \|') -Message "Product dashboard includes staging column"
+    Assert-True -Condition ($dashboardReportText -match '\| FixtureStaticDemo \| .* \| ready \|') -Message "Product dashboard marks backfilled product-shaped fixture staging as ready"
+}
+
+function Test-ProductTruthGateSupport {
+    $truthScript = Join-Path $fleetRoot "product-truth-gate.ps1"
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+
+    Assert-True -Condition (Test-Path $truthScript) -Message "Fleet exposes product truth gate script"
+    Assert-True -Condition ($loopText -match 'Invoke-ProductTruthGate') -Message "Checkpoint loop runs product truth gate before marking tasks complete"
+    Assert-True -Condition ($loopText -match 'PRODUCT_TRUTH_REVIEW') -Message "Checkpoint loop allows product truth review report files"
+    Assert-True -Condition ($checkpointText -match 'Product truth status') -Message "Checkpoint review includes product truth status"
+
+    $truthRepo = Join-Path $fixtureRoot "ProductTruthFixture"
+    if (Test-Path -LiteralPath $truthRepo) {
+        Remove-Item -LiteralPath $truthRepo -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $truthRepo "src"), (Join-Path $truthRepo "docs\codex") | Out-Null
+    Set-Content -LiteralPath (Join-Path $truthRepo "src\App.tsx") -Value "export const label = 'Cellar & Table';"
+    Set-Content -LiteralPath (Join-Path $truthRepo "docs\codex\PRODUCT_TRUTH.md") -Value @(
+        "# Product Truth",
+        "",
+        "## Required Visible Text",
+        "",
+        "- Urban Kitchen",
+        "",
+        "## Forbidden Visible Text",
+        "",
+        "- Cellar & Table"
+    )
+
+    $failed = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", $truthRepo,
+        "-Write"
+    ) -TimeoutSeconds 30
+    Assert-Equal -Actual $failed.ExitCode -Expected 1 -Message "Product truth gate fails missing required and present forbidden text"
+    Assert-True -Condition (($failed.Output -join "`n") -match 'Required visible text missing: Urban Kitchen') -Message "Product truth gate reports missing required text"
+    Assert-True -Condition (($failed.Output -join "`n") -match 'Forbidden visible text still present: Cellar & Table') -Message "Product truth gate reports forbidden text"
+    Assert-True -Condition (Test-Path (Join-Path $truthRepo "docs\codex\PRODUCT_TRUTH_REVIEW.md")) -Message "Product truth gate writes review report"
+
+    Set-Content -LiteralPath (Join-Path $truthRepo "src\App.tsx") -Value "export const label = 'Urban Kitchen';"
+    $passed = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", $truthRepo,
+        "-Write"
+    ) -TimeoutSeconds 30
+    Assert-Equal -Actual $passed.ExitCode -Expected 0 -Message "Product truth gate passes when required/forbidden text matches"
+    Assert-True -Condition (($passed.Output -join "`n") -match 'Status: GREEN') -Message "Product truth gate reports GREEN"
+
+    Set-Content -LiteralPath (Join-Path $truthRepo "src\App.tsx") -Value "export const label = 'Urban Kitchen View menu';"
+    Set-Content -LiteralPath (Join-Path $truthRepo "docs\codex\PRODUCT_TRUTH.md") -Value @(
+        "# Product Truth",
+        "",
+        "## Required Visible Text",
+        "",
+        "- Urban Kitchen",
+        "- View menus",
+        "",
+        "## Forbidden Visible Text",
+        "",
+        "- Cellar & Table"
+    )
+
+    $synonymPassed = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", $truthRepo,
+        "-Write"
+    ) -TimeoutSeconds 30
+    Assert-Equal -Actual $synonymPassed.ExitCode -Expected 0 -Message "Product truth gate passes approved hospitality synonyms"
+    Assert-True -Condition (($synonymPassed.Output -join "`n") -match 'View menus => View menu') -Message "Product truth gate reports approved synonym match"
 }
 
 Set-Location $fleetRoot
@@ -2023,6 +2408,7 @@ Test-PhaseZeroIntakeSupport
 Test-PhaseOneArchitectureSupport
 Test-PhaseTwoScaffoldSupport
 Test-PhaseThreeTaskContractSupport
+Test-ProductTruthGateSupport
 Test-PhaseFourMigrationSupport
 Test-PhaseFiveSensitiveSystemsSupport
 Test-PhaseSixRuntimeVerificationSupport

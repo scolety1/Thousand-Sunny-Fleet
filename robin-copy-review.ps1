@@ -49,6 +49,9 @@ $changed = @(git diff --name-status "$BaseBranch..HEAD")
 $commits = @(git log --oneline "$BaseBranch..HEAD" -12)
 $mission = if (Test-Path "docs/codex/MISSION.md") { Get-Content "docs/codex/MISSION.md" -Raw } else { "No mission file found." }
 $runPolicy = if (Test-Path "docs/codex/RUN_POLICY.md") { Get-Content "docs/codex/RUN_POLICY.md" -Raw } else { "No run policy file found." }
+$informationStaging = if (Test-Path "docs/codex/INFORMATION_STAGING.md") { Get-Content "docs/codex/INFORMATION_STAGING.md" -Raw } else { "No information staging file found." }
+$operatingMode = if (Test-Path "docs/codex/OPERATING_MODE.md") { Get-Content "docs/codex/OPERATING_MODE.md" -Raw } else { "No operating mode file found." }
+$referenceBrief = if (Test-Path "docs/codex/REFERENCE_BRIEF.md") { Get-Content "docs/codex/REFERENCE_BRIEF.md" -Raw } elseif (Test-Path "docs/codex/CREATIVE_BRIEF.md") { Get-Content "docs/codex/CREATIVE_BRIEF.md" -Raw } else { "No reference brief file found." }
 $taskQueue = if (Test-Path "docs/codex/TASK_QUEUE.md") { Get-Content "docs/codex/TASK_QUEUE.md" -Raw } else { "No task queue found." }
 $checkpoint = if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") { Get-Content "docs/codex/CHECKPOINT_REVIEW.md" -Raw } else { "No checkpoint review found." }
 $simon = if (Test-Path "docs/codex/SIMON_DESIGN_REVIEW.md") { Get-Content "docs/codex/SIMON_DESIGN_REVIEW.md" -Raw } else { "No Simon design review found." }
@@ -171,6 +174,12 @@ Rules:
 - Do not invent facts, sales claims, testimonials, results, prices, certifications, legal claims, or real restaurant data.
 - For wine/menu/hospitality projects, favor vivid but honest sensory language: specific, elegant, restrained, useful to guests and staff.
 - For restaurant/hospitality service sites, make every visible sentence pass this test: "Who is this for, what should they do, and what do they get?" If any part is unclear, mark the review YELLOW and provide a plain rewrite.
+- Enforce information staging in copy. The first screen should not explain the whole system. Primary labels should be short and concrete; secondary/detail/internal copy should appear only after the user asks for it.
+- For restaurant demos, separate guest-facing language from staff/internal language. Guest pages should say wine list, menu, reservations, private events, staff pick, pairing, or help me choose; staff-only phrases like cellar location, prep note, 86, handoff, pass note, or service detail belong behind staff/internal views.
+- If OPERATING_MODE.md says hospitality-studio, cut AI-brochure language aggressively. Favor concrete restaurant nouns, short labels, atmosphere without fog, and copy that sounds like a real place or working restaurant tool.
+- If REFERENCE_BRIEF.md exists, enforce its first-screen rules, forbidden patterns, and acceptance lens. Copy that explains every feature at once should be treated as a staging failure, even if each sentence is individually clear.
+- If OPERATING_MODE.md says formula-lab, protect mathematical humility: computed output, assumptions, confidence, source, and why. Do not polish uncertainty into certainty.
+- For product demos, separate marketing copy from app copy. A public/product page can explain the product; the working app should use direct task labels and avoid sales language.
 - Prefer concrete nouns over brand fog: wine list, menu note, manager brief, event request, QR card, text thread, staff note, guest page. Avoid vague nouns as standalone value props: artifact, workflow, polish, service notes, handoff, automation, solution.
 - When copy addresses a potential customer, do not write as if you are instructing Codex or the site owner. Address the restaurant owner/manager directly or describe the customer outcome clearly.
 - For analytical software, protect the difference between computed output and advice. Do not encourage certainty, prediction theater, guru language, or confident insight copy when tests, calibration, and deterministic reports are not visible. Prefer labels like "model output", "confidence", "source", "assumption", and "why".
@@ -201,6 +210,15 @@ $mission
 
 Run policy:
 $runPolicy
+
+Information staging:
+$informationStaging
+
+Operating mode:
+$operatingMode
+
+Reference brief:
+$referenceBrief
 
 Task queue:
 $taskQueue

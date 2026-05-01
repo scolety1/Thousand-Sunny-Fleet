@@ -7,6 +7,7 @@
         "loopScript":  "scripts\\codex-night-loop.ps1",
         "buildDirectory":  ".",
         "buildCommand":  "npm.cmd run build",
+        "previewPort":  5301,
         "profile":  "frontend-static-demo",
         "projectType":  "marketing-site",
         "riskTier":  "local-only",
@@ -38,13 +39,53 @@
         "schoolVisualInspectEvery":  1
     },
     {
+        "name":  "UrbanKitchenSite",
+        "repo":  "C:\\Dev\\cellar-urban-kitchen-site",
+        "rounds":  99,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  ".",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
+        "visualServeDirectory":  ".",
+        "previewPort":  5306,
+        "profile":  "frontend-static-demo",
+        "projectType":  "marketing-site",
+        "riskTier":  "local-only",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         },
+        "branchPrefix":  "codex/urban-kitchen-site",
+        "fleetGroup":  "CellarFleet",
+        "demoName":  "Normal Restaurant Website",
+        "overnightMaxBatches":  4,
+        "schoolJoeyEvery":  2,
+        "overnightBatchSize":  1,
+        "overnightRobinEvery":  1,
+        "overnightVisualInspectEvery":  1,
+        "overnightSimonEvery":  1,
+        "schoolBatchSize":  1,
+        "schoolSimonEvery":  1,
+        "schoolMaxBatches":  2,
+        "schoolRobinEvery":  1,
+        "overnightJoeyEvery":  3,
+        "schoolVisualInspectEvery":  1
+    },
+    {
         "name":  "ShiftLedger",
         "repo":  "C:\\Dev\\cellar-manager-brief",
         "rounds":  99,
         "briefScript":  "scripts\\codex-brief.ps1",
         "loopScript":  "scripts\\codex-night-loop.ps1",
         "buildDirectory":  ".",
-        "buildCommand":  "npm.cmd run build",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
         "profile":  "frontend-static-demo",
         "projectType":  "marketing-site",
         "riskTier":  "local-only",
@@ -73,7 +114,9 @@
         "schoolMaxBatches":  2,
         "schoolRobinEvery":  1,
         "overnightJoeyEvery":  3,
-        "schoolVisualInspectEvery":  1
+        "schoolVisualInspectEvery":  1,
+        "visualServeDirectory":  ".",
+        "previewPort":  5302
     },
     {
         "name":  "OrderPilot",
@@ -82,7 +125,7 @@
         "briefScript":  "scripts\\codex-brief.ps1",
         "loopScript":  "scripts\\codex-night-loop.ps1",
         "buildDirectory":  ".",
-        "buildCommand":  "npm.cmd run build",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
         "profile":  "frontend-static-demo",
         "projectType":  "marketing-site",
         "riskTier":  "local-only",
@@ -111,7 +154,9 @@
         "schoolMaxBatches":  2,
         "schoolRobinEvery":  1,
         "overnightJoeyEvery":  3,
-        "schoolVisualInspectEvery":  1
+        "schoolVisualInspectEvery":  1,
+        "visualServeDirectory":  ".",
+        "previewPort":  5303
     },
     {
         "name":  "EventBook",
@@ -120,7 +165,7 @@
         "briefScript":  "scripts\\codex-brief.ps1",
         "loopScript":  "scripts\\codex-night-loop.ps1",
         "buildDirectory":  ".",
-        "buildCommand":  "npm.cmd run build",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
         "profile":  "frontend-static-demo",
         "projectType":  "marketing-site",
         "riskTier":  "local-only",
@@ -149,7 +194,9 @@
         "schoolMaxBatches":  2,
         "schoolRobinEvery":  1,
         "overnightJoeyEvery":  3,
-        "schoolVisualInspectEvery":  1
+        "schoolVisualInspectEvery":  1,
+        "visualServeDirectory":  ".",
+        "previewPort":  5304
     },
     {
         "name":  "LineupLab",
@@ -158,7 +205,7 @@
         "briefScript":  "scripts\\codex-brief.ps1",
         "loopScript":  "scripts\\codex-night-loop.ps1",
         "buildDirectory":  ".",
-        "buildCommand":  "npm.cmd run build",
+        "buildCommand":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\codex-static-check.ps1",
         "profile":  "frontend-static-demo",
         "projectType":  "marketing-site",
         "riskTier":  "local-only",
@@ -187,7 +234,9 @@
         "schoolMaxBatches":  2,
         "schoolRobinEvery":  1,
         "overnightJoeyEvery":  3,
-        "schoolVisualInspectEvery":  1
+        "schoolVisualInspectEvery":  1,
+        "visualServeDirectory":  ".",
+        "previewPort":  5305
     },
     {
         "name":  "CursorPets",

@@ -650,7 +650,7 @@ function Get-TaskMaterialitySignalForLoop {
     )
 
     $files = @($FilesChanged | Where-Object { ![string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { ([string]$_).Replace("\", "/") })
-    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|ACCESSIBILITY_REVIEW|PERFORMANCE_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$"
+    $reportPattern = "^docs/codex/(TASK_QUEUE|NIGHTLY_REPORT|CHECKPOINT_REVIEW|SIMON_DESIGN_REVIEW|ROBIN_COPY_REVIEW|ACCESSIBILITY_REVIEW|PERFORMANCE_REVIEW|JOEY_SECURITY_REVIEW|FRANKY_FORMULA_REVIEW|VISUAL_BUGS|NEXT_5_TASKS|QUARANTINED_TASKS|MAGIC_SCORECARD|QUALITY_QUARANTINE|RUNTIME_VERIFICATION|PRODUCT_TRUTH_REVIEW|AUTO_REPAIR|ANALYTICAL_NUMBER_PROVENANCE|ANALYTICAL_FIXTURE_READINESS|CALIBRATION_READINESS|ANALYTICAL_DASHBOARD_READINESS|SCENARIO_READINESS)\.md$|^docs/codex/FRANKY_FORMULA_REVIEW\.json$"
     $docPattern = "(^|/)(README|AGENTS|MISSION|RUN_POLICY|TASK_QUEUE|SITE_MAP|MODEL_SPEC|DATA_MODEL|USER_WORKFLOW)\.md$|^docs/"
     $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
     $structuralPattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|data|content)(/|$)|\.(html|jsx|tsx|vue|svelte|astro|mdx)$"
@@ -863,6 +863,25 @@ function Get-TaskImplementationScale {
     if ($null -eq $Contract) { return "small" }
     if ([string]$Contract.mode -eq "feature-pack") { return "pack" }
     if ([string]$Contract.risk -in @("high", "gated")) { return "large" }
+
+    $taskClass = [string]$Contract.class
+    $taskImpact = [string]$Contract.impact
+    $taskMode = [string]$Contract.mode
+    $scopeItems = @($Contract.scope | ForEach-Object { ([string]$_).Trim().TrimEnd("/", "\") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    $allowedStaticShowpieceScopes = @("index.html", "src", "docs/codex")
+    $hasOnlyStaticShowpieceScope = ($scopeItems.Count -gt 0)
+    foreach ($scopeItem in $scopeItems) {
+        if ($allowedStaticShowpieceScopes -notcontains $scopeItem) {
+            $hasOnlyStaticShowpieceScope = $false
+            break
+        }
+    }
+    if ($taskMode -eq "single" -and
+        $taskClass -in @("design", "copy") -and
+        $taskImpact -in @("visible", "showpiece") -and
+        $hasOnlyStaticShowpieceScope) {
+        return "small"
+    }
 
     $summary = [string]$Contract.summary
     $scaleSummary = $summary -replace "(?is)\bGuardrails\s*:.*$", ""
@@ -1784,12 +1803,17 @@ function New-ReplacementTaskLine {
         $safeReason = $safeReason.Substring(0, 220).Trim()
     }
 
-    $metadata = "class:$taskClass risk:low mode:single impact:visible scope:$($safeScope -join ',')"
+    $primaryScope = $safeScope[0]
+    $target = if ($primaryScope -match "/$") { "$primaryScope" } else { "$primaryScope/" }
+    $acceptanceLabel = "external build or configured acceptance"
+
+    $metadata = "class:$taskClass risk:low mode:single impact:visible surface:mixed scope:$($safeScope -join ',')"
     if ($null -ne $Contract -and $Contract.acceptance.Count -gt 0) {
-        $metadata += " accept:$($Contract.acceptance -join '; ')"
+        $acceptanceLabel = ($Contract.acceptance -join "; ")
+        $metadata += " accept:$acceptanceLabel"
     }
 
-    return "- [ ] Auto recovery retry: make one narrow safe slice in $($safeScope[0]) that avoids this failure: $safeReason. Change one visible UI or copy area, prefer deleting awkward complexity over adding new systems, and preserve backend, auth, payments, Firebase rules/config, package/dependency files, generated output, deployment config, secrets, and unrelated files. [$metadata]"
+    return "- [ ] User pain: the previous task was quarantined before implementation because $safeReason, so the ship needs one small visible repair instead of another broad pass. Target: $target. Change: make exactly one narrow safe slice that improves a visible UI, interaction, or copy area; prefer deleting awkward complexity over adding new systems. First screen: keep the current primary screen job dominant and move any repaired detail/helper content behind the existing clear action. Remove/simplify: one repeated label, one oversized chrome area, one vague phrase, or one confusing interaction in the current surface only. Guardrails: no backend, no auth, no payments, no Firebase rules/config, no package/dependency files, no generated output, no deployment config, no secrets, and no unrelated files. Acceptance: $acceptanceLabel. Check: run the acceptance command and confirm the changed screen has one clearer visible outcome without expanding scope. [$metadata]"
 }
 
 function Add-ReplacementTaskAfterQuarantine {
@@ -2092,18 +2116,53 @@ function Invoke-ExternalBuild {
     return ($result.exitCode -eq 0)
 }
 
+function Invoke-ProductTruthGate {
+    $truthContractPath = Join-Path (Get-Location).Path "docs\codex\PRODUCT_TRUTH.md"
+    if (!(Test-Path -LiteralPath $truthContractPath)) {
+        return $true
+    }
+
+    $truthScript = Join-Path $fleetRoot "product-truth-gate.ps1"
+    if (!(Test-Path -LiteralPath $truthScript)) {
+        Write-Host "Product truth gate script not found: $truthScript" -ForegroundColor Red
+        return $false
+    }
+
+    $truthTimeout = Get-TimeoutSetting -Role "debug" -Default 120
+    $exitCode = Invoke-FleetPowerShell -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", (Get-Location).Path,
+        "-Write"
+    ) -LogName ("product-truth-gate-{0}.log" -f (Get-Date -Format "HHmmssfff")) -TimeoutSeconds $truthTimeout
+
+    Stage-Files -Paths @("docs/codex/PRODUCT_TRUTH_REVIEW.md")
+    return ($exitCode -eq 0)
+}
+
 function Invoke-ProjectGuardrails {
     param([string]$Task, [string]$Stage)
     if (!(Test-Path "scripts/codex-guardrails.ps1")) {
         return $true
     }
     $guardrailTimeout = Get-TimeoutSetting -Role "guardrails" -Default 120
+    $guardrailLogName = "guardrails-{0}-{1}.log" -f $Stage, (Get-Date -Format "HHmmssfff")
     $exitCode = Invoke-FleetPowerShell -Arguments @(
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", ".\scripts\codex-guardrails.ps1",
         "-Stage", $Stage
-    ) -LogName ("guardrails-{0}-{1}.log" -f $Stage, (Get-Date -Format "HHmmssfff")) -TimeoutSeconds $guardrailTimeout -Environment @{ CODEX_SELECTED_TASK = $Task }
+    ) -LogName $guardrailLogName -TimeoutSeconds $guardrailTimeout -Environment @{ CODEX_SELECTED_TASK = $Task }
+    if ($exitCode -ne 0 -and $Stage -eq "implementation" -and ![string]::IsNullOrWhiteSpace([string]$script:RunLogRoot)) {
+        $guardrailLogPath = Join-Path $script:RunLogRoot $guardrailLogName
+        $guardrailText = if (Test-Path $guardrailLogPath) { Get-Content $guardrailLogPath -Raw } else { "" }
+        $forbiddenMatches = @([regex]::Matches($guardrailText, "Forbidden file changes detected:\s*(.+)") | ForEach-Object { $_.Groups[1].Value.Trim() })
+        if ($forbiddenMatches.Count -gt 0 -and @($forbiddenMatches | Where-Object { $_ -ne "docs/codex/TASK_QUEUE.md" }).Count -eq 0) {
+            Write-Host "Implementation guardrail warning ignored: docs/codex/TASK_QUEUE.md may be dirty while the loop tracks task progress." -ForegroundColor DarkYellow
+            return $true
+        }
+    }
     return ($exitCode -eq 0)
 }
 
@@ -2387,6 +2446,28 @@ function Release-FleetRunLock {
     if (![string]::IsNullOrWhiteSpace([string]$script:FleetRunLockPath) -and (Test-Path $script:FleetRunLockPath)) {
         Remove-Item -LiteralPath $script:FleetRunLockPath -Force -ErrorAction SilentlyContinue
     }
+}
+
+function Test-StartupDirtyStateAllowed {
+    param([string[]]$StatusLines)
+
+    if ($StatusLines.Count -eq 0) {
+        return $true
+    }
+
+    $allowedPaths = @(
+        "docs/codex/TASK_QUEUE.md"
+    )
+
+    foreach ($line in $StatusLines) {
+        $path = ([string]$line).Substring([Math]::Min(3, ([string]$line).Length)).Trim()
+        $path = $path -replace "\\", "/"
+        if ($allowedPaths -notcontains $path) {
+            return $false
+        }
+    }
+
+    return $true
 }
 
 function Update-ShipPreviewDashboard {
@@ -2770,9 +2851,14 @@ Invoke-AnalyticalScenarioApprovalGate -ProjectName $script:projectConfig.name
 
 $status = @(git status --porcelain 2>$null)
 if ($status.Count -gt 0) {
-    Write-Host "Repo is dirty. Commit, restore, or stash before starting checkpoint loop." -ForegroundColor Red
-    git status
-    exit 1
+    if (Test-StartupDirtyStateAllowed -StatusLines $status) {
+        Write-Host "Startup dirty state is limited to docs/codex/TASK_QUEUE.md; continuing with prepared task queue." -ForegroundColor DarkYellow
+    } else {
+        Write-Host "Repo is dirty. Commit, restore, or stash before starting checkpoint loop." -ForegroundColor Red
+        git status
+        Release-FleetRunLock
+        exit 1
+    }
 }
 
 $branch = git branch --show-current
@@ -3224,6 +3310,12 @@ REVIEW_FINDING: P2: short description
             Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Blocked" -Risk $materialityFailure -Contract $taskContract
             exit 1
         }
+        if (-not (Invoke-ProductTruthGate)) {
+            $truthFailedFiles = @(Get-TaskChangedFiles)
+            Append-Report -Task $task -FilesChanged $truthFailedFiles -BuildResult "Blocked" -Risk "Product truth gate failed; the implementation does not match required/forbidden visible product claims." -Contract $taskContract
+            Write-Host "Product truth gate failed. Ending loop without marking task complete." -ForegroundColor Red
+            exit 1
+        }
         Mark-FirstUncheckedTaskComplete
         $script:CompletedTaskCount++
         Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract -TaskBase $taskBase
@@ -3473,7 +3565,7 @@ REVIEW_FINDING: P2: short description
         $frankyExit = Invoke-FleetPowerShell -Arguments $frankyArgs -LogName "franky-formula-review-batch-$batch.log" -TimeoutSeconds (Get-TimeoutSetting -Role "franky" -Default $FrankyTimeoutSeconds)
         $frankyPassed = $frankyExit -eq 0
         $frankyText = if (Test-Path "docs/codex/FRANKY_FORMULA_REVIEW.md") { Get-Content "docs/codex/FRANKY_FORMULA_REVIEW.md" -Raw } else { "" }
-        Stage-Files -Paths @("docs/codex/FRANKY_FORMULA_REVIEW.md")
+        Stage-Files -Paths @("docs/codex/FRANKY_FORMULA_REVIEW.md", "docs/codex/FRANKY_FORMULA_REVIEW.json")
         $pendingFrankyCommit = @(git diff --cached --name-only)
         if ($pendingFrankyCommit.Count -gt 0) {
             if (-not (Invoke-FleetCommit -Message "Codex Franky formula review batch $batch")) { exit 1 }

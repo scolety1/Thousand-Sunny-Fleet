@@ -87,6 +87,24 @@ function Get-VisualSummary {
     return "high $high, medium $medium, low $low"
 }
 
+function Invoke-ProductTruthCheck {
+    $truthContractPath = "docs/codex/PRODUCT_TRUTH.md"
+    if (!(Test-Path -LiteralPath $truthContractPath)) {
+        return [pscustomobject]@{ status = "MISSING"; ok = $true; output = "No PRODUCT_TRUTH.md configured." }
+    }
+
+    $truthScript = Join-Path $fleetRoot "product-truth-gate.ps1"
+    if (!(Test-Path -LiteralPath $truthScript)) {
+        return [pscustomobject]@{ status = "RED"; ok = $false; output = "Product truth gate script missing: $truthScript" }
+    }
+
+    $output = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $truthScript -Repo (Get-Location).Path -NoWrite 2>&1)
+    $text = ($output | Out-String)
+    $statusMatch = [regex]::Match($text, "(?im)^Status:\s*(GREEN|RED|MISSING)\s*$")
+    $status = if ($statusMatch.Success) { $statusMatch.Groups[1].Value } elseif ($LASTEXITCODE -eq 0) { "GREEN" } else { "RED" }
+    return [pscustomobject]@{ status = $status; ok = ($LASTEXITCODE -eq 0); output = $text.Trim() }
+}
+
 $repoPath = Resolve-Path $Repo -ErrorAction SilentlyContinue
 if (!$repoPath) {
     Write-Host "Repo not found: $Repo" -ForegroundColor Red
@@ -139,6 +157,7 @@ if ($currentPhase -notin $analyticalPhases -and $frankyVerdict -match "(?i)^RED$
 }
 $visualSummary = Get-VisualSummary
 $buildOk = Invoke-ConfiguredBuild
+$productTruth = Invoke-ProductTruthCheck
 
 $prompt = @"
 You are the checkpoint reviewer for an unattended Codex branch.
@@ -151,6 +170,7 @@ Write a concise markdown review to this exact structure:
 Use exactly one: GREEN, YELLOW, or RED.
 Verdict rules:
 - RED only for build failure, unsafe/risky changes, high visual issues, accessibility/performance/security/formula blockers, or a review gate that explicitly says stop.
+- RED if Product truth status is RED, even when the build passes and the queue is empty.
 - GREEN when build passed, the working tree is clean, no unchecked tasks remain, and there are no high/medium visual issues or blocking review signals. This means the ship is parked/ready, even if no new code landed in this checkpoint window.
 - YELLOW for non-blocking polish debt, medium review concerns, or meaningful follow-up work that should shape the next task.
 - Do not downgrade solely because no new code, commits, or task movement happened in this checkpoint window. An empty queue can be a successful stopping point.
@@ -207,6 +227,10 @@ Joey next step: $joeyNextStep
 Franky verdict: $frankyVerdict
 Franky stop/continue: $frankyNextStep
 Visual bug summary: $visualSummary
+Product truth status: $($productTruth.status)
+Product truth ok: $($productTruth.ok)
+Product truth output:
+$($productTruth.output)
 
 Working tree:
 $(if ($status.Count -eq 0) { "- Clean" } else { ($status | ForEach-Object { "- $_" }) -join "`n" })
@@ -273,6 +297,10 @@ if ($codexExit -ne 0) {
 }
 
 if (!$buildOk) {
+    exit 1
+}
+
+if (!$productTruth.ok) {
     exit 1
 }
 

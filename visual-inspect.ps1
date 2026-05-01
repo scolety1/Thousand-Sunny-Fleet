@@ -145,6 +145,34 @@ function Get-DefaultServeCommand {
     return ('powershell -NoProfile -ExecutionPolicy Bypass -File "{0}" -Root . -Port {{PORT}}' -f $serverScript)
 }
 
+function Get-InformationStagingContract {
+    param([string]$RepoPath)
+
+    $path = Join-Path $RepoPath "docs\codex\INFORMATION_STAGING.md"
+    if (!(Test-Path -LiteralPath $path)) { return $null }
+    $text = Get-Content -LiteralPath $path -Raw
+
+    function Get-StagingField {
+        param(
+            [string]$Text,
+            [string]$Label
+        )
+        $match = [regex]::Match($Text, "(?im)^\s*$([regex]::Escape($Label)):\s*(.+?)\s*$")
+        if ($match.Success) { return $match.Groups[1].Value.Trim() }
+        return ""
+    }
+
+    return [pscustomobject]@{
+        path = $path
+        firstScreenJob = Get-StagingField -Text $text -Label "First screen job"
+        primaryContent = Get-StagingField -Text $text -Label "Primary content"
+        secondaryActions = Get-StagingField -Text $text -Label "Secondary actions"
+        detailContent = Get-StagingField -Text $text -Label "Detail content"
+        notVisibleAtFirst = Get-StagingField -Text $text -Label "Not visible at first"
+        deeperInformationOpens = Get-StagingField -Text $text -Label "How deeper information opens"
+    }
+}
+
 function Write-VisualBugReport {
     param(
         [object]$Summary,
@@ -174,6 +202,32 @@ function Write-VisualBugReport {
         ""
     )
 
+    if ($Summary.informationStaging) {
+        $lines += "## Information Staging Review"
+        $lines += ""
+        $lines += "Contract: $($Summary.informationStaging.path)"
+        $lines += ""
+        $lines += "- First screen job: $($Summary.informationStaging.firstScreenJob)"
+        $lines += "- Primary content: $($Summary.informationStaging.primaryContent)"
+        $lines += "- Secondary actions: $($Summary.informationStaging.secondaryActions)"
+        $lines += "- Detail content: $($Summary.informationStaging.detailContent)"
+        $lines += "- Not visible at first: $($Summary.informationStaging.notVisibleAtFirst)"
+        $lines += "- How deeper information opens: $($Summary.informationStaging.deeperInformationOpens)"
+        $lines += ""
+        $stagingFindings = @($Summary.findings | Where-Object { [string]$_.type -like "information-staging-*" })
+        if ($stagingFindings.Count -eq 0) {
+            $lines += "- No automated information-staging issues detected."
+        } else {
+            foreach ($finding in $stagingFindings) {
+                $lines += "- [$($finding.severity.ToUpperInvariant())] $($finding.message) ($($finding.route), $($finding.viewport))"
+                if (![string]::IsNullOrWhiteSpace([string]$finding.evidence)) {
+                    $lines += "  - Evidence: $($finding.evidence)"
+                }
+            }
+        }
+        $lines += ""
+    }
+
     if ($Summary.findings.Count -eq 0) {
         $lines += "## Findings"
         $lines += ""
@@ -201,7 +255,11 @@ function Write-VisualBugReport {
         $lines += "- No visual fix tasks suggested."
     } else {
         foreach ($finding in @($Summary.findings | Select-Object -First 8)) {
-            $lines += ("- [ ] Visual QA: fix `{0}` on `{1}` in {2} view. {3} Do not change backend, auth, secrets, dependencies, deployment config, generated output, or unrelated app behavior." -f $finding.type, $finding.route, $finding.viewport, $finding.message)
+            if ([string]$finding.type -like "information-staging-*") {
+                $lines += ("- [ ] User pain: the first screen is exposing too much information before the main job is clear. Target: `{0}` in {1} view. Change: repair information staging so the documented primary job is dominant and detail/internal content moves behind the documented opener. First screen: keep the documented primary job and one obvious next action visible. Remove/simplify: demote overloaded, misplaced, or too-early detail content from the first screen. Guardrails: do not change backend, auth, secrets, dependencies, deployment config, generated output, or unrelated app behavior. Acceptance: visual inspect reports no `{2}` finding for this route and viewport. Check: rerun visual inspect and confirm the Information Staging Review no longer reports `{2}`. [class:design risk:low mode:single impact:visible surface:mixed]" -f $finding.route, $finding.viewport, $finding.type)
+            } else {
+                $lines += ("- [ ] Visual QA: fix `{0}` on `{1}` in {2} view. {3} Do not change backend, auth, secrets, dependencies, deployment config, generated output, or unrelated app behavior." -f $finding.type, $finding.route, $finding.viewport, $finding.message)
+            }
         }
     }
 
@@ -216,6 +274,7 @@ if ($repoMatches.Count -ne 1) {
 $repoPath = $repoMatches[0].Path
 
 $routeConfig = Get-VisualRouteConfig -ExplicitPath $RouteConfig -RepoPath $repoPath
+$informationStaging = Get-InformationStagingContract -RepoPath $repoPath
 
 if ([string]::IsNullOrWhiteSpace($Project)) {
     $Project = Split-Path -Leaf $repoPath
@@ -295,6 +354,9 @@ try {
             $options["viewports"] = @($routeConfig.config.viewports)
         }
         $options["routeConfigPath"] = $routeConfig.path
+    }
+    if ($informationStaging) {
+        $options["informationStaging"] = $informationStaging
     }
     $options = $options | ConvertTo-Json -Depth 8 -Compress
     $optionsFile = Join-Path $outDir "visual-inspect-options.json"

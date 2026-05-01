@@ -135,8 +135,23 @@ cd C:\Dev\codex-fleet
 Task queue lines should use the planner shape:
 
 ```md
-- [ ] User pain: ... Target: ... Change: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ... [class:feature risk:low mode:single impact:visible scope:src/]
+- [ ] User pain: ... Target: ... Change: ... First screen: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ... [class:feature risk:low mode:single impact:visible surface:public scope:src/]
 ```
+
+Before a website/app ship gets long unattended runtime, add or backfill `docs/codex/INFORMATION_STAGING.md`. Define:
+
+- public/customer-facing surface
+- working app or internal tool surface
+- first screen job
+- primary content
+- secondary actions
+- detail content
+- what should not be visible at first
+- how deeper information opens
+
+Visible UI/product tasks must include exactly one `surface:*` tag and a `First screen: ...` field, so the planner and launch gate can protect the primary first-screen job during implementation.
+
+Restaurant demos should usually show a believable customer-facing restaurant example first, then open the working tool demo from a clear action. Product ships should keep public/product explanation separate from the actual app surface.
 
 ```powershell
 cd C:\Dev\codex-fleet

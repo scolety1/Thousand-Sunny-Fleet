@@ -438,7 +438,7 @@ Exit criteria:
 
 Purpose: Add domain-specific reviewers that stop polished nonsense before it becomes trusted output.
 
-Status: implemented for the first reviewer. `franky-formula-review.ps1` now reviews analytical and formula-heavy ships for concrete formula specs, fixture data, expected outputs, formula tests, number provenance, and calibration visibility. The checkpoint loop accepts `-FrankyEvery`, auto-runs Franky during analytical phases, stages `FRANKY_FORMULA_REVIEW.md`, and stops on RED formula findings before the final checkpoint.
+Status: implemented for the first reviewer. `franky-formula-review.ps1` now reviews analytical and formula-heavy ships for concrete formula specs, fixture data, expected outputs, formula tests, number provenance, and calibration visibility. It can scaffold the formula evidence docs with `-Template`, writes both Markdown and JSON review artifacts, and includes required actions plus a repair-task draft when RED formula blockers appear. The checkpoint loop accepts `-FrankyEvery`, auto-runs Franky during analytical phases, stages Franky's Markdown/JSON evidence, and stops on RED formula findings before the final checkpoint.
 
 Required upgrades:
 

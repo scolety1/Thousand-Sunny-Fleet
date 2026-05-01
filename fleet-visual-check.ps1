@@ -10,6 +10,10 @@ param(
 
     [switch]$WriteShipReports,
 
+    [switch]$QueueStagingRepairs,
+
+    [switch]$ValidateQueuedStagingRepairs,
+
     [switch]$VerboseRunner,
 
     [switch]$RefreshGallery
@@ -47,6 +51,17 @@ function Add-ArrayArgument {
     $items = @($Values | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     if ($items.Count -eq 0) { return $Arguments }
     return @($Arguments + @($Name, ($items -join ",")))
+}
+
+function Test-RepoDirty {
+    param([string]$RepoPath)
+
+    if ([string]::IsNullOrWhiteSpace($RepoPath) -or !(Test-Path -LiteralPath $RepoPath)) {
+        return $true
+    }
+
+    $status = @(git -C $RepoPath status --short 2>$null)
+    return ($status.Count -gt 0)
 }
 
 function Get-LatestVisualSummary {
@@ -117,6 +132,26 @@ function Write-FleetVisualReport {
             $lines += "- Screenshots: $($result.artifactPath)"
         }
         $lines += "- Findings: high $($result.highFindings), medium $($result.mediumFindings), low $($result.lowFindings)"
+        if ($null -ne $result.queuedStagingRepairTasks) {
+            $lines += "- Queued staging repair tasks: $($result.queuedStagingRepairTasks)"
+        }
+        if ($null -ne $result.skippedDuplicateStagingRepairTasks -and $result.skippedDuplicateStagingRepairTasks -gt 0) {
+            $lines += "- Skipped duplicate staging repair tasks: $($result.skippedDuplicateStagingRepairTasks)"
+        }
+        if ($result.skippedDirtyStagingRepairQueue) {
+            $lines += "- Staging repair queue skipped: repo was dirty before visual QA."
+        }
+        if ($null -ne $result.stagingRepairLaunchGateExitCode) {
+            $launchGateStatus = if ($result.stagingRepairLaunchGateAccepted) { "accepted" } else { "not accepted" }
+            $launchGateDecision = if (![string]::IsNullOrWhiteSpace([string]$result.stagingRepairLaunchGateStatus)) { [string]$result.stagingRepairLaunchGateStatus } else { "UNKNOWN" }
+            $lines += "- Staging repair launch gate: $launchGateStatus (status $launchGateDecision, exit $($result.stagingRepairLaunchGateExitCode))"
+            if (![string]::IsNullOrWhiteSpace([string]$result.stagingRepairLaunchGateReportDir)) {
+                $lines += "- Staging repair launch gate reports: $($result.stagingRepairLaunchGateReportDir)"
+            }
+        }
+        if (![string]::IsNullOrWhiteSpace([string]$result.taskQueuePath)) {
+            $lines += "- Task queue: $($result.taskQueuePath)"
+        }
         if ($result.topFindings -and @($result.topFindings).Count -gt 0) {
             $lines += ""
             $lines += "Top finding groups:"
@@ -134,6 +169,123 @@ function Write-FleetVisualReport {
     }
 
     Set-Content -Path $mdPath -Value $lines
+}
+
+function Get-VisualStagingRepairTasks {
+    param([string]$ReportPath)
+
+    if ([string]::IsNullOrWhiteSpace($ReportPath) -or !(Test-Path -LiteralPath $ReportPath)) {
+        return @()
+    }
+
+    $text = Get-Content -LiteralPath $ReportPath -Raw
+    $sectionMatch = [regex]::Match($text, "(?s)## Suggested Task Queue Wording\s*(.+)$")
+    if (!$sectionMatch.Success) { return @() }
+
+    $tasks = @()
+    foreach ($line in ($sectionMatch.Groups[1].Value -split "`r?`n")) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^- \[ \] ' -and $trimmed -match 'information staging|information-staging') {
+            $tasks += $trimmed
+        }
+    }
+    return $tasks
+}
+
+function Add-VisualStagingRepairTasksToQueue {
+    param(
+        [string]$RepoPath,
+        [string[]]$Tasks,
+        [string]$SourceReport
+    )
+
+    $tasks = @($Tasks | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    if ($tasks.Count -eq 0) {
+        return [pscustomobject]@{
+            queued = 0
+            skipped = 0
+            taskQueuePath = ""
+        }
+    }
+
+    $queuePath = Join-Path $RepoPath "docs\codex\TASK_QUEUE.md"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $queuePath) | Out-Null
+    if (!(Test-Path -LiteralPath $queuePath)) {
+        Set-Content -LiteralPath $queuePath -Value "# Task Queue`n"
+    }
+
+    $existing = Get-Content -LiteralPath $queuePath -Raw
+    $newTasks = @()
+    $skipped = 0
+    foreach ($task in $tasks) {
+        if ($existing.Contains($task)) {
+            $skipped++
+        } else {
+            $newTasks += $task
+        }
+    }
+
+    if ($newTasks.Count -gt 0) {
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $append = @(
+            "",
+            "## Visual staging repair tasks - $timestamp",
+            "",
+            "Source: $SourceReport",
+            ""
+        ) + $newTasks + @("")
+        Add-Content -LiteralPath $queuePath -Value $append
+    }
+
+    return [pscustomobject]@{
+        queued = $newTasks.Count
+        skipped = $skipped
+        taskQueuePath = $queuePath
+    }
+}
+
+function Invoke-StagingRepairLaunchGate {
+    param(
+        [string]$ProjectName,
+        [string]$ConfigPath
+    )
+
+    $gateScript = Join-Path $fleetRoot "fleet-launch-gate.ps1"
+    $resolvedConfig = Resolve-Path -LiteralPath $ConfigPath -ErrorAction SilentlyContinue
+    $configForGate = if ($resolvedConfig) { $resolvedConfig.Path } else { $ConfigPath }
+    $reportDir = Join-Path $fleetRoot "out\launch-gates\visual-staging"
+    $arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $gateScript,
+        "-Project", $ProjectName,
+        "-ConfigPath", $configForGate,
+        "-Mode", "warn",
+        "-OutDir", $reportDir
+    )
+
+    Push-Location $fleetRoot
+    try {
+        $output = @(& powershell @arguments 2>&1)
+    } finally {
+        Pop-Location
+    }
+    $exitCode = if ($null -eq $LASTEXITCODE) { 1 } else { [int]$LASTEXITCODE }
+    $text = ($output | ForEach-Object { [string]$_ }) -join "`n"
+    $status = "UNKNOWN"
+    $statusMatch = [regex]::Match($text, "(?im)^Launch gate\s+$([regex]::Escape($ProjectName)):\s+(READY|WARN|BLOCK)\b")
+    if ($statusMatch.Success) {
+        $status = $statusMatch.Groups[1].Value.ToUpperInvariant()
+    }
+    $accepted = ($exitCode -eq 0 -and @("READY", "WARN") -contains $status)
+
+    return [pscustomobject]@{
+        exitCode = $exitCode
+        accepted = $accepted
+        status = $status
+        reportDir = $reportDir
+        output = $text
+    }
 }
 
 function Get-TopVisualFindings {
@@ -220,6 +372,7 @@ foreach ($projectConfig in $projects) {
     }
 
     $repoPath = $repoMatches[0].Path
+    $initiallyDirty = Test-RepoDirty -RepoPath $repoPath
     $serveDir = [string](Get-ConfigPropertyValue -Object $projectConfig -Name "buildDirectory")
     if ([string]::IsNullOrWhiteSpace($serveDir)) { $serveDir = "." }
     $visualServeDir = [string](Get-ConfigPropertyValue -Object $projectConfig -Name "visualServeDirectory")
@@ -260,6 +413,34 @@ foreach ($projectConfig in $projects) {
     $mediumFindings = @($findings | Where-Object { $_.severity -eq "medium" }).Count
     $lowFindings = @($findings | Where-Object { $_.severity -eq "low" }).Count
     $topFindings = @(Get-TopVisualFindings -Findings $findings)
+    $reportPath = if ($latest) {
+        if ($WriteShipReports) { Join-Path $repoPath "docs\codex\VISUAL_BUGS.md" } else { Join-Path $latest.runPath "VISUAL_BUGS.md" }
+    } else {
+        ""
+    }
+    $stagingRepairTasks = @(Get-VisualStagingRepairTasks -ReportPath $reportPath)
+    $queueResult = [pscustomobject]@{
+        queued = 0
+        skipped = 0
+        taskQueuePath = ""
+        skippedDirty = $false
+    }
+    if ($QueueStagingRepairs -and $latest -and $stagingRepairTasks.Count -gt 0) {
+        if ($initiallyDirty) {
+            $queueResult = [pscustomobject]@{
+                queued = 0
+                skipped = 0
+                taskQueuePath = Join-Path $repoPath "docs\codex\TASK_QUEUE.md"
+                skippedDirty = $true
+            }
+        } else {
+            $queueResult = Add-VisualStagingRepairTasksToQueue -RepoPath $repoPath -Tasks $stagingRepairTasks -SourceReport $reportPath
+        }
+    }
+    $launchGateResult = $null
+    if ($ValidateQueuedStagingRepairs -and $queueResult.queued -gt 0) {
+        $launchGateResult = Invoke-StagingRepairLaunchGate -ProjectName $projectConfig.name -ConfigPath $ConfigPath
+    }
     $status = "PASS"
     $message = "Visual QA completed."
     $exitCode = $rawExitCode
@@ -291,14 +472,19 @@ foreach ($projectConfig in $projects) {
         message = $message
         artifactPath = if ($latest) { $latest.runPath } else { "" }
         summaryPath = if ($latest) { Join-Path $latest.runPath "visual-inspect-summary.json" } else { "" }
-        reportPath = if ($latest) {
-            if ($WriteShipReports) { Join-Path $repoPath "docs\codex\VISUAL_BUGS.md" } else { Join-Path $latest.runPath "VISUAL_BUGS.md" }
-        } else {
-            ""
-        }
+        reportPath = $reportPath
         highFindings = $highFindings
         mediumFindings = $mediumFindings
         lowFindings = $lowFindings
+        stagingRepairTasks = $stagingRepairTasks.Count
+        queuedStagingRepairTasks = $queueResult.queued
+        skippedDuplicateStagingRepairTasks = $queueResult.skipped
+        skippedDirtyStagingRepairQueue = $queueResult.skippedDirty
+        stagingRepairLaunchGateExitCode = if ($launchGateResult) { $launchGateResult.exitCode } else { $null }
+        stagingRepairLaunchGateAccepted = if ($launchGateResult) { $launchGateResult.accepted } else { $null }
+        stagingRepairLaunchGateStatus = if ($launchGateResult) { $launchGateResult.status } else { $null }
+        stagingRepairLaunchGateReportDir = if ($launchGateResult) { $launchGateResult.reportDir } else { $null }
+        taskQueuePath = $queueResult.taskQueuePath
         topFindings = $topFindings
     }
 }

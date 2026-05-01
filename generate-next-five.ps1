@@ -63,6 +63,9 @@ $shipScorecard = if (Test-Path "docs/codex/SHIP_SCORECARD.md") { Get-Content "do
 $shipAdmissionReview = if (Test-Path "docs/codex/SHIP_ADMISSION_REVIEW.md") { Get-Content "docs/codex/SHIP_ADMISSION_REVIEW.md" -Raw } else { "No ship admission review found." }
 $productUsefulness = if (Test-Path "docs/codex/PRODUCT_USEFULNESS.md") { Get-Content "docs/codex/PRODUCT_USEFULNESS.md" -Raw } else { "No product usefulness file found." }
 $productUsefulnessReview = if (Test-Path "docs/codex/PRODUCT_USEFULNESS_REVIEW.md") { Get-Content "docs/codex/PRODUCT_USEFULNESS_REVIEW.md" -Raw } else { "No product usefulness review found." }
+$informationStaging = if (Test-Path "docs/codex/INFORMATION_STAGING.md") { Get-Content "docs/codex/INFORMATION_STAGING.md" -Raw } else { "No information staging file found." }
+$operatingMode = if (Test-Path "docs/codex/OPERATING_MODE.md") { Get-Content "docs/codex/OPERATING_MODE.md" -Raw } else { "No operating mode file found." }
+$referenceBrief = if (Test-Path "docs/codex/REFERENCE_BRIEF.md") { Get-Content "docs/codex/REFERENCE_BRIEF.md" -Raw } elseif (Test-Path "docs/codex/CREATIVE_BRIEF.md") { Get-Content "docs/codex/CREATIVE_BRIEF.md" -Raw } else { "No reference brief file found." }
 $magicMission = if (Test-Path "docs/codex/MAGIC_MISSION.md") { Get-Content "docs/codex/MAGIC_MISSION.md" -Raw } else { "No magic mission file found." }
 $workPacks = if (Test-Path "docs/codex/WORK_PACKS.md") { Get-Content "docs/codex/WORK_PACKS.md" -Raw } else { "No work packs file found." }
 $workPackStatus = if (Test-Path "docs/codex/WORK_PACK_STATUS.md") { Get-Content "docs/codex/WORK_PACK_STATUS.md" -Raw } else { "No work pack status file found." }
@@ -125,6 +128,39 @@ function Test-FleetTaskHasProductShape {
     return $true
 }
 
+function Test-FleetTaskRequiresSurface {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    if ($Task -match "(?i)(?:^|[\s\[])impact:(visible|showpiece)\b") { return $true }
+    if ($Task -match "(?i)(?:^|[\s\[])class:(feature|design|copy)\b") { return $true }
+    return $false
+}
+
+function Test-FleetTaskHasSurface {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    return ($Task -match "(?i)(?:^|[\s\[])surface:(public|app|internal|mixed)\b")
+}
+
+function Get-FleetTaskSurfaceCount {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return 0 }
+    return @([regex]::Matches($Task, "(?i)(?:^|[\s\[])surface:(public|app|internal|mixed)\b")).Count
+}
+
+function Test-FleetTaskHasFirstScreenField {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    $match = [regex]::Match($Task, "(?i)\bfirst[- ]screen(?:\s+job)?\s*:\s*([^.\[\r\n]+)")
+    if (!$match.Success) { return $false }
+    $value = $match.Groups[1].Value.Trim()
+    return !($value -match "(?i)\b(todo|tbd|unknown|fill this|to be decided|not decided|placeholder|lorem ipsum)\b" -or $value -match "(?i)^(n/a|none)\.?$")
+}
+
 function Get-PhaseFromState {
     param([string]$Text)
 
@@ -146,6 +182,7 @@ Rules:
 - Output only checklist lines, no commentary.
 - Each line must start with "- [ ] ".
 - Each task line must use this product-shape format, in this order: "User pain: ... Target: ... Change: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ...".
+- For UI/product tasks, insert "First screen: ..." between Change and Remove/simplify, like: "User pain: ... Target: ... Change: ... First screen: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ...".
 - User pain must name the concrete confusion, wasted time, broken workflow, missing trust, or blocked demo value the task addresses.
 - Target must name the route, screen, component, module, docs file, formula, test, or local evaluator affected.
 - Change must say the specific behavior, layout, formula, copy, test, or route change to make.
@@ -153,6 +190,10 @@ Rules:
 - Guardrails must include explicit forbidden scope and any phase/admission/usefulness constraint.
 - Acceptance must include the normal documented build/check command, a documented test/static-check command, or a docs-only acceptance when the task is intentionally docs-only.
 - Check must include the visual, manual, fixture, formula, or report check that proves usefulness.
+- For UI/product tasks, the task must preserve information staging: name the first-screen job, keep the primary surface dominant, and move secondary/detail/internal information behind clear navigation, buttons, tabs, accordions, drawers, or detail views.
+- UI/product tasks with class:feature, class:design, class:copy, impact:visible, or impact:showpiece must include a concrete "First screen: ..." field in the task text. This field names what must be visible and dominant before helper/detail content.
+- UI/product tasks with class:feature, class:design, class:copy, impact:visible, or impact:showpiece must include exactly one surface metadata value: surface:public, surface:app, surface:internal, or surface:mixed.
+- Public/customer surfaces sell or serve the visitor; app/internal surfaces support the working tool. Do not blend guest-facing restaurant pages with staff-only service notes unless the task explicitly creates a staff mode.
 - Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single impact:visible scope:src/,docs/codex/].
 - Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
@@ -167,6 +208,13 @@ Rules:
 - Each task must include explicit forbidden scope.
 - Prefer tasks that advance the mission and reduce obvious rough edges.
 - Treat Simon, Visual Bug Report, Robin, Accessibility, Performance, and Joey as active repair orders, not optional reading.
+- Treat OPERATING_MODE.md as a first-class instruction. It does not replace phases; it tells you what kind of judgment belongs inside the phase.
+- If operating mode is hospitality-studio, plan like a restaurant creative director before coding: choose one surface type, protect the first-screen contract, avoid dashboard/feature dumping, keep copy concrete, and put secondary information behind clear discovery controls.
+- If operating mode is hospitality-studio, treat REFERENCE_BRIEF.md as first-class creative direction. Tasks must preserve its reference qualities, first-screen rules, forbidden patterns, and acceptance lens.
+- If operating mode is hospitality-studio and no reference brief exists, generate a docs-first task to create docs/codex/REFERENCE_BRIEF.md before showpiece implementation, unless the current loop phase is repair and a blocking runtime issue must be cleared.
+- If operating mode is formula-lab, prioritize formulas, fixtures, provenance, calibration, and tests over visual polish. Never create persuasive model output without deterministic proof.
+- If operating mode is software-engineering, prefer narrow code slices, tests, runtime verification, and security guardrails. Do not broaden scope for visual taste.
+- If operating mode is demo-forge, build one compelling visible path, screenshot it, and park before it becomes a fake platform.
 - Priority order for next tasks:
   1. If Joey is RED or says stop for human security review and Current loop phase is not repair, output one docs-only task to summarize the security stop-risk, then no more tasks.
   2. If Visual Bug Report has HIGH findings or suggested visual fix tasks, turn those into the first tasks.
@@ -201,6 +249,9 @@ Rules:
 - If PRODUCT_USEFULNESS_REVIEW.md says REPAIR, the next task must be repair-first and must name the failing gate.
 - If PRODUCT_USEFULNESS_REVIEW.md says SIMPLIFY, the next task must reduce complexity before adding features.
 - If PRODUCT_USEFULNESS_REVIEW.md says CONTINUE, generate only tasks that match the named Next Useful Improvement or its checked improvement areas.
+- If INFORMATION_STAGING.md exists, treat it as the authority for first-screen job, primary content, secondary actions, detail content, internal-only content, and demo surface split. Generate tasks that repair violations before adding content.
+- For restaurant/hospitality demos, separate the customer-facing restaurant example from the working operations tool: the public page should feel like a real restaurant website, and the working operations tool should live behind a clear "View wine list", "Open manager brief", "Plan event", or equivalent action.
+- For product ships like EasyLife or CursorPets, separate the public/product demo surface from the actual working app surface. Marketing explanation must not crowd the working app's first screen.
 - Visible/showpiece tasks must change the actual product surface, not only reports/docs or tiny spacing polish. If the desired change needs more structure, generate page/component/content tasks that make the improvement obvious in screenshots.
 - Current loop phase: $effectivePhase.
 - Read PHASE_STATE.md as a hard planning constraint. Every generated task must fit the current phase.
@@ -212,6 +263,7 @@ Rules:
 - Treat these PHASE_STATE.md fields as first-class requirements, not background notes: Audience, Product Promise, Primary Action, Showable Moment, What Not To Build, No More Features Lock, Complexity Budget, Before/After Judgment, Human Taste Note, Phase Model Policy, Parking State, Evidence Required, Done Signal, Next Phase Criteria, Repair Trigger, and Repair Return Phase.
 - Every task must support the Product Promise and Showable Moment.
 - Every task must serve the Audience and preserve the Primary Action.
+- Every visible task must stage information progressively: primary surface first, secondary actions nearby, details one click/tap away, internal notes hidden unless the active surface is internal.
 - If No More Features Lock is true, do not generate feature-addition tasks; generate removal, demotion, simplification, refinement, proof, or parked-review tasks only.
 - Every task must respect What Not To Build and the Complexity Budget.
 - For visible work, the task wording must say how the Before/After Judgment should improve.
@@ -250,6 +302,7 @@ Rules:
 - For calculation-heavy ships, prefer test/data/model tasks over visual polish until dashboard or scenario-tools phase.
 - For shape, simplicity, and polish tasks, explicitly name what to remove, demote, combine, or preserve.
 - Avoid tasks that make the first screen more crowded, add extra cards, add extra explanatory sections, or create more choices unless the current phase is foundation and the core flow is missing.
+- Avoid "everything on one page" outcomes. If a task adds useful detail, it should also say where that detail lives so the first screen stays calm.
 - In repair phase, do not output docs-only stop summaries unless the gate explicitly requires human approval. Prefer a bounded repair task that names the failing gate and the exact files/scope to touch.
   - Do not propose merges, deploys, pushes to main, secrets, auth changes, billing, DNS, or broad rewrites.
   - Do not propose backend, integration, or migration implementation unless the ship profile capability allows it and the matching Phase 4 evidence exists: API_CONTRACT.md plus approved API_CONTRACT_TESTS.md for backend/integration work, SEED_FIXTURE_PLAN.md plus approved SEED_FIXTURE_EVIDENCE.md for backend/migration work, and MIGRATION_PROPOSAL.md plus approved MIGRATION_APPROVAL.md for migration work. If evidence is missing, generate a docs/codex planning/evidence task instead.
@@ -288,6 +341,15 @@ $productUsefulness
 
 Product usefulness review:
 $productUsefulnessReview
+
+Information staging:
+$informationStaging
+
+Operating mode:
+$operatingMode
+
+Reference brief:
+$referenceBrief
 
 Magic mission:
 $magicMission
@@ -420,6 +482,30 @@ if ($unshapedTasks.Count -gt 0) {
     Write-Host "Planner produced task(s) without required product-shape fields." -ForegroundColor Red
     Write-Host "Required labels: User pain:, Target:, Change:, Remove/simplify:, Guardrails:, Acceptance:, Check:" -ForegroundColor Yellow
     $unshapedTasks | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
+
+$missingSurfaceTasks = @($tasks | Where-Object { (Test-FleetTaskRequiresSurface -Task $_) -and -not (Test-FleetTaskHasSurface -Task $_) })
+if ($missingSurfaceTasks.Count -gt 0) {
+    Write-Host "Planner produced UI/product task(s) without required surface metadata." -ForegroundColor Red
+    Write-Host "Required surface metadata: surface:public, surface:app, surface:internal, or surface:mixed." -ForegroundColor Yellow
+    $missingSurfaceTasks | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
+
+$ambiguousSurfaceTasks = @($tasks | Where-Object { (Test-FleetTaskRequiresSurface -Task $_) -and (Get-FleetTaskSurfaceCount -Task $_) -ne 1 })
+if ($ambiguousSurfaceTasks.Count -gt 0) {
+    Write-Host "Planner produced UI/product task(s) with ambiguous surface metadata." -ForegroundColor Red
+    Write-Host "Use exactly one surface metadata value: surface:public, surface:app, surface:internal, or surface:mixed." -ForegroundColor Yellow
+    $ambiguousSurfaceTasks | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
+
+$missingFirstScreenTasks = @($tasks | Where-Object { (Test-FleetTaskRequiresSurface -Task $_) -and -not (Test-FleetTaskHasFirstScreenField -Task $_) })
+if ($missingFirstScreenTasks.Count -gt 0) {
+    Write-Host "Planner produced UI/product task(s) without required first-screen metadata." -ForegroundColor Red
+    Write-Host "Required first-screen metadata: First screen: <the dominant first-screen job/content>." -ForegroundColor Yellow
+    $missingFirstScreenTasks | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
 

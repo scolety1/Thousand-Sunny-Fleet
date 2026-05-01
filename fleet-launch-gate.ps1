@@ -63,6 +63,16 @@ function Get-DecisionFromText {
     return "UNKNOWN"
 }
 
+function Get-UsefulnessRequestedPhase {
+    param([string]$Decision)
+
+    switch (($Decision).Trim().ToUpperInvariant()) {
+        "REPAIR" { return "repair" }
+        "SIMPLIFY" { return "simplicity" }
+        default { return "" }
+    }
+}
+
 function Get-SectionText {
     param(
         [string]$Text,
@@ -109,6 +119,35 @@ function Test-TaskHasProductShape {
     return $true
 }
 
+function Test-TaskRequiresSurface {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    if ($Task -match "(?i)(?:^|[\s\[])impact:(visible|showpiece)\b") { return $true }
+    if ($Task -match "(?i)(?:^|[\s\[])class:(feature|design|copy)\b") { return $true }
+    return $false
+}
+
+function Test-TaskHasSurface {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    return ($Task -match "(?i)(?:^|[\s\[])surface:(public|app|internal|mixed)\b")
+}
+
+function Get-TaskSurfaceCount {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return 0 }
+    return @([regex]::Matches($Task, "(?i)(?:^|[\s\[])surface:(public|app|internal|mixed)\b")).Count
+}
+
+function Test-TaskHasOneSurface {
+    param([string]$Task)
+
+    return ((Get-TaskSurfaceCount -Task $Task) -eq 1)
+}
+
 function Test-TaskHasForbiddenScopeLocal {
     param([string]$Task)
 
@@ -137,6 +176,116 @@ function Test-HasLocalEvaluator {
     $productSection = Get-SectionText -Text $evalText -Heading "Product Evaluator"
     $dataSection = Get-SectionText -Text $evalText -Heading "Data Or Formula Evaluator"
     return (($buildSection -match "(?i)Command:\s*\S+") -or ($productSection -match "(?i)Expected user outcome:\s*\S+") -or ($dataSection -match "(?i)(Fixtures|Golden values):\s*\S+"))
+}
+
+function Test-IsUiOrProductShip {
+    param([object]$Ship)
+
+    $profile = [string](Get-ConfigPropertyValue -Object $Ship -Name "profile")
+    $projectType = [string](Get-ConfigPropertyValue -Object $Ship -Name "projectType")
+    $visualPaths = @(Get-ConfigPropertyValue -Object $Ship -Name "visualPaths" | ForEach-Object { $_ })
+
+    if ($profile -in @("frontend-static-demo", "real-product", "experimental-prototype")) { return $true }
+    if ($projectType -in @("marketing-site", "full-stack-web", "desktop-app", "mobile-app", "game", "sandbox-prototype", "ai-workflow")) { return $true }
+    if ($visualPaths.Count -gt 0) { return $true }
+    return $false
+}
+
+function Test-HasInformationStaging {
+    param([string]$RepoPath)
+
+    $path = Join-Path $RepoPath "docs\codex\INFORMATION_STAGING.md"
+    if (!(Test-Path -LiteralPath $path)) { return $false }
+    $text = Get-Content -LiteralPath $path -Raw
+    foreach ($label in @("Surface Split", "First Screen Contract", "Progressive Disclosure Rules")) {
+        if ($text -notmatch [regex]::Escape($label)) { return $false }
+    }
+    return $true
+}
+
+function Get-InformationStagingMissingFields {
+    param([string]$RepoPath)
+
+    $path = Join-Path $RepoPath "docs\codex\INFORMATION_STAGING.md"
+    $missing = [System.Collections.Generic.List[string]]::new()
+    if (!(Test-Path -LiteralPath $path)) {
+        foreach ($label in @("First screen job", "Primary content", "Secondary actions", "Detail content", "Not visible at first", "How deeper information opens")) {
+            $missing.Add($label) | Out-Null
+        }
+        return @($missing)
+    }
+
+    $text = Get-Content -LiteralPath $path -Raw
+    foreach ($label in @("First screen job", "Primary content", "Secondary actions", "Detail content", "Not visible at first", "How deeper information opens")) {
+        $match = [regex]::Match($text, "(?im)^\s*$([regex]::Escape($label)):\s*(.+?)\s*$")
+        if (!$match.Success -or [string]::IsNullOrWhiteSpace($match.Groups[1].Value)) {
+            $missing.Add($label) | Out-Null
+            continue
+        }
+
+        $value = $match.Groups[1].Value.Trim()
+        if (Test-IsPlaceholderText -Value $value) {
+            $missing.Add($label) | Out-Null
+        }
+    }
+
+    return @($missing)
+}
+
+function Test-HasOperatingMode {
+    param([string]$RepoPath)
+
+    $path = Join-Path $RepoPath "docs\codex\OPERATING_MODE.md"
+    if (!(Test-Path -LiteralPath $path)) { return $false }
+    $text = Get-Content -LiteralPath $path -Raw
+    return ($text -match "(?im)^Mode:\s*(hospitality-studio|formula-lab|software-engineering|demo-forge)\s*$" -and
+        $text -match "(?m)^## Planning Rules\s*$" -and
+        $text -match "(?m)^## First Screen Contract\s*$" -and
+        $text -match "(?m)^## Required Gates\s*$")
+}
+
+function Get-OperatingModeValue {
+    param([string]$RepoPath)
+
+    $path = Join-Path $RepoPath "docs\codex\OPERATING_MODE.md"
+    if (!(Test-Path -LiteralPath $path)) { return "" }
+    $text = Get-Content -LiteralPath $path -Raw
+    $match = [regex]::Match($text, "(?im)^Mode:\s*(hospitality-studio|formula-lab|software-engineering|demo-forge)\s*$")
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return ""
+}
+
+function Test-HasReferenceBrief {
+    param([string]$RepoPath)
+
+    $path = Join-Path $RepoPath "docs\codex\REFERENCE_BRIEF.md"
+    if (!(Test-Path -LiteralPath $path)) {
+        $path = Join-Path $RepoPath "docs\codex\CREATIVE_BRIEF.md"
+    }
+    if (!(Test-Path -LiteralPath $path)) { return $false }
+    $text = Get-Content -LiteralPath $path -Raw
+    return ($text -match "(?m)^## Surface Type\s*$" -and
+        $text -match "(?m)^## Reference Qualities\s*$" -and
+        $text -match "(?m)^## First Screen Rules\s*$" -and
+        $text -match "(?m)^## Forbidden Patterns\s*$" -and
+        $text -match "(?i)Do not copy" -and
+        $text -match "(?i)under 30 seconds")
+}
+
+function Test-IsPlaceholderText {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $true }
+    return ($Value -match "(?i)\b(todo|tbd|unknown|fill this|to be decided|not decided|placeholder|lorem ipsum)\b" -or $Value.Trim() -match "(?i)^(n/a|none)\.?$")
+}
+
+function Test-TaskHasFirstScreenField {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    $match = [regex]::Match($Task, "(?i)\bfirst[- ]screen(?:\s+job)?\s*:\s*([^.\[\r\n]+)")
+    if (!$match.Success) { return $false }
+    return !(Test-IsPlaceholderText -Value $match.Groups[1].Value)
 }
 
 Set-Location $fleetRoot
@@ -176,7 +325,10 @@ $usefulnessDecision = Get-DecisionFromText -Text $usefulnessText
 if ($usefulnessDecision -in @("PARK", "NEEDS HUMAN DIRECTION")) {
     Add-Issue -Severity "BLOCK" -Message "Product usefulness is $usefulnessDecision."
 } elseif ($usefulnessDecision -in @("REPAIR", "SIMPLIFY")) {
-    Add-Issue -Severity "WARN" -Message "Product usefulness asks for $usefulnessDecision; launch should use the matching phase."
+    $requestedUsefulnessPhase = Get-UsefulnessRequestedPhase -Decision $usefulnessDecision
+    if ($LoopPhase -ne "auto" -and $LoopPhase -ne $requestedUsefulnessPhase) {
+        Add-Issue -Severity "WARN" -Message "Product usefulness asks for $usefulnessDecision; launch should use loop phase $requestedUsefulnessPhase."
+    }
 } elseif ($usefulnessDecision -ne "CONTINUE") {
     Add-Issue -Severity "WARN" -Message "Product usefulness decision is unknown."
 }
@@ -198,6 +350,17 @@ if (![string]::IsNullOrWhiteSpace($task)) {
     if (!(Test-TaskHasForbiddenScopeLocal -Task $task)) {
         Add-Issue -Severity "BLOCK" -Message "First unchecked task is missing explicit forbidden scope."
     }
+    if ((Test-IsUiOrProductShip -Ship $ship) -and (Test-TaskRequiresSurface -Task $task)) {
+        $surfaceCount = Get-TaskSurfaceCount -Task $task
+        if ($surfaceCount -eq 0) {
+            Add-Issue -Severity "BLOCK" -Message "First unchecked visible/product task is missing surface metadata: surface:public, surface:app, surface:internal, or surface:mixed."
+        } elseif ($surfaceCount -gt 1) {
+            Add-Issue -Severity "BLOCK" -Message "First unchecked visible/product task has multiple surface metadata values; choose exactly one of surface:public, surface:app, surface:internal, or surface:mixed."
+        }
+        if (!(Test-TaskHasFirstScreenField -Task $task)) {
+            Add-Issue -Severity "BLOCK" -Message "First unchecked visible/product task is missing first-screen metadata. Add 'First screen: ...' so Nami knows what must stay dominant."
+        }
+    }
 } else {
     if ($usefulnessDecision -in @("CONTINUE", "REPAIR", "SIMPLIFY")) {
         Add-Issue -Severity "WARN" -Message "No unchecked tasks exist; planner must generate product-shaped tasks before implementation."
@@ -208,6 +371,24 @@ if (![string]::IsNullOrWhiteSpace($task)) {
 
 if (!(Test-HasLocalEvaluator -Ship $ship -RepoPath $repoPath)) {
     Add-Issue -Severity "BLOCK" -Message "No local evaluator found in buildCommand, visualPaths, or EVALUATORS.md."
+}
+
+if ((Test-IsUiOrProductShip -Ship $ship) -and !(Test-HasInformationStaging -RepoPath $repoPath)) {
+    Add-Issue -Severity "BLOCK" -Message "UI/product ship is missing docs/codex/INFORMATION_STAGING.md with surface split and first-screen contract."
+} elseif (Test-IsUiOrProductShip -Ship $ship) {
+    $missingStagingFields = @(Get-InformationStagingMissingFields -RepoPath $repoPath)
+    if ($missingStagingFields.Count -gt 0) {
+        Add-Issue -Severity "BLOCK" -Message "INFORMATION_STAGING.md has incomplete first-screen contract fields: $($missingStagingFields -join ', ')."
+    }
+}
+
+if (!(Test-HasOperatingMode -RepoPath $repoPath)) {
+    Add-Issue -Severity "WARN" -Message "Ship is missing docs/codex/OPERATING_MODE.md; long runs should write an operating mode before launch."
+}
+
+$operatingModeValue = Get-OperatingModeValue -RepoPath $repoPath
+if ($operatingModeValue -eq "hospitality-studio" -and !(Test-HasReferenceBrief -RepoPath $repoPath)) {
+    Add-Issue -Severity "WARN" -Message "Hospitality Studio ship is missing docs/codex/REFERENCE_BRIEF.md; showpiece runs should define creative references before implementation."
 }
 
 $blockCount = @($issues | Where-Object { $_.Severity -eq "BLOCK" }).Count

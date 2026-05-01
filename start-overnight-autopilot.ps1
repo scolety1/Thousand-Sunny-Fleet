@@ -54,6 +54,8 @@ param(
 
     [switch]$RequireMagicPreflight,
 
+    [switch]$RequireAutopilotPolicy,
+
     [switch]$RequirePhaseValidation,
 
     [switch]$UseGlobalRunShape,
@@ -145,6 +147,7 @@ function Write-AutopilotReport {
         "- Loop phase: $LoopPhase",
         "- Launch gate mode: $LaunchGateMode",
         "- Kill switch mode: $KillSwitchMode",
+        "- Require autopilot policy: $([bool]$RequireAutopilotPolicy)",
         "- Max completed tasks per ship: $MaxCompletedTasks",
         "- Max planner batches per ship: $MaxPlannerBatches",
         "- Auto safe-stop: enabled",
@@ -200,6 +203,24 @@ function Invoke-Step {
 }
 
 Write-AutopilotReport -Status "starting"
+
+if ($RequireAutopilotPolicy) {
+    $policyArgs = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-autopilot-policy.ps1"),
+        "-ConfigPath", $ConfigPath
+    )
+    if (![string]::IsNullOrWhiteSpace($Project)) { $policyArgs += @("-Project", $Project) }
+    $policyArgs = Add-ArrayArgument -Arguments $policyArgs -Name "-ExcludeProject" -Values $excludeArgs
+    if ($DryRun) { $policyArgs += "-ValidateOnly" }
+
+    $policyExit = Invoke-Step -Name "Phase 9 Autopilot Policy Gate" -Arguments $policyArgs
+    if ($policyExit -ne 0) {
+        Write-AutopilotReport -Status "autopilot policy blocked"
+        Stop-WithMessage "Overnight autopilot stopped because Phase 9 limited autopilot policy is not approved."
+    }
+}
 
 if ($LaunchFirst) {
     $launchArgs = @(

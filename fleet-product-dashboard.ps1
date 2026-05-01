@@ -148,6 +148,97 @@ function Get-FirstUncheckedTask {
     return "none"
 }
 
+function Test-PlaceholderText {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $true }
+    return ($Value.Trim() -match "^(TODO|TBD|N/A|none|missing|\.\.\.)$" -or $Value -match "\.\.\.")
+}
+
+function Test-UiOrProductTask {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task) -or $Task -eq "missing" -or $Task -eq "none") { return $false }
+    return ($Task -match "(?i)\bclass:(feature|design|copy)\b" -or $Task -match "(?i)\bimpact:(visible|showpiece)\b")
+}
+
+function Get-TaskSurfaceCount {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return 0 }
+    return @([regex]::Matches($Task, "(?i)(?:^|[\s\[])surface:(public|app|internal|mixed)\b")).Count
+}
+
+function Get-TaskFirstScreenValue {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return "" }
+    $match = [regex]::Match($Task, "(?i)\bFirst screen:\s*(.+?)(?=\s+Remove/simplify:|\s+Guardrails:|\s+Acceptance:|\s+Check:|\s+\[[^\]]+\]|\s*$)")
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return ""
+}
+
+function Get-TaskStagingMetadataStatus {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task) -or $Task -eq "missing" -or $Task -eq "none") { return "no task" }
+    if (!(Test-UiOrProductTask -Task $Task)) { return "task not staged" }
+
+    $surfaceCount = Get-TaskSurfaceCount -Task $Task
+    if ($surfaceCount -eq 0) { return "task missing surface" }
+    if ($surfaceCount -gt 1) { return "task multiple surfaces" }
+
+    $firstScreen = Get-TaskFirstScreenValue -Task $Task
+    if (Test-PlaceholderText -Value $firstScreen) { return "task missing first screen" }
+
+    return "task staged"
+}
+
+function Get-InformationStagingStatus {
+    param(
+        [string]$RepoPath,
+        [string]$FirstTask
+    )
+
+    $path = Join-Path $RepoPath "docs\codex\INFORMATION_STAGING.md"
+    if (!(Test-Path -LiteralPath $path)) { return "missing doc" }
+    $text = Get-Content -LiteralPath $path -Raw
+
+    $missingSections = @()
+    foreach ($heading in @("Surface Split", "First Screen Contract", "Progressive Disclosure Rules")) {
+        if ([string]::IsNullOrWhiteSpace((Get-SectionText -Text $text -Heading $heading))) {
+            $missingSections += $heading
+        }
+    }
+    if ($missingSections.Count -gt 0) { return "doc missing: $($missingSections[0])" }
+
+    $missingFields = @()
+    foreach ($label in @("First screen job", "Primary content", "Secondary actions", "Detail content", "Not visible at first", "How deeper information opens")) {
+        $value = Get-LineValue -Text $text -Label $label
+        if (Test-PlaceholderText -Value $value) { $missingFields += $label }
+    }
+    if ($missingFields.Count -gt 0) { return "doc incomplete: $($missingFields[0])" }
+
+    $taskStatus = Get-TaskStagingMetadataStatus -Task $FirstTask
+    if ($taskStatus -eq "task staged") { return "ready" }
+    if ($taskStatus -eq "task not staged" -or $taskStatus -eq "no task") { return "doc ready" }
+    return $taskStatus
+}
+
+function Test-StagingNeedsAttention {
+    param([string]$StagingDecision)
+
+    if ([string]::IsNullOrWhiteSpace($StagingDecision)) { return $true }
+    return ($StagingDecision -match "^(missing|doc missing|doc incomplete|task missing|task multiple)")
+}
+
+function Get-StagingAction {
+    param([string]$StagingDecision)
+
+    if (Test-StagingNeedsAttention -StagingDecision $StagingDecision) { return "fix staging contract" }
+    return "no staging action"
+}
+
 function Get-GitValue {
     param(
         [string]$RepoPath,
@@ -189,6 +280,7 @@ function Get-NextAction {
         [string]$LaunchDecision,
         [string]$AdmissionDecision,
         [string]$UsefulnessDecision,
+        [string]$StagingDecision,
         [int]$UncheckedTasks,
         [string]$Dirty,
         [string]$Lock
@@ -196,6 +288,7 @@ function Get-NextAction {
 
     if ($Lock -match "^active") { return "leave running" }
     if ($Dirty -match "^dirty") { return "inspect before launch" }
+    if (Test-StagingNeedsAttention -StagingDecision $StagingDecision) { return "fix staging contract" }
     if ($LaunchDecision -eq "BLOCK") { return "fill docs or park before launch" }
     if ($AdmissionDecision -eq "PARK" -or $UsefulnessDecision -eq "PARK") { return "park" }
     if ($UsefulnessDecision -eq "NEEDS HUMAN DIRECTION") { return "needs direction" }
@@ -211,6 +304,13 @@ function ConvertTo-HtmlEncoded {
     return [System.Net.WebUtility]::HtmlEncode([string]$Value)
 }
 
+function Resolve-FleetOutputPath {
+    param([string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) { return $Path }
+    return Join-Path $fleetRoot $Path
+}
+
 Set-Location $fleetRoot
 $projects = Get-Projects -Path $ConfigPath
 if ($projects.Count -eq 0) { Stop-WithMessage "No projects found." }
@@ -221,7 +321,7 @@ foreach ($project in $projects) {
     $repo = Resolve-Path ([string]$project.repo) -ErrorAction SilentlyContinue
     if (!$repo) {
         $rows += [pscustomobject]@{
-            Ship = $name; Group = [string]$project.fleetGroup; Repo = [string]$project.repo; Branch = "missing"; Head = "missing"; Dirty = "missing"; Lock = "unknown"; Admission = "PARK"; Score = "0/100"; Usefulness = "PARK"; Phase = "missing"; Tasks = 0; Visual = "missing"; Checkpoint = "missing"; LastUsefulChange = "repo missing"; NextTask = "none"; NextAction = "repair repo path"
+            Ship = $name; Group = [string]$project.fleetGroup; Repo = [string]$project.repo; Branch = "missing"; Head = "missing"; Dirty = "missing"; Lock = "unknown"; Admission = "PARK"; Score = "0/100"; Usefulness = "PARK"; Launch = "BLOCK"; Staging = "missing repo"; Phase = "missing"; Tasks = 0; Visual = "missing"; Checkpoint = "missing"; LastUsefulChange = "repo missing"; NextTask = "none"; NextAction = "repair repo path"
         }
         continue
     }
@@ -240,14 +340,15 @@ foreach ($project in $projects) {
     $gateText = ($gateOutput | Out-String)
     $launchDecision = Get-DecisionFromText -Text $gateText
 
-    $unchecked = Get-UncheckedCount -RepoPath $repoPath
-    $dirty = Get-GitDirtyState -RepoPath $repoPath
-    $lock = Get-RunLockState -ProjectName $name
-    $lastUsefulChange = Get-MarkdownValue -RepoPath $repoPath -RelativePath "docs\codex\PRODUCT_USEFULNESS.md" -Heading "Last Useful Change"
-    $nextTask = Get-FirstUncheckedTask -RepoPath $repoPath
-    $checkpoint = Get-MarkdownValue -RepoPath $repoPath -RelativePath "docs\codex\CHECKPOINT_REVIEW.md" -Heading "Verdict"
+        $unchecked = Get-UncheckedCount -RepoPath $repoPath
+        $dirty = Get-GitDirtyState -RepoPath $repoPath
+        $lock = Get-RunLockState -ProjectName $name
+        $lastUsefulChange = Get-MarkdownValue -RepoPath $repoPath -RelativePath "docs\codex\PRODUCT_USEFULNESS.md" -Heading "Last Useful Change"
+        $nextTask = Get-FirstUncheckedTask -RepoPath $repoPath
+        $staging = Get-InformationStagingStatus -RepoPath $repoPath -FirstTask $nextTask
+        $checkpoint = Get-MarkdownValue -RepoPath $repoPath -RelativePath "docs\codex\CHECKPOINT_REVIEW.md" -Heading "Verdict"
 
-    $rows += [pscustomobject]@{
+        $rows += [pscustomobject]@{
         Ship = $name
         Group = if ([string]::IsNullOrWhiteSpace([string]$project.fleetGroup)) { "-" } else { [string]$project.fleetGroup }
         Repo = $repoPath
@@ -259,17 +360,18 @@ foreach ($project in $projects) {
         Score = $admissionScore
         Usefulness = $usefulnessDecision
         Launch = $launchDecision
+        Staging = $staging
         Phase = Get-CurrentPhase -RepoPath $repoPath
         Tasks = $unchecked
         Visual = Get-VisualSummary -RepoPath $repoPath
         Checkpoint = $checkpoint
         LastUsefulChange = $lastUsefulChange
         NextTask = $nextTask
-        NextAction = Get-NextAction -LaunchDecision $launchDecision -AdmissionDecision $admissionDecision -UsefulnessDecision $usefulnessDecision -UncheckedTasks $unchecked -Dirty $dirty -Lock $lock
+        NextAction = Get-NextAction -LaunchDecision $launchDecision -AdmissionDecision $admissionDecision -UsefulnessDecision $usefulnessDecision -StagingDecision $staging -UncheckedTasks $unchecked -Dirty $dirty -Lock $lock
     }
 }
 
-$outMarkdownPath = Join-Path $fleetRoot $OutMarkdown
+$outMarkdownPath = Resolve-FleetOutputPath -Path $OutMarkdown
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outMarkdownPath) | Out-Null
 
 $md = @(
@@ -277,11 +379,23 @@ $md = @(
     "",
     "Generated: $(Get-Date -Format o)",
     "",
-    "| Ship | Group | Launch | Admission | Score | Usefulness | Phase | Tasks | Visual | Checkpoint | Dirty | Lock | Next Action |",
-    "| --- | --- | --- | --- | ---: | --- | --- | ---: | --- | --- | --- | --- | --- |"
+    "| Ship | Group | Launch | Admission | Score | Usefulness | Staging | Phase | Tasks | Visual | Checkpoint | Dirty | Lock | Next Action |",
+    "| --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | --- | --- |"
 )
 foreach ($row in $rows) {
-    $md += "| $($row.Ship) | $($row.Group) | $($row.Launch) | $($row.Admission) | $($row.Score) | $($row.Usefulness) | $($row.Phase) | $($row.Tasks) | $($row.Visual) | $($row.Checkpoint) | $($row.Dirty) | $($row.Lock) | $($row.NextAction) |"
+    $md += "| $($row.Ship) | $($row.Group) | $($row.Launch) | $($row.Admission) | $($row.Score) | $($row.Usefulness) | $($row.Staging) | $($row.Phase) | $($row.Tasks) | $($row.Visual) | $($row.Checkpoint) | $($row.Dirty) | $($row.Lock) | $($row.NextAction) |"
+}
+
+$md += ""
+$md += "## Staging Attention"
+$md += ""
+$stagingAttention = @($rows | Where-Object { Test-StagingNeedsAttention -StagingDecision ([string]$_.Staging) })
+if ($stagingAttention.Count -eq 0) {
+    $md += "No staging contract blockers detected."
+} else {
+    foreach ($row in $stagingAttention) {
+        $md += "- $($row.Ship): $($row.Staging) -> $(Get-StagingAction -StagingDecision ([string]$row.Staging))"
+    }
 }
 
 $md += ""
@@ -300,7 +414,7 @@ foreach ($row in $rows) {
 Set-Content -LiteralPath $outMarkdownPath -Value ($md -join "`n")
 
 if (!$NoHtml) {
-    $outHtmlPath = Join-Path $fleetRoot $OutHtml
+    $outHtmlPath = Resolve-FleetOutputPath -Path $OutHtml
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outHtmlPath) | Out-Null
     $htmlRows = foreach ($row in $rows) {
         $stateClass = switch ($row.Launch) {
@@ -309,7 +423,7 @@ if (!$NoHtml) {
             "BLOCK" { "block" }
             default { "unknown" }
         }
-        "<tr class='$stateClass'><td>$((ConvertTo-HtmlEncoded $row.Ship))</td><td>$((ConvertTo-HtmlEncoded $row.Group))</td><td>$((ConvertTo-HtmlEncoded $row.Launch))</td><td>$((ConvertTo-HtmlEncoded $row.Admission))</td><td>$((ConvertTo-HtmlEncoded $row.Score))</td><td>$((ConvertTo-HtmlEncoded $row.Usefulness))</td><td>$((ConvertTo-HtmlEncoded $row.Phase))</td><td>$($row.Tasks)</td><td>$((ConvertTo-HtmlEncoded $row.Visual))</td><td>$((ConvertTo-HtmlEncoded $row.Dirty))</td><td>$((ConvertTo-HtmlEncoded $row.Lock))</td><td>$((ConvertTo-HtmlEncoded $row.NextAction))</td></tr>"
+        "<tr class='$stateClass'><td>$((ConvertTo-HtmlEncoded $row.Ship))</td><td>$((ConvertTo-HtmlEncoded $row.Group))</td><td>$((ConvertTo-HtmlEncoded $row.Launch))</td><td>$((ConvertTo-HtmlEncoded $row.Admission))</td><td>$((ConvertTo-HtmlEncoded $row.Score))</td><td>$((ConvertTo-HtmlEncoded $row.Usefulness))</td><td>$((ConvertTo-HtmlEncoded $row.Staging))</td><td>$((ConvertTo-HtmlEncoded $row.Phase))</td><td>$($row.Tasks)</td><td>$((ConvertTo-HtmlEncoded $row.Visual))</td><td>$((ConvertTo-HtmlEncoded $row.Dirty))</td><td>$((ConvertTo-HtmlEncoded $row.Lock))</td><td>$((ConvertTo-HtmlEncoded $row.NextAction))</td></tr>"
     }
     $html = @"
 <!doctype html>
@@ -336,7 +450,7 @@ if (!$NoHtml) {
   <div class="meta">Generated $(Get-Date -Format "yyyy-MM-dd HH:mm:ss") from local fleet state.</div>
   <table>
     <thead>
-      <tr><th>Ship</th><th>Group</th><th>Launch</th><th>Admission</th><th>Score</th><th>Usefulness</th><th>Phase</th><th>Tasks</th><th>Visual</th><th>Dirty</th><th>Lock</th><th>Next Action</th></tr>
+      <tr><th>Ship</th><th>Group</th><th>Launch</th><th>Admission</th><th>Score</th><th>Usefulness</th><th>Staging</th><th>Phase</th><th>Tasks</th><th>Visual</th><th>Dirty</th><th>Lock</th><th>Next Action</th></tr>
     </thead>
     <tbody>
       $($htmlRows -join "`n      ")
