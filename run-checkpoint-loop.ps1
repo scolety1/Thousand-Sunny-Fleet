@@ -877,7 +877,7 @@ function Get-TaskImplementationScale {
         }
     }
     if ($taskMode -eq "single" -and
-        $taskClass -in @("design", "copy") -and
+        $taskClass -in @("design", "copy", "bugfix") -and
         $taskImpact -in @("visible", "showpiece") -and
         $hasOnlyStaticShowpieceScope) {
         return "small"
