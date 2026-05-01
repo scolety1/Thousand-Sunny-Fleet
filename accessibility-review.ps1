@@ -44,7 +44,7 @@ function Get-UiFiles {
             ($_ -match "^(src|app|web|pages|components|routes|views|public)/" -and $_ -match "\.(ts|js)$")
         } |
         Where-Object {
-            $_ -notmatch "^(dist|build|coverage|node_modules|\.git|\.codex-local|out|docs/codex)/" -and
+            $_ -notmatch "^(dist|build|coverage|node_modules|\.git|\.codex-local|out|docs/codex|old-site|assets)/" -and
             $_ -notmatch "(package-lock\.json|package\.json|tsbuildinfo)$"
         } |
         Sort-Object -Unique)
