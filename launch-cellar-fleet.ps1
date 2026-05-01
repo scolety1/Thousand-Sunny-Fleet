@@ -7,6 +7,8 @@ param(
 
     [string]$FleetGroup = "CellarFleet",
 
+    [string[]]$ExcludeProject = @(),
+
     [ValidateSet("cheap", "balanced", "premium")]
     [string]$BudgetMode = "cheap",
 
@@ -16,6 +18,12 @@ param(
     [int]$BatchSize = 0,
 
     [int]$MaxBatches = 0,
+
+    [int]$MaxRuntimeMinutes = 0,
+
+    [int]$MaxCompletedTasks = 0,
+
+    [int]$MaxPlannerBatches = 0,
 
     [int]$RateLimitCooldownSeconds = 3600,
 
@@ -52,6 +60,19 @@ function Stop-WithMessage {
     exit 1
 }
 
+function ConvertTo-ProjectList {
+    param([string[]]$Values)
+
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
+}
+
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
 
@@ -65,15 +86,28 @@ $projects = if ($parsedConfig.PSObject.Properties.Name -contains "value") {
 } else {
     @($parsedConfig | ForEach-Object { $_ })
 }
+$requestedExcludeNames = @(ConvertTo-ProjectList -Values $ExcludeProject)
 $cellarShips = @($projects | Where-Object { [string]$_.fleetGroup -eq $FleetGroup } | Sort-Object name)
 if ($cellarShips.Count -eq 0) {
     Stop-WithMessage "No projects with fleetGroup=$FleetGroup found."
 }
 
+$selectedCellarShips = @($cellarShips | Where-Object { $requestedExcludeNames -notcontains [string]$_.name })
+if ($selectedCellarShips.Count -eq 0) {
+    Stop-WithMessage "All $FleetGroup ships were excluded."
+}
+
 $cellarNames = @($cellarShips | ForEach-Object { [string]$_.name })
-$excludeNames = @($projects | Where-Object { [string]$_.fleetGroup -ne $FleetGroup } | ForEach-Object { [string]$_.name } | Sort-Object -Unique)
+$selectedCellarNames = @($selectedCellarShips | ForEach-Object { [string]$_.name })
+$excludeNames = @(
+    @($projects | Where-Object { [string]$_.fleetGroup -ne $FleetGroup } | ForEach-Object { [string]$_.name }) +
+    $requestedExcludeNames
+) | Sort-Object -Unique
 
 Write-Host "$FleetGroup ships: $($cellarNames -join ', ')" -ForegroundColor Cyan
+if ($requestedExcludeNames.Count -gt 0) {
+    Write-Host "Selected $FleetGroup ships: $($selectedCellarNames -join ', ')" -ForegroundColor Cyan
+}
 if ($excludeNames.Count -gt 0) {
     Write-Host "Excluded ships: $($excludeNames -join ', ')" -ForegroundColor DarkGray
 }
@@ -96,12 +130,15 @@ if ($Mode -in @("school", "overnight")) {
 
 if ($BatchSize -gt 0) { $args += @("-BatchSize", $BatchSize) }
 if ($MaxBatches -gt 0) { $args += @("-MaxBatches", $MaxBatches) }
+if ($MaxRuntimeMinutes -gt 0) { $args += @("-MaxRuntimeMinutes", $MaxRuntimeMinutes) }
+if ($MaxCompletedTasks -gt 0) { $args += @("-MaxCompletedTasks", $MaxCompletedTasks) }
+if ($MaxPlannerBatches -gt 0) { $args += @("-MaxPlannerBatches", $MaxPlannerBatches) }
 
 if ($excludeNames.Count -gt 0) {
     $args += @("-ExcludeProject", ($excludeNames -join ","))
 }
 
-$args += @("-ExpectedProject", ($cellarNames -join ","))
+$args += @("-ExpectedProject", ($selectedCellarNames -join ","))
 
 if ($PushCheckpoint) { $args += "-PushCheckpoint" }
 if ($QuarantineFailedTasks) { $args += "-QuarantineFailedTasks" }

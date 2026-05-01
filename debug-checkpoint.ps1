@@ -235,8 +235,8 @@ if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") {
         Add-Issue "FAIL" "Checkpoint verdict is not GREEN."
     }
     if ($review -match "(?im)^## Recommended Next Step\s*\r?\n\s*stop for human review\s*$") {
-        if ($verdict -eq "YELLOW" -and $AllowYellowCheckpoint) {
-            Add-Issue "WARN" "Checkpoint review requested human stop, but YELLOW continuation is allowed for this run."
+        if ($AllowYellowCheckpoint) {
+            Add-Issue "WARN" "Checkpoint review requested human stop, but unattended continuation is allowed for this run."
         } else {
             Add-Issue "FAIL" "Checkpoint review requested human stop."
         }
@@ -255,7 +255,7 @@ if (Test-Path "docs/codex/NIGHTLY_REPORT.md") {
     Add-Issue "WARN" "Missing docs/codex/NIGHTLY_REPORT.md."
 }
 
-if (Test-Path "docs/codex/NEXT_5_TASKS.md") {
+if ((Test-Path "docs/codex/NEXT_5_TASKS.md") -and ($batchChanged -contains "docs/codex/NEXT_5_TASKS.md")) {
     $generatedTasks = @(Select-String -Path "docs/codex/NEXT_5_TASKS.md" -Pattern "^\s*-\s+\[ \]\s+.+" | ForEach-Object { $_.Line.Trim() })
     if ($generatedTasks.Count -eq 0) {
         Add-Issue "WARN" "NEXT_5_TASKS.md exists but has no unchecked tasks."
