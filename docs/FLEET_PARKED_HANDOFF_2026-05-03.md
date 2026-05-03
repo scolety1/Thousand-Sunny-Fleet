@@ -28,6 +28,7 @@
 
 ## Next Restart Order
 
+0. Token Efficiency System: add per-ship `CURRENT_STATE.md`, `RUNBOOK.md`, task packet templates, visual QA checklists, decision defaults, and focused squad launch presets so normal coding uses fewer tokens without lowering quality.
 1. EasyLife: phone-first polish, command/email flow, real daily-use usefulness.
 2. Formula-heavy labs: ForecastLab, LifeCapacity, RestaurantProfitLab, FinanceDecisionLab.
 3. Cellar fleet: depth passes and visual proof only, especially guest-facing hospitality pages.
@@ -63,4 +64,3 @@ If restarting a focused run, prefer targeted ships over the full fleet:
 - Re-running visual checks for every ship by default.
 - Creating new docs unless they become launch instructions or gates.
 - Rebuilding clean ships without changed files.
-
