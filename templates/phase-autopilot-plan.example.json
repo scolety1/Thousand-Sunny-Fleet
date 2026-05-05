@@ -1,0 +1,32 @@
+{
+  "phases": [
+    {
+      "number": 1,
+      "key": "phase-1-product-spine",
+      "name": "Product Spine",
+      "showable": "The app has a coherent first screen, primary navigation, and core workflow spine.",
+      "doneSignal": "Core routes, navigation, and first-screen job are coherent, with old surfaces still reachable.",
+      "nextCriteria": "Move to Phase 2 when remaining work is mostly visual system and polish.",
+      "reviewOutcome": "Phase 1 established the product spine. Phase 2 should refine the visual system without expanding scope.",
+      "tasks": [
+        "- [ ] Phase 1 - Navigation spine slice: make one small frontend-only improvement to primary navigation and route grouping. Acceptance: run the configured build command. [class:design risk:medium mode:single impact:visible surface:app scope:src/ accept:build]",
+        "- [ ] Phase 1 - First-screen job slice: make one small frontend-only improvement so the first screen clearly communicates the primary job. Acceptance: run the configured build command. [class:design risk:medium mode:single impact:visible surface:app scope:src/ accept:build]",
+        "- [ ] Phase 1 - Review packet: run checks and write docs/codex/PHASE_1_REVIEW.md. Do not start Phase 2. [class:proof risk:low mode:single impact:planning surface:docs scope:docs/codex/ accept:build]"
+      ]
+    },
+    {
+      "number": 2,
+      "key": "phase-2-visual-system",
+      "name": "Visual System",
+      "showable": "The app looks intentional, consistent, and appropriately styled for its audience.",
+      "doneSignal": "Tokens, typography, spacing, surfaces, and mobile density feel coherent.",
+      "nextCriteria": "Move to Phase 3 when remaining work is feature depth.",
+      "reviewOutcome": "Phase 2 established the visual foundation. Phase 3 should build feature depth.",
+      "tasks": [
+        "- [ ] Phase 2 - Visual token slice: refine shared visual tokens/styles. Acceptance: run the configured build command. [class:design risk:medium mode:single impact:visible surface:app scope:src/ accept:build]",
+        "- [ ] Phase 2 - Mobile visual slice: improve mobile density or readability on one high-traffic route. Acceptance: run the configured build command. [class:design risk:medium mode:single impact:visible surface:app scope:src/ accept:build]",
+        "- [ ] Phase 2 - Review packet: run checks and write docs/codex/PHASE_2_REVIEW.md. Do not start Phase 3. [class:proof risk:low mode:single impact:planning surface:docs scope:docs/codex/ accept:build]"
+      ]
+    }
+  ]
+}
