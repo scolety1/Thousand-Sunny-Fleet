@@ -1824,6 +1824,29 @@ function New-ReplacementTaskLine {
         $safeScope = @("src/")
     }
 
+    $productScopePattern = "(?i)(^|/)(src|app-vNext/src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
+    $productSafeScope = @($safeScope | Where-Object { $_ -match $productScopePattern })
+    if ($productSafeScope.Count -eq 0) {
+        $fallbackScopes = @()
+        foreach ($candidate in @("app-vNext/src", "src", "app", "web", "pages", "components", "public", "styles", "css", "js")) {
+            if (Test-Path $candidate) {
+                $fallbackScopes += $candidate
+            }
+        }
+        foreach ($candidate in @("index.html", "wine.html")) {
+            if (Test-Path $candidate) {
+                $fallbackScopes += $candidate
+            }
+        }
+        if ($fallbackScopes.Count -eq 0) {
+            $fallbackScopes = @("src/")
+        }
+        $safeScope = @($fallbackScopes | Select-Object -Unique)
+        if ($taskClass -eq "docs") {
+            $taskClass = "bugfix"
+        }
+    }
+
     $safeReason = ([string]$Reason -replace "\s+", " ").Trim()
     if ($safeReason.Length -gt 220) {
         $safeReason = $safeReason.Substring(0, 220).Trim()

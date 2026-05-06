@@ -301,6 +301,7 @@ function Test-PhaseThreeTaskContractSupport {
     Assert-True -Condition ($loopText -match 'Large Phase 3 task requires') -Message "Large implementation work is blocked until planned"
     Assert-True -Condition ($loopText -match 'User pain: the previous task was quarantined before implementation') -Message "Auto recovery rewrites broad blocked tasks as product-shaped slices"
     Assert-True -Condition ($loopText -match 'First screen: keep the current primary screen job dominant') -Message "Auto recovery replacement tasks preserve first-screen dominance"
+    Assert-True -Condition ($loopText -match 'productSafeScope\.Count -eq 0' -and $loopText -match 'app-vNext/src' -and $loopText -match 'fallbackScopes') -Message "Auto recovery replaces docs-only visible repair scope with product surfaces"
     foreach ($label in @("Target:", "Change:", "First screen:", "Remove/simplify:", "Guardrails:", "Acceptance:", "Check:")) {
         Assert-True -Condition ($loopText -match [regex]::Escape($label)) -Message "Auto recovery replacement tasks include $label"
     }
