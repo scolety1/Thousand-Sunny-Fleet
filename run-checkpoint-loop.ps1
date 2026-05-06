@@ -718,6 +718,31 @@ function Get-TaskMaterialityFailureForLoop {
     return ""
 }
 
+function Get-VisibleImpactScopeFailureForLoop {
+    param([object]$Contract)
+
+    if ($null -eq $Contract -or [string]$Contract.impact -eq "standard" -or $Contract.scope.Count -eq 0) {
+        return ""
+    }
+
+    $normalizedScope = @(
+        $Contract.scope |
+            ForEach-Object { ([string]$_).Replace("\", "/").Trim("/") } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($normalizedScope.Count -eq 0) {
+        return ""
+    }
+
+    $surfacePattern = "(?i)(^|/)(src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
+    $surfaceScope = @($normalizedScope | Where-Object { $_ -match $surfacePattern })
+    if ($surfaceScope.Count -eq 0) {
+        return "Visible/showpiece task has docs-only or non-product scope. Add a product surface scope such as src/, public/, content/, or styles/ before implementation."
+    }
+
+    return ""
+}
+
 function Get-ArchitecturePlanStatusForLoop {
     if (!(Test-Path "docs/codex/ARCHITECTURE_APPROVAL.md")) {
         return "missing"
@@ -2990,6 +3015,13 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             $batchImpactMode = "visible"
         }
         Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), impact=$($taskContract.impact), scale=$taskImplementationScale, scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskAcceptanceCommands.Count -gt 0) { $taskAcceptanceCommands -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        $visibleScopeFailure = Get-VisibleImpactScopeFailureForLoop -Contract $taskContract
+        if (![string]::IsNullOrWhiteSpace($visibleScopeFailure)) {
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $visibleScopeFailure -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $visibleScopeFailure -Contract $taskContract
+            Write-Host $visibleScopeFailure -ForegroundColor Red
+            exit 1
+        }
         if ($taskContract.risk -in @("high", "gated") -and (Get-ArchitecturePlanStatusForLoop) -ne "approved") {
             $blockReason = "Task risk is $($taskContract.risk), but Phase 1 architecture approval is not present."
             if (Invoke-PreImplementationQuarantine -Task $task -Reason $blockReason -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
