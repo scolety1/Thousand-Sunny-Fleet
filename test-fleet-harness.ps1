@@ -216,6 +216,24 @@ Invoke-SensitiveIntentHarness `
     -Summary "Add auth login with password reset, no backend payment changes." `
     -RequiredPattern "(?i)\bauth\b|\blogin\b"
 
+$malformedAutoRepairTask = "- [ ] User pain: HQ repair is blocked by a bad generated task. Skill: debugging-and-error-recovery. Target: app-vNext/src/features/hq/routes/HQPage.tsx/, docs/codex/NIGHTLY_REPORT.md. Change: fix the HQ blocker. First screen: keep Today dominant. Remove/simplify: one vague label. Guardrails: no backend, auth, payments, dependencies, deployment config, generated output, or unrelated files. Acceptance: npm.cmd run build. Proof: NIGHTLY_REPORT.md records the repair. Stop if: build fails. Check: HQ reads clearly. [class:bugfix risk:low mode:single impact:visible surface:mixed scope:docs/codex/ accept:npm.cmd_run_build]"
+[void](Invoke-HarnessCommand -Name "Supervisor rejects malformed auto-repair task" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-supervisor.ps1"),
+    "-ValidateAutoRepairProject", "EasyLife",
+    "-ValidateAutoRepairTask", $malformedAutoRepairTask
+) -ExpectedExitCode 1)
+
+$validEasyLifeAutoRepairTask = "- [ ] User pain: the EasyLife HQ first screen can still feel like a module dashboard instead of a slick assistant command surface. Skill: debugging-and-error-recovery. Target: app-vNext/src/features/hq/routes/HQPage.tsx, app-vNext/src/styles/globals.css, docs/codex/NIGHTLY_REPORT.md, docs/codex/MAGIC_SCORECARD.md. Change: make one smallest HQ repair that keeps Today/assistant command action dominant and resolves the blocker named by the latest reports. First screen: Today command input, next action, and day plan stay above optional module detail. Remove/simplify: one repeated dashboard label, decorative wrapper, vague helper phrase, or extra stat that competes with Today. Guardrails: no backend, auth, payments, APIs, analytics, dependencies, deployment config, generated output, unrelated files, or new dashboard. Acceptance: npm.cmd run build from app-vNext. Proof: NIGHTLY_REPORT.md and MAGIC_SCORECARD.md record the exact HQ repair and remaining follow-up. Stop if: build fails, the fix needs files outside the exact target list, or the same HQ quality loop repeats. Check: the first viewport reads as a slick personal assistant, not a feature inventory. [class:bugfix risk:low mode:single impact:visible surface:hq scope:app-vNext/src/features/hq/routes/HQPage.tsx,app-vNext/src/styles/globals.css,docs/codex/NIGHTLY_REPORT.md,docs/codex/MAGIC_SCORECARD.md accept:npm.cmd_run_build_from_app-vNext]"
+[void](Invoke-HarnessCommand -Name "Supervisor accepts valid EasyLife auto-repair task" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-supervisor.ps1"),
+    "-ValidateAutoRepairProject", "EasyLife",
+    "-ValidateAutoRepairTask", $validEasyLifeAutoRepairTask
+))
+
 $selected = ($SelectedProjects -join ",")
 $excluded = ($ExcludedProjects -join ",")
 $latestLaunch = Join-Path $fleetRoot "out\latest-launch.md"

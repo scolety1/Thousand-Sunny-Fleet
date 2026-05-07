@@ -67,6 +67,9 @@ When `-QuarantineFailedTasks` is enabled, a repairable product/review failure sh
 - If the batch checkpoint is RED because a task was quarantined, write `QUALITY_QUARANTINE.md`, save the scorecard, and continue while quarantine budget remains.
 - Still stop for non-repairable safety gates: changed git history, unrestorable dirty work, secrets/auth/payments/deployment/dependency scope, missing required approvals for backend/migration/sensitive-system work, or repeated quality loops beyond the quarantine budget.
 - Replacement repair tasks must keep the original safe product scope, include a build/static acceptance command, and name `NIGHTLY_REPORT.md`/`MAGIC_SCORECARD.md` proof.
+- Supervisor-generated auto-repair tasks must pass Task Contract V2 validation before `TASK_QUEUE.md`, `AUTO_REPAIR.md`, or `PHASE_STATE.md` are committed.
+- Auto-repair validation rejects malformed paths such as `.tsx/`, visible `surface:mixed` work when the exact app surface is known, visible/product docs-only scope, and EasyLife repair acceptance that does not say `npm.cmd run build from app-vNext`.
+- EasyLife HQ auto-repair tasks must target exactly `app-vNext/src/features/hq/routes/HQPage.tsx`, `app-vNext/src/styles/globals.css`, `docs/codex/NIGHTLY_REPORT.md`, and `docs/codex/MAGIC_SCORECARD.md`.
 
 ## Example
 

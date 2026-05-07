@@ -41,6 +41,10 @@ param(
 
     [int]$RepairMaxBatches = 1,
 
+    [string]$ValidateAutoRepairTask = "",
+
+    [string]$ValidateAutoRepairProject = "",
+
     [switch]$Once
 )
 
@@ -494,16 +498,129 @@ function Complete-SupervisorRepairPhaseIfClear {
     return [pscustomobject]@{ completed = $true; reason = "repair clear"; returnPhase = $returnPhase }
 }
 
+function Get-TaskMetadataValue {
+    param(
+        [string]$Task,
+        [string]$Name
+    )
+
+    $metadataMatches = [regex]::Matches($Task, "\[([^\]]+)\]")
+    foreach ($match in $metadataMatches) {
+        $metadata = $match.Groups[1].Value
+        $valueMatch = [regex]::Match($metadata, "(?:^|\s)$([regex]::Escape($Name)):([^\s\]]+)")
+        if ($valueMatch.Success) { return $valueMatch.Groups[1].Value }
+    }
+    return ""
+}
+
+function Test-TaskContractField {
+    param(
+        [string]$Task,
+        [string]$FieldPattern
+    )
+
+    return [bool]([regex]::IsMatch($Task, "(?i)\b(?:$FieldPattern)\s*:"))
+}
+
+function Test-SupervisorAutoRepairTaskContract {
+    param(
+        [string]$Task,
+        [string]$ProjectName = ""
+    )
+
+    $issues = [System.Collections.Generic.List[string]]::new()
+    $requiredFields = @(
+        @{ name = "User pain"; pattern = "User pain" },
+        @{ name = "Skill/Workflow"; pattern = "Skill|Workflow" },
+        @{ name = "Target"; pattern = "Target" },
+        @{ name = "Change"; pattern = "Change" },
+        @{ name = "Remove/simplify"; pattern = "Remove/simplify" },
+        @{ name = "Guardrails"; pattern = "Guardrails" },
+        @{ name = "Acceptance"; pattern = "Acceptance" },
+        @{ name = "Proof"; pattern = "Proof" },
+        @{ name = "Stop if"; pattern = "Stop if" },
+        @{ name = "Check"; pattern = "Check" }
+    )
+    foreach ($field in $requiredFields) {
+        if (!(Test-TaskContractField -Task $Task -FieldPattern $field.pattern)) {
+            $issues.Add("missing $($field.name)") | Out-Null
+        }
+    }
+
+    foreach ($metadataName in @("class", "risk", "mode", "impact", "surface", "scope")) {
+        if ([string]::IsNullOrWhiteSpace((Get-TaskMetadataValue -Task $Task -Name $metadataName))) {
+            $issues.Add("missing metadata $metadataName") | Out-Null
+        }
+    }
+
+    $impact = (Get-TaskMetadataValue -Task $Task -Name "impact").ToLowerInvariant()
+    $surface = (Get-TaskMetadataValue -Task $Task -Name "surface").ToLowerInvariant()
+    $scope = (Get-TaskMetadataValue -Task $Task -Name "scope")
+    $isVisible = $impact -in @("visible", "showpiece")
+
+    if ($Task -match "(?i)\.tsx/") {
+        $issues.Add("target/scope contains malformed .tsx/ path") | Out-Null
+    }
+    if ($isVisible -and !(Test-TaskContractField -Task $Task -FieldPattern "First screen")) {
+        $issues.Add("visible repair task missing First screen") | Out-Null
+    }
+    if ($isVisible -and $surface -eq "mixed") {
+        $issues.Add("visible repair task cannot use surface:mixed when exact app surface is known") | Out-Null
+    }
+    if ($isVisible -and ![string]::IsNullOrWhiteSpace($scope)) {
+        $scopeParts = @($scope -split "," | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        $productScope = @($scopeParts | Where-Object { $_ -match "^(src/|app-vNext/src/|app-vNext/src/styles/|css/|js/|public/|content/|index\.html$|wine\.html$)" })
+        if ($productScope.Count -eq 0) {
+            $issues.Add("visible/product auto-repair task has docs-only scope") | Out-Null
+        }
+    }
+
+    if ([string]$ProjectName -eq "EasyLife") {
+        $acceptanceMatch = [regex]::Match($Task, "(?i)\bAcceptance\s*:\s*(.+?)(?:\bProof\s*:|$)")
+        $acceptanceText = if ($acceptanceMatch.Success) { $acceptanceMatch.Groups[1].Value } else { "" }
+        if ($acceptanceText -notmatch "(?i)npm\.cmd\s+run\s+build\s+from\s+app-vNext") {
+            $issues.Add("EasyLife auto-repair acceptance must say npm.cmd run build from app-vNext") | Out-Null
+        }
+
+        $isHqRepair = $Task -match "(?i)\bHQ\b|HQPage|Today/assistant|assistant command"
+        if ($isHqRepair) {
+            $requiredTargets = @(
+                "app-vNext/src/features/hq/routes/HQPage.tsx",
+                "app-vNext/src/styles/globals.css",
+                "docs/codex/NIGHTLY_REPORT.md",
+                "docs/codex/MAGIC_SCORECARD.md"
+            )
+            foreach ($target in $requiredTargets) {
+                if ($Task -notmatch [regex]::Escape($target)) {
+                    $issues.Add("EasyLife HQ repair missing exact target $target") | Out-Null
+                }
+            }
+            $allowedScope = ($requiredTargets -join ",")
+            if ($scope.Replace("\", "/") -ne $allowedScope) {
+                $issues.Add("EasyLife HQ repair scope must exactly match required target files") | Out-Null
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        valid = ($issues.Count -eq 0)
+        issues = @($issues)
+    }
+}
+
 function New-AutoRepairTaskLine {
     param([object]$Row)
 
     $pack = if ([string]::IsNullOrWhiteSpace([string]$Row.activePack) -or [string]$Row.activePack -eq "missing") { "the active work pack" } else { [string]$Row.activePack }
     $reason = ([string]$Row.recommendation).Trim()
     if ([string]::IsNullOrWhiteSpace($reason)) { $reason = "repair the current supervisor finding" }
+    if ([string]$Row.ship -eq "EasyLife") {
+        return "- [ ] User pain: the EasyLife HQ first screen can still feel like a module dashboard instead of a slick assistant command surface when a repair loop is triggered by '$reason'. Skill: debugging-and-error-recovery. Target: app-vNext/src/features/hq/routes/HQPage.tsx, app-vNext/src/styles/globals.css, docs/codex/NIGHTLY_REPORT.md, docs/codex/MAGIC_SCORECARD.md. Change: make one smallest HQ repair that keeps Today/assistant command action dominant and resolves the blocker named by the latest reports. First screen: Today command input, next action, and day plan stay above optional module detail. Remove/simplify: one repeated dashboard label, decorative wrapper, vague helper phrase, or extra stat that competes with Today. Guardrails: no backend, auth, payments, APIs, analytics, dependencies, deployment config, generated output, unrelated files, or new dashboard. Acceptance: npm.cmd run build from app-vNext. Proof: NIGHTLY_REPORT.md and MAGIC_SCORECARD.md record the exact HQ repair and remaining follow-up. Stop if: build fails, the fix needs files outside the exact target list, or the same HQ quality loop repeats. Check: the first viewport reads as a slick personal assistant, not a feature inventory. [class:bugfix risk:low mode:single impact:visible surface:hq scope:app-vNext/src/features/hq/routes/HQPage.tsx,app-vNext/src/styles/globals.css,docs/codex/NIGHTLY_REPORT.md,docs/codex/MAGIC_SCORECARD.md accept:npm.cmd_run_build_from_app-vNext]"
+    }
     if ([string]$Row.state -eq "BLOCKED_STAGING") {
-        return "- [ ] Repair lane for BLOCKED_STAGING in ${pack}: fix the information-staging launch blocker '$reason'. Skill: debugging-and-error-recovery. Target: docs/codex/INFORMATION_STAGING.md and the first unchecked TASK_QUEUE.md task only. Change: complete the surface split or first-screen metadata so the next visible/product task has exactly one surface tag and a concrete first-screen job. First screen: keep the documented primary screen job dominant while moving detail/internal content behind a clear opener. Remove/simplify: placeholder staging fields, missing surface metadata, duplicate surface metadata, or missing First screen text. Guardrails: documentation/task metadata repair only unless the staging contract explicitly needs one tiny matching source-label adjustment; no backend, auth, payments, secrets, package/dependency files, deployment config, generated output, broad rewrites, or unrelated files. Acceptance: fleet-launch-gate reports READY or WARN for this ship and fleet-product-dashboard shows staging as ready/doc ready. Proof: AUTO_REPAIR.md records the blocker and fleet-launch-gate output is clean enough to proceed. Stop if: the fix requires product UI changes beyond one matching label or cannot preserve the current first-screen contract. Check: run the launch gate and product dashboard for this ship. [class:bugfix risk:low mode:single impact:standard surface:mixed scope:docs/codex/]"
+        return "- [ ] User pain: the ship cannot launch because information staging metadata is blocking the next safe task. Skill: debugging-and-error-recovery. Target: docs/codex/INFORMATION_STAGING.md, docs/codex/TASK_QUEUE.md, docs/codex/AUTO_REPAIR.md. Change: complete the surface split or first-screen metadata so the next visible/product task has one concrete surface tag and job. Remove/simplify: placeholder staging fields, missing surface metadata, duplicate surface metadata, or missing First screen text. Guardrails: documentation/task metadata repair only; no backend, auth, payments, secrets, package/dependency files, deployment config, generated output, broad rewrites, product UI edits, or unrelated files. Acceptance: fleet-launch-gate reports READY or WARN for this ship. Proof: AUTO_REPAIR.md records the blocker and launch-gate result. Stop if: the fix requires product UI changes or cannot preserve the current first-screen contract. Check: run the launch gate and product dashboard for this ship. [class:bugfix risk:low mode:single impact:standard surface:staging scope:docs/codex/INFORMATION_STAGING.md,docs/codex/TASK_QUEUE.md,docs/codex/AUTO_REPAIR.md accept:fleet-launch-gate]"
       }
-    return "- [ ] Repair lane for $($Row.state) in ${pack}: inspect the latest MAGIC_SCORECARD, QUALITY_QUARANTINE, Simon, Robin, Joey, Visual, and nightly report notes, then make exactly one smallest blocker-clearing repair that addresses '$reason'; preserve the prior product phase, prefer reducing churn over adding features, keep No More Features Lock true. Skill: debugging-and-error-recovery. Target: src/, app-vNext/src/, css/, js/, wine.html, index.html, docs/codex/. Change: clear the smallest visible or proof blocker named by the reports. First screen: keep the current primary screen job dominant and move repaired helper/detail content behind the existing clear action. Remove/simplify: one blocker, repeated label, vague phrase, cramped control, or misleading visible detail. Guardrails: avoid backend, secrets, package/dependency files, deployment config, generated output, broad rewrites, and unrelated files. Acceptance: run the documented ship build/static check. Proof: NIGHTLY_REPORT.md and MAGIC_SCORECARD.md record the repaired blocker and any remaining follow-up. Stop if: the reports disagree, the fix requires sensitive scope, or the same quality loop repeats. Check: latest review output no longer names the same blocker. [class:bugfix risk:low mode:single impact:visible surface:mixed scope:src/,app-vNext/src/,css/,js/,wine.html,index.html,docs/codex/]"
+    return "- [ ] User pain: the latest quality reports block forward progress because one visible/proof issue is still unresolved in ${pack}. Skill: debugging-and-error-recovery. Target: src/, css/, js/, wine.html, index.html, docs/codex/NIGHTLY_REPORT.md, docs/codex/MAGIC_SCORECARD.md. Change: clear the smallest blocker named by '$reason' while preserving the prior product phase and No More Features Lock. First screen: keep the current primary screen job dominant and move repaired helper/detail content behind the existing clear action. Remove/simplify: one blocker, repeated label, vague phrase, cramped control, or misleading visible detail. Guardrails: no backend, auth, payments, secrets, package/dependency files, deployment config, generated output, broad rewrites, or unrelated files. Acceptance: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\codex-static-check.ps1. Proof: NIGHTLY_REPORT.md and MAGIC_SCORECARD.md record the repaired blocker and any remaining follow-up. Stop if: the reports disagree, the fix requires sensitive scope, or the same quality loop repeats. Check: latest review output no longer names the same blocker. [class:bugfix risk:low mode:single impact:visible surface:app scope:src/,css/,js/,wine.html,index.html,docs/codex/NIGHTLY_REPORT.md,docs/codex/MAGIC_SCORECARD.md accept:codex-static-check]"
   }
 
 function Add-SupervisorAutoRepairTask {
@@ -536,8 +653,13 @@ function Add-SupervisorAutoRepairTask {
     }
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $phaseRepair = Set-SupervisorRepairPhase -Row $Row -PhaseState $PhaseState
     $taskLine = New-AutoRepairTaskLine -Row $Row
+    $taskValidation = Test-SupervisorAutoRepairTaskContract -Task $taskLine -ProjectName ([string]$Row.ship)
+    if (!$taskValidation.valid) {
+        return [pscustomobject]@{ added = $false; reason = "auto-repair task failed Task Contract V2: $($taskValidation.issues -join '; ')"; task = $taskLine }
+    }
+
+    $phaseRepair = Set-SupervisorRepairPhase -Row $Row -PhaseState $PhaseState
     $sectionText = @(
         "## Supervisor Auto Repair $timestamp",
         "",
@@ -1032,6 +1154,16 @@ function Write-OvernightDigest {
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $DigestOutFile) | Out-Null
     Set-Content -Path $DigestOutFile -Value $digest
+}
+
+if (![string]::IsNullOrWhiteSpace($ValidateAutoRepairTask)) {
+    $validation = Test-SupervisorAutoRepairTaskContract -Task $ValidateAutoRepairTask -ProjectName $ValidateAutoRepairProject
+    if ($validation.valid) {
+        Write-Host "Auto-repair task contract valid." -ForegroundColor Green
+        exit 0
+    }
+    Write-Host "Auto-repair task contract invalid: $($validation.issues -join '; ')" -ForegroundColor Red
+    exit 1
 }
 
 if ($IntervalSeconds -lt 30) {
