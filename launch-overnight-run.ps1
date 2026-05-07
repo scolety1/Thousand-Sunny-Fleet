@@ -58,6 +58,8 @@ param(
 
     [switch]$UseGlobalRunShape,
 
+    [switch]$Safe12,
+
     [ValidateSet("off", "warn", "enforce")]
     [string]$LaunchGateMode = "warn",
 
@@ -214,6 +216,28 @@ if ($RobinEvery -lt 0) { Stop-WithMessage "-RobinEvery must be 0 or greater." }
 if ($AccessibilityEvery -lt 0) { Stop-WithMessage "-AccessibilityEvery must be 0 or greater." }
 if ($PerformanceEvery -lt 0) { Stop-WithMessage "-PerformanceEvery must be 0 or greater." }
 if ($JoeyEvery -lt 0) { Stop-WithMessage "-JoeyEvery must be 0 or greater." }
+
+if ($Safe12) {
+    $BatchSize = 1
+    $MaxBatches = 24
+    $MaxRuntimeMinutes = 720
+    $MaxCompletedTasks = 14
+    $MaxPlannerBatches = 0
+    $VisualInspectEvery = 2
+    $SimonEvery = 2
+    $RobinEvery = 3
+    $AccessibilityEvery = 4
+    $PerformanceEvery = 4
+    $JoeyEvery = 4
+    $MaxTaskQuarantines = 5
+    $BudgetMode = "balanced"
+    $LoopPhase = "simplicity"
+    $LaunchGateMode = "warn"
+    $KillSwitchMode = "warn"
+    $UseGlobalRunShape = $true
+    $QuarantineFailedTasks = $true
+    $PushCheckpoint = $true
+}
 
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
