@@ -10,6 +10,8 @@ param(
 
     [switch]$IgnoreDryRuns,
 
+    [switch]$ScheduleOnly,
+
     [string]$ScheduledRunLogRoot = "",
 
     [string]$OutFile = "out\fleet-night-report.md",
@@ -191,47 +193,50 @@ if ($IgnoreDryRuns) {
     })
 }
 $shipRows = @()
-foreach ($projectConfig in $projects) {
-    $name = [string]$projectConfig.name
-    $repo = [string]$projectConfig.repo
-    if (!(Test-Path -LiteralPath $repo)) {
-        $shipRows += [pscustomobject]@{
-            ship = $name; repo = $repo; status = "MISSING"; branch = ""; head = ""; dirtyCount = 0; lock = "missing"
-            tasks = 0; latestResult = "missing"; latestTask = ""; latestRisk = ""; recommendation = "fix repo path"
+if (!$ScheduleOnly) {
+    foreach ($projectConfig in $projects) {
+        $name = [string]$projectConfig.name
+        $repo = [string]$projectConfig.repo
+        if (!(Test-Path -LiteralPath $repo)) {
+            $shipRows += [pscustomobject]@{
+                ship = $name; repo = $repo; status = "MISSING"; branch = ""; head = ""; dirtyCount = 0; lock = "missing"
+                tasks = 0; latestResult = "missing"; latestTask = ""; latestRisk = ""; recommendation = "fix repo path"
+            }
+            continue
         }
-        continue
-    }
 
-    Push-Location $repo
-    $branch = (git branch --show-current 2>$null)
-    $head = (git rev-parse --short HEAD 2>$null)
-    $dirty = @(git status --short 2>$null)
-    Pop-Location
+        Push-Location $repo
+        $branch = (git branch --show-current 2>$null)
+        $head = (git rev-parse --short HEAD 2>$null)
+        $dirty = @(git status --short 2>$null)
+        Pop-Location
 
-    $lock = Get-RunLockStatus -ProjectName $name
-    $outcome = Get-LatestNightlyOutcome -Repo $repo
-    $tasks = Get-UncheckedTaskCount -Repo $repo
-    $status = Resolve-ShipStatus -Dirty ($dirty.Count -gt 0) -LockActive $lock.active -LatestResult $outcome.result -Tasks $tasks
-    $shipRows += [pscustomobject]@{
-        ship = $name
-        repo = $repo
-        status = $status
-        branch = $branch
-        head = $head
-        dirtyCount = $dirty.Count
-        lock = $lock.text
-        tasks = $tasks
-        latestResult = $outcome.result
-        latestTask = $outcome.task
-        latestRisk = $outcome.risk
-        latestReportTime = $outcome.reportTime
-        recommendation = Get-Recommendation -Status $status
+        $lock = Get-RunLockStatus -ProjectName $name
+        $outcome = Get-LatestNightlyOutcome -Repo $repo
+        $tasks = Get-UncheckedTaskCount -Repo $repo
+        $status = Resolve-ShipStatus -Dirty ($dirty.Count -gt 0) -LockActive $lock.active -LatestResult $outcome.result -Tasks $tasks
+        $shipRows += [pscustomobject]@{
+            ship = $name
+            repo = $repo
+            status = $status
+            branch = $branch
+            head = $head
+            dirtyCount = $dirty.Count
+            lock = $lock.text
+            tasks = $tasks
+            latestResult = $outcome.result
+            latestTask = $outcome.task
+            latestRisk = $outcome.risk
+            latestReportTime = $outcome.reportTime
+            recommendation = Get-Recommendation -Status $status
+        }
     }
 }
 
 $summary = [pscustomobject]@{
     generatedAt = (Get-Date).ToString("o")
     since = $since.ToString("o")
+    scheduleOnly = [bool]$ScheduleOnly
     scheduledRuns = $scheduledRows
     ships = $shipRows
 }
@@ -251,6 +256,7 @@ $lines = @(
     "- Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
     "- Window: last $SinceHours hour(s)",
     "- Ignore dry-runs: $([bool]$IgnoreDryRuns)",
+    "- Schedule only: $([bool]$ScheduleOnly)",
     "- Scheduled attempts: $($scheduledRows.Count)",
     "- Launched: $launched",
     "- Skipped: $skipped",

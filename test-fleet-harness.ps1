@@ -618,6 +618,7 @@ try {
         "-File", (Join-Path $fleetRoot "fleet-night-report.ps1"),
         "-SinceHours", "1",
         "-IgnoreDryRuns",
+        "-ScheduleOnly",
         "-ScheduledRunLogRoot", $scheduledLogRoot,
         "-ExcludeProject", (($SelectedProjects + $ExcludedProjects) -join ","),
         "-OutFile", $nightReportHarnessMd,
@@ -627,7 +628,9 @@ try {
     if (Test-Path -LiteralPath $nightReportHarnessJson) {
         $nightReportHarness = Get-Content -LiteralPath $nightReportHarnessJson -Raw | ConvertFrom-Json
         $scheduledRunCount = @($nightReportHarness.scheduledRuns).Count
+        $shipCount = @($nightReportHarness.ships).Count
         Add-TestResult -Name "Night report removed harness dry-run log" -Passed ($scheduledRunCount -eq 0) -Detail "scheduledRuns=$scheduledRunCount"
+        Add-TestResult -Name "Night report schedule-only skips ship attention" -Passed ($shipCount -eq 0 -and $nightReportHarness.scheduleOnly) -Detail "ships=$shipCount scheduleOnly=$($nightReportHarness.scheduleOnly)"
     } else {
         Add-TestResult -Name "Night report harness JSON exists" -Passed $false -Detail $nightReportHarnessJson
     }
