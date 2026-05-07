@@ -6,6 +6,8 @@ param(
 
     [string[]]$Project = @("RestaurantDemo", "ShiftPlate", "EasyLife"),
 
+    [string[]]$ExpectedProject = @(),
+
     [ValidateSet("cheap", "balanced", "premium")]
     [string]$BudgetMode = "balanced",
 
@@ -91,6 +93,18 @@ function ConvertTo-ProjectList {
             Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
             Sort-Object -Unique
     )
+}
+
+function Read-RunModeActiveProjects {
+    $runModePath = Join-Path $fleetRoot "fleet\control\run-mode.json"
+    if (!(Test-Path -LiteralPath $runModePath)) { return @() }
+    try {
+        $runMode = Get-Content -LiteralPath $runModePath -Raw | ConvertFrom-Json
+        if ($null -eq $runMode -or $null -eq $runMode.activeProjects) { return @() }
+        return @(ConvertTo-ProjectList -Values @($runMode.activeProjects | ForEach-Object { [string]$_ }))
+    } catch {
+        return @()
+    }
 }
 
 function Test-RunProcessActive {
@@ -182,6 +196,23 @@ function Save-ReportOnlyDirtyFiles {
 }
 
 $Project = @(ConvertTo-ProjectList -Values $Project)
+$activeProjects = @(Read-RunModeActiveProjects)
+if ($activeProjects.Count -gt 0) {
+    $Project = @($Project | Where-Object { $activeProjects -contains $_ })
+}
+if ($Project.Count -eq 0) {
+    Write-ScheduledLog "No selected projects remain after applying active run-mode scope."
+    exit 0
+}
+$expectedProjects = @(ConvertTo-ProjectList -Values $ExpectedProject)
+if ($expectedProjects.Count -gt 0) {
+    $missingExpected = @($expectedProjects | Where-Object { $Project -notcontains $_ })
+    $unexpectedExpected = @($Project | Where-Object { $expectedProjects -notcontains $_ })
+    if ($missingExpected.Count -gt 0 -or $unexpectedExpected.Count -gt 0) {
+        Write-ScheduledLog "ExpectedProject validation failed. Expected: $($expectedProjects -join ', '); actual: $($Project -join ', ')."
+        exit 1
+    }
+}
 Write-ScheduledLog "Selected overnight run '$RunLabel' checking projects: $($Project -join ', ')"
 Write-ScheduledLog "Run shape: budget $BudgetMode, phase $LoopPhase, batch size $BatchSize, max batches $MaxBatches, max tasks $MaxCompletedTasks, planner batches $MaxPlannerBatches, visual every $VisualInspectEvery, Simon every $SimonEvery, Robin every $RobinEvery, Joey every $JoeyEvery, launch gate $LaunchGateMode, kill switch $KillSwitchMode, quarantine budget $MaxTaskQuarantines."
 

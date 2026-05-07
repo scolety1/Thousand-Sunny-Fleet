@@ -59,6 +59,17 @@ function Get-RunModeProjectNames {
     return @(ConvertTo-NameList -Values @($RunMode.activeProjects | ForEach-Object { [string]$_ }))
 }
 
+function Limit-ToActiveProjects {
+    param(
+        [object[]]$Projects,
+        [object]$RunMode
+    )
+
+    $activeNames = @(Get-RunModeProjectNames -RunMode $RunMode)
+    if ($activeNames.Count -eq 0) { return @($Projects) }
+    return @($Projects | Where-Object { $activeNames -contains [string]$_.name })
+}
+
 function Get-RepoDirtyFiles {
     param([string]$Repo)
 
@@ -255,6 +266,7 @@ function Get-WatchdogLaunchArgs {
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1"),
         "-Project", $ProjectName,
+        "-ExpectedProject", $ProjectName,
         "-RunLabel", "$RunLabel-$ProjectName",
         "-BudgetMode", "balanced",
         "-LoopPhase", $LoopPhase,
@@ -350,6 +362,7 @@ $excluded = @(ConvertTo-NameList -Values $ExcludeProject)
 if ($requested.Count -gt 0) {
     $projects = @($projects | Where-Object { $requested -contains "$($_.name)" })
 }
+$projects = @(Limit-ToActiveProjects -Projects $projects -RunMode $runMode)
 if ($excluded.Count -gt 0) {
     $projects = @($projects | Where-Object { $excluded -notcontains "$($_.name)" })
 }

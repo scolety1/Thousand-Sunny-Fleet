@@ -45,6 +45,8 @@ param(
 
     [string]$ValidateAutoRepairProject = "",
 
+    [switch]$AllProjects,
+
     [switch]$Once
 )
 
@@ -338,6 +340,40 @@ function Get-RunLockStatus {
     } catch {
         return [pscustomobject]@{ text = "unreadable"; active = $false; stale = $true; idleShell = $false; pid = 0; activeChildCount = 0; childSummary = ""; path = $lockPath }
     }
+}
+
+function ConvertTo-SupervisorProjectList {
+    param([string[]]$Values = @())
+
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
+}
+
+function Get-RunModeActiveProjects {
+    $runModePath = Join-Path $fleetRoot "fleet\control\run-mode.json"
+    if (!(Test-Path -LiteralPath $runModePath)) { return @() }
+    try {
+        $runMode = Get-Content -LiteralPath $runModePath -Raw | ConvertFrom-Json
+        if ($null -eq $runMode -or $null -eq $runMode.activeProjects) { return @() }
+        return @(ConvertTo-SupervisorProjectList -Values @($runMode.activeProjects | ForEach-Object { [string]$_ }))
+    } catch {
+        return @()
+    }
+}
+
+function Test-ProjectInActiveSupervisorScope {
+    param([string]$ProjectName)
+
+    if ($AllProjects) { return $true }
+    $activeNames = @(Get-RunModeActiveProjects)
+    if ($activeNames.Count -eq 0) { return $true }
+    return ($activeNames -contains $ProjectName)
 }
 
 function ConvertTo-FleetSafeStopName {
@@ -709,6 +745,9 @@ function Test-UncheckedAutoRepairTask {
 function Start-SupervisorRepairRun {
     param([object]$Row)
 
+    if (!(Test-ProjectInActiveSupervisorScope -ProjectName ([string]$Row.ship))) {
+        return [pscustomobject]@{ launched = $false; reason = "ship is outside active run-mode scope"; pid = 0; command = "" }
+    }
     if ($Row.dirty -ne "clean" -or $Row.lockActive) {
         return [pscustomobject]@{ launched = $false; reason = "ship is active or dirty"; pid = 0; command = "" }
     }
@@ -731,6 +770,7 @@ function Start-SupervisorRepairRun {
         "-ExecutionPolicy", "Bypass",
         "-File", $scriptPath,
         "-Project", ([string]$Row.ship),
+        "-ExpectedProject", ([string]$Row.ship),
         "-BatchSize", ([string]$RepairBatchSize),
         "-MaxBatches", ([string]$RepairMaxBatches),
         "-LoopPhase", "repair",
@@ -844,6 +884,17 @@ function Write-SupervisorReport {
             exit 1
         }
         $projects = @($projects | Where-Object { $selectedProjects -contains [string]$_.name })
+    } elseif (!$AllProjects) {
+        $activeProjectNames = @(Get-RunModeActiveProjects)
+        if ($activeProjectNames.Count -gt 0) {
+            $projects = @($projects | Where-Object { $activeProjectNames -contains [string]$_.name })
+        }
+    }
+    if (!$AllProjects) {
+        $activeProjectNamesForExplicitSelection = @(Get-RunModeActiveProjects)
+        if ($activeProjectNamesForExplicitSelection.Count -gt 0) {
+            $projects = @($projects | Where-Object { $activeProjectNamesForExplicitSelection -contains [string]$_.name })
+        }
     }
     $exclude = @($ExcludeProject | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { [string]$_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     if ($exclude.Count -gt 0) {

@@ -234,7 +234,24 @@ $validEasyLifeAutoRepairTask = "- [ ] User pain: the EasyLife HQ first screen ca
     "-ValidateAutoRepairTask", $validEasyLifeAutoRepairTask
 ))
 
-$selected = ($SelectedProjects -join ",")
+$activeRunModePathForHarness = Join-Path $fleetRoot "fleet\control\run-mode.json"
+$activeProjectsForHarness = @()
+if (Test-Path -LiteralPath $activeRunModePathForHarness) {
+    try {
+        $activeRunModeForHarness = Get-Content -LiteralPath $activeRunModePathForHarness -Raw | ConvertFrom-Json
+        if ($null -ne $activeRunModeForHarness -and $null -ne $activeRunModeForHarness.activeProjects) {
+            $activeProjectsForHarness = @(ConvertTo-ProjectList -Values @($activeRunModeForHarness.activeProjects | ForEach-Object { [string]$_ }))
+        }
+    } catch {}
+}
+$launchExpectedProjects = @($SelectedProjects)
+if ($activeProjectsForHarness.Count -gt 0) {
+    $launchExpectedProjects = @($SelectedProjects | Where-Object { $activeProjectsForHarness -contains $_ })
+}
+if ($launchExpectedProjects.Count -eq 0) {
+    $launchExpectedProjects = @("__no_active_selected_project__")
+}
+$selected = ($launchExpectedProjects -join ",")
 $excluded = ($ExcludedProjects -join ",")
 $latestLaunch = Join-Path $fleetRoot "out\latest-launch.md"
 $latestProofLaunch = Join-Path $fleetRoot "out\latest-proof-launch.md"
@@ -258,17 +275,17 @@ Add-TestResult -Name "Selected launch dry-run does not overwrite latest real lau
 
 if (Test-Path $latestProofLaunch) {
     $launchText = Get-Content $latestProofLaunch -Raw
-    foreach ($ship in $SelectedProjects) {
+    foreach ($ship in $launchExpectedProjects) {
         Add-TestResult -Name "Proof manifest includes $ship" -Passed ($launchText -match "\|\s*$([regex]::Escape($ship))\s*\|")
     }
-    foreach ($ship in $ExcludedProjects) {
+    foreach ($ship in @($ExcludedProjects + @($SelectedProjects | Where-Object { $launchExpectedProjects -notcontains $_ }))) {
         Add-TestResult -Name "Proof manifest excludes $ship" -Passed ($launchText -notmatch "\|\s*$([regex]::Escape($ship))\s*\|")
     }
 } else {
     Add-TestResult -Name "Proof manifest exists after selected dry-run" -Passed $false -Detail $latestProofLaunch
 }
 
-$tooSmallExpectedProjects = @($SelectedProjects | Select-Object -First ([Math]::Max(0, $SelectedProjects.Count - 1)))
+$tooSmallExpectedProjects = @($launchExpectedProjects | Select-Object -First ([Math]::Max(0, $launchExpectedProjects.Count - 1)))
 if ($tooSmallExpectedProjects.Count -eq 0) {
     $tooSmallExpectedProjects = @("__missing_selected_ship__")
 }
@@ -349,6 +366,50 @@ Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands MaxBatches" -Passe
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands runtime" -Passed ($watchdogSafe12Text -match "-MaxRuntimeMinutes 720\b")
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands task cap" -Passed ($watchdogSafe12Text -match "-MaxCompletedTasks 14\b")
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 keeps quarantine and push" -Passed ($watchdogSafe12Text -match "-QuarantineFailedTasks\b" -and $watchdogSafe12Text -match "-PushCheckpoint\b")
+
+$runModePath = Join-Path $fleetRoot "fleet\control\run-mode.json"
+$previousRunModeText = if (Test-Path -LiteralPath $runModePath) { Get-Content -LiteralPath $runModePath -Raw } else { $null }
+$restaurantLockPath = Join-Path $fleetRoot ".codex-local\locks\RestaurantDemo.lock.json"
+$previousRestaurantLock = if (Test-Path -LiteralPath $restaurantLockPath) { Get-Content -LiteralPath $restaurantLockPath -Raw } else { $null }
+try {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $runModePath) | Out-Null
+    ([ordered]@{ fleetMode = "ACTIVE"; activeProjects = @("EasyLife") } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $runModePath -Encoding UTF8
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $restaurantLockPath) | Out-Null
+    ([ordered]@{ project = "RestaurantDemo"; pid = 999999; startedAt = (Get-Date).AddHours(-2).ToString("o") } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $restaurantLockPath -Encoding UTF8
+
+    $easyOnlyScheduled = Invoke-HarnessCommand -Name "Scheduled dry-run respects EasyLife-only active scope" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1"),
+        "-DryRun",
+        "-SkipHarnessTest"
+    )
+    $easyOnlyScheduledText = ($easyOnlyScheduled.output -join "`n")
+    Add-TestResult -Name "Scheduled dry-run only selects EasyLife" -Passed ($easyOnlyScheduledText -match "checking projects: EasyLife" -and $easyOnlyScheduledText -notmatch "checking projects:.*RestaurantDemo|Launching selected fleet:.*RestaurantDemo")
+    Add-TestResult -Name "RestaurantDemo stale lock untouched by EasyLife-only scheduled dry-run" -Passed (Test-Path -LiteralPath $restaurantLockPath)
+
+    $restaurantWatchdogDryRun = Invoke-HarnessCommand -Name "Watchdog dry-run filters RestaurantDemo outside active scope" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-runner-watchdog.ps1"),
+        "-Project", "RestaurantDemo",
+        "-ValidateLaunchCommandOnly",
+        "-DryRun"
+    )
+    $restaurantWatchdogText = ($restaurantWatchdogDryRun.output -join "`n")
+    Add-TestResult -Name "Watchdog does not produce RestaurantDemo launch under EasyLife-only scope" -Passed ($restaurantWatchdogText -notmatch "RestaurantDemo")
+} finally {
+    if ($null -ne $previousRunModeText) {
+        Set-Content -LiteralPath $runModePath -Value $previousRunModeText -Encoding UTF8
+    } else {
+        Remove-Item -LiteralPath $runModePath -Force -ErrorAction SilentlyContinue
+    }
+    if ($null -ne $previousRestaurantLock) {
+        Set-Content -LiteralPath $restaurantLockPath -Value $previousRestaurantLock -Encoding UTF8
+    } else {
+        Remove-Item -LiteralPath $restaurantLockPath -Force -ErrorAction SilentlyContinue
+    }
+}
 
 $heartbeatProject = "HarnessHeartbeat"
 $heartbeatRoot = Join-Path $fleetRoot ".codex-local\runs\$heartbeatProject"

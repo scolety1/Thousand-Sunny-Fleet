@@ -90,6 +90,18 @@ function ConvertTo-ProjectList {
     )
 }
 
+function Read-RunModeActiveProjects {
+    $runModePath = Join-Path $fleetRoot "fleet\control\run-mode.json"
+    if (!(Test-Path -LiteralPath $runModePath)) { return @() }
+    try {
+        $runMode = Get-Content -LiteralPath $runModePath -Raw | ConvertFrom-Json
+        if ($null -eq $runMode -or $null -eq $runMode.activeProjects) { return @() }
+        return @(ConvertTo-ProjectList -Values @($runMode.activeProjects | ForEach-Object { [string]$_ }))
+    } catch {
+        return @()
+    }
+}
+
 function Get-Projects {
     if (!(Test-Path $ConfigPath)) {
         Stop-WithMessage "Config not found: $ConfigPath"
@@ -106,6 +118,10 @@ function Get-Projects {
     if ($ExcludeProject.Count -gt 0) {
         $exclude = @(ConvertTo-ProjectList -Values $ExcludeProject)
         $projects = @($projects | Where-Object { $exclude -notcontains [string]$_.name })
+    }
+    $activeProjects = @(Read-RunModeActiveProjects)
+    if ($activeProjects.Count -gt 0) {
+        $projects = @($projects | Where-Object { $activeProjects -contains [string]$_.name })
     }
 
     return $projects

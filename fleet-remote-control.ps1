@@ -46,6 +46,8 @@ param(
 
     [switch]$ValidateLockCleanupOnly,
 
+    [switch]$AllProjects,
+
     [switch]$DryRun
 )
 
@@ -281,17 +283,24 @@ function Get-SelectedProjects {
         [string]$ConfigFile,
         [string[]]$RequestedProjects,
         [string[]]$ExcludedProjects,
-        [object]$RunMode
+        [object]$RunMode,
+        [bool]$IncludeAllProjects = $false
     )
 
     if (!(Test-Path $ConfigFile)) { Stop-WithMessage "Config not found: $ConfigFile" }
     $projects = @(Get-Content $ConfigFile -Raw | ConvertFrom-Json | ForEach-Object { $_ })
     $names = @($RequestedProjects | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
-    if ($names.Count -eq 0 -and $null -ne $RunMode -and $null -ne $RunMode.activeProjects) {
+    if (!$IncludeAllProjects -and $names.Count -eq 0 -and $null -ne $RunMode -and $null -ne $RunMode.activeProjects) {
         $names = @($RunMode.activeProjects | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     }
     if ($names.Count -gt 0) {
         $projects = @($projects | Where-Object { $names -contains [string]$_.name })
+    }
+    if (!$IncludeAllProjects -and $names.Count -gt 0 -and $null -ne $RunMode -and $null -ne $RunMode.activeProjects) {
+        $activeNames = @($RunMode.activeProjects | ForEach-Object { [string]$_ } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        if ($activeNames.Count -gt 0) {
+            $projects = @($projects | Where-Object { $activeNames -contains [string]$_.name })
+        }
     }
     if ($ExcludedProjects.Count -gt 0) {
         $projects = @($projects | Where-Object { $ExcludedProjects -notcontains [string]$_.name })
@@ -878,7 +887,7 @@ if ($ValidateStatusSnapshotOnly) {
         Stop-WithMessage "Config not found: $ConfigPath"
     }
     $runModeForSnapshot = if (Test-Path (Join-Path $controlPath "run-mode.json")) { Get-Content (Join-Path $controlPath "run-mode.json") -Raw | ConvertFrom-Json } else { $null }
-    $selectedForSnapshot = @(Get-SelectedProjects -ConfigFile $ConfigPath -RequestedProjects $Project -ExcludedProjects $ExcludeProject -RunMode $runModeForSnapshot)
+    $selectedForSnapshot = @(Get-SelectedProjects -ConfigFile $ConfigPath -RequestedProjects $Project -ExcludedProjects $ExcludeProject -RunMode $runModeForSnapshot -IncludeAllProjects ([bool]$AllProjects))
     foreach ($line in @(Get-ProjectSnapshotLines -Projects $selectedForSnapshot)) {
         Write-Host $line
     }
@@ -910,7 +919,7 @@ try {
 
     $runMode = Read-JsonFile -Path (Join-Path $controlPath "run-mode.json")
     $fleetMode = if ($null -ne $runMode -and $null -ne $runMode.fleetMode) { [string]$runMode.fleetMode } else { "PAUSED" }
-    $selectedProjects = @(Get-SelectedProjects -ConfigFile $ConfigPath -RequestedProjects $Project -ExcludedProjects $ExcludeProject -RunMode $runMode)
+    $selectedProjects = @(Get-SelectedProjects -ConfigFile $ConfigPath -RequestedProjects $Project -ExcludedProjects $ExcludeProject -RunMode $runMode -IncludeAllProjects ([bool]$AllProjects))
 
     $missionPath = Join-Path $controlPath "mission.md"
     $missionText = if (Test-Path $missionPath) { Get-Content $missionPath -Raw } else { "" }

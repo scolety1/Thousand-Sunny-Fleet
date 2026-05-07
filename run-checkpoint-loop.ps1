@@ -2,6 +2,8 @@
 param(
     [string]$Project,
 
+    [string[]]$ExpectedProject = @(),
+
     [string]$Repo,
 
     [string]$ConfigPath = ".\projects.json",
@@ -132,6 +134,19 @@ function Test-SmartDash {
         }
     }
     return $false
+}
+
+function ConvertTo-ExpectedProjectList {
+    param([string[]]$Values = @())
+
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
 }
 
 if ($ExtraArgs.Count -gt 0) {
@@ -3037,6 +3052,15 @@ if ($repoMatches.Count -ne 1) {
     exit 1
 }
 $repoPath = $repoMatches[0].Path
+
+$expectedProjectsForRun = @(ConvertTo-ExpectedProjectList -Values $ExpectedProject)
+if ($expectedProjectsForRun.Count -gt 0) {
+    $actualProjectForRun = [string]$script:projectConfig.name
+    if ($expectedProjectsForRun.Count -ne 1 -or $expectedProjectsForRun -notcontains $actualProjectForRun) {
+        Write-Host "Checkpoint loop ExpectedProject validation failed. Expected: $($expectedProjectsForRun -join ', '); actual: $actualProjectForRun" -ForegroundColor Red
+        exit 1
+    }
+}
 
 $script:profileConfig = $null
 $profileName = Get-ConfigPropertyValue -Object $script:projectConfig -Name "profile"
