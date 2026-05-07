@@ -1981,12 +1981,36 @@ function Add-ReplacementTaskAfterQuarantine {
     }
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Add-Content -Path $taskQueue -Value @(
+    $insertBlock = @(
         "",
         "## Fleet Auto Recovery $timestamp",
         "",
         $taskLine
     )
+
+    $queueLines = @(Get-Content $taskQueue)
+    $quarantinedIndex = -1
+    for ($lineIndex = 0; $lineIndex -lt $queueLines.Count; $lineIndex++) {
+        if ($queueLines[$lineIndex] -match "^\s*-\s*\[!\]") {
+            $quarantinedIndex = $lineIndex
+            break
+        }
+    }
+
+    if ($quarantinedIndex -ge 0) {
+        $updatedLines = [System.Collections.Generic.List[string]]::new()
+        for ($lineIndex = 0; $lineIndex -lt $queueLines.Count; $lineIndex++) {
+            $updatedLines.Add($queueLines[$lineIndex]) | Out-Null
+            if ($lineIndex -eq $quarantinedIndex) {
+                foreach ($insertLine in $insertBlock) {
+                    $updatedLines.Add($insertLine) | Out-Null
+                }
+            }
+        }
+        Set-Content -Path $taskQueue -Value $updatedLines
+    } else {
+        Add-Content -Path $taskQueue -Value $insertBlock
+    }
     return $true
 }
 
@@ -3764,6 +3788,26 @@ REVIEW_FINDING: P2: short description
     $checkpointIsRed = $checkpointText -match "(?is)## Verdict\s+RED\b"
     $checkpointRequestsHumanReview = $checkpointText -match "(?i)stop for human review"
     if ($checkpointIsRed -or ($checkpointRequestsHumanReview -and -not $ContinueOnYellowCheckpoint)) {
+        if ($QuarantineFailedTasks -and $script:TaskQuarantineCount -gt 0 -and $script:TaskQuarantineCount -lt $MaxTaskQuarantines) {
+            $reason = if ($checkpointIsRed) {
+                "Checkpoint review is RED after a quarantined task; continue with the inserted bounded repair task instead of stopping for human review."
+            } else {
+                "Checkpoint review requested human review after a quarantined task; continue with the inserted bounded repair task instead of stopping."
+            }
+            Append-QualityQuarantineReport -Reason $reason -Batch $batch -SimonScore (Get-SimonImprovementScoreForLoop)
+            Stage-Files -Paths @("docs/codex/QUALITY_QUARANTINE.md")
+            $pendingCheckpointRepairCommit = @(git diff --cached --name-only)
+            if ($pendingCheckpointRepairCommit.Count -gt 0) {
+                if (-not (Invoke-FleetCommit -Message "Codex checkpoint repair order batch $batch")) { exit 1 }
+            }
+            if (-not $batchQualityRecorded) {
+                if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit -1 -DebugLogName "" -CommitMessage "Codex batch QA scorecard $batch auto repair")) { exit 1 }
+                $batchQualityRecorded = $true
+            }
+            Write-Host "Checkpoint review requested attention after quarantine. Continuing with auto-repair because quarantine budget remains." -ForegroundColor Yellow
+            continue
+        }
+
         if (-not $batchQualityRecorded) {
             if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit -1 -DebugLogName "" -CommitMessage "Codex batch QA scorecard $batch human stop")) { exit 1 }
             $batchQualityRecorded = $true

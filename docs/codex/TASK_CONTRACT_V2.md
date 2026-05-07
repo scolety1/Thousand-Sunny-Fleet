@@ -59,6 +59,15 @@ The harness should reject, quarantine, or at least mark blocked before implement
 - a migration task lacks migration and fixture evidence
 - a V2 task declares one of `Skill`, `Proof`, or `Stop if` but omits the others
 
+## Autonomous Repair Policy
+
+When `-QuarantineFailedTasks` is enabled, a repairable product/review failure should become another bounded V2 repair task, not a default human stop.
+
+- If implementation or review reports an unresolved P1/P2, quarantine the task, restore its unsafe/unaccepted changes, and insert a smaller repair task immediately after the quarantined queue line.
+- If the batch checkpoint is RED because a task was quarantined, write `QUALITY_QUARANTINE.md`, save the scorecard, and continue while quarantine budget remains.
+- Still stop for non-repairable safety gates: changed git history, unrestorable dirty work, secrets/auth/payments/deployment/dependency scope, missing required approvals for backend/migration/sensitive-system work, or repeated quality loops beyond the quarantine budget.
+- Replacement repair tasks must keep the original safe product scope, include a build/static acceptance command, and name `NIGHTLY_REPORT.md`/`MAGIC_SCORECARD.md` proof.
+
 ## Example
 
 ```md
