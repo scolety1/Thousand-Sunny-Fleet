@@ -1,13 +1,13 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-07 01:00:04 Pacific Standard Time
+- Updated: 2026-05-07 01:04:46 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 4250045fc94c
 - Mission update: unchanged
 - Emergency stop: none
-- Supervisor cycle: 0
+- Supervisor cycle: not run
 - Fleet branch: main
-- Fleet HEAD: 443bf71
+- Fleet HEAD: bb02c48
 
 ## Projects
 ### Bottlelight
@@ -74,16 +74,6 @@
 - Unchecked tasks: 0
 - Phase: shape
 - Next workflow: none
-
-## Supervisor Summary
-- Bottlelight: LOOPING_QUALITY; c3127e7; clean; tasks 2; lock none; OK: commits 3, quarantines 3, quality 3
-- EasyLife: LOOPING_QUALITY; a2420e49; clean; tasks 9; lock none; OK: commits 1, quarantines 4, quality 0
-- EventBook: LOOPING_QUALITY; 093cd32; clean; tasks 4; lock none; OK: commits 2, quarantines 1, quality 3
-- LineupLab: LOOPING_QUALITY; eedd55b; clean; tasks 5; lock none; OK: commits 1, quarantines 2, quality 2
-- OrderPilot: BLOCKED_DIRTY; 4dfe9be; dirty 5; tasks 1; lock stale PID 12868; OK: commits 4, quarantines 1, quality 1
-- RestaurantDemo: LOOPING_QUALITY; 847717d; clean; tasks 7; lock none; OK: commits 2, quarantines 2, quality 1
-- ShiftLedger: LOOPING_QUALITY; 8bb0f2d; clean; tasks 2; lock none; OK: commits 3, quarantines 3, quality 2
-- UrbanKitchenSite: LOOPING_QUALITY; 52c3dc1; clean; tasks 0; lock none; OK: commits 5, quarantines 2, quality 1
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
