@@ -6,12 +6,18 @@ PAUSED
 ## Active Projects
 - EasyLife
 - RestaurantDemo
+- Bottlelight
+- EventBook
+- LineupLab
+- OrderPilot
+- ShiftLedger
+- UrbanKitchenSite
 
 ## Mission
-Keep the fleet paused until a current mission is written here.
+Prepare the selected product fleet for the next unattended run without launching automatically from this file. EasyLife continues the AI personal assistant reset, RestaurantDemo continues Urban Kitchen pilot launch readiness, and Cellar Fleet continues bounded hospitality showpiece polish.
 
 ## Priority
-Do not start new work without an explicit project and phase goal.
+Run only clean, bounded, product-surface tasks with build acceptance. Prefer one small repair or proof packet per ship before fresh feature expansion.
 
 ## Do Not Do
 - Do not deploy.
@@ -19,4 +25,4 @@ Do not start new work without an explicit project and phase goal.
 - Do not overwrite user-owned work.
 
 ## Next Checkpoint
-Report current project state and wait for direction.
+Confirm selected ships are clean, unlocked, unpaused, pushed to their private remotes, and have task supply before launch.

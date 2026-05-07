@@ -2,7 +2,13 @@
   "fleetMode": "PAUSED",
   "activeProjects": [
     "EasyLife",
-    "RestaurantDemo"
+    "RestaurantDemo",
+    "Bottlelight",
+    "EventBook",
+    "LineupLab",
+    "OrderPilot",
+    "ShiftLedger",
+    "UrbanKitchenSite"
   ],
   "quietHours": {
     "timeZone": "Pacific Standard Time",
