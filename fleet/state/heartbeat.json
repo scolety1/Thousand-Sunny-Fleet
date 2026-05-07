@@ -1,10 +1,10 @@
 ﻿{
-    "updatedAt":  "2026-05-07T00:00:04.0973111",
+    "updatedAt":  "2026-05-07T00:36:23.9430545",
     "reportDate":  "2026-05-07",
     "fleetMode":  "ACTIVE",
     "missionHash":  "4250045fc94c85977ac66e837b2cddf36a3e62a5b22519f34c59d7403d7c62a7",
-    "emergencyStop":  true,
-    "supervisorExitCode":  "0",
+    "emergencyStop":  false,
+    "supervisorExitCode":  "not run",
     "branch":  "main",
-    "head":  "5c7843d"
+    "head":  "4bfa1c3"
 }
