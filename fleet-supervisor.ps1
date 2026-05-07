@@ -469,7 +469,20 @@ function Complete-SupervisorRepairPhaseIfClear {
 
     $returnPhase = Get-RepairReturnPhase -PhaseState $PhaseState
     $phaseScript = Join-Path $fleetRoot "fleet-phase.ps1"
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $phaseScript -Project ([string]$Row.ship) -Phase $returnPhase -RepairTrigger "none" -RepairReturnPhase "" | Out-Null
+    $phaseArgs = @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $phaseScript,
+        "-Project",
+        ([string]$Row.ship),
+        "-Phase",
+        $returnPhase,
+        "-RepairTrigger",
+        "none"
+    )
+    & powershell @phaseArgs | Out-Null
     git add docs/codex/PHASE_STATE.md | Out-Null
     git commit -m "Codex supervisor exit repair phase" | Out-Null
     if ($LASTEXITCODE -ne 0) {
