@@ -1,13 +1,13 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-06 20:10:42 Pacific Standard Time
+- Updated: 2026-05-06 20:21:36 Pacific Standard Time
 - Fleet mode: PAUSED
 - Mission hash: eceee7a8e41d
 - Mission update: unchanged
 - Emergency stop: none
-- Supervisor cycle: not run
-- Fleet branch: codex/add-robin-copy-review
-- Fleet HEAD: 3782472
+- Supervisor cycle: 0
+- Fleet branch: main
+- Fleet HEAD: dbfc09c
 
 ## Projects
 ### EasyLife
@@ -24,6 +24,10 @@
 - Working tree: clean
 - Unchecked tasks: 0
 - Phase: phase-8-mobile-shift-mode
+
+## Supervisor Summary
+- EasyLife: BLOCKED_DIRTY; 6c3f62ff; dirty 1; tasks 5; lock stale PID 27236; OK: commits 0, quarantines 0, quality 0
+- RestaurantDemo: LOOPING_QUALITY; c88229e; clean; tasks 0; lock stale PID 25072; OK: commits 0, quarantines 0, quality 0
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
