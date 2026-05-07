@@ -1,5 +1,6 @@
-# Fleet Emergency
+﻿# Fleet Emergency
 
-Emergency: NONE
+Emergency: STOP_ALL
 
-To stop all selected projects at any hour, change the status line to STOP_ALL.
+Reason:
+Pause all selected fleet work at the next cooperative checkpoint. Preserve work, commit only safe completed checkpoints, and do not launch new runs.
