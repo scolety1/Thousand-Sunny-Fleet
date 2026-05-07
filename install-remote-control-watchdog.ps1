@@ -6,6 +6,13 @@ param(
 
     [int]$IntervalHours = 1,
 
+    [switch]$EnableRunner,
+
+    [int]$RunnerMaxLaunches = 2,
+
+    [ValidateSet("repair", "proof", "simplicity", "polish")]
+    [string]$RunnerLoopPhase = "repair",
+
     [switch]$RunNow
 )
 
@@ -28,7 +35,11 @@ if ($start -lt (Get-Date).AddMinutes(-1)) {
     $start = $start.AddDays(1)
 }
 
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$watchdogPath`"" -WorkingDirectory $fleetRoot
+$watchdogArguments = "-NoProfile -ExecutionPolicy Bypass -File `"$watchdogPath`""
+if ($EnableRunner) {
+    $watchdogArguments += " -EnableRunner -RunnerMaxLaunches $RunnerMaxLaunches -RunnerLoopPhase $RunnerLoopPhase"
+}
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $watchdogArguments -WorkingDirectory $fleetRoot
 $trigger = New-ScheduledTaskTrigger -Once -At $start -RepetitionInterval (New-TimeSpan -Hours $IntervalHours) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
@@ -37,7 +48,7 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Se
 
 Write-Host "Installed scheduled task: $TaskName" -ForegroundColor Green
 Write-Host "Next run: $((Get-ScheduledTaskInfo -TaskName $TaskName).NextRunTime)"
-Write-Host "Action: powershell.exe -NoProfile -ExecutionPolicy Bypass -File $watchdogPath"
+Write-Host "Action: powershell.exe $watchdogArguments"
 
 if ($RunNow) {
     Start-ScheduledTask -TaskName $TaskName

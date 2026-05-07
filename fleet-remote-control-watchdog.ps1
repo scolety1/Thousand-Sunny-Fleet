@@ -4,7 +4,14 @@ param(
 
     [switch]$NoSupervisor,
 
-    [switch]$NoPublish
+    [switch]$NoPublish,
+
+    [switch]$EnableRunner,
+
+    [int]$RunnerMaxLaunches = 2,
+
+    [ValidateSet("repair", "proof", "simplicity", "polish")]
+    [string]$RunnerLoopPhase = "repair"
 )
 
 $ErrorActionPreference = "Continue"
@@ -46,6 +53,7 @@ $process = Start-Process powershell.exe -WorkingDirectory $fleetRoot -ArgumentLi
 $process.WaitForExit()
 $process.Refresh()
 $exitCode = $process.ExitCode
+if ($null -eq $exitCode) { $exitCode = 0 }
 
 Write-WatchdogLog "Remote-control exit code: $exitCode"
 if (Test-Path $stdoutPath) {
@@ -64,6 +72,44 @@ if (Test-Path $statusPath) {
     Add-Content -Path $logPath -Value ""
     Add-Content -Path $logPath -Value "----- current status head -----"
     Add-Content -Path $logPath -Value (Get-Content $statusPath -TotalCount 40 -ErrorAction SilentlyContinue)
+}
+
+if ($EnableRunner) {
+    $runnerPath = Join-Path $fleetRoot "fleet-runner-watchdog.ps1"
+    $runnerStdoutPath = Join-Path $resolvedLogRoot "runner-$stamp.out.log"
+    $runnerStderrPath = Join-Path $resolvedLogRoot "runner-$stamp.err.log"
+    if (Test-Path $runnerPath) {
+        Write-WatchdogLog "Starting fleet runner watchdog."
+        $runnerArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $runnerPath,
+            "-MaxLaunches", ([string]$RunnerMaxLaunches),
+            "-LoopPhase", $RunnerLoopPhase
+        )
+        $runner = Start-Process powershell.exe -WorkingDirectory $fleetRoot -ArgumentList $runnerArgs -RedirectStandardOutput $runnerStdoutPath -RedirectStandardError $runnerStderrPath -PassThru -WindowStyle Hidden
+        $runner.WaitForExit()
+        $runner.Refresh()
+        $runnerExitCode = $runner.ExitCode
+        if ($null -eq $runnerExitCode) { $runnerExitCode = 0 }
+        Write-WatchdogLog "Runner watchdog exit code: $runnerExitCode"
+        if (Test-Path $runnerStdoutPath) {
+            Add-Content -Path $logPath -Value ""
+            Add-Content -Path $logPath -Value "----- runner stdout -----"
+            Add-Content -Path $logPath -Value (Get-Content $runnerStdoutPath -ErrorAction SilentlyContinue)
+        }
+        if (Test-Path $runnerStderrPath) {
+            Add-Content -Path $logPath -Value ""
+            Add-Content -Path $logPath -Value "----- runner stderr -----"
+            Add-Content -Path $logPath -Value (Get-Content $runnerStderrPath -ErrorAction SilentlyContinue)
+        }
+        if ($runnerExitCode -ne 0 -and ($null -eq $exitCode -or $exitCode -eq 0)) {
+            $exitCode = $runnerExitCode
+        }
+    } else {
+        Write-WatchdogLog "Runner watchdog requested but script is missing: $runnerPath"
+        if ($null -eq $exitCode -or $exitCode -eq 0) { $exitCode = 1 }
+    }
 }
 
 Copy-Item -LiteralPath $logPath -Destination $latestPath -Force -ErrorAction SilentlyContinue
