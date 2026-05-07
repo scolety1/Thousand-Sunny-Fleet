@@ -26,6 +26,8 @@ param(
 
     [int]$SupervisorTimeoutSeconds = 420,
 
+    [int]$IdleShellStaleMinutes = 45,
+
     [switch]$RunSupervisor,
 
     [switch]$AllowRepairLaunch,
@@ -41,6 +43,8 @@ param(
     [switch]$ValidateHeartbeatOnly,
 
     [switch]$ValidateStatusSnapshotOnly,
+
+    [switch]$ValidateLockCleanupOnly,
 
     [switch]$DryRun
 )
@@ -369,6 +373,71 @@ function Test-RunStateProcessActive {
     return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
 }
 
+function Get-RunStateChildProcesses {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return @() }
+    try {
+        return @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ProcessId" -ErrorAction SilentlyContinue)
+    } catch {
+        return @()
+    }
+}
+
+function Test-RunStateActiveChildWork {
+    param([int]$ProcessId)
+
+    $children = @(Get-RunStateChildProcesses -ProcessId $ProcessId)
+    $activeChildren = @($children | Where-Object {
+        $name = [string]$_.Name
+        ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+    })
+    return ($activeChildren.Count -gt 0)
+}
+
+function Get-RunLockStartedAt {
+    param(
+        [object]$Lock,
+        [string]$Path
+    )
+
+    foreach ($propertyName in @("startedAt", "createdAt", "timestamp", "updatedAt")) {
+        if ($null -ne $Lock -and $null -ne $Lock.PSObject.Properties[$propertyName]) {
+            try { return [DateTime]::Parse([string]$Lock.$propertyName, $null, [Globalization.DateTimeStyles]::RoundtripKind) } catch {}
+        }
+    }
+    if (Test-Path -LiteralPath $Path) {
+        return (Get-Item -LiteralPath $Path).LastWriteTime
+    }
+    return Get-Date
+}
+
+function Write-RunLockCleanupLog {
+    param(
+        [string]$ProjectName,
+        [string]$LockPath,
+        [int]$ProcessId,
+        [string]$Reason,
+        [bool]$Removed
+    )
+
+    $logPath = Join-Path $fleetRoot "out\fleet-lock-cleanup.md"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $logPath) | Out-Null
+    if (!(Test-Path -LiteralPath $logPath)) {
+        "# Fleet Lock Cleanup`n" | Set-Content -LiteralPath $logPath -Encoding UTF8
+    }
+    Add-Content -LiteralPath $logPath -Encoding UTF8 -Value @(
+        "",
+        "## $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+        "",
+        "- Project: $ProjectName",
+        "- Lock: $LockPath",
+        "- PID: $ProcessId",
+        "- Reason: $Reason",
+        "- Removed: $Removed"
+    )
+}
+
 function Get-ProjectRunLockState {
     param([string]$ProjectName)
 
@@ -381,9 +450,26 @@ function Get-ProjectRunLockState {
     try {
         $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
         $pidValue = if ($null -ne $lock.pid) { [int]$lock.pid } else { 0 }
-        $active = Test-RunStateProcessActive -ProcessId $pidValue
-        $state = if ($active) { "active" } else { "stale" }
-        return [pscustomobject]@{ state = $state; active = $active; pid = $pidValue; path = $lockPath }
+        $processActive = Test-RunStateProcessActive -ProcessId $pidValue
+        if (!$processActive) {
+            Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+            Write-RunLockCleanupLog -ProjectName $ProjectName -LockPath $lockPath -ProcessId $pidValue -Reason "dead PID" -Removed (!(Test-Path -LiteralPath $lockPath))
+            return [pscustomobject]@{ state = "removed-stale-dead-pid"; active = $false; pid = $pidValue; path = $lockPath }
+        }
+
+        if (Test-RunStateActiveChildWork -ProcessId $pidValue) {
+            return [pscustomobject]@{ state = "active"; active = $true; pid = $pidValue; path = $lockPath }
+        }
+
+        $startedAt = Get-RunLockStartedAt -Lock $lock -Path $lockPath
+        $idleMinutes = ((Get-Date) - $startedAt).TotalMinutes
+        if ($IdleShellStaleMinutes -ge 0 -and $idleMinutes -ge $IdleShellStaleMinutes) {
+            Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+            Write-RunLockCleanupLog -ProjectName $ProjectName -LockPath $lockPath -ProcessId $pidValue -Reason "idle shell stale for $([Math]::Round($idleMinutes, 1)) minutes with no active child work" -Removed (!(Test-Path -LiteralPath $lockPath))
+            return [pscustomobject]@{ state = "removed-stale-idle-shell"; active = $false; pid = $pidValue; path = $lockPath }
+        }
+
+        return [pscustomobject]@{ state = "idle-shell"; active = $false; pid = $pidValue; path = $lockPath }
     } catch {
         return [pscustomobject]@{ state = "unreadable"; active = $false; pid = 0; path = $lockPath }
     }
@@ -797,6 +883,17 @@ if ($ValidateStatusSnapshotOnly) {
         Write-Host $line
     }
     Write-Host "Remote status snapshot validation complete."
+    exit 0
+}
+
+if ($ValidateLockCleanupOnly) {
+    $names = @(ConvertTo-NameList -Values $Project)
+    if ($names.Count -eq 0) { $names = @("HarnessDeadLock") }
+    foreach ($name in $names) {
+        $state = Get-ProjectRunLockState -ProjectName $name
+        Write-Host "$name lock: state=$($state.state); active=$($state.active); pid=$($state.pid); path=$($state.path)"
+    }
+    Write-Host "Remote status lock cleanup validation complete."
     exit 0
 }
 

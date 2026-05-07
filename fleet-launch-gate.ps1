@@ -11,6 +11,8 @@ param(
     [ValidateSet("warn", "enforce")]
     [string]$Mode = "warn",
 
+    [int]$IdleShellStaleMinutes = 45,
+
     [string]$OutDir = "out\launch-gates"
 )
 
@@ -26,6 +28,104 @@ function Stop-WithMessage {
     param([string]$Message)
     Write-Host $Message -ForegroundColor Red
     exit 1
+}
+
+function ConvertTo-LaunchGateSafeName {
+    param([string]$Name)
+
+    $safeName = ([string]$Name) -replace "[^a-zA-Z0-9_.-]+", "-"
+    $safeName = $safeName.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeName)) { return "project" }
+    return $safeName
+}
+
+function Test-LaunchGateProcessActive {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return $false }
+    return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
+}
+
+function Test-LaunchGateActiveChildWork {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return $false }
+    try {
+        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ProcessId" -ErrorAction SilentlyContinue)
+        $activeChildren = @($children | Where-Object {
+            $name = [string]$_.Name
+            ![string]::IsNullOrWhiteSpace($name) -and $name -notin @("conhost.exe")
+        })
+        return ($activeChildren.Count -gt 0)
+    } catch {
+        return $false
+    }
+}
+
+function Get-LaunchGateLockStartedAt {
+    param(
+        [object]$Lock,
+        [string]$Path
+    )
+
+    foreach ($propertyName in @("startedAt", "createdAt", "timestamp", "updatedAt")) {
+        if ($null -ne $Lock -and $null -ne $Lock.PSObject.Properties[$propertyName]) {
+            try { return [DateTime]::Parse([string]$Lock.$propertyName, $null, [Globalization.DateTimeStyles]::RoundtripKind) } catch {}
+        }
+    }
+    if (Test-Path -LiteralPath $Path) { return (Get-Item -LiteralPath $Path).LastWriteTime }
+    return Get-Date
+}
+
+function Write-LaunchGateLockCleanupLog {
+    param(
+        [string]$ProjectName,
+        [string]$LockPath,
+        [int]$ProcessId,
+        [string]$Reason,
+        [bool]$Removed
+    )
+
+    $logPath = Join-Path $fleetRoot "out\fleet-lock-cleanup.md"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $logPath) | Out-Null
+    if (!(Test-Path -LiteralPath $logPath)) {
+        "# Fleet Lock Cleanup`n" | Set-Content -LiteralPath $logPath -Encoding UTF8
+    }
+    Add-Content -LiteralPath $logPath -Encoding UTF8 -Value @(
+        "",
+        "## $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+        "",
+        "- Project: $ProjectName",
+        "- Lock: $LockPath",
+        "- PID: $ProcessId",
+        "- Reason: $Reason",
+        "- Removed: $Removed"
+    )
+}
+
+function Invoke-LaunchGateStaleLockCleanup {
+    param([string]$ProjectName)
+
+    $safeName = ConvertTo-LaunchGateSafeName -Name $ProjectName
+    $lockPath = Join-Path $fleetRoot ".codex-local\locks\$safeName.lock.json"
+    if (!(Test-Path -LiteralPath $lockPath)) { return }
+
+    try {
+        $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+        $pidValue = if ($null -ne $lock.pid) { [int]$lock.pid } else { 0 }
+        if (!(Test-LaunchGateProcessActive -ProcessId $pidValue)) {
+            Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+            Write-LaunchGateLockCleanupLog -ProjectName $ProjectName -LockPath $lockPath -ProcessId $pidValue -Reason "dead PID during launch preflight" -Removed (!(Test-Path -LiteralPath $lockPath))
+            return
+        }
+        if (Test-LaunchGateActiveChildWork -ProcessId $pidValue) { return }
+        $startedAt = Get-LaunchGateLockStartedAt -Lock $lock -Path $lockPath
+        $idleMinutes = ((Get-Date) - $startedAt).TotalMinutes
+        if ($IdleShellStaleMinutes -ge 0 -and $idleMinutes -ge $IdleShellStaleMinutes) {
+            Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+            Write-LaunchGateLockCleanupLog -ProjectName $ProjectName -LockPath $lockPath -ProcessId $pidValue -Reason "idle shell stale during launch preflight for $([Math]::Round($idleMinutes, 1)) minutes" -Removed (!(Test-Path -LiteralPath $lockPath))
+        }
+    } catch {}
 }
 
 function Get-Projects {
@@ -313,6 +413,7 @@ Set-Location $fleetRoot
 $ship = @(Get-Projects -Path $ConfigPath | Where-Object { [string]$_.name -ceq [string]$Project })
 if ($ship.Count -ne 1) { Stop-WithMessage "Project not found or ambiguous: $Project" }
 $ship = $ship[0]
+Invoke-LaunchGateStaleLockCleanup -ProjectName $Project
 
 $repo = Resolve-Path ([string]$ship.repo) -ErrorAction SilentlyContinue
 if (!$repo) { Stop-WithMessage "Repo not found: $($ship.repo)" }

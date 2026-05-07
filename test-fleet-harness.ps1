@@ -426,6 +426,38 @@ Remove-Item -LiteralPath $heartbeatPath -Force -ErrorAction SilentlyContinue
     "-DryRun"
 ))
 
+$lockCleanupRoot = Join-Path $fleetRoot ".codex-local\locks"
+New-Item -ItemType Directory -Force -Path $lockCleanupRoot | Out-Null
+$deadLockProject = "HarnessDeadLock"
+$deadLockPath = Join-Path $lockCleanupRoot "$deadLockProject.lock.json"
+([ordered]@{ project = $deadLockProject; pid = 999999; startedAt = (Get-Date).AddHours(-2).ToString("o") } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $deadLockPath -Encoding UTF8
+$deadLockCleanup = Invoke-HarnessCommand -Name "Remote status lock cleanup removes dead PID lock" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+    "-Project", $deadLockProject,
+    "-ValidateLockCleanupOnly",
+    "-DryRun"
+)
+Add-TestResult -Name "Dead PID lock file removed" -Passed (!(Test-Path -LiteralPath $deadLockPath) -and (($deadLockCleanup.output -join "`n") -match "removed-stale-dead-pid"))
+
+$activeChildLockProject = "HarnessActiveChildLock"
+$activeChildLockPath = Join-Path $lockCleanupRoot "$activeChildLockProject.lock.json"
+([ordered]@{ project = $activeChildLockProject; pid = $PID; startedAt = (Get-Date).AddHours(-2).ToString("o") } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $activeChildLockPath -Encoding UTF8
+try {
+    $activeChildCleanup = Invoke-HarnessCommand -Name "Remote status lock cleanup preserves active child lock" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+        "-Project", $activeChildLockProject,
+        "-ValidateLockCleanupOnly",
+        "-DryRun"
+    )
+    Add-TestResult -Name "Active child lock file preserved" -Passed ((Test-Path -LiteralPath $activeChildLockPath) -and (($activeChildCleanup.output -join "`n") -match "state=active"))
+} finally {
+    Remove-Item -LiteralPath $activeChildLockPath -Force -ErrorAction SilentlyContinue
+}
+
 $easyLifeSafe = "EasyLife"
 $easyLifeHeartbeatRoot = Join-Path $fleetRoot ".codex-local\runs\$easyLifeSafe"
 $easyLifeHeartbeatPath = Join-Path $easyLifeHeartbeatRoot "heartbeat.json"
