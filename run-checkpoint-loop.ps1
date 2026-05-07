@@ -537,6 +537,91 @@ function Get-FreeTcpPort {
     return $port
 }
 
+function ConvertTo-RunStateSafeName {
+    param([string]$Name)
+
+    $safeName = ([string]$Name) -replace "[^a-zA-Z0-9_.-]+", "-"
+    $safeName = $safeName.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeName)) { return "project" }
+    return $safeName
+}
+
+function Get-RunStateHead {
+    try {
+        $head = git rev-parse --short HEAD 2>$null
+        if ($LASTEXITCODE -ne 0) { return "" }
+        return [string]$head
+    } catch {
+        return ""
+    }
+}
+
+function New-RunShapeState {
+    return [ordered]@{
+        batchSize = $BatchSize
+        maxBatches = $MaxBatches
+        maxRuntimeMinutes = $MaxRuntimeMinutes
+        maxCompletedTasks = $MaxCompletedTasks
+        maxPlannerBatches = $MaxPlannerBatches
+        loopPhase = $LoopPhase
+        modelBudget = $ModelBudget
+        launchGateMode = $LaunchGateMode
+        killSwitchMode = $KillSwitchMode
+        visualEvery = $VisualEvery
+        visualInspectEvery = $VisualInspectEvery
+        simonEvery = $SimonEvery
+        robinEvery = $RobinEvery
+        accessibilityEvery = $AccessibilityEvery
+        performanceEvery = $PerformanceEvery
+        joeyEvery = $JoeyEvery
+        frankyEvery = $FrankyEvery
+        quarantineFailedTasks = [bool]$QuarantineFailedTasks
+        pushCheckpoint = [bool]$PushCheckpoint
+    }
+}
+
+function Initialize-RunHeartbeat {
+    param([string]$ProjectName)
+
+    $safeName = ConvertTo-RunStateSafeName -Name $ProjectName
+    $script:RunHeartbeatPath = Join-Path $fleetRoot ".codex-local\runs\$safeName\heartbeat.json"
+    $script:RunStartedAt = Get-Date
+    $script:RunLastProgressAt = $script:RunStartedAt
+    $script:RunCurrentTaskSummary = "starting"
+    $script:RunHeartbeatStatus = "starting"
+    $script:RunShapeState = New-RunShapeState
+}
+
+function Update-RunHeartbeat {
+    param(
+        [string]$Status = "",
+        [string]$CurrentTaskSummary = "",
+        [switch]$Progress
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$script:RunHeartbeatPath)) { return }
+
+    $now = Get-Date
+    if (![string]::IsNullOrWhiteSpace($Status)) { $script:RunHeartbeatStatus = $Status }
+    if (![string]::IsNullOrWhiteSpace($CurrentTaskSummary)) { $script:RunCurrentTaskSummary = $CurrentTaskSummary }
+    if ($Progress) { $script:RunLastProgressAt = $now }
+
+    $dir = Split-Path -Parent $script:RunHeartbeatPath
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $payload = [ordered]@{
+        project = [string]$script:projectConfig.name
+        pid = $PID
+        startedAt = $script:RunStartedAt.ToUniversalTime().ToString("o")
+        lastHeartbeatAt = $now.ToUniversalTime().ToString("o")
+        lastProgressAt = $script:RunLastProgressAt.ToUniversalTime().ToString("o")
+        runShape = $script:RunShapeState
+        currentTaskSummary = [string]$script:RunCurrentTaskSummary
+        lastCommit = Get-RunStateHead
+        status = [string]$script:RunHeartbeatStatus
+    }
+    $payload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:RunHeartbeatPath -Encoding UTF8
+}
+
 function Get-FirstUncheckedTask {
     foreach ($line in Get-Content "docs/codex/TASK_QUEUE.md" -ErrorAction SilentlyContinue) {
         if ($line -match "^\s*-\s+\[ \]\s+(.+)$") {
@@ -553,12 +638,14 @@ function Test-OvernightBudgetExceeded {
         $elapsedMinutes = ((Get-Date) - $script:BudgetStartedAt).TotalMinutes
         if ($elapsedMinutes -ge $MaxRuntimeMinutes) {
             Write-Host "Overnight budget stop before ${Moment}: runtime cap reached ($([Math]::Round($elapsedMinutes, 1)) / $MaxRuntimeMinutes minutes)." -ForegroundColor Yellow
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "runtime cap reached before $Moment" -Progress
             return $true
         }
     }
 
     if ($MaxCompletedTasks -gt 0 -and $script:CompletedTaskCount -ge $MaxCompletedTasks) {
         Write-Host "Overnight budget stop before ${Moment}: completed task cap reached ($script:CompletedTaskCount / $MaxCompletedTasks)." -ForegroundColor Yellow
+        Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "completed task cap reached before $Moment" -Progress
         return $true
     }
 
@@ -2156,9 +2243,11 @@ function Invoke-TaskQuarantine {
     $script:TaskQuarantineCount++
     $filesChanged = @(Get-TaskChangedFiles)
     Write-Host "Quarantining failed task $script:TaskQuarantineCount of $MaxTaskQuarantines, restoring task changes, and continuing." -ForegroundColor Yellow
+    Update-RunHeartbeat -Status "quarantined" -CurrentTaskSummary "batch $Batch task $TaskIndex quarantined: $Reason" -Progress
 
     if (-not (Restore-TaskChanges -TaskBase $TaskBase)) {
         Write-Host "Could not restore task changes cleanly. Ending loop for human review." -ForegroundColor Red
+        Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "quarantine restore failed for batch $Batch task $TaskIndex" -Progress
         return $false
     }
 
@@ -2171,10 +2260,12 @@ function Invoke-TaskQuarantine {
     $pendingQuarantineCommit = @(git diff --cached --name-only)
     if ($pendingQuarantineCommit.Count -gt 0) {
         if (-not (Invoke-FleetCommit -Message "Codex quarantine failed task batch $Batch task $TaskIndex")) {
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "quarantine commit failed for batch $Batch task $TaskIndex" -Progress
             return $false
         }
     }
 
+    Update-RunHeartbeat -Status "active" -CurrentTaskSummary "quarantined batch $Batch task $TaskIndex and continuing" -Progress
     return $true
 }
 
@@ -2985,6 +3076,9 @@ if ($ValidateOnly) {
     exit 0
 }
 
+Initialize-RunHeartbeat -ProjectName $script:projectConfig.name
+Update-RunHeartbeat -Status "starting" -CurrentTaskSummary "preflight gates" -Progress
+
 if ($LaunchGateMode -ne "off") {
     $gateArgs = @(
         "-NoProfile",
@@ -2998,6 +3092,7 @@ if ($LaunchGateMode -ne "off") {
     & powershell @gateArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Launch gate blocked $($script:projectConfig.name)." -ForegroundColor Red
+        Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "launch gate blocked" -Progress
         exit 1
     }
 }
@@ -3005,6 +3100,7 @@ if ($LaunchGateMode -ne "off") {
 if (!$AllowDuplicateRun) {
     Assert-NoDuplicateFleetRun -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
     Acquire-FleetRunLock -ProjectName $script:projectConfig.name -RepoFullPath $repoPath
+    Update-RunHeartbeat -Status "active" -CurrentTaskSummary "run lock acquired" -Progress
 }
 
 Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "startup"
@@ -3021,6 +3117,7 @@ if ($status.Count -gt 0) {
     } else {
         Write-Host "Repo is dirty. Commit, restore, or stash before starting checkpoint loop." -ForegroundColor Red
         git status
+        Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "startup dirty state blocked run" -Progress
         Release-FleetRunLock
         exit 1
     }
@@ -3049,6 +3146,7 @@ $script:PlannerBatchCount = 0
 
 for ($batch = 1; $batch -le $MaxBatches; $batch++) {
     if (Test-OvernightBudgetExceeded -Moment "checkpoint batch $batch") { break }
+    Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch starting" -Progress
     Invoke-FleetSafeStopCheck -ProjectName $script:projectConfig.name -Moment "before checkpoint batch $batch"
 
     if ($KillSwitchMode -ne "off") {
@@ -3064,6 +3162,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         & powershell @killArgs
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Kill switch parked $($script:projectConfig.name) before batch $batch." -ForegroundColor Red
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "kill switch parked before batch $batch" -Progress
             Release-FleetRunLock
             if (!$SkipShipPreviewRefresh) {
                 Update-ShipPreviewDashboard
@@ -3121,15 +3220,18 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         )
         $plannerExit = Invoke-FleetPowerShell -Arguments $plannerArgs -LogName "planner-batch-$batch.log" -TimeoutSeconds ($plannerTimeout + ($plannerRateLimitCooldown * $plannerRateLimitMaxCooldowns) + 120)
         if ($plannerExit -ne 0) {
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "planner failed in batch $batch" -Progress
             Release-FleetRunLock
             exit 1
         }
         if (-not (Import-NextTasks -Path "docs/codex/NEXT_5_TASKS.md")) {
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "planner import failed in batch $batch" -Progress
             Release-FleetRunLock
             exit 1
         }
         Stage-Files -Paths @("docs/codex/TASK_QUEUE.md", "docs/codex/NEXT_5_TASKS.md")
         if (-not (Invoke-FleetCommit -Message "Codex checkpoint planner tasks batch $batch")) {
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "planner commit failed in batch $batch" -Progress
             Release-FleetRunLock
             exit 1
         }
@@ -3145,6 +3247,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         Write-Host ""
         Write-Host "----- TASK $i of $BatchSize -----" -ForegroundColor Cyan
         Write-Host "Selected task: $task" -ForegroundColor Cyan
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch task $i selected: $task" -Progress
         $taskContract = Resolve-TaskContract -Task $task
         $taskAcceptanceCommands = @(Get-TaskAcceptanceCommands -Contract $taskContract)
         $taskImplementationScale = Get-TaskImplementationScale -Contract $taskContract
@@ -3780,6 +3883,7 @@ REVIEW_FINDING: P2: short description
         }
         Write-Host "$stopAfterCheckpointReason Ending loop without merge." -ForegroundColor $(if ($stopAfterCheckpointExitCode -ne 0) { "Red" } else { "Yellow" })
         if ($stopAfterCheckpointExitCode -ne 0) {
+            Release-FleetRunLock
             exit $stopAfterCheckpointExitCode
         }
         break
