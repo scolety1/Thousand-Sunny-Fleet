@@ -277,6 +277,46 @@ function Get-SelectedProjects {
     return $projects
 }
 
+function Get-TaskWorkflowSummary {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return "none" }
+    $workflowMatch = [regex]::Match($Task, "(?i)\b(?:Skill|Workflow)\s*:\s*([^.;\[\r\n]+)")
+    if ($workflowMatch.Success) {
+        return $workflowMatch.Groups[1].Value.Trim()
+    }
+
+    $metadataMatches = @([regex]::Matches($Task, "\[([^\]]+)\]") | ForEach-Object { $_.Groups[1].Value })
+    foreach ($metadata in $metadataMatches) {
+        $skillMatch = [regex]::Match($metadata, "(?:^|\s)(?:skill|workflow):([^\s]+)")
+        if ($skillMatch.Success) { return $skillMatch.Groups[1].Value.Trim() }
+    }
+
+    $class = "feature"
+    $impact = "standard"
+    foreach ($metadata in $metadataMatches) {
+        $classMatch = [regex]::Match($metadata, "(?:^|\s)class:([^\s]+)")
+        if ($classMatch.Success) { $class = $classMatch.Groups[1].Value.Trim().ToLowerInvariant() }
+        $impactMatch = [regex]::Match($metadata, "(?:^|\s)impact:([^\s]+)")
+        if ($impactMatch.Success) { $impact = $impactMatch.Groups[1].Value.Trim().ToLowerInvariant() }
+    }
+
+    switch ($class) {
+        "design" { return "frontend-ui-engineering (inferred)" }
+        "copy" { return "code-review-and-quality (inferred)" }
+        "bugfix" { return "debugging-and-error-recovery (inferred)" }
+        "test" { return "test-driven-development (inferred)" }
+        "docs" { return "documentation-and-adrs (inferred)" }
+        "backend" { return "api-and-interface-design (inferred)" }
+        "integration" { return "api-and-interface-design (inferred)" }
+        "migration" { return "deprecation-and-migration (inferred)" }
+        default {
+            if ($impact -in @("visible", "showpiece")) { return "frontend-ui-engineering (inferred)" }
+            return "incremental-implementation (inferred)"
+        }
+    }
+}
+
 function Request-ProjectSafeStop {
     param([object[]]$Projects)
     foreach ($ship in $Projects) {
@@ -314,6 +354,8 @@ function Get-ProjectSnapshotLines {
             if ($LASTEXITCODE -ne 0) { $head = "none" }
             $status = @(git status --short 2>$null)
             $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue)
+            $firstTask = if ($unchecked.Count -gt 0) { ($unchecked[0].Line -replace "^\s*-\s+\[ \]\s+", "").Trim() } else { "" }
+            $workflow = Get-TaskWorkflowSummary -Task $firstTask
             $phase = "unknown"
             if (Test-Path "docs/codex/PHASE_STATE.md") {
                 $phaseText = Get-Content "docs/codex/PHASE_STATE.md" -Raw
@@ -326,6 +368,7 @@ function Get-ProjectSnapshotLines {
             $lines.Add("- Working tree: $dirty") | Out-Null
             $lines.Add("- Unchecked tasks: $($unchecked.Count)") | Out-Null
             $lines.Add("- Phase: $phase") | Out-Null
+            $lines.Add("- Next workflow: $workflow") | Out-Null
             if ($status.Count -gt 0) {
                 $changed = @($status | Select-Object -First 4)
                 $lines.Add("- Changed: $($changed -join '; ')") | Out-Null

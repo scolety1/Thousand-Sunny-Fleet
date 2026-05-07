@@ -578,6 +578,10 @@ function Resolve-TaskContract {
     $impact = "standard"
     $scope = @()
     $acceptance = @()
+    $workflow = ""
+    $surface = ""
+    $proof = ""
+    $stopIf = ""
     $summary = $Task
 
     $metadataMatches = [regex]::Matches($Task, "\[([^\]]+)\]")
@@ -612,10 +616,35 @@ function Resolve-TaskContract {
             $scope = @($scopeMatch.Groups[1].Value.Split(",") | ForEach-Object { $_.Trim().Replace("\", "/").Trim("/") } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
         }
 
-        $acceptMatch = [regex]::Match($metadata, "(?:^|\s)accept:(.+?)(?=\s+(class|risk|mode|impact|scope):|$)")
+        $surfaceMatch = [regex]::Match($metadata, "(?:^|\s)surface:([^\s]+)")
+        if ($surfaceMatch.Success) {
+            $surface = $surfaceMatch.Groups[1].Value.Trim().ToLowerInvariant()
+        }
+
+        $workflowMatch = [regex]::Match($metadata, "(?:^|\s)(?:skill|workflow):([^\s]+)")
+        if ($workflowMatch.Success) {
+            $workflow = $workflowMatch.Groups[1].Value.Trim().ToLowerInvariant()
+        }
+
+        $acceptMatch = [regex]::Match($metadata, "(?:^|\s)accept:(.+?)(?=\s+(class|risk|mode|impact|surface|scope|skill|workflow|proof|stop):|$)")
         if ($acceptMatch.Success) {
             $acceptance = @($acceptMatch.Groups[1].Value.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
         }
+    }
+
+    $workflowFieldMatch = [regex]::Match($Task, "(?i)\b(?:Skill|Workflow)\s*:\s*([^.;\[\r\n]+)")
+    if ($workflowFieldMatch.Success) {
+        $workflow = $workflowFieldMatch.Groups[1].Value.Trim().ToLowerInvariant()
+    }
+
+    $proofMatch = [regex]::Match($Task, "(?i)\bProof\s*:\s*([^.;\[\r\n]+)")
+    if ($proofMatch.Success) {
+        $proof = $proofMatch.Groups[1].Value.Trim()
+    }
+
+    $stopMatch = [regex]::Match($Task, "(?i)\bStop\s+if\s*:\s*([^.;\[\r\n]+)")
+    if ($stopMatch.Success) {
+        $stopIf = $stopMatch.Groups[1].Value.Trim()
     }
 
     $summary = ($summary -replace "\s*\[[^\]]+\]\s*", " ").Trim()
@@ -631,15 +660,78 @@ function Resolve-TaskContract {
         }
     }
 
+    if ([string]::IsNullOrWhiteSpace($workflow)) {
+        switch ($taskClass) {
+            "design" { $workflow = "frontend-ui-engineering"; break }
+            "copy" { $workflow = "code-review-and-quality"; break }
+            "bugfix" { $workflow = "debugging-and-error-recovery"; break }
+            "test" { $workflow = "test-driven-development"; break }
+            "docs" { $workflow = "documentation-and-adrs"; break }
+            "backend" { $workflow = "api-and-interface-design"; break }
+            "integration" { $workflow = "api-and-interface-design"; break }
+            "migration" { $workflow = "deprecation-and-migration"; break }
+            default {
+                if ($impact -in @("visible", "showpiece")) { $workflow = "frontend-ui-engineering" }
+                else { $workflow = "incremental-implementation" }
+            }
+        }
+    }
+
     return [pscustomobject]@{
         summary = $summary
         class = $taskClass
         risk = $risk
         mode = $mode
         impact = $impact
+        surface = $surface
+        workflow = $workflow
+        proof = $proof
+        stopIf = $stopIf
         scope = $scope
         acceptance = $acceptance
     }
+}
+
+function Get-TaskContractV2FailureForLoop {
+    param(
+        [string]$Task,
+        [object]$Contract
+    )
+
+    if ($null -eq $Contract -or [string]::IsNullOrWhiteSpace($Task)) { return "" }
+
+    $isVisible = ([string]$Contract.impact -in @("visible", "showpiece") -or [string]$Contract.class -in @("feature", "design", "copy"))
+    $isDocsOnlyAllowed = ([string]$Contract.class -in @("docs", "test") -or [string]$Contract.workflow -in @("planning-and-task-breakdown", "documentation-and-adrs", "code-review-and-quality"))
+    $hasSkillField = ($Task -match "(?i)\b(?:Skill|Workflow)\s*:")
+    $hasProofField = ($Task -match "(?i)\bProof\s*:")
+    $hasStopField = ($Task -match "(?i)\bStop\s+if\s*:")
+
+    if ($hasSkillField -or $hasProofField -or $hasStopField) {
+        if (!$hasSkillField) { return "Task Contract V2 task is missing Skill/Workflow." }
+        if (!$hasProofField) { return "Task Contract V2 task is missing Proof." }
+        if (!$hasStopField) { return "Task Contract V2 task is missing Stop if." }
+    }
+
+    if ($isVisible) {
+        if ($Task -notmatch "(?i)\bFirst screen\s*:") {
+            return "Visible/product task is missing First screen."
+        }
+        if ($Task -notmatch "(?i)\bRemove/simplify\s*:") {
+            return "Visible/product task is missing Remove/simplify."
+        }
+        if ($Task -notmatch "(?i)\bAcceptance\s*:") {
+            return "Visible/product task is missing Acceptance."
+        }
+        if ($Contract.scope.Count -gt 0) {
+            $surfacePattern = "(?i)(^|/)(src|app-vNext/src|app|web|pages|components|routes|views|public|assets|styles|css|js|data|content)(/|$)|\.(html|css|scss|sass|js|jsx|ts|tsx|vue|svelte|astro|json|mdx)$"
+            $surfaceScope = @($Contract.scope | ForEach-Object { ([string]$_).Replace("\", "/").Trim("/") } | Where-Object { $_ -match $surfacePattern })
+            if ($surfaceScope.Count -eq 0 -and !$isDocsOnlyAllowed) {
+                return "Visible/product task has docs-only or non-product scope under Task Contract V2."
+            }
+        }
+    }
+
+    return ""
 }
 
 function Get-TaskMaterialitySignalForLoop {
@@ -1862,7 +1954,7 @@ function New-ReplacementTaskLine {
         $metadata += " accept:$acceptanceLabel"
     }
 
-    return "- [ ] User pain: the previous task was quarantined before implementation because $safeReason, so the ship needs one small visible repair instead of another broad pass. Target: $target. Change: make exactly one narrow safe slice that improves a visible UI, interaction, or copy area; prefer deleting awkward complexity over adding new systems. First screen: keep the current primary screen job dominant and move any repaired detail/helper content behind the existing clear action. Remove/simplify: one repeated label, one oversized chrome area, one vague phrase, or one confusing interaction in the current surface only. Guardrails: no backend, no auth, no payments, no Firebase rules/config, no package/dependency files, no generated output, no deployment config, no secrets, and no unrelated files. Acceptance: $acceptanceLabel. Check: run the acceptance command and confirm the changed screen has one clearer visible outcome without expanding scope. [$metadata]"
+    return "- [ ] User pain: the previous task was quarantined before implementation because $safeReason, so the ship needs one small visible repair instead of another broad pass. Skill: debugging-and-error-recovery. Target: $target. Change: make exactly one narrow safe slice that improves a visible UI, interaction, or copy area; prefer deleting awkward complexity over adding new systems. First screen: keep the current primary screen job dominant and move any repaired detail/helper content behind the existing clear action. Remove/simplify: one repeated label, one oversized chrome area, one vague phrase, or one confusing interaction in the current surface only. Guardrails: no backend, no auth, no payments, no Firebase rules/config, no package/dependency files, no generated output, no deployment config, no secrets, and no unrelated files. Acceptance: $acceptanceLabel. Proof: NIGHTLY_REPORT.md and MAGIC_SCORECARD.md explain the repair result. Stop if: the repair needs backend, secrets, dependency, deployment, or files outside declared scope. Check: run the acceptance command and confirm the changed screen has one clearer visible outcome without expanding scope. [$metadata]"
 }
 
 function Add-ReplacementTaskAfterQuarantine {
@@ -3037,7 +3129,14 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         } elseif ($taskContract.impact -eq "visible" -and $batchImpactMode -eq "standard") {
             $batchImpactMode = "visible"
         }
-        Write-Host "Task contract: class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), impact=$($taskContract.impact), scale=$taskImplementationScale, scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskAcceptanceCommands.Count -gt 0) { $taskAcceptanceCommands -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        Write-Host "Task contract: workflow=$($taskContract.workflow), class=$($taskContract.class), risk=$($taskContract.risk), mode=$($taskContract.mode), impact=$($taskContract.impact), surface=$(if (![string]::IsNullOrWhiteSpace($taskContract.surface)) { $taskContract.surface } else { 'unspecified' }), scale=$taskImplementationScale, scope=$(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ',' } else { 'profile/default' }), acceptance=$(if ($taskAcceptanceCommands.Count -gt 0) { $taskAcceptanceCommands -join ',' } else { 'external build only' })" -ForegroundColor DarkCyan
+        $contractV2Failure = Get-TaskContractV2FailureForLoop -Task $task -Contract $taskContract
+        if (![string]::IsNullOrWhiteSpace($contractV2Failure)) {
+            if (Invoke-PreImplementationQuarantine -Task $task -Reason $contractV2Failure -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
+            Append-Report -Task $task -FilesChanged @() -BuildResult "Blocked" -Risk $contractV2Failure -Contract $taskContract
+            Write-Host $contractV2Failure -ForegroundColor Red
+            exit 1
+        }
         $visibleScopeFailure = Get-VisibleImpactScopeFailureForLoop -Contract $taskContract
         if (![string]::IsNullOrWhiteSpace($visibleScopeFailure)) {
             if (Invoke-PreImplementationQuarantine -Task $task -Reason $visibleScopeFailure -Batch $batch -TaskIndex $i -Contract $taskContract) { continue }
@@ -3137,12 +3236,16 @@ Implement only this selected task:
 $task
 
 Task contract:
+- Workflow: $($taskContract.workflow)
 - Class: $($taskContract.class)
 - Risk: $($taskContract.risk)
 - Mode: $($taskContract.mode)
 - Impact: $($taskContract.impact)
+- Surface: $(if (![string]::IsNullOrWhiteSpace($taskContract.surface)) { $taskContract.surface } else { "unspecified" })
 - Implementation scale: $taskImplementationScale
 - Summary: $($taskContract.summary)
+- Proof expected: $(if (![string]::IsNullOrWhiteSpace($taskContract.proof)) { $taskContract.proof } else { "use task acceptance/reporting" })
+- Stop if: $(if (![string]::IsNullOrWhiteSpace($taskContract.stopIf)) { $taskContract.stopIf } else { "scope, build, or review gate fails" })
 - Allowed file scope: $(if ($taskContract.scope.Count -gt 0) { $taskContract.scope -join ", " } else { "Use profile guardrails and task text." })
 - Acceptance checks: $(if ($taskAcceptanceCommands.Count -gt 0) { $taskAcceptanceCommands -join ", " } else { "External build only." })
 

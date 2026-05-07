@@ -183,20 +183,23 @@ Generate exactly $Count next tasks as markdown checklist lines.
 Rules:
 - Output only checklist lines, no commentary.
 - Each line must start with "- [ ] ".
-- Each task line must use this product-shape format, in this order: "User pain: ... Target: ... Change: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ...".
-- For UI/product tasks, insert "First screen: ..." between Change and Remove/simplify, like: "User pain: ... Target: ... Change: ... First screen: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Check: ...".
+- Each task line must use Task Contract V2 format, in this order: "User pain: ... Skill: ... Target: ... Change: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Proof: ... Stop if: ... Check: ...".
+- For UI/product tasks, insert "First screen: ..." between Change and Remove/simplify, like: "User pain: ... Skill: ... Target: ... Change: ... First screen: ... Remove/simplify: ... Guardrails: ... Acceptance: ... Proof: ... Stop if: ... Check: ...".
+- Skill must name the primary workflow to follow: spec-driven-development, planning-and-task-breakdown, incremental-implementation, frontend-ui-engineering, test-driven-development, debugging-and-error-recovery, code-review-and-quality, code-simplification, security-and-hardening, performance-optimization, shipping-and-launch, documentation-and-adrs, api-and-interface-design, source-driven-development, deprecation-and-migration, or ci-cd-and-automation.
 - User pain must name the concrete confusion, wasted time, broken workflow, missing trust, or blocked demo value the task addresses.
 - Target must name the route, screen, component, module, docs file, formula, test, or local evaluator affected.
 - Change must say the specific behavior, layout, formula, copy, test, or route change to make.
 - Remove/simplify must name what to remove, demote, combine, shorten, hide, or preserve as "none, preserve X" when removal is not appropriate.
 - Guardrails must include explicit forbidden scope and any phase/admission/usefulness constraint.
 - Acceptance must include the normal documented build/check command, a documented test/static-check command, or a docs-only acceptance when the task is intentionally docs-only.
+- Proof must name the expected evidence artifact, report, route check, screenshot, fixture output, or review packet.
+- Stop if must name the condition that should halt or quarantine instead of improvising, such as build failure, scope conflict, sensitive-system risk, missing evidence, repeated quality loop, or backend need.
 - Check must include the visual, manual, fixture, formula, or report check that proves usefulness.
 - For UI/product tasks, the task must preserve information staging: name the first-screen job, keep the primary surface dominant, and move secondary/detail/internal information behind clear navigation, buttons, tabs, accordions, drawers, or detail views.
 - UI/product tasks with class:feature, class:design, class:copy, impact:visible, or impact:showpiece must include a concrete "First screen: ..." field in the task text. This field names what must be visible and dominant before helper/detail content.
 - UI/product tasks with class:feature, class:design, class:copy, impact:visible, or impact:showpiece must include exactly one surface metadata value: surface:public, surface:app, surface:internal, or surface:mixed.
 - Public/customer surfaces sell or serve the visitor; app/internal surfaces support the working tool. Do not blend guest-facing restaurant pages with staff-only service notes unless the task explicitly creates a staff mode.
-- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single impact:visible scope:src/,docs/codex/].
+- Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single impact:visible surface:app scope:src/,docs/codex/ accept:npm.cmd run build].
 - Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
 - Supported modes: mode:single and mode:feature-pack. Use mode:feature-pack only when SOFTWARE_FEATURE_PLAN.md and SOFTWARE_FEATURE_APPROVAL.md are approved and the task has explicit scope and accept metadata.

@@ -288,6 +288,27 @@ function Test-TaskHasFirstScreenField {
     return !(Test-IsPlaceholderText -Value $match.Groups[1].Value)
 }
 
+function Test-TaskHasSkillWorkflow {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    return ($Task -match "(?i)\b(?:Skill|Workflow)\s*:\s*[^.;\[\r\n]+")
+}
+
+function Test-TaskHasProof {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    return ($Task -match "(?i)\bProof\s*:\s*[^.;\[\r\n]+")
+}
+
+function Test-TaskHasStopIf {
+    param([string]$Task)
+
+    if ([string]::IsNullOrWhiteSpace($Task)) { return $false }
+    return ($Task -match "(?i)\bStop\s+if\s*:\s*[^.;\[\r\n]+")
+}
+
 Set-Location $fleetRoot
 $ship = @(Get-Projects -Path $ConfigPath | Where-Object { [string]$_.name -ceq [string]$Project })
 if ($ship.Count -ne 1) { Stop-WithMessage "Project not found or ambiguous: $Project" }
@@ -349,6 +370,20 @@ if (![string]::IsNullOrWhiteSpace($task)) {
     }
     if (!(Test-TaskHasForbiddenScopeLocal -Task $task)) {
         Add-Issue -Severity "BLOCK" -Message "First unchecked task is missing explicit forbidden scope."
+    }
+    $hasAnyV2Field = ((Test-TaskHasSkillWorkflow -Task $task) -or (Test-TaskHasProof -Task $task) -or (Test-TaskHasStopIf -Task $task))
+    if ($hasAnyV2Field) {
+        if (!(Test-TaskHasSkillWorkflow -Task $task)) {
+            Add-Issue -Severity "BLOCK" -Message "Task Contract V2 task is missing Skill/Workflow."
+        }
+        if (!(Test-TaskHasProof -Task $task)) {
+            Add-Issue -Severity "BLOCK" -Message "Task Contract V2 task is missing Proof."
+        }
+        if (!(Test-TaskHasStopIf -Task $task)) {
+            Add-Issue -Severity "BLOCK" -Message "Task Contract V2 task is missing Stop if."
+        }
+    } else {
+        Add-Issue -Severity "WARN" -Message "First unchecked task is legacy format; future generated tasks should use Skill, Proof, and Stop if."
     }
     if ((Test-IsUiOrProductShip -Ship $ship) -and (Test-TaskRequiresSurface -Task $task)) {
         $surfaceCount = Get-TaskSurfaceCount -Task $task
