@@ -314,6 +314,22 @@ if ($scheduledWrapperSkippedForActiveWork) {
     Add-TestResult -Name "Scheduled wrapper dry-run proof manifest exists" -Passed $false -Detail $latestProofLaunch
 }
 
+$watchdogSafe12DryRun = Invoke-HarnessCommand -Name "Runner watchdog EasyLife Safe12 command dry-run" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-runner-watchdog.ps1"),
+    "-Project", "EasyLife",
+    "-ValidateLaunchCommandOnly",
+    "-DryRun"
+)
+$watchdogSafe12Text = ($watchdogSafe12DryRun.output -join "`n")
+Add-TestResult -Name "Runner watchdog uses EasyLife Safe12 launcher" -Passed ($watchdogSafe12Text -match "launch-overnight-run\.ps1" -and $watchdogSafe12Text -match "-Project EasyLife\b" -and $watchdogSafe12Text -match "-ExpectedProject EasyLife\b" -and $watchdogSafe12Text -match "-Safe12\b" -and $watchdogSafe12Text -match "-SkipDoctor\b")
+Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands BatchSize" -Passed ($watchdogSafe12Text -match "-BatchSize 1\b")
+Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands MaxBatches" -Passed ($watchdogSafe12Text -match "-MaxBatches 24\b")
+Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands runtime" -Passed ($watchdogSafe12Text -match "-MaxRuntimeMinutes 720\b")
+Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands task cap" -Passed ($watchdogSafe12Text -match "-MaxCompletedTasks 14\b")
+Add-TestResult -Name "Runner watchdog EasyLife Safe12 keeps quarantine and push" -Passed ($watchdogSafe12Text -match "-QuarantineFailedTasks\b" -and $watchdogSafe12Text -match "-PushCheckpoint\b")
+
 $scheduledLogRoot = Join-Path $fleetRoot "out\harness-scheduled-runs"
 New-Item -ItemType Directory -Force -Path $scheduledLogRoot | Out-Null
 $nightReportHarnessLog = Join-Path $scheduledLogRoot "harness-proof-dryrun-$PID.log"

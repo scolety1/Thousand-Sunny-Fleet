@@ -15,6 +15,8 @@ param(
 
     [int]$MaxLaunches = 2,
 
+    [switch]$ValidateLaunchCommandOnly,
+
     [switch]$DryRun
 )
 
@@ -158,10 +160,22 @@ function Invoke-LaunchGate {
     return [pscustomobject]@{ exitCode = $exit; decision = $decision; output = @($output | ForEach-Object { [string]$_ }) }
 }
 
-function Start-WatchdogLaunch {
+function Get-WatchdogLaunchArgs {
     param([string]$ProjectName)
 
-    $args = @(
+    if ($ProjectName -eq "EasyLife") {
+        return @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "launch-overnight-run.ps1"),
+            "-Project", "EasyLife",
+            "-ExpectedProject", "EasyLife",
+            "-Safe12",
+            "-SkipDoctor"
+        )
+    }
+
+    return @(
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1"),
@@ -179,14 +193,31 @@ function Start-WatchdogLaunch {
         "-KillSwitchMode", "warn",
         "-SkipHarnessTest"
     )
+}
 
-    if ($DryRun) {
-        Write-RunnerLine "DRY RUN: powershell $($args -join ' ')"
+function Start-WatchdogLaunch {
+    param(
+        [string]$ProjectName,
+        [switch]$PreviewOnly
+    )
+
+    $args = @(Get-WatchdogLaunchArgs -ProjectName $ProjectName)
+    $command = "powershell $($args -join ' ')"
+
+    if ($DryRun -or $PreviewOnly) {
+        Write-RunnerLine "DRY RUN: $command"
+        if ($ProjectName -eq "EasyLife") {
+            & powershell @($args + "-DryRun")
+        }
         return
     }
 
     Start-Process powershell -WorkingDirectory $fleetRoot -WindowStyle Hidden -ArgumentList $args | Out-Null
-    Write-RunnerLine "Launched $ProjectName with one-batch watchdog run."
+    if ($ProjectName -eq "EasyLife") {
+        Write-RunnerLine "Launched $ProjectName with Safe12 watchdog run."
+    } else {
+        Write-RunnerLine "Launched $ProjectName with one-batch watchdog run."
+    }
 }
 
 if ($MaxLaunches -lt 0) {
@@ -197,14 +228,14 @@ if ($MaxLaunches -lt 0) {
 $controlPath = if ([System.IO.Path]::IsPathRooted($ControlRoot)) { $ControlRoot } else { Join-Path $fleetRoot $ControlRoot }
 $runMode = Read-JsonFile -Path (Join-Path $controlPath "run-mode.json")
 $fleetMode = if ($null -ne $runMode -and $null -ne $runMode.fleetMode) { [string]($runMode.fleetMode) } else { "PAUSED" }
-if ($fleetMode -ne "ACTIVE") {
+if (!$ValidateLaunchCommandOnly -and $fleetMode -ne "ACTIVE") {
     Write-RunnerLine "Fleet mode is $fleetMode; runner watchdog will not launch work."
     exit 0
 }
 
 $emergencyPath = Join-Path $controlPath "emergency.md"
 $emergencyText = if (Test-Path -LiteralPath $emergencyPath) { Get-Content -LiteralPath $emergencyPath -Raw } else { "" }
-if ($emergencyText -match "(?im)^\s*Emergency\s*:\s*STOP_ALL\s*$") {
+if (!$ValidateLaunchCommandOnly -and $emergencyText -match "(?im)^\s*Emergency\s*:\s*STOP_ALL\s*$") {
     Write-RunnerLine "Emergency STOP_ALL is active; runner watchdog will not launch work."
     exit 0
 }
@@ -235,6 +266,17 @@ if ($requested.Count -gt 0) {
 }
 if ($excluded.Count -gt 0) {
     $projects = @($projects | Where-Object { $excluded -notcontains "$($_.name)" })
+}
+
+if ($ValidateLaunchCommandOnly) {
+    foreach ($projectConfig in $projects) {
+        $name = "$($projectConfig.name)"
+        if (![string]::IsNullOrWhiteSpace($name)) {
+            Start-WatchdogLaunch -ProjectName $name -PreviewOnly
+        }
+    }
+    Write-RunnerLine "Runner watchdog launch command validation complete."
+    exit 0
 }
 
 $launched = 0
