@@ -1,7 +1,7 @@
 # Fleet Mission
 
 ## Fleet Mode
-PAUSED
+ACTIVE
 
 ## Active Projects
 - EasyLife
@@ -14,7 +14,7 @@ PAUSED
 - UrbanKitchenSite
 
 ## Mission
-Prepare the selected product fleet for the next unattended run without launching automatically from this file. EasyLife continues the AI personal assistant reset, RestaurantDemo continues Urban Kitchen pilot launch readiness, and Cellar Fleet continues bounded hospitality showpiece polish.
+Continue the launched overnight selected-fleet run. EasyLife continues the AI personal assistant reset, RestaurantDemo continues Urban Kitchen pilot launch readiness, and Cellar Fleet continues bounded hospitality showpiece polish.
 
 ## Priority
 Run only clean, bounded, product-surface tasks with build acceptance. Prefer one small repair or proof packet per ship before fresh feature expansion.
@@ -25,4 +25,4 @@ Run only clean, bounded, product-surface tasks with build acceptance. Prefer one
 - Do not overwrite user-owned work.
 
 ## Next Checkpoint
-Confirm selected ships are clean, unlocked, unpaused, pushed to their private remotes, and have task supply before launch.
+Watch the selected ships for clean checkpoint commits, bounded proof packets, and any named stop condition before the next report.
