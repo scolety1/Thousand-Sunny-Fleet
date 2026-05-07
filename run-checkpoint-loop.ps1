@@ -3344,8 +3344,10 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
         $taskBase = (git rev-parse HEAD 2>$null)
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($taskBase)) {
             Write-Host "Could not determine task base commit before implementation." -ForegroundColor Red
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "could not determine task base for batch $batch task $i" -Progress
             exit 1
         }
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch task $i implementation running: $task" -Progress
         $script:CurrentTaskBeforeVisualEvidence = @(Get-LatestVisualEvidenceForLoop)
 
         $siteMapNote = if (Test-Path "docs/codex/SITE_MAP.md") { Get-Content "docs/codex/SITE_MAP.md" -Raw } else { "No SITE_MAP.md present." }
@@ -3415,6 +3417,7 @@ Rules:
 
         $log1 = Join-Path $logRoot "batch-$batch-task-$i-implement.log"
         $exit = Invoke-CodexExec -Prompt $prompt -LogPath $log1 -Models (Get-ProjectModels -Role "implement") -TimeoutSeconds (Get-TimeoutSetting -Role "implement" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds))
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch task $i implementation returned exit $exit" -Progress
         $headAfterImplement = (git rev-parse HEAD 2>$null)
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($headAfterImplement)) {
             Write-Host "Could not determine HEAD after implementation." -ForegroundColor Red
@@ -3523,7 +3526,9 @@ REVIEW_FINDING: P2: short description
 "@
         $log2 = Join-Path $logRoot "batch-$batch-task-$i-review.log"
         $reviewResponse = Join-Path $logRoot "batch-$batch-task-$i-review-response.md"
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch task $i review running: $task" -Progress
         [void](Invoke-CodexExec -Prompt $reviewPrompt -LogPath $log2 -Models (Get-ProjectModels -Role "review") -ResponsePath $reviewResponse -TimeoutSeconds (Get-TimeoutSetting -Role "review" -Default (Get-TimeoutSetting -Role "codex" -Default $CodexTimeoutSeconds)))
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch task $i review returned" -Progress
 
         if (Test-BlockingReviewOutput -Path $reviewResponse) {
             $blockedFiles = @(Get-TaskChangedFiles)
@@ -3617,6 +3622,7 @@ REVIEW_FINDING: P2: short description
         Append-Report -Task $task -FilesChanged $filesChanged -BuildResult "Passed" -Risk "Low. External build, task acceptance checks, and checkpoint loop review completed." -Contract $taskContract -TaskBase $taskBase
         Stage-Files -Paths @($filesChanged + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md", "docs/codex/MAGIC_SCORECARD.md"))
         if (-not (Invoke-FleetCommit -Message "Codex checkpoint batch $batch task $i")) { exit 1 }
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch task $i committed" -Progress
     }
 
     $stopAfterCheckpoint = $false
