@@ -1,47 +1,46 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-06 23:41:29 Pacific Standard Time
+- Updated: 2026-05-06 23:51:25 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 4250045fc94c
 - Mission update: unchanged
 - Emergency stop: none
 - Supervisor cycle: not run
 - Fleet branch: main
-- Fleet HEAD: e810ba5
+- Fleet HEAD: b6995fb
 
 ## Projects
 ### Bottlelight
 - Branch: master
-- HEAD: 2ea2ad2
+- HEAD: e94bf23
 - Working tree: clean
-- Unchecked tasks: 2
+- Unchecked tasks: 3
 - Phase: repair
-- Next workflow: frontend-ui-engineering (inferred)
+- Next workflow: frontend-ui-engineering
 
 ### EasyLife
 - Branch: codex/product-EasyLife-20260504-231503
-- HEAD: 6f9d9531
-- Working tree: dirty (1 files)
+- HEAD: bb8fee51
+- Working tree: clean
 - Unchecked tasks: 9
 - Phase: stage-0-ai-personal-assistant-reset
-- Next workflow: planning-and-task-breakdown (inferred)
-- Changed: ?? docs/codex/AI_ASSISTANT_HQ_RESET_DECISION.md
+- Next workflow: frontend-ui-engineering
 
 ### EventBook
 - Branch: master
-- HEAD: fc175a6
+- HEAD: d5c66b0
 - Working tree: clean
-- Unchecked tasks: 4
+- Unchecked tasks: 5
 - Phase: repair
-- Next workflow: debugging-and-error-recovery (inferred)
+- Next workflow: frontend-ui-engineering
 
 ### LineupLab
 - Branch: master
-- HEAD: 4fbf778
+- HEAD: 8c3edc6
 - Working tree: clean
-- Unchecked tasks: 4
+- Unchecked tasks: 5
 - Phase: repair
-- Next workflow: frontend-ui-engineering (inferred)
+- Next workflow: frontend-ui-engineering
 
 ### OrderPilot
 - Branch: master
@@ -61,19 +60,19 @@
 
 ### ShiftLedger
 - Branch: master
-- HEAD: 6eec049
+- HEAD: 4457229
 - Working tree: clean
-- Unchecked tasks: 2
+- Unchecked tasks: 3
 - Phase: repair
-- Next workflow: frontend-ui-engineering (inferred)
+- Next workflow: frontend-ui-engineering
 
 ### UrbanKitchenSite
 - Branch: master
-- HEAD: 49e77b7
+- HEAD: baf552d
 - Working tree: clean
-- Unchecked tasks: 1
+- Unchecked tasks: 2
 - Phase: shape
-- Next workflow: debugging-and-error-recovery
+- Next workflow: code-review-and-quality
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
