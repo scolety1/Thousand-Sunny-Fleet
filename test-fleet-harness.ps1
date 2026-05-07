@@ -426,6 +426,73 @@ Remove-Item -LiteralPath $heartbeatPath -Force -ErrorAction SilentlyContinue
     "-DryRun"
 ))
 
+$easyLifeSafe = "EasyLife"
+$easyLifeHeartbeatRoot = Join-Path $fleetRoot ".codex-local\runs\$easyLifeSafe"
+$easyLifeHeartbeatPath = Join-Path $easyLifeHeartbeatRoot "heartbeat.json"
+$easyLifeLockRoot = Join-Path $fleetRoot ".codex-local\locks"
+$easyLifeLockPath = Join-Path $easyLifeLockRoot "$easyLifeSafe.lock.json"
+$previousEasyLifeHeartbeat = if (Test-Path -LiteralPath $easyLifeHeartbeatPath) { Get-Content -LiteralPath $easyLifeHeartbeatPath -Raw } else { $null }
+$previousEasyLifeLock = if (Test-Path -LiteralPath $easyLifeLockPath) { Get-Content -LiteralPath $easyLifeLockPath -Raw } else { $null }
+try {
+    New-Item -ItemType Directory -Force -Path $easyLifeHeartbeatRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $easyLifeLockRoot | Out-Null
+    $activeEasyLifeHeartbeat = [ordered]@{
+        project = "EasyLife"
+        pid = $PID
+        startedAt = (Get-Date).ToUniversalTime().AddMinutes(-1).ToString("o")
+        lastHeartbeatAt = (Get-Date).ToUniversalTime().ToString("o")
+        lastProgressAt = (Get-Date).ToUniversalTime().ToString("o")
+        runShape = [ordered]@{
+            batchSize = 1
+            maxBatches = 24
+            maxRuntimeMinutes = 720
+            maxCompletedTasks = 14
+            loopPhase = "simplicity"
+            quarantineFailedTasks = $true
+            pushCheckpoint = $true
+        }
+        currentTaskSummary = "fixture EasyLife active run"
+        lastCommit = "abcdef0"
+        status = "active"
+    }
+    $activeEasyLifeHeartbeat | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $easyLifeHeartbeatPath -Encoding UTF8
+    ([ordered]@{ project = "EasyLife"; pid = $PID; createdAt = (Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $easyLifeLockPath -Encoding UTF8
+    $activeEasyLifeSnapshot = Invoke-HarnessCommand -Name "Remote status snapshot shows active EasyLife runner" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+        "-Project", "EasyLife",
+        "-ValidateStatusSnapshotOnly",
+        "-DryRun"
+    )
+    $activeEasyLifeText = ($activeEasyLifeSnapshot.output -join "`n")
+    Add-TestResult -Name "Remote status active EasyLife shows RUNNING and PID" -Passed ($activeEasyLifeText -match "Runner state: RUNNING" -and $activeEasyLifeText -match "Runner PID: $PID" -and $activeEasyLifeText -match "Run shape: .*batch=1.*maxBatches=24.*runtime=720m")
+
+    Remove-Item -LiteralPath $easyLifeHeartbeatPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $easyLifeLockPath -Force -ErrorAction SilentlyContinue
+    $missingRunnerSnapshot = Invoke-HarnessCommand -Name "Remote status snapshot handles missing heartbeat" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+        "-Project", "EasyLife",
+        "-ValidateStatusSnapshotOnly",
+        "-DryRun"
+    )
+    $missingRunnerText = ($missingRunnerSnapshot.output -join "`n")
+    Add-TestResult -Name "Remote status missing heartbeat reports clean state" -Passed ($missingRunnerText -match "Runner state: (READY|PARKED|BLOCKED)" -and $missingRunnerText -match "Last heartbeat: none")
+} finally {
+    if ($null -ne $previousEasyLifeHeartbeat) {
+        Set-Content -LiteralPath $easyLifeHeartbeatPath -Value $previousEasyLifeHeartbeat -Encoding UTF8
+    } else {
+        Remove-Item -LiteralPath $easyLifeHeartbeatPath -Force -ErrorAction SilentlyContinue
+    }
+    if ($null -ne $previousEasyLifeLock) {
+        Set-Content -LiteralPath $easyLifeLockPath -Value $previousEasyLifeLock -Encoding UTF8
+    } else {
+        Remove-Item -LiteralPath $easyLifeLockPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $remoteStatusDryRun = Invoke-HarnessCommand -Name "Remote status supervisor dry-run is observation-only" -Arguments @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",

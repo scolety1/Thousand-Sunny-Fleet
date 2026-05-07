@@ -40,6 +40,8 @@ param(
 
     [switch]$ValidateHeartbeatOnly,
 
+    [switch]$ValidateStatusSnapshotOnly,
+
     [switch]$DryRun
 )
 
@@ -367,6 +369,26 @@ function Test-RunStateProcessActive {
     return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
 }
 
+function Get-ProjectRunLockState {
+    param([string]$ProjectName)
+
+    $safeName = ConvertTo-RunStateSafeName -Name $ProjectName
+    $lockPath = Join-Path $fleetRoot ".codex-local\locks\$safeName.lock.json"
+    if (!(Test-Path -LiteralPath $lockPath)) {
+        return [pscustomobject]@{ state = "missing"; active = $false; pid = 0; path = $lockPath }
+    }
+
+    try {
+        $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+        $pidValue = if ($null -ne $lock.pid) { [int]$lock.pid } else { 0 }
+        $active = Test-RunStateProcessActive -ProcessId $pidValue
+        $state = if ($active) { "active" } else { "stale" }
+        return [pscustomobject]@{ state = $state; active = $active; pid = $pidValue; path = $lockPath }
+    } catch {
+        return [pscustomobject]@{ state = "unreadable"; active = $false; pid = 0; path = $lockPath }
+    }
+}
+
 function ConvertTo-RunStateDateTime {
     param([object]$Value)
 
@@ -374,13 +396,13 @@ function ConvertTo-RunStateDateTime {
     try { return [DateTime]::Parse([string]$Value, $null, [Globalization.DateTimeStyles]::RoundtripKind) } catch { return $null }
 }
 
-function Get-ProjectRunHeartbeatSummary {
+function Get-ProjectRunHeartbeatState {
     param([string]$ProjectName)
 
     $safeName = ConvertTo-RunStateSafeName -Name $ProjectName
     $heartbeatPath = Join-Path $fleetRoot ".codex-local\runs\$safeName\heartbeat.json"
     if (!(Test-Path -LiteralPath $heartbeatPath)) {
-        return "no heartbeat"
+        return [pscustomobject]@{ classification = "missing"; active = $false; pid = 0; status = "missing"; lastHeartbeatAt = $null; lastProgressAt = $null; runShape = "none"; currentTaskSummary = ""; path = $heartbeatPath }
     }
 
     try {
@@ -408,21 +430,80 @@ function Get-ProjectRunHeartbeatSummary {
             $classification = "active"
         }
 
-        $shape = ""
+        $shape = "none"
         if ($null -ne $heartbeat.runShape) {
             $shapeBits = @()
             if ($null -ne $heartbeat.runShape.batchSize) { $shapeBits += "batch=$($heartbeat.runShape.batchSize)" }
             if ($null -ne $heartbeat.runShape.maxBatches) { $shapeBits += "maxBatches=$($heartbeat.runShape.maxBatches)" }
             if ($null -ne $heartbeat.runShape.maxRuntimeMinutes) { $shapeBits += "runtime=$($heartbeat.runShape.maxRuntimeMinutes)m" }
-            if ($shapeBits.Count -gt 0) { $shape = "; shape=$($shapeBits -join ',')" }
+            if ($null -ne $heartbeat.runShape.maxCompletedTasks) { $shapeBits += "taskCap=$($heartbeat.runShape.maxCompletedTasks)" }
+            if ($null -ne $heartbeat.runShape.loopPhase) { $shapeBits += "phase=$($heartbeat.runShape.loopPhase)" }
+            if ($null -ne $heartbeat.runShape.quarantineFailedTasks) { $shapeBits += "quarantine=$($heartbeat.runShape.quarantineFailedTasks)" }
+            if ($null -ne $heartbeat.runShape.pushCheckpoint) { $shapeBits += "push=$($heartbeat.runShape.pushCheckpoint)" }
+            if ($shapeBits.Count -gt 0) { $shape = $shapeBits -join "," }
         }
-        $lastHeartbeatText = if ($null -ne $lastHeartbeatAt) { $lastHeartbeatAt.ToString("s") } else { "unknown" }
-        $lastProgressText = if ($null -ne $lastProgressAt) { $lastProgressAt.ToString("s") } else { "unknown" }
-        $task = if (![string]::IsNullOrWhiteSpace([string]$heartbeat.currentTaskSummary)) { "; task=$($heartbeat.currentTaskSummary)" } else { "" }
-        return "$classification; status=$status; pid=$pidValue; lastHeartbeat=$lastHeartbeatText; lastProgress=$lastProgressText$shape$task"
+        return [pscustomobject]@{
+            classification = $classification
+            active = ($classification -in @("active", "idle", "stalled"))
+            pid = $pidValue
+            status = $status
+            lastHeartbeatAt = $lastHeartbeatAt
+            lastProgressAt = $lastProgressAt
+            runShape = $shape
+            currentTaskSummary = if ($null -ne $heartbeat.currentTaskSummary) { [string]$heartbeat.currentTaskSummary } else { "" }
+            path = $heartbeatPath
+        }
     } catch {
-        return "heartbeat unreadable"
+        return [pscustomobject]@{ classification = "unreadable"; active = $false; pid = 0; status = "unreadable"; lastHeartbeatAt = $null; lastProgressAt = $null; runShape = "none"; currentTaskSummary = ""; path = $heartbeatPath }
     }
+}
+
+function Get-ProjectRunHeartbeatSummary {
+    param([string]$ProjectName)
+
+    $heartbeat = Get-ProjectRunHeartbeatState -ProjectName $ProjectName
+    if ($heartbeat.classification -eq "missing") { return "no heartbeat" }
+    $lastHeartbeatText = if ($null -ne $heartbeat.lastHeartbeatAt) { $heartbeat.lastHeartbeatAt.ToString("s") } else { "unknown" }
+    $lastProgressText = if ($null -ne $heartbeat.lastProgressAt) { $heartbeat.lastProgressAt.ToString("s") } else { "unknown" }
+    $task = if (![string]::IsNullOrWhiteSpace([string]$heartbeat.currentTaskSummary)) { "; task=$($heartbeat.currentTaskSummary)" } else { "" }
+    return "$($heartbeat.classification); status=$($heartbeat.status); pid=$($heartbeat.pid); lastHeartbeat=$lastHeartbeatText; lastProgress=$lastProgressText; shape=$($heartbeat.runShape)$task"
+}
+
+function Get-BranchSyncSummary {
+    param([string]$Branch)
+
+    if ([string]::IsNullOrWhiteSpace($Branch)) { return "unknown" }
+    $upstream = (git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($upstream)) {
+        $upstream = "origin/$Branch"
+    }
+    git rev-parse --verify $upstream 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { return "no upstream ($upstream)" }
+
+    $counts = (git rev-list --left-right --count "$upstream...HEAD" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($counts)) { return "unknown vs $upstream" }
+    $parts = @($counts -split "\s+")
+    if ($parts.Count -lt 2) { return "unknown vs $upstream" }
+    $behind = [int]$parts[0]
+    $ahead = [int]$parts[1]
+    return "ahead $ahead / behind $behind vs $upstream"
+}
+
+function Resolve-RunnerDisplayState {
+    param(
+        [object]$Heartbeat,
+        [object]$Lock,
+        [string]$Dirty,
+        [int]$UncheckedCount
+    )
+
+    if ($null -ne $Lock -and $Lock.active) { return "RUNNING" }
+    if ($null -ne $Heartbeat -and $Heartbeat.classification -in @("active", "idle")) { return "RUNNING" }
+    if ($null -ne $Heartbeat -and $Heartbeat.classification -eq "stalled") { return "STALLED" }
+    if ($Dirty -like "dirty*") { return "BLOCKED" }
+    if ($null -ne $Heartbeat -and $Heartbeat.classification -in @("parked", "completed")) { return "PARKED" }
+    if ($UncheckedCount -le 0) { return "PARKED" }
+    return "READY"
 }
 
 function Get-ProjectSnapshotLines {
@@ -444,6 +525,7 @@ function Get-ProjectSnapshotLines {
             $branch = (git branch --show-current 2>$null)
             $head = (git rev-parse --short HEAD 2>$null)
             if ($LASTEXITCODE -ne 0) { $head = "none" }
+            $sync = Get-BranchSyncSummary -Branch $branch
             $status = @(git status --short 2>$null)
             $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue)
             $firstTask = if ($unchecked.Count -gt 0) { ($unchecked[0].Line -replace "^\s*-\s+\[ \]\s+", "").Trim() } else { "" }
@@ -455,13 +537,35 @@ function Get-ProjectSnapshotLines {
                 if ($phaseMatch.Success) { $phase = $phaseMatch.Groups[1].Value.Trim() }
             }
             $dirty = if ($status.Count -eq 0) { "clean" } else { "dirty ($($status.Count) files)" }
+            $heartbeat = Get-ProjectRunHeartbeatState -ProjectName $name
+            $lock = Get-ProjectRunLockState -ProjectName $name
+            $runnerState = Resolve-RunnerDisplayState -Heartbeat $heartbeat -Lock $lock -Dirty $dirty -UncheckedCount $unchecked.Count
+            $runnerPid = if ($runnerState -eq "RUNNING") {
+                if ($lock.active) { $lock.pid } elseif ($heartbeat.pid -gt 0) { $heartbeat.pid } else { 0 }
+            } else {
+                0
+            }
+            $lastHeartbeatText = if ($null -ne $heartbeat.lastHeartbeatAt) { $heartbeat.lastHeartbeatAt.ToString("s") } else { "none" }
+            $lastProgressText = if ($null -ne $heartbeat.lastProgressAt) { $heartbeat.lastProgressAt.ToString("s") } else { "none" }
             $lines.Add("- Branch: $branch") | Out-Null
             $lines.Add("- HEAD: $head") | Out-Null
+            $lines.Add("- Branch sync: $sync") | Out-Null
             $lines.Add("- Working tree: $dirty") | Out-Null
+            $lines.Add("- Runner state: $runnerState") | Out-Null
+            if ($runnerPid -gt 0) {
+                $lines.Add("- Runner PID: $runnerPid") | Out-Null
+            }
+            $lockPidText = if ($lock.pid -gt 0) { " PID $($lock.pid)" } else { "" }
+            $lines.Add("- Lock state: $($lock.state)$lockPidText") | Out-Null
+            $lines.Add("- Run shape: $($heartbeat.runShape)") | Out-Null
+            $lines.Add("- Last heartbeat: $lastHeartbeatText") | Out-Null
+            $lines.Add("- Last progress: $lastProgressText") | Out-Null
             $lines.Add("- Unchecked tasks: $($unchecked.Count)") | Out-Null
             $lines.Add("- Phase: $phase") | Out-Null
             $lines.Add("- Next workflow: $workflow") | Out-Null
-            $lines.Add("- Runner: $(Get-ProjectRunHeartbeatSummary -ProjectName $name)") | Out-Null
+            if (![string]::IsNullOrWhiteSpace([string]$heartbeat.currentTaskSummary)) {
+                $lines.Add("- Current task: $($heartbeat.currentTaskSummary)") | Out-Null
+            }
             if ($status.Count -gt 0) {
                 $changed = @($status | Select-Object -First 4)
                 $lines.Add("- Changed: $($changed -join '; ')") | Out-Null
@@ -680,6 +784,19 @@ if ($ValidateHeartbeatOnly) {
         Write-Host "$name runner: $(Get-ProjectRunHeartbeatSummary -ProjectName $name)"
     }
     Write-Host "Remote status heartbeat validation complete."
+    exit 0
+}
+
+if ($ValidateStatusSnapshotOnly) {
+    if (!(Test-Path -LiteralPath $ConfigPath)) {
+        Stop-WithMessage "Config not found: $ConfigPath"
+    }
+    $runModeForSnapshot = if (Test-Path (Join-Path $controlPath "run-mode.json")) { Get-Content (Join-Path $controlPath "run-mode.json") -Raw | ConvertFrom-Json } else { $null }
+    $selectedForSnapshot = @(Get-SelectedProjects -ConfigFile $ConfigPath -RequestedProjects $Project -ExcludedProjects $ExcludeProject -RunMode $runModeForSnapshot)
+    foreach ($line in @(Get-ProjectSnapshotLines -Projects $selectedForSnapshot)) {
+        Write-Host $line
+    }
+    Write-Host "Remote status snapshot validation complete."
     exit 0
 }
 

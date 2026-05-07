@@ -39,4 +39,16 @@ Dead-PID heartbeats must never count as active work. The watchdog may skip live 
 
 ## Status Publishing
 
-`fleet-remote-control.ps1` includes the runner heartbeat summary in GitHub status output. Status publishing remains read-only by default and does not launch product work.
+`fleet-remote-control.ps1` includes the runner heartbeat and lock summary in GitHub status output. Status publishing remains read-only by default and does not launch product work.
+
+Each active project section in `fleet/status/current.md` reports:
+
+- `Runner state`: `RUNNING`, `READY`, `STALLED`, `PARKED`, or `BLOCKED`.
+- `Runner PID`: shown when the lock or heartbeat points at a live runner.
+- `Lock state`: missing, active, stale, or unreadable.
+- `Run shape`: heartbeat run bounds when present.
+- `Last heartbeat` and `Last progress`.
+- `HEAD` plus branch ahead/behind state.
+- unchecked task count and next workflow.
+
+Missing heartbeat files are normal for ships that have not launched since heartbeat support was added; status should still show a clean `READY` or `PARKED` state when the repo itself is clean.
