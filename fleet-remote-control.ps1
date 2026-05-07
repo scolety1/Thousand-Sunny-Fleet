@@ -305,6 +305,8 @@ function Get-TaskWorkflowSummary {
         "design" { return "frontend-ui-engineering (inferred)" }
         "copy" { return "code-review-and-quality (inferred)" }
         "bugfix" { return "debugging-and-error-recovery (inferred)" }
+        "planning" { return "planning-and-task-breakdown (inferred)" }
+        "proof" { return "code-review-and-quality (inferred)" }
         "test" { return "test-driven-development (inferred)" }
         "docs" { return "documentation-and-adrs (inferred)" }
         "backend" { return "api-and-interface-design (inferred)" }

@@ -568,7 +568,7 @@ function Test-OvernightBudgetExceeded {
 function Resolve-TaskContract {
     param([string]$Task)
 
-    $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "design", "copy", "backend", "migration", "integration", "performance", "staging-deploy")
+    $allowedClasses = @("feature", "bugfix", "refactor", "test", "docs", "planning", "proof", "design", "copy", "backend", "migration", "integration", "performance", "staging-deploy")
     $allowedRisks = @("low", "medium", "high", "gated")
     $allowedModes = @("single", "feature-pack")
     $allowedImpacts = @("standard", "visible", "showpiece")
@@ -701,7 +701,7 @@ function Get-TaskContractV2FailureForLoop {
     if ($null -eq $Contract -or [string]::IsNullOrWhiteSpace($Task)) { return "" }
 
     $isVisible = ([string]$Contract.impact -in @("visible", "showpiece") -or [string]$Contract.class -in @("feature", "design", "copy"))
-    $isDocsOnlyAllowed = ([string]$Contract.class -in @("docs", "test") -or [string]$Contract.workflow -in @("planning-and-task-breakdown", "documentation-and-adrs", "code-review-and-quality"))
+    $isDocsOnlyAllowed = ([string]$Contract.class -in @("docs", "planning", "proof", "test") -or [string]$Contract.workflow -in @("planning-and-task-breakdown", "documentation-and-adrs", "code-review-and-quality"))
     $hasSkillField = ($Task -match "(?i)\b(?:Skill|Workflow)\s*:")
     $hasProofField = ($Task -match "(?i)\bProof\s*:")
     $hasStopField = ($Task -match "(?i)\bStop\s+if\s*:")

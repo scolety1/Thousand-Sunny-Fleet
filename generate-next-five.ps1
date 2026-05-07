@@ -200,7 +200,8 @@ Rules:
 - UI/product tasks with class:feature, class:design, class:copy, impact:visible, or impact:showpiece must include exactly one surface metadata value: surface:public, surface:app, surface:internal, or surface:mixed.
 - Public/customer surfaces sell or serve the visitor; app/internal surfaces support the working tool. Do not blend guest-facing restaurant pages with staff-only service notes unless the task explicitly creates a staff mode.
 - Prefer this metadata syntax at the end of each task when useful: [class:feature risk:low mode:single impact:visible surface:app scope:src/,docs/codex/ accept:npm.cmd run build].
-- Supported classes: feature, bugfix, refactor, test, docs, design, copy, backend, migration, integration, performance.
+- Supported classes: feature, bugfix, refactor, test, docs, planning, proof, design, copy, backend, migration, integration, performance.
+- Docs-only tasks must use class:planning or class:proof unless they are simple documentation maintenance with no launch implication.
 - Supported risks: low, medium, high, gated. Use high/gated only for work that should require an approved architecture plan.
 - Supported modes: mode:single and mode:feature-pack. Use mode:feature-pack only when SOFTWARE_FEATURE_PLAN.md and SOFTWARE_FEATURE_APPROVAL.md are approved and the task has explicit scope and accept metadata.
 - Supported impacts: impact:standard, impact:visible, and impact:showpiece. Use impact:visible for design/copy/page/mobile tasks. Use impact:showpiece for final, demo-ready, major redesign, premium, or high-expectation creative tasks.

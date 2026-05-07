@@ -25,9 +25,9 @@ Docs-only tasks are allowed only when they are planning, proof, review, or parki
 
 Good docs-only examples:
 
-- `class:docs impact:standard` with `Skill: documentation-and-adrs`
-- proof packet with `Skill: code-review-and-quality`
-- planning slice with `Skill: planning-and-task-breakdown`
+- `class:planning impact:standard` with `Skill: planning-and-task-breakdown`
+- `class:proof impact:standard` with `Skill: code-review-and-quality`
+- simple documentation maintenance with `class:docs impact:standard` only when it is not pretending to be product progress
 
 Bad docs-only examples:
 
