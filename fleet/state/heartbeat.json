@@ -1,0 +1,10 @@
+﻿{
+    "updatedAt":  "2026-05-06T20:10:42.8967790",
+    "reportDate":  "2026-05-06",
+    "fleetMode":  "PAUSED",
+    "missionHash":  "eceee7a8e41dd43c4e9cd3d3db36cd46887346922b44cdb635cede6897fd1966",
+    "emergencyStop":  false,
+    "supervisorExitCode":  "not run",
+    "branch":  "codex/add-robin-copy-review",
+    "head":  "3782472"
+}

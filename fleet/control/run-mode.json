@@ -1,0 +1,17 @@
+{
+  "fleetMode": "PAUSED",
+  "activeProjects": [
+    "EasyLife",
+    "RestaurantDemo"
+  ],
+  "quietHours": {
+    "timeZone": "Pacific Standard Time",
+    "missionUpdatesPausedFrom": "03:00",
+    "missionUpdatesResumeAt": "07:00"
+  },
+  "reportCadence": {
+    "publishWindow": "07:00-02:00",
+    "noChangeReports": "skip unless ForceReport is used"
+  },
+  "emergency": "Set Emergency: STOP_ALL in fleet/control/emergency.md to request safe stops at any hour."
+}
