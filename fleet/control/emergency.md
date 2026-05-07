@@ -1,6 +1,6 @@
 ﻿# Fleet Emergency
 
-Emergency: STOP_ALL
+Emergency: none
 
 Reason:
-Pause all selected fleet work at the next cooperative checkpoint. Preserve work, commit only safe completed checkpoints, and do not launch new runs.
+Emergency stop cleared for bounded overnight fleet run after user approval.
