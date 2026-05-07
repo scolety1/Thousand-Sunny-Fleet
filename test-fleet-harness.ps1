@@ -330,6 +330,21 @@ Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands runtime" -Passed (
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands task cap" -Passed ($watchdogSafe12Text -match "-MaxCompletedTasks 14\b")
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 keeps quarantine and push" -Passed ($watchdogSafe12Text -match "-QuarantineFailedTasks\b" -and $watchdogSafe12Text -match "-PushCheckpoint\b")
 
+$remoteStatusDryRun = Invoke-HarnessCommand -Name "Remote status supervisor dry-run is observation-only" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+    "-Project", "EasyLife",
+    "-RunSupervisor",
+    "-Publish",
+    "-ForceReport",
+    "-SkipPull",
+    "-DryRun"
+)
+$remoteStatusText = ($remoteStatusDryRun.output -join "`n")
+Add-TestResult -Name "Remote status passes supervisor ObservationOnly" -Passed ($remoteStatusText -match "fleet-supervisor\.ps1" -and $remoteStatusText -match "-ObservationOnly\b")
+Add-TestResult -Name "Remote status dry-run does not request repair launch" -Passed ($remoteStatusText -notmatch "-AutoRelaunchRepair\b|run-checkpoint-loop\.ps1|launch-overnight-run\.ps1|scheduled-selected-overnight-run\.ps1")
+
 $scheduledLogRoot = Join-Path $fleetRoot "out\harness-scheduled-runs"
 New-Item -ItemType Directory -Force -Path $scheduledLogRoot | Out-Null
 $nightReportHarnessLog = Join-Path $scheduledLogRoot "harness-proof-dryrun-$PID.log"

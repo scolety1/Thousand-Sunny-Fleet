@@ -28,6 +28,8 @@ param(
 
     [switch]$RunSupervisor,
 
+    [switch]$AllowRepairLaunch,
+
     [switch]$Publish,
 
     [switch]$SkipPull,
@@ -441,9 +443,16 @@ function Rotate-StatusLog {
 }
 
 function Invoke-SupervisorOnce {
-    param([string[]]$RequestedProjects, [string[]]$ExcludedProjects)
+    param(
+        [string[]]$RequestedProjects,
+        [string[]]$ExcludedProjects,
+        [bool]$AllowMutation = $false
+    )
 
     $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $fleetRoot "fleet-supervisor.ps1"), "-Once")
+    if (!$AllowMutation) {
+        $args += "-ObservationOnly"
+    }
     $requested = @($RequestedProjects | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
     if ($requested.Count -gt 0) {
         $args += @("-Project", ($requested -join ","))
@@ -622,10 +631,10 @@ try {
     $supervisorResult = $null
     if (!$RotateOnly -and $RunSupervisor -and !$DryRun) {
         $supervisorProjectNames = @($selectedProjects | ForEach-Object { [string]$_.name })
-        $supervisorResult = Invoke-SupervisorOnce -RequestedProjects $supervisorProjectNames -ExcludedProjects $ExcludeProject
+        $supervisorResult = Invoke-SupervisorOnce -RequestedProjects $supervisorProjectNames -ExcludedProjects $ExcludeProject -AllowMutation ([bool]$AllowRepairLaunch)
     } elseif ($RunSupervisor -and $DryRun) {
         $supervisorProjectNames = @($selectedProjects | ForEach-Object { [string]$_.name })
-        $supervisorResult = Invoke-SupervisorOnce -RequestedProjects $supervisorProjectNames -ExcludedProjects $ExcludeProject
+        $supervisorResult = Invoke-SupervisorOnce -RequestedProjects $supervisorProjectNames -ExcludedProjects $ExcludeProject -AllowMutation ([bool]$AllowRepairLaunch)
     }
 
     if ($shouldReport) {

@@ -33,6 +33,8 @@ param(
 
     [switch]$AutoRelaunchRepair,
 
+    [switch]$ObservationOnly,
+
     [int]$MaxRepairAttempts = 2,
 
     [int]$RepairBatchSize = 1,
@@ -814,9 +816,12 @@ function Write-SupervisorReport {
         }
         $row | Add-Member -NotePropertyName state -NotePropertyValue (Resolve-SupervisorState -Row $row)
         $row | Add-Member -NotePropertyName recommendation -NotePropertyValue (Get-Recommendation -Row $row)
-        Push-Location $project.repo
-        $repairExit = Complete-SupervisorRepairPhaseIfClear -Row $row -PhaseState $phaseState
-        Pop-Location
+        $repairExit = [pscustomobject]@{ completed = $false; reason = "observation only"; returnPhase = "" }
+        if (!$ObservationOnly) {
+            Push-Location $project.repo
+            $repairExit = Complete-SupervisorRepairPhaseIfClear -Row $row -PhaseState $phaseState
+            Pop-Location
+        }
         $skipAutoRepairForRow = $false
         if ($repairExit.completed) {
             $row.phase = $repairExit.returnPhase
@@ -825,13 +830,13 @@ function Write-SupervisorReport {
             $row.recommendation = "repair cleared; returned to $($repairExit.returnPhase)"
             $skipAutoRepairForRow = $true
         }
-        if ($AutoSafeStop -and $row.lockActive -and ($AutoSafeStopStates -contains [string]$row.state)) {
+        if (!$ObservationOnly -and $AutoSafeStop -and $row.lockActive -and ($AutoSafeStopStates -contains [string]$row.state)) {
             $reason = "$($row.state): $($row.recommendation)"
             $stopPath = Request-FleetSafeStop -ProjectName ([string]$row.ship) -Reason $reason
             $safeStopsRequested += [pscustomobject]@{ ship = $row.ship; state = $row.state; path = $stopPath; reason = $reason }
             $row.recommendation = "safe stop requested; inspect before relaunch"
         }
-        if ($AutoRepair -and -not $skipAutoRepairForRow) {
+        if (!$ObservationOnly -and $AutoRepair -and -not $skipAutoRepairForRow) {
             Push-Location $project.repo
             $repairResult = Add-SupervisorAutoRepairTask -Row $row -PhaseState $phaseState -Since $since
             Pop-Location
@@ -845,7 +850,7 @@ function Write-SupervisorReport {
                 $row.recommendation = "$($repairResult.reason); human review needed"
             }
         }
-        if ($AutoRelaunchRepair) {
+        if (!$ObservationOnly -and $AutoRelaunchRepair) {
             Push-Location $project.repo
             $repairLaunch = Start-SupervisorRepairRun -Row $row
             Pop-Location
@@ -870,6 +875,9 @@ function Write-SupervisorReport {
     $lines += ""
     $lines += "## Safe Restart Guidance"
     $lines += ""
+    if ($ObservationOnly) {
+        $lines += "- Observation-only mode is active; supervisor did not write repo changes, request safe stops, queue repair tasks, or relaunch work."
+    }
     $lines += '- Use `request-safe-stop.ps1` before intervening in active ships.'
     $lines += "- Do not manually delete locks or kill processes unless a ship is clearly stuck and rescue is approved."
     $lines += '- For `IDLE_RUNNING`, inspect the latest `.codex-logs` output first; if no progress continues, request a safe stop.'
