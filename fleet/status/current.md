@@ -1,13 +1,13 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-06 23:51:25 Pacific Standard Time
+- Updated: 2026-05-06 23:57:43 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 4250045fc94c
 - Mission update: unchanged
 - Emergency stop: none
 - Supervisor cycle: not run
 - Fleet branch: main
-- Fleet HEAD: b6995fb
+- Fleet HEAD: c715a87
 
 ## Projects
 ### Bottlelight
@@ -52,7 +52,7 @@
 
 ### RestaurantDemo
 - Branch: codex/mission-RestaurantDemo-20260424-135732
-- HEAD: 55efac9
+- HEAD: 6e33212
 - Working tree: clean
 - Unchecked tasks: 8
 - Phase: phase-8-mobile-shift-mode
@@ -68,11 +68,11 @@
 
 ### UrbanKitchenSite
 - Branch: master
-- HEAD: baf552d
+- HEAD: acad2df
 - Working tree: clean
-- Unchecked tasks: 2
+- Unchecked tasks: 1
 - Phase: shape
-- Next workflow: code-review-and-quality
+- Next workflow: debugging-and-error-recovery
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
