@@ -3880,7 +3880,9 @@ REVIEW_FINDING: P2: short description
         }
     }
 
+    Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch checkpoint review running" -Progress
     $checkpointText = Invoke-CheckpointReviewGate -Batch $batch
+    Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch checkpoint review returned" -Progress
 
     if ($stopAfterCheckpoint) {
         if (-not $batchQualityRecorded) {
@@ -3888,6 +3890,7 @@ REVIEW_FINDING: P2: short description
             $batchQualityRecorded = $true
         }
         Write-Host "$stopAfterCheckpointReason Ending loop without merge." -ForegroundColor $(if ($stopAfterCheckpointExitCode -ne 0) { "Red" } else { "Yellow" })
+        Update-RunHeartbeat -Status "parked" -CurrentTaskSummary $stopAfterCheckpointReason -Progress
         if ($stopAfterCheckpointExitCode -ne 0) {
             Release-FleetRunLock
             exit $stopAfterCheckpointExitCode
@@ -3923,10 +3926,12 @@ REVIEW_FINDING: P2: short description
             $batchQualityRecorded = $true
         }
         Write-Host "Checkpoint review requested a human stop. Ending loop without merge." -ForegroundColor Yellow
+        Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "checkpoint review requested a human stop" -Progress
         break
     }
 
     if (!$SkipDebug) {
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch debug checkpoint running" -Progress
         $debugArgs = @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
@@ -3951,6 +3956,7 @@ REVIEW_FINDING: P2: short description
         }
         $debugLogName = "debug-checkpoint-batch-$batch.log"
         $debugExit = Invoke-FleetPowerShell -Arguments $debugArgs -LogName $debugLogName -TimeoutSeconds (Get-TimeoutSetting -Role "debug" -Default $DebugTimeoutSeconds)
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch debug checkpoint returned exit $debugExit" -Progress
         if ($debugExit -ne 0) {
             if (-not $batchQualityRecorded) {
                 if (-not (Save-BatchQualityScorecardForLoop -Batch $batch -ImpactMode $batchImpactMode -DebugExit $debugExit -DebugLogName $debugLogName -CommitMessage "Codex batch QA scorecard $batch debug stop")) { exit 1 }
@@ -3958,9 +3964,11 @@ REVIEW_FINDING: P2: short description
             }
             if (Test-SoftCheckpointWidthFailure -LogName $debugLogName) {
                 Write-Host "Checkpoint batch was too wide for the configured review limit. Stopping cleanly so the next launch can continue with smaller batches." -ForegroundColor Yellow
+                Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "checkpoint batch too wide; parked cleanly" -Progress
                 break
             }
             Write-Host "Checkpoint debugger failed. Ending loop without merge." -ForegroundColor Red
+            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "checkpoint debugger failed" -Progress
             Release-FleetRunLock
             exit 1
         }
@@ -3971,6 +3979,7 @@ REVIEW_FINDING: P2: short description
     }
 
     if ($PushCheckpoint) {
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch push checkpoint" -Progress
         $originUrl = git remote get-url origin 2>$null
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($originUrl)) {
             Write-Host "Push checkpoint requested, but no origin remote is configured. Skipping push." -ForegroundColor Yellow
@@ -3978,9 +3987,11 @@ REVIEW_FINDING: P2: short description
             git push -u origin $branch
             if ($LASTEXITCODE -ne 0) { exit 1 }
         }
+        Update-RunHeartbeat -Status "active" -CurrentTaskSummary "batch $batch push checkpoint complete" -Progress
     }
 }
 
+Update-RunHeartbeat -Status "completed" -CurrentTaskSummary "checkpoint loop completed" -Progress
 Release-FleetRunLock
 Update-ShipPreviewDashboard
 

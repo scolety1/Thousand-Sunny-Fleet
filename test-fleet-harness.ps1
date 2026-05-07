@@ -189,6 +189,8 @@ foreach ($script in @(
     ".\launch-overnight-run.ps1",
     ".\run-checkpoint-loop.ps1",
     ".\scheduled-selected-overnight-run.ps1",
+    ".\fleet-runner-watchdog.ps1",
+    ".\fleet-remote-control.ps1",
     ".\launch-cellar-fleet.ps1",
     ".\fleet-night-report.ps1",
     ".\fleet-supervisor.ps1",
@@ -329,6 +331,82 @@ Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands MaxBatches" -Passe
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands runtime" -Passed ($watchdogSafe12Text -match "-MaxRuntimeMinutes 720\b")
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 expands task cap" -Passed ($watchdogSafe12Text -match "-MaxCompletedTasks 14\b")
 Add-TestResult -Name "Runner watchdog EasyLife Safe12 keeps quarantine and push" -Passed ($watchdogSafe12Text -match "-QuarantineFailedTasks\b" -and $watchdogSafe12Text -match "-PushCheckpoint\b")
+
+$heartbeatProject = "HarnessHeartbeat"
+$heartbeatRoot = Join-Path $fleetRoot ".codex-local\runs\$heartbeatProject"
+$heartbeatPath = Join-Path $heartbeatRoot "heartbeat.json"
+Remove-Item -LiteralPath $heartbeatPath -Force -ErrorAction SilentlyContinue
+[void](Invoke-HarnessCommand -Name "Watchdog heartbeat reader handles missing file" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-runner-watchdog.ps1"),
+    "-Project", $heartbeatProject,
+    "-ValidateHeartbeatOnly"
+))
+
+New-Item -ItemType Directory -Force -Path $heartbeatRoot | Out-Null
+$heartbeatPayload = [ordered]@{
+    project = $heartbeatProject
+    pid = $PID
+    startedAt = (Get-Date).ToUniversalTime().AddMinutes(-1).ToString("o")
+    lastHeartbeatAt = (Get-Date).ToUniversalTime().ToString("o")
+    lastProgressAt = (Get-Date).ToUniversalTime().ToString("o")
+    runShape = [ordered]@{
+        batchSize = 1
+        maxBatches = 24
+        maxRuntimeMinutes = 720
+        maxCompletedTasks = 14
+        quarantineFailedTasks = $true
+        pushCheckpoint = $true
+    }
+    currentTaskSummary = "fixture active task"
+    lastCommit = "abcdef0"
+    status = "active"
+}
+$heartbeatPayload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $heartbeatPath -Encoding UTF8
+$readHeartbeat = Get-Content -LiteralPath $heartbeatPath -Raw | ConvertFrom-Json
+$requiredHeartbeatFields = @("project", "pid", "startedAt", "lastHeartbeatAt", "lastProgressAt", "runShape", "currentTaskSummary", "lastCommit", "status")
+$missingHeartbeatFields = @($requiredHeartbeatFields | Where-Object { $null -eq $readHeartbeat.PSObject.Properties[$_] })
+Add-TestResult -Name "Runner heartbeat fixture has required schema" -Passed ($missingHeartbeatFields.Count -eq 0) -Detail ($(if ($missingHeartbeatFields.Count -gt 0) { "missing: $($missingHeartbeatFields -join ', ')" } else { "" }))
+$watchdogCurrentHeartbeat = Invoke-HarnessCommand -Name "Watchdog heartbeat reader classifies current heartbeat" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-runner-watchdog.ps1"),
+    "-Project", $heartbeatProject,
+    "-ValidateHeartbeatOnly"
+)
+Add-TestResult -Name "Watchdog current heartbeat is active" -Passed (($watchdogCurrentHeartbeat.output -join "`n") -match "\bactive\b" -and ($watchdogCurrentHeartbeat.output -join "`n") -match "status=active")
+
+$heartbeatPayload.pid = 999999
+$heartbeatPayload.lastHeartbeatAt = (Get-Date).ToUniversalTime().AddHours(-2).ToString("o")
+$heartbeatPayload.lastProgressAt = (Get-Date).ToUniversalTime().AddHours(-2).ToString("o")
+$heartbeatPayload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $heartbeatPath -Encoding UTF8
+$watchdogStaleHeartbeat = Invoke-HarnessCommand -Name "Watchdog heartbeat reader classifies dead PID as stale" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-runner-watchdog.ps1"),
+    "-Project", $heartbeatProject,
+    "-ValidateHeartbeatOnly"
+)
+Add-TestResult -Name "Watchdog stale heartbeat is not active" -Passed (($watchdogStaleHeartbeat.output -join "`n") -match "\bstale\b" -and ($watchdogStaleHeartbeat.output -join "`n") -notmatch "heartbeat: active")
+
+[void](Invoke-HarnessCommand -Name "Remote status heartbeat reader handles stale fixture" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+    "-Project", $heartbeatProject,
+    "-ValidateHeartbeatOnly",
+    "-DryRun"
+))
+Remove-Item -LiteralPath $heartbeatPath -Force -ErrorAction SilentlyContinue
+[void](Invoke-HarnessCommand -Name "Remote status heartbeat reader handles missing file" -Arguments @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", (Join-Path $fleetRoot "fleet-remote-control.ps1"),
+    "-Project", $heartbeatProject,
+    "-ValidateHeartbeatOnly",
+    "-DryRun"
+))
 
 $remoteStatusDryRun = Invoke-HarnessCommand -Name "Remote status supervisor dry-run is observation-only" -Arguments @(
     "-NoProfile",

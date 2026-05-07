@@ -38,6 +38,8 @@ param(
 
     [switch]$RotateOnly,
 
+    [switch]$ValidateHeartbeatOnly,
+
     [switch]$DryRun
 )
 
@@ -64,6 +66,18 @@ function Resolve-ControlPath {
     param([string]$Path)
     if ([System.IO.Path]::IsPathRooted($Path)) { return $Path }
     return (Join-Path $fleetRoot $Path)
+}
+
+function ConvertTo-NameList {
+    param([string[]]$Values = @())
+    return @(
+        $Values |
+            ForEach-Object { [string]$_ } |
+            ForEach-Object { $_ -split "," } |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { ![string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
 }
 
 function Get-ControlNow {
@@ -337,6 +351,80 @@ function Request-ProjectSafeStop {
     }
 }
 
+function ConvertTo-RunStateSafeName {
+    param([string]$Name)
+
+    $safeName = ([string]$Name) -replace "[^a-zA-Z0-9_.-]+", "-"
+    $safeName = $safeName.Trim("-")
+    if ([string]::IsNullOrWhiteSpace($safeName)) { return "project" }
+    return $safeName
+}
+
+function Test-RunStateProcessActive {
+    param([int]$ProcessId)
+
+    if ($ProcessId -le 0) { return $false }
+    return ($null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue))
+}
+
+function ConvertTo-RunStateDateTime {
+    param([object]$Value)
+
+    if ($null -eq $Value) { return $null }
+    try { return [DateTime]::Parse([string]$Value, $null, [Globalization.DateTimeStyles]::RoundtripKind) } catch { return $null }
+}
+
+function Get-ProjectRunHeartbeatSummary {
+    param([string]$ProjectName)
+
+    $safeName = ConvertTo-RunStateSafeName -Name $ProjectName
+    $heartbeatPath = Join-Path $fleetRoot ".codex-local\runs\$safeName\heartbeat.json"
+    if (!(Test-Path -LiteralPath $heartbeatPath)) {
+        return "no heartbeat"
+    }
+
+    try {
+        $heartbeat = Get-Content -LiteralPath $heartbeatPath -Raw | ConvertFrom-Json
+        $pidValue = if ($null -ne $heartbeat.pid) { [int]$heartbeat.pid } else { 0 }
+        $processActive = Test-RunStateProcessActive -ProcessId $pidValue
+        $status = if ($null -ne $heartbeat.status) { [string]$heartbeat.status } else { "unknown" }
+        $lastHeartbeatAt = ConvertTo-RunStateDateTime -Value $heartbeat.lastHeartbeatAt
+        $lastProgressAt = ConvertTo-RunStateDateTime -Value $heartbeat.lastProgressAt
+        $ageMinutes = if ($null -ne $lastHeartbeatAt) { ((Get-Date).ToUniversalTime() - $lastHeartbeatAt.ToUniversalTime()).TotalMinutes } else { [double]::PositiveInfinity }
+        $progressAgeMinutes = if ($null -ne $lastProgressAt) { ((Get-Date).ToUniversalTime() - $lastProgressAt.ToUniversalTime()).TotalMinutes } else { [double]::PositiveInfinity }
+
+        $classification = "stale"
+        if ($status -eq "completed") {
+            $classification = "completed"
+        } elseif ($status -in @("parked", "stopped")) {
+            $classification = "parked"
+        } elseif (-not $processActive) {
+            $classification = "stale"
+        } elseif ($ageMinutes -gt 30) {
+            $classification = "stalled"
+        } elseif ($progressAgeMinutes -gt 15) {
+            $classification = "idle"
+        } else {
+            $classification = "active"
+        }
+
+        $shape = ""
+        if ($null -ne $heartbeat.runShape) {
+            $shapeBits = @()
+            if ($null -ne $heartbeat.runShape.batchSize) { $shapeBits += "batch=$($heartbeat.runShape.batchSize)" }
+            if ($null -ne $heartbeat.runShape.maxBatches) { $shapeBits += "maxBatches=$($heartbeat.runShape.maxBatches)" }
+            if ($null -ne $heartbeat.runShape.maxRuntimeMinutes) { $shapeBits += "runtime=$($heartbeat.runShape.maxRuntimeMinutes)m" }
+            if ($shapeBits.Count -gt 0) { $shape = "; shape=$($shapeBits -join ',')" }
+        }
+        $lastHeartbeatText = if ($null -ne $lastHeartbeatAt) { $lastHeartbeatAt.ToString("s") } else { "unknown" }
+        $lastProgressText = if ($null -ne $lastProgressAt) { $lastProgressAt.ToString("s") } else { "unknown" }
+        $task = if (![string]::IsNullOrWhiteSpace([string]$heartbeat.currentTaskSummary)) { "; task=$($heartbeat.currentTaskSummary)" } else { "" }
+        return "$classification; status=$status; pid=$pidValue; lastHeartbeat=$lastHeartbeatText; lastProgress=$lastProgressText$shape$task"
+    } catch {
+        return "heartbeat unreadable"
+    }
+}
+
 function Get-ProjectSnapshotLines {
     param([object[]]$Projects)
 
@@ -373,6 +461,7 @@ function Get-ProjectSnapshotLines {
             $lines.Add("- Unchecked tasks: $($unchecked.Count)") | Out-Null
             $lines.Add("- Phase: $phase") | Out-Null
             $lines.Add("- Next workflow: $workflow") | Out-Null
+            $lines.Add("- Runner: $(Get-ProjectRunHeartbeatSummary -ProjectName $name)") | Out-Null
             if ($status.Count -gt 0) {
                 $changed = @($status | Select-Object -First 4)
                 $lines.Add("- Changed: $($changed -join '; ')") | Out-Null
@@ -583,6 +672,16 @@ $controlPath = Resolve-ControlPath $ControlRoot
 $statusPath = Resolve-ControlPath $StatusRoot
 $statePath = Resolve-ControlPath $StateRoot
 $lockPath = ""
+
+if ($ValidateHeartbeatOnly) {
+    $names = @(ConvertTo-NameList -Values $Project)
+    if ($names.Count -eq 0) { $names = @("HarnessHeartbeat") }
+    foreach ($name in $names) {
+        Write-Host "$name runner: $(Get-ProjectRunHeartbeatSummary -ProjectName $name)"
+    }
+    Write-Host "Remote status heartbeat validation complete."
+    exit 0
+}
 
 try {
     Initialize-RemoteControlFiles -ControlPath $controlPath -StatusPath $statusPath -StatePath $statePath
