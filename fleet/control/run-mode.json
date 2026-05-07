@@ -1,7 +1,8 @@
 {
   "fleetMode": "ACTIVE",
   "activeProjects": [
-    "EasyLife"
+    "EasyLife",
+    "RestaurantDemo"
   ],
   "quietHours": {
     "timeZone": "Pacific Standard Time",
