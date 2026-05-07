@@ -1,13 +1,13 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-06 23:57:43 Pacific Standard Time
+- Updated: 2026-05-06 23:58:42 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 4250045fc94c
 - Mission update: unchanged
-- Emergency stop: none
+- Emergency stop: requested
 - Supervisor cycle: not run
 - Fleet branch: main
-- Fleet HEAD: c715a87
+- Fleet HEAD: 8d90571
 
 ## Projects
 ### Bottlelight
