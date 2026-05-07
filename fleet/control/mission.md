@@ -1,7 +1,7 @@
 # Fleet Mission
 
 ## Fleet Mode
-ACTIVE
+PAUSED
 
 ## Active Projects
 - EasyLife
@@ -14,15 +14,16 @@ ACTIVE
 - UrbanKitchenSite
 
 ## Mission
-Continue the launched overnight selected-fleet run. EasyLife continues the AI personal assistant reset, RestaurantDemo continues Urban Kitchen pilot launch readiness, and Cellar Fleet continues bounded hospitality showpiece polish.
+Pause product work for a fleet harness maintenance upgrade. Do not launch new product tasks. Upgrade the fleet so future runs use skill-aware task contracts, clearer phase-to-skill mapping, stricter task validation, and better GitHub status reporting.
 
 ## Priority
-Run only clean, bounded, product-surface tasks with build acceptance. Prefer one small repair or proof packet per ship before fresh feature expansion.
+Protect clean working trees. Preserve all product repo work. Change only the fleet harness and docs unless explicitly validating against one dry-run ship.
 
 ## Do Not Do
 - Do not deploy.
-- Do not change auth, payments, secrets, legal text, or package dependencies.
+- Do not edit product UI.
+- Do not change auth, payments, secrets, package dependencies, or project remotes.
 - Do not overwrite user-owned work.
 
 ## Next Checkpoint
-Watch the selected ships for clean checkpoint commits, bounded proof packets, and any named stop condition before the next report.
+Implement the skills-layer upgrade in the fleet repo, commit it, push it, publish GitHub status, then run dry-run validation only.
