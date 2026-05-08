@@ -1,13 +1,13 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-08 00:00:03 Pacific Standard Time
+- Updated: 2026-05-08 01:00:03 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 422d550a2e81
 - Mission update: unchanged
 - Emergency stop: none
 - Supervisor cycle: 0
 - Fleet branch: main
-- Fleet HEAD: 4d997ad
+- Fleet HEAD: 52de1c5
 
 ## Projects
 ### EasyLife
@@ -26,7 +26,7 @@
 - Current task: checkpoint debugger failed
 
 ## Supervisor Summary
-- EasyLife: BUDGET_STOP; 286d747e; clean; tasks 19; lock none; OVER: quarantines 8/5
+- EasyLife: BUDGET_STOP; 286d747e; clean; tasks 19; lock none; OVER: quarantines 7/5
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
