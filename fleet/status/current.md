@@ -1,32 +1,29 @@
 ﻿# Fleet Remote Status
 
-- Updated: 2026-05-07 17:00:03 Pacific Standard Time
+- Updated: 2026-05-07 17:35:42 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 422d550a2e81
 - Mission update: unchanged
 - Emergency stop: none
-- Supervisor cycle: 0
+- Supervisor cycle: not run
 - Fleet branch: main
-- Fleet HEAD: 4dd2746
+- Fleet HEAD: a0879d1
 
 ## Projects
 ### EasyLife
 - Branch: codex/product-EasyLife-20260504-231503
-- HEAD: 88350032
-- Branch sync: ahead 4 / behind 0 vs origin/codex/product-EasyLife-20260504-231503
+- HEAD: e5293a1f
+- Branch sync: ahead 5 / behind 0 vs origin/codex/product-EasyLife-20260504-231503
 - Working tree: clean
 - Runner state: PARKED
 - Lock state: missing
 - Run shape: batch=1,maxBatches=24,runtime=720m,taskCap=14,phase=simplicity,quarantine=True,push=True
-- Last heartbeat: 2026-05-07T23:15:14
-- Last progress: 2026-05-07T23:15:14
-- Unchecked tasks: 21
+- Last heartbeat: 2026-05-08T00:08:40
+- Last progress: 2026-05-08T00:08:40
+- Unchecked tasks: 20
 - Phase: proof
-- Next workflow: frontend-ui-engineering
-- Current task: checkpoint loop completed
-
-## Supervisor Summary
-- EasyLife: LOOPING_QUALITY; 88350032; clean; tasks 21; lock none; OK: commits 10, quarantines 5, quality 1
+- Next workflow: debugging-and-error-recovery
+- Current task: checkpoint debugger failed
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
