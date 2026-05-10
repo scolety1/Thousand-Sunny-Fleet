@@ -1,13 +1,20 @@
-﻿# Fleet Remote Status
+﻿# OPEN FIRST - Fleet Captain Status
 
-- Updated: 2026-05-10 13:00:03 Pacific Standard Time
+This is the latest GitHub-visible fleet report. If you only read one file, read this one.
+
+Report map: `fleet/status/current.md` = latest snapshot, `fleet/status/today.md` = today's hourly log, `fleet/status/archive/` = old daily logs, `fleet/control/mission.md` = change direction, `fleet/control/emergency.md` = stop all.
+
+- Updated: 2026-05-10 13:05:58 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 422d550a2e81
 - Mission update: unchanged
 - Emergency stop: none
-- Supervisor cycle: 0
+- Supervisor cycle: not run
 - Fleet branch: main
-- Fleet HEAD: 65392a0
+- Fleet HEAD: b2904a8
+
+## Captain Summary
+- **EasyLife**: **PARKED**, phase proof, clean, 6 unchecked, HEAD 1346609b. Next: User pain: EasyLife still exposes too many separate app surfaces before the assistant model is clear. Skill/workflow:.... Progress: latest 2026-05-10 13:57:13 | Assistant rebuild proof packet. User pain: after Stages 1-5, EasyLife needs an honest proof call before the team starts making it prettie... | build: Passed (`npm.cmd run build` from `app-vNext`; Vite built successfully in 1.29s) | verdict: NOT_READY_FOR_VISUAL_PASS.
 
 ## Projects
 ### EasyLife
@@ -24,9 +31,6 @@
 - Phase: proof
 - Next workflow: frontend-ui-engineering
 - Current task: checkpoint debugger failed
-
-## Supervisor Summary
-- EasyLife: LOOPING_QUALITY; 1346609b; clean; tasks 6; lock none; OK: commits 0, quarantines 0, quality 0
 
 ## Controls
 - Edit `fleet/control/mission.md` to change mission goals.
