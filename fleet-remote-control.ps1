@@ -44,6 +44,8 @@ param(
 
     [switch]$ValidateStatusSnapshotOnly,
 
+    [switch]$ValidateQuickMissionOnly,
+
     [switch]$ValidateLockCleanupOnly,
 
     [switch]$AllProjects,
@@ -213,6 +215,174 @@ function Initialize-RemoteControlFiles {
             "To stop all selected projects at any hour, change the status line to STOP_ALL."
         )
     }
+
+    $quickMissionPath = Join-Path $ControlPath "quick-mission.md"
+    if (!(Test-Path $quickMissionPath) -and !$DryRun) {
+        Set-Content -Path $quickMissionPath -Encoding UTF8 -Value @(
+            "# Quick Mission Update",
+            "",
+            "Status: DRAFT",
+            "Fleet Mode: ACTIVE",
+            "",
+            "## Apply To",
+            "- EasyLife",
+            "",
+            "## Goal",
+            "Write the new goal here in plain language.",
+            "",
+            "## Priority",
+            "What matters most for this run?",
+            "",
+            "## Product Direction",
+            "Optional. Add product-specific direction here.",
+            "",
+            "## Do Not Do",
+            "- Do not deploy.",
+            "- Do not change auth, payments, secrets, dependencies, deployment config, generated output, or project remotes.",
+            "- Do not overwrite user-owned work.",
+            "",
+            "## Next Checkpoint",
+            "What should the next hourly report prove?",
+            "",
+            "## How To Use",
+            "Edit this file on GitHub. Change Status to SUBMIT. The next remote-control cycle will update mission.md and run-mode.json, then mark this file APPLIED."
+        )
+    }
+}
+
+function Get-MarkdownSection {
+    param(
+        [string]$Text,
+        [string]$Name
+    )
+
+    $escaped = [regex]::Escape($Name)
+    $match = [regex]::Match($Text, "(?ms)^##\s+$escaped\s*\r?\n(.*?)(?=^##\s+|\z)")
+    if (!$match.Success) { return "" }
+    return $match.Groups[1].Value.Trim()
+}
+
+function ConvertTo-QuickMissionProjectList {
+    param([string]$Text)
+
+    $projects = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in @($Text -split "\r?\n")) {
+        $clean = ($line -replace "^\s*-\s*", "").Trim()
+        if ([string]::IsNullOrWhiteSpace($clean)) { continue }
+        foreach ($piece in @($clean -split ",")) {
+            $name = $piece.Trim()
+            if (![string]::IsNullOrWhiteSpace($name) -and !$projects.Contains($name)) {
+                $projects.Add($name) | Out-Null
+            }
+        }
+    }
+    return @($projects)
+}
+
+function Read-QuickMissionUpdate {
+    param([string]$Path)
+
+    if (!(Test-Path $Path)) {
+        return [pscustomobject]@{ submitted = $false; reason = "missing"; status = "MISSING" }
+    }
+
+    $text = Get-Content $Path -Raw
+    $statusMatch = [regex]::Match($text, "(?im)^\s*Status\s*:\s*(.+?)\s*$")
+    $status = if ($statusMatch.Success) { $statusMatch.Groups[1].Value.Trim().ToUpperInvariant() } else { "DRAFT" }
+    if ($status -notin @("SUBMIT", "APPLY")) {
+        return [pscustomobject]@{ submitted = $false; reason = "status $status"; status = $status }
+    }
+
+    $modeMatch = [regex]::Match($text, "(?im)^\s*Fleet Mode\s*:\s*(.+?)\s*$")
+    $fleetMode = if ($modeMatch.Success) { $modeMatch.Groups[1].Value.Trim().ToUpperInvariant() } else { "ACTIVE" }
+    $applyToText = Get-MarkdownSection -Text $text -Name "Apply To"
+    $projects = @(ConvertTo-QuickMissionProjectList -Text $applyToText)
+    $goal = Get-MarkdownSection -Text $text -Name "Goal"
+    $priority = Get-MarkdownSection -Text $text -Name "Priority"
+    $productDirection = Get-MarkdownSection -Text $text -Name "Product Direction"
+    $doNotDo = Get-MarkdownSection -Text $text -Name "Do Not Do"
+    $nextCheckpoint = Get-MarkdownSection -Text $text -Name "Next Checkpoint"
+
+    $errors = [System.Collections.Generic.List[string]]::new()
+    if ($projects.Count -eq 0) { $errors.Add("Apply To must name at least one project") | Out-Null }
+    if ([string]::IsNullOrWhiteSpace($goal) -or $goal -match "Write the new goal here") { $errors.Add("Goal is still blank/template text") | Out-Null }
+    if ([string]::IsNullOrWhiteSpace($priority) -or $priority -match "What matters most") { $errors.Add("Priority is still blank/template text") | Out-Null }
+    if ([string]::IsNullOrWhiteSpace($nextCheckpoint) -or $nextCheckpoint -match "What should the next hourly report prove") { $errors.Add("Next Checkpoint is still blank/template text") | Out-Null }
+
+    return [pscustomobject]@{
+        submitted = ($errors.Count -eq 0)
+        reason = if ($errors.Count -eq 0) { "ready" } else { ($errors -join "; ") }
+        status = $status
+        fleetMode = $fleetMode
+        projects = $projects
+        goal = $goal
+        priority = $priority
+        productDirection = $productDirection
+        doNotDo = $doNotDo
+        nextCheckpoint = $nextCheckpoint
+        rawText = $text
+    }
+}
+
+function Apply-QuickMissionUpdate {
+    param(
+        [string]$ControlPath,
+        [object]$QuickMission,
+        [datetime]$Now
+    )
+
+    if ($null -eq $QuickMission -or !$QuickMission.submitted) { return $false }
+
+    $missionPath = Join-Path $ControlPath "mission.md"
+    $runModePath = Join-Path $ControlPath "run-mode.json"
+    $projectLines = @($QuickMission.projects | ForEach-Object { "- $_" })
+    $doNotDoText = if (![string]::IsNullOrWhiteSpace([string]$QuickMission.doNotDo)) { [string]$QuickMission.doNotDo } else { "- Do not deploy.`n- Do not change auth, payments, secrets, dependencies, deployment config, generated output, or project remotes.`n- Do not overwrite user-owned work." }
+    $productDirection = if (![string]::IsNullOrWhiteSpace([string]$QuickMission.productDirection)) { @("", "## Product Direction", [string]$QuickMission.productDirection) } else { @() }
+
+    $missionLines = [System.Collections.Generic.List[string]]::new()
+    $missionLines.Add("# Fleet Mission") | Out-Null
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Fleet Mode") | Out-Null
+    $missionLines.Add([string]$QuickMission.fleetMode) | Out-Null
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Active Projects") | Out-Null
+    foreach ($line in $projectLines) { $missionLines.Add($line) | Out-Null }
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Mission") | Out-Null
+    $missionLines.Add([string]$QuickMission.goal) | Out-Null
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Priority") | Out-Null
+    $missionLines.Add([string]$QuickMission.priority) | Out-Null
+    foreach ($line in $productDirection) { $missionLines.Add($line) | Out-Null }
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Do Not Do") | Out-Null
+    foreach ($line in @($doNotDoText -split "\r?\n")) { $missionLines.Add($line) | Out-Null }
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Next Checkpoint") | Out-Null
+    $missionLines.Add([string]$QuickMission.nextCheckpoint) | Out-Null
+    $missionLines.Add("") | Out-Null
+    $missionLines.Add("## Applied From") | Out-Null
+    $missionLines.Add("fleet/control/quick-mission.md at $($Now.ToString("yyyy-MM-dd HH:mm:ss")) $TimeZoneId") | Out-Null
+
+    if (!$DryRun) {
+        Set-Content -Path $missionPath -Encoding UTF8 -Value $missionLines
+        $runMode = Read-JsonFile -Path $runModePath
+        if ($null -eq $runMode) { $runMode = [pscustomobject]@{} }
+        $runMode | Add-Member -NotePropertyName fleetMode -NotePropertyValue ([string]$QuickMission.fleetMode) -Force
+        $runMode | Add-Member -NotePropertyName activeProjects -NotePropertyValue @($QuickMission.projects) -Force
+        $runMode | ConvertTo-Json -Depth 8 | Set-Content -Path $runModePath -Encoding UTF8
+
+        $quickPath = Join-Path $ControlPath "quick-mission.md"
+        $updated = ([string]$QuickMission.rawText) -replace "(?im)^\s*Status\s*:\s*.+?$", "Status: APPLIED"
+        if ($updated -match "(?im)^\s*Applied At\s*:") {
+            $updated = $updated -replace "(?im)^\s*Applied At\s*:.*?$", "Applied At: $($Now.ToString("yyyy-MM-dd HH:mm:ss")) $TimeZoneId"
+        } else {
+            $updated = $updated.TrimEnd() + "`r`n`r`nApplied At: $($Now.ToString("yyyy-MM-dd HH:mm:ss")) $TimeZoneId`r`n"
+        }
+        Set-Content -Path $quickPath -Encoding UTF8 -Value $updated
+    }
+
+    return $true
 }
 
 function Get-GitValue {
@@ -880,6 +1050,7 @@ function Write-RemoteStatus {
         $lines.Add("") | Out-Null
     }
     $lines.Add("## Controls") | Out-Null
+    $lines.Add('- Easiest: edit `fleet/control/quick-mission.md`, set `Status: SUBMIT`, and the next cycle will update mission/run mode.') | Out-Null
     $lines.Add('- Edit `fleet/control/mission.md` to change mission goals.') | Out-Null
     $lines.Add('- Edit `fleet/control/run-mode.json` to pause, resume, or change active projects.') | Out-Null
     $lines.Add('- Set `Emergency: STOP_ALL` in `fleet/control/emergency.md` for an all-hours cooperative stop.') | Out-Null
@@ -928,6 +1099,9 @@ function Publish-RemoteStatus {
     }
 
     $paths = @(
+        (Join-Path $controlPath "mission.md"),
+        (Join-Path $controlPath "run-mode.json"),
+        (Join-Path $controlPath "quick-mission.md"),
         (Join-Path $StatusPath "current.md"),
         (Join-Path $StatusPath "today.md"),
         (Join-Path $StatusPath "archive"),
@@ -976,6 +1150,16 @@ if ($ValidateStatusSnapshotOnly) {
     exit 0
 }
 
+if ($ValidateQuickMissionOnly) {
+    $quick = Read-QuickMissionUpdate -Path (Join-Path $controlPath "quick-mission.md")
+    Write-Host "Quick mission status: $($quick.status); submitted=$($quick.submitted); reason=$($quick.reason)"
+    if ($quick.submitted) {
+        Write-Host "Fleet mode: $($quick.fleetMode)"
+        Write-Host "Projects: $((@($quick.projects)) -join ', ')"
+    }
+    exit 0
+}
+
 if ($ValidateLockCleanupOnly) {
     $names = @(ConvertTo-NameList -Values $Project)
     if ($names.Count -eq 0) { $names = @("HarnessDeadLock") }
@@ -997,6 +1181,21 @@ try {
 
     $now = Get-ControlNow -WindowsTimeZoneId $TimeZoneId
     Rotate-StatusLog -StatusPath $statusPath -Now $now -RetentionDays $ArchiveRetentionDays
+    $missionQuiet = Test-HourWindow -Hour $now.Hour -StartHour $MissionQuietStartHour -EndHour $MissionQuietEndHour
+
+    $quickMissionPath = Join-Path $controlPath "quick-mission.md"
+    $quickMission = Read-QuickMissionUpdate -Path $quickMissionPath
+    if ($quickMission.status -in @("SUBMIT", "APPLY")) {
+        if ($missionQuiet) {
+            Write-Host "Quick mission update deferred during quiet hours." -ForegroundColor Yellow
+        } elseif ($quickMission.submitted) {
+            if (Apply-QuickMissionUpdate -ControlPath $controlPath -QuickMission $quickMission -Now $now) {
+                Write-Host "Quick mission update applied."
+            }
+        } else {
+            Write-Host "Quick mission update not applied: $($quickMission.reason)" -ForegroundColor Yellow
+        }
+    }
 
     $runMode = Read-JsonFile -Path (Join-Path $controlPath "run-mode.json")
     $fleetMode = if ($null -ne $runMode -and $null -ne $runMode.fleetMode) { [string]$runMode.fleetMode } else { "PAUSED" }
@@ -1008,7 +1207,6 @@ try {
     $lastMissionPath = Join-Path $statePath "last-applied-mission.json"
     $lastMission = Read-JsonFile -Path $lastMissionPath
     $lastMissionHash = if ($null -ne $lastMission -and $null -ne $lastMission.hash) { [string]$lastMission.hash } else { "" }
-    $missionQuiet = Test-HourWindow -Hour $now.Hour -StartHour $MissionQuietStartHour -EndHour $MissionQuietEndHour
     $missionAccepted = $false
 
     $emergencyPath = Join-Path $controlPath "emergency.md"

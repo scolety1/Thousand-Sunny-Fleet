@@ -7,6 +7,7 @@ This folder is the GitHub-visible fleet dashboard.
 - `current.md`: latest status, overwritten every report cycle.
 - `today.md`: hourly progress log for the current day.
 - `archive/`: prior daily logs.
+- `../control/quick-mission.md`: easiest place to submit a new mission from GitHub.
 
 The top section of `current.md` is the captain summary. It is meant to answer:
 

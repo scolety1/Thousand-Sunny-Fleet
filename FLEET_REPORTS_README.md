@@ -46,9 +46,20 @@ Useful fields:
 
 Edit these files in the GitHub repo:
 
-- Change course: `fleet/control/mission.md`
+- Easiest mission update: `fleet/control/quick-mission.md`
+- Advanced/direct mission edit: `fleet/control/mission.md`
 - Pause/resume/select projects: `fleet/control/run-mode.json`
 - Emergency stop: `fleet/control/emergency.md`
+
+For a normal mission change:
+
+1. Open `fleet/control/quick-mission.md`.
+2. Change `Status: DRAFT` or `Status: APPLIED` to `Status: SUBMIT`.
+3. Put project names under `Apply To`.
+4. Write the goal, priority, guardrails, and next checkpoint in plain English.
+5. Commit the GitHub edit.
+
+The next remote-control cycle turns that into `mission.md` and `run-mode.json`, then marks `quick-mission.md` as `APPLIED`.
 
 For an emergency stop, set:
 
@@ -69,4 +80,4 @@ The fleet treats reports as telemetry only. The mission and run-mode files are t
 1. Open `fleet/status/current.md`.
 2. Read `Captain Summary`.
 3. If something looks blocked, open the matching product repo's `docs/codex/CHECKPOINT_REVIEW.md` or `docs/codex/NIGHTLY_REPORT.md`.
-4. If you want to redirect work, edit `fleet/control/mission.md`.
+4. If you want to redirect work, edit `fleet/control/quick-mission.md` and set `Status: SUBMIT`.

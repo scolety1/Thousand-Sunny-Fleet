@@ -9,6 +9,7 @@ When checking the fleet from GitHub, start here:
 - Latest captain status: `fleet/status/current.md`
 - Today's hourly log: `fleet/status/today.md`
 - Status guide: `FLEET_REPORTS_README.md`
+- Quick mission update: `fleet/control/quick-mission.md`
 - Mission control: `fleet/control/mission.md`
 - Emergency stop: `fleet/control/emergency.md`
 
