@@ -4,6 +4,7 @@ Remote control turns the fleet repo into a small GitHub control plane. The opera
 
 ## Files
 
+- `FLEET_REPORTS_README.md`: human guide for where to look on GitHub and how to read the reports.
 - `fleet/control/mission.md`: user-owned mission text. Edit this from GitHub when the goal changes.
 - `fleet/control/run-mode.json`: user-owned project selection and fleet mode.
 - `fleet/control/emergency.md`: user-owned emergency stop. `Emergency: STOP_ALL` requests cooperative safe stops at any hour.
@@ -14,6 +15,8 @@ Remote control turns the fleet repo into a small GitHub control plane. The opera
 - `fleet/state/heartbeat.json`: bot-owned health marker for the most recent remote-control cycle.
 
 Reports are telemetry. Mission and state are authority. The fleet should never depend on old hourly reports to remember what to do.
+
+If you are reading from GitHub, open `fleet/status/current.md` first and read the `Captain Summary`. Use `fleet/status/today.md` only when you want the hourly history for the current day.
 
 ## Normal Cycle
 

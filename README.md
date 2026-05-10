@@ -2,6 +2,18 @@
 
 Reusable local harness for running bounded Codex task loops across multiple projects.
 
+## Open First: Fleet Reports
+
+When checking the fleet from GitHub, start here:
+
+- Latest captain status: `fleet/status/current.md`
+- Today's hourly log: `fleet/status/today.md`
+- Status guide: `FLEET_REPORTS_README.md`
+- Mission control: `fleet/control/mission.md`
+- Emergency stop: `fleet/control/emergency.md`
+
+The latest status now starts with a `Captain Summary` so important project progress does not hide inside script output.
+
 ## Projects
 
 Configured in `projects.json`:

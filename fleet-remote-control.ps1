@@ -692,6 +692,73 @@ function Get-SupervisorSummaryLines {
     return @($lines)
 }
 
+function Get-LatestProjectReportSummary {
+    param([string]$Repo)
+
+    $reportPath = Join-Path $Repo "docs\codex\NIGHTLY_REPORT.md"
+    if (!(Test-Path $reportPath)) { return "no NIGHTLY_REPORT.md found" }
+    $text = Get-Content $reportPath -Raw
+    $matches = [regex]::Matches($text, "(?ms)^##\s+(.+?)\r?\n(.*?)(?=^##\s+|\z)")
+    if ($matches.Count -eq 0) { return "no report entries yet" }
+    $last = $matches[$matches.Count - 1]
+    $date = $last.Groups[1].Value.Trim()
+    $body = $last.Groups[2].Value
+    $task = ""
+    $build = ""
+    $verdict = ""
+    foreach ($line in @($body -split "\r?\n")) {
+        if ($task -eq "" -and $line -match "^\s*-\s*Task attempted:\s*(.+)$") { $task = $Matches[1].Trim() }
+        if ($build -eq "" -and $line -match "^\s*-\s*Build result:\s*(.+)$") { $build = $Matches[1].Trim() }
+        if ($verdict -eq "" -and $line -match "^\s*-\s*Visual polish decision:\s*(.+)$") { $verdict = $Matches[1].Trim() }
+    }
+    if ($task.Length -gt 140) { $task = $task.Substring(0, 137) + "..." }
+    $parts = @("latest $date")
+    if ($task -ne "") { $parts += $task }
+    if ($build -ne "") { $parts += "build: $build" }
+    if ($verdict -ne "") { $parts += "verdict: $verdict" }
+    return ($parts -join " | ")
+}
+
+function Get-ProjectCaptainSummaryLines {
+    param([object[]]$Projects)
+
+    $lines = [System.Collections.Generic.List[string]]::new()
+    foreach ($ship in $Projects) {
+        $name = [string]$ship.name
+        $repo = [string]$ship.repo
+        if (!(Test-Path $repo)) {
+            $lines.Add("- **${name}**: MISSING repo at `$repo`.") | Out-Null
+            continue
+        }
+
+        Push-Location $repo
+        try {
+            $status = @(git status --short 2>$null)
+            $head = (git rev-parse --short HEAD 2>$null)
+            if ($LASTEXITCODE -ne 0) { $head = "none" }
+            $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue)
+            $firstTask = if ($unchecked.Count -gt 0) { ($unchecked[0].Line -replace "^\s*-\s+\[ \]\s+", "").Trim() } else { "" }
+            if ($firstTask.Length -gt 120) { $firstTask = $firstTask.Substring(0, 117) + "..." }
+            $phase = "unknown"
+            if (Test-Path "docs/codex/PHASE_STATE.md") {
+                $phaseText = Get-Content "docs/codex/PHASE_STATE.md" -Raw
+                $phaseMatch = [regex]::Match($phaseText, "(?im)^\s*(?:Current phase|Phase)\s*:\s*(.+?)\s*$")
+                if ($phaseMatch.Success) { $phase = $phaseMatch.Groups[1].Value.Trim() }
+            }
+            $dirty = if ($status.Count -eq 0) { "clean" } else { "dirty $($status.Count)" }
+            $heartbeat = Get-ProjectRunHeartbeatState -ProjectName $name
+            $lock = Get-ProjectRunLockState -ProjectName $name
+            $runnerState = Resolve-RunnerDisplayState -Heartbeat $heartbeat -Lock $lock -Dirty $dirty -UncheckedCount $unchecked.Count
+            $latest = Get-LatestProjectReportSummary -Repo $repo
+            $next = if ($firstTask -ne "") { "Next: $firstTask" } else { "Next: no unchecked task" }
+            $lines.Add("- **${name}**: **$runnerState**, phase $phase, $dirty, $($unchecked.Count) unchecked, HEAD $head. $next. Progress: $latest") | Out-Null
+        } finally {
+            Pop-Location
+        }
+    }
+    return @($lines)
+}
+
 function Rotate-StatusLog {
     param(
         [string]$StatusPath,
@@ -709,10 +776,10 @@ function Rotate-StatusLog {
         $archivePath = Join-Path (Join-Path $StatusPath "archive") "$lastDate.md"
         if (!$DryRun) {
             Copy-Item -LiteralPath $todayPath -Destination $archivePath -Force
-            Set-Content -Path $todayPath -Encoding UTF8 -Value @("# Fleet Today", "", "Date: $currentDate", "")
+            Set-Content -Path $todayPath -Encoding UTF8 -Value @("# TODAY - Fleet Hourly Progress", "", "Date: $currentDate", "", "Open this when you want the running log. For the latest snapshot, open `fleet/status/current.md`.", "")
         }
     } elseif (!(Test-Path $todayPath) -and !$DryRun) {
-        Set-Content -Path $todayPath -Encoding UTF8 -Value @("# Fleet Today", "", "Date: $currentDate", "")
+        Set-Content -Path $todayPath -Encoding UTF8 -Value @("# TODAY - Fleet Hourly Progress", "", "Date: $currentDate", "", "Open this when you want the running log. For the latest snapshot, open `fleet/status/current.md`.", "")
     }
 
     $archiveRoot = Join-Path $StatusPath "archive"
@@ -780,7 +847,11 @@ function Write-RemoteStatus {
     $supervisorExit = if ($null -ne $SupervisorResult) { [string]$SupervisorResult.exitCode } else { "not run" }
 
     $lines = [System.Collections.Generic.List[string]]::new()
-    $lines.Add("# Fleet Remote Status") | Out-Null
+    $lines.Add("# OPEN FIRST - Fleet Captain Status") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("This is the latest GitHub-visible fleet report. If you only read one file, read this one.") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add('Report map: `fleet/status/current.md` = latest snapshot, `fleet/status/today.md` = today''s hourly log, `fleet/status/archive/` = old daily logs, `fleet/control/mission.md` = change direction, `fleet/control/emergency.md` = stop all.') | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("- Updated: $($Now.ToString("yyyy-MM-dd HH:mm:ss")) $TimeZoneId") | Out-Null
     $lines.Add("- Fleet mode: $FleetMode") | Out-Null
@@ -790,6 +861,11 @@ function Write-RemoteStatus {
     $lines.Add("- Supervisor cycle: $supervisorExit") | Out-Null
     $lines.Add("- Fleet branch: $branch") | Out-Null
     $lines.Add("- Fleet HEAD: $head") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("## Captain Summary") | Out-Null
+    foreach ($captainLine in @(Get-ProjectCaptainSummaryLines -Projects $Projects)) {
+        $lines.Add([string]$captainLine) | Out-Null
+    }
     $lines.Add("") | Out-Null
     $lines.Add("## Projects") | Out-Null
     foreach ($projectLine in @(Get-ProjectSnapshotLines -Projects $Projects)) {
@@ -818,8 +894,13 @@ function Write-RemoteStatus {
             "- Mission: $missionShort ($(if ($MissionAccepted) { "accepted" } elseif ($MissionQuiet) { "deferred" } else { "unchanged" }))",
             "- Emergency: $(if ($EmergencyStop) { "STOP_ALL" } else { "none" })",
             "- Supervisor: $supervisorExit",
-            "- Projects: $((@($Projects | ForEach-Object { [string]$_.name })) -join ', ')"
+            "- Projects: $((@($Projects | ForEach-Object { [string]$_.name })) -join ', ')",
+            "",
+            "### Captain Summary"
         )
+        foreach ($captainLine in @(Get-ProjectCaptainSummaryLines -Projects $Projects)) {
+            Add-Content -Path $todayPath -Encoding UTF8 -Value $captainLine
+        }
     }
 
     Write-JsonFile -Path (Join-Path $StatePath "heartbeat.json") -Value ([pscustomobject]@{
