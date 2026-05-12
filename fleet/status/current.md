@@ -4,36 +4,37 @@ This is the latest GitHub-visible fleet report. If you only read one file, read 
 
 Report map: `fleet/status/current.md` = latest snapshot, `fleet/status/today.md` = today's hourly log, `fleet/status/archive/` = old daily logs, `fleet/control/mission.md` = change direction, `fleet/control/emergency.md` = stop all.
 
-- Updated: 2026-05-12 11:00:04 Pacific Standard Time
+- Updated: 2026-05-12 12:00:04 Pacific Standard Time
 - Fleet mode: ACTIVE
 - Mission hash: 422d550a2e81
 - Mission update: unchanged
 - Emergency stop: none
 - Supervisor cycle: 0
 - Fleet branch: main
-- Fleet HEAD: 8594904
+- Fleet HEAD: ec8cffd
 
 ## Captain Summary
-- **EasyLife**: **PARKED**, phase stage-14-narrow-user-approved-note-save-path, clean, 6 unchecked, HEAD 6ce08595. Next: User pain: EasyLife still exposes too many separate app surfaces before the assistant model is clear. Skill/workflow:.... Progress: latest 2026-05-10 14:33:16 | Reviewability proof repair before visual polish. User pain: the Stage 1-5 proof packet could not trust local review because protected rou... | build: Passed (`npm.cmd run build` from `app-vNext`; Vite built successfully in 1.27s) | verdict: READY_FOR_VISUAL_PASS.
+- **EasyLife**: **BLOCKED**, phase stage-15-trustworthy-saved-assistant-loop, dirty 2, 6 unchecked, HEAD 662d8221. Next: User pain: EasyLife still exposes too many separate app surfaces before the assistant model is clear. Skill/workflow:.... Progress: latest 2026-05-10 14:33:16 | Reviewability proof repair before visual polish. User pain: the Stage 1-5 proof packet could not trust local review because protected rou... | build: Passed (`npm.cmd run build` from `app-vNext`; Vite built successfully in 1.27s) | verdict: READY_FOR_VISUAL_PASS.
 
 ## Projects
 ### EasyLife
 - Branch: codex/product-EasyLife-20260504-231503
-- HEAD: 6ce08595
-- Branch sync: ahead 58 / behind 0 vs origin/codex/product-EasyLife-20260504-231503
-- Working tree: clean
-- Runner state: PARKED
+- HEAD: 662d8221
+- Branch sync: ahead 63 / behind 0 vs origin/codex/product-EasyLife-20260504-231503
+- Working tree: dirty (2 files)
+- Runner state: BLOCKED
 - Lock state: missing
 - Run shape: batch=1,maxBatches=24,runtime=720m,taskCap=14,phase=simplicity,quarantine=True,push=True
 - Last heartbeat: 2026-05-08T16:41:44
 - Last progress: 2026-05-08T16:41:44
 - Unchecked tasks: 6
-- Phase: stage-14-narrow-user-approved-note-save-path
+- Phase: stage-15-trustworthy-saved-assistant-loop
 - Next workflow: frontend-ui-engineering
 - Current task: checkpoint debugger failed
+- Changed:  M app-vNext/src/features/easylist/routes/EasyListInboxPage.tsx;  M app-vNext/src/styles/globals.css
 
 ## Supervisor Summary
-- EasyLife: LOOPING_QUALITY; 6ce08595; clean; tasks 6; lock none; OK: commits 0, quarantines 0, quality 0
+- EasyLife: BLOCKED_DIRTY; 662d8221; dirty 2; tasks 6; lock none; OK: commits 0, quarantines 0, quality 0
 
 ## Controls
 - Easiest: edit `fleet/control/quick-mission.md`, set `Status: SUBMIT`, and the next cycle will update mission/run mode.
