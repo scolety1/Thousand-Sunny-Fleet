@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Decision Input",
+  "type": "object",
+  "required": ["ship", "state", "repoClean", "activeWorkOwned", "tasksRemaining", "validTasksRemaining"],
+  "properties": {
+    "ship": { "type": "string" },
+    "state": { "type": "string" },
+    "repoClean": { "type": ["boolean", "null"] },
+    "activeWorkOwned": { "type": "boolean" },
+    "tasksRemaining": { "type": "integer" },
+    "validTasksRemaining": { "type": "integer" },
+    "quarantinedTasks": { "type": "integer" },
+    "deterministicGateStatus": { "type": "string" },
+    "visualGateStatus": { "type": "string" },
+    "copyGateStatus": { "type": "string" },
+    "formulaGateStatus": { "type": "string" },
+    "auditPackageReady": { "type": "boolean" },
+    "externalPacketPending": { "type": "boolean" },
+    "acceptedPacketReady": { "type": "boolean" },
+    "rateLimitPaused": { "type": "boolean" },
+    "explicitStopRequested": { "type": "boolean" },
+    "explicitArchiveRequested": { "type": "boolean" },
+    "repairPathAvailable": { "type": "boolean" },
+    "budgetRemaining": { "type": "boolean" },
+    "materialProgressOrPacket": { "type": "boolean" },
+    "doneEnough": { "type": "boolean" },
+    "tasteGateRequired": { "type": "boolean" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "evidenceFreshness": { "type": "string" },
+    "evidence": { "type": "array", "items": { "type": "string" } }
+  }
+}

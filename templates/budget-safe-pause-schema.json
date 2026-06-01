@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Budget Safe Pause",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "budgetRecordId",
+    "shipId",
+    "budgetLevel",
+    "decision",
+    "manualBudgetSignal",
+    "providerBudgetSignal",
+    "thresholds",
+    "resetAt",
+    "pausedAt",
+    "resumableShips",
+    "nonResumableShips",
+    "resumeEligibility",
+    "reviewNotePath",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "budgetRecordId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "budgetLevel": {
+      "type": "string",
+      "enum": [
+        "unknown",
+        "healthy",
+        "cautious",
+        "low",
+        "critical",
+        "exhausted",
+        "reset_pending",
+        "recovered",
+        "weekly_low"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "ALLOW_STATUS_ONLY",
+        "ALLOW_BOUNDED_RUN",
+        "BLOCK_NEW_WORK",
+        "SAFE_LAND_NOW",
+        "WAIT_FOR_RESET",
+        "WEEKLY_PREVIEW_PAUSE"
+      ]
+    },
+    "manualBudgetSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "source",
+        "capturedAt"
+      ],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "healthy",
+            "cautious",
+            "low",
+            "critical",
+            "exhausted",
+            "reset_pending",
+            "recovered",
+            "weekly_low"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "configured",
+            "unknown"
+          ]
+        },
+        "capturedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "providerBudgetSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "remainingPercent",
+        "weeklyRemainingPercent",
+        "capturedAt"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "available",
+            "unavailable",
+            "stale"
+          ]
+        },
+        "remainingPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "weeklyRemainingPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "capturedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "forecastWarningPercent",
+        "lowBudgetPercent",
+        "safeLandingPercent",
+        "weeklyResetPausePercent"
+      ],
+      "properties": {
+        "forecastWarningPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "lowBudgetPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "safeLandingPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "weeklyResetPausePercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "resetAt": {
+      "type": "string"
+    },
+    "pausedAt": {
+      "type": "string"
+    },
+    "resumableShips": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "nonResumableShips": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "resumeEligibility": {
+      "type": "string",
+      "enum": [
+        "eligible",
+        "ineligible",
+        "unknown"
+      ]
+    },
+    "reviewNotePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "SAFE_LAND_NOW",
+              "WAIT_FOR_RESET",
+              "WEEKLY_PREVIEW_PAUSE",
+              "ALLOW_STATUS_ONLY",
+              "manual-budget-signal",
+              "provider-budget-signal",
+              "resume-eligibility-required",
+              "no-auto-resume-until-approved",
+              "review-note-required",
+              "product-launch-forbidden"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

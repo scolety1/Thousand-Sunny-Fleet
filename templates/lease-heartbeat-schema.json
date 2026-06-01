@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Lease Heartbeat",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "leaseId",
+    "shipId",
+    "owner",
+    "fenceToken",
+    "heartbeatAt",
+    "heartbeatAgeMinutes",
+    "heartbeatState",
+    "leaseCreatedAt",
+    "leaseExpiresAt",
+    "leaseState",
+    "recoveryClass",
+    "decision",
+    "deletesLocks",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "leaseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fenceToken": {
+      "type": "string",
+      "minLength": 1
+    },
+    "heartbeatAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "heartbeatAgeMinutes": {
+      "type": "number",
+      "minimum": 0
+    },
+    "heartbeatState": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale",
+        "missing",
+        "ambiguous"
+      ]
+    },
+    "leaseCreatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "leaseExpiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "leaseState": {
+      "type": "string",
+      "enum": [
+        "active",
+        "expired",
+        "missing",
+        "ambiguous"
+      ]
+    },
+    "recoveryClass": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale",
+        "expired",
+        "ambiguous",
+        "deterministic-failure",
+        "environment-fault",
+        "policy-failure"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "LEAVE_RUNNING",
+        "RECOVER_WITH_BACKOFF",
+        "STOP_FOR_REPAIR",
+        "WAIT_FOR_ENVIRONMENT",
+        "BLOCK_FOR_POLICY_REVIEW",
+        "REQUIRE_REVIEW"
+      ]
+    },
+    "deletesLocks": {
+      "type": "boolean",
+      "const": false
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "expired",
+              "ambiguous",
+              "deterministic-failure",
+              "owner-required",
+              "fence-token-required",
+              "fence-token-mismatch",
+              "clock-skew-suspicion",
+              "lock-deletion-forbidden",
+              "review-required"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Product Quality Evidence",
+  "type": "object",
+  "required": [
+    "demoPromiseStatus",
+    "firstScreenStatus",
+    "informationHierarchyStatus",
+    "simplicityGateStatus",
+    "doneContractStatus",
+    "tasteGateStatus",
+    "productQualityDecisionHint"
+  ],
+  "properties": {
+    "demoPromiseStatus": { "$ref": "#/$defs/status" },
+    "firstScreenStatus": { "$ref": "#/$defs/status" },
+    "informationHierarchyStatus": { "$ref": "#/$defs/status" },
+    "simplicityGateStatus": { "$ref": "#/$defs/overloadStatus" },
+    "mobileStatus": { "$ref": "#/$defs/status" },
+    "doneContractStatus": { "$ref": "#/$defs/doneStatus" },
+    "tasteGateStatus": { "$ref": "#/$defs/status" },
+    "productQualityDecisionHint": {
+      "type": "string",
+      "description": "Product-quality vote consumed by the Stage 8 wrapper after deterministic gates pass. It must be combined with safety, scope, state, and budget rules before action.",
+      "enum": ["RUN_AGAIN", "USER_TASTE_GATE", "PARK", "BLOCK", "UNKNOWN"]
+    },
+    "screenshots": { "type": "array", "items": { "type": "string" } },
+    "reviewerNotes": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "PASS_WITH_NOTES", "FAIL", "UNKNOWN", "NOT_APPLICABLE"]
+    },
+    "overloadStatus": {
+      "type": "string",
+      "enum": ["PASS", "PASS_WITH_NOTES", "FAIL", "FAIL_OVERLOADED", "NEEDS_TASTE_REVIEW", "UNKNOWN", "NOT_APPLICABLE"]
+    },
+    "doneStatus": {
+      "type": "string",
+      "enum": ["DONE", "DONE_WITH_NOTES", "NOT_DONE", "UNKNOWN", "NOT_APPLICABLE"]
+    }
+  }
+}

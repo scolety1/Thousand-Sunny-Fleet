@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Mobile Generated Plan Approval",
+  "type": "object",
+  "required": ["schemaVersion", "requestId", "approval", "generatedPlan"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 80,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "rawCommand": {
+      "not": {}
+    },
+    "approval": {
+      "type": "object",
+      "required": ["decision", "approvedPlanId", "idempotencyKey", "approvedAt", "approvedBy"],
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": ["approve", "reject", "desktop-only"]
+        },
+        "approvedPlanId": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "approvedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "approvedBy": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80,
+          "not": {
+            "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$"
+          }
+        },
+        "captainNote": {
+          "type": "string"
+        }
+      }
+    },
+    "generatedPlan": {
+      "type": "object",
+      "required": [
+        "planId",
+        "ship",
+        "action",
+        "riskLevel",
+        "scope",
+        "diffSummary",
+        "evidenceSummary",
+        "budgetImpact",
+        "rollbackPath",
+        "expiresAt",
+        "idempotencyKey",
+        "createdAt",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "planId": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "ship": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "not": {
+            "pattern": "(?i)^(all|\\*|.*,.*)$|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$"
+          }
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "STATUS",
+            "WHY",
+            "DIGEST",
+            "REQUEST_SAFE_STOP",
+            "PARK_SHIP",
+            "APPROVE_TASTE_DIRECTION",
+            "APPROVE_PACKET_IMPORT",
+            "RUN_DRY_CHECK",
+            "RUN_ONE_BOUNDED_BATCH",
+            "PACKAGE_AUDIT",
+            "CAPTURE_IDEA",
+            "SET_OVERNIGHT_PRESET",
+            "RESUME_AFTER_RESET",
+            "MUTE_NOTIFICATIONS"
+          ]
+        },
+        "riskLevel": {
+          "type": "string",
+          "enum": ["safe", "moderate", "approval-required", "desktop-only"]
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "not": {
+              "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+            }
+          },
+          "uniqueItems": true
+        },
+        "diffSummary": {
+          "type": "string",
+          "minLength": 8
+        },
+        "evidenceSummary": {
+          "type": "string",
+          "minLength": 8
+        },
+        "budgetImpact": {
+          "type": "string",
+          "minLength": 4
+        },
+        "rollbackPath": {
+          "type": "string",
+          "maxLength": 160,
+          "minLength": 8,
+          "not": {
+            "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+          }
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING_APPROVAL", "APPROVED", "REJECTED", "DESKTOP_ONLY"]
+        }
+      }
+    }
+  }
+}

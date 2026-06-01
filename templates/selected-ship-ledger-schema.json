@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Selected Ship Ledger Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "ledgerId",
+    "selectedShipId",
+    "repoFingerprintRef",
+    "policyDecisionRef",
+    "owner",
+    "createdAt",
+    "expiresAt",
+    "status",
+    "evidenceRefs",
+    "dryRun",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "ledgerId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "selectedShipId": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "all",
+          "ALL",
+          "*"
+        ]
+      }
+    },
+    "repoFingerprintRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "policyDecisionRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "selected",
+        "dry-run-only",
+        "denied",
+        "expired",
+        "released"
+      ]
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "dryRun": {
+      "type": "boolean",
+      "const": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons",
+        "fixtureName"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "single-selected-ship",
+              "blank-ship",
+              "all-ship",
+              "wildcard-ship",
+              "multi-ship",
+              "repo-fingerprint-ref-required",
+              "policy-decision-ref-required",
+              "owner-required",
+              "fixture-root-required",
+              "fixture-root-escape",
+              "dry-run-only",
+              "evidence-recorded"
+            ]
+          }
+        },
+        "fixtureName": {
+          "type": "string",
+          "enum": [
+            "blank-ship",
+            "all-ship",
+            "multi-ship",
+            "wildcard-ship",
+            "fixture-root-escape",
+            "valid-fixture-dry-run"
+          ]
+        }
+      }
+    }
+  }
+}

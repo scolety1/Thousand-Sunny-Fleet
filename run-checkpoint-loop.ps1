@@ -3243,8 +3243,7 @@ for ($batch = 1; $batch -le $MaxBatches; $batch++) {
             "-RateLimitMaxCooldowns", $plannerRateLimitMaxCooldowns
         )
         $plannerExit = Invoke-FleetPowerShell -Arguments $plannerArgs -LogName "planner-batch-$batch.log" -TimeoutSeconds ($plannerTimeout + ($plannerRateLimitCooldown * $plannerRateLimitMaxCooldowns) + 120)
-        if ($plannerExit -ne 0) {
-            Update-RunHeartbeat -Status "parked" -CurrentTaskSummary "planner failed in batch $batch" -Progress
+        if ($plannerExit -ne 0 ) {
             Release-FleetRunLock
             exit 1
         }

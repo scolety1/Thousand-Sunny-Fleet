@@ -47,7 +47,9 @@ param(
 
     [switch]$AllProjects,
 
-    [switch]$Once
+    [switch]$Once,
+
+    [int]$MaxIterations = 0
 )
 
 $ErrorActionPreference = "Continue"
@@ -1221,9 +1223,15 @@ if ($IntervalSeconds -lt 30) {
     $IntervalSeconds = 30
 }
 
+$iteration = 0
 do {
+    $iteration++
     Write-SupervisorReport
     if ($Once) {
+        break
+    }
+    if ($MaxIterations -gt 0 -and $iteration -ge $MaxIterations) {
+        Write-Host "Supervisor reached MaxIterations=$MaxIterations; exiting bounded monitor mode." -ForegroundColor Yellow
         break
     }
     Start-Sleep -Seconds $IntervalSeconds

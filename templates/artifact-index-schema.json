@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Artifact Index Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "path",
+    "artifactType",
+    "shipId",
+    "runId",
+    "sha256",
+    "createdAt",
+    "retentionClass",
+    "sensitiveExportPolicy",
+    "sourceCommand",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "artifactId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactType": {
+      "type": "string",
+      "enum": [
+        "run-result",
+        "run-summary",
+        "evidence-index",
+        "test-summary",
+        "audit-package",
+        "audit-manifest",
+        "task-packet",
+        "review-output",
+        "status-report",
+        "status-json",
+        "mobile-request",
+        "control-room-report",
+        "safe-pause",
+        "diff-snapshot"
+      ]
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^$|^[A-Fa-f0-9]{64}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "retentionClass": {
+      "type": "string",
+      "enum": [
+        "ephemeral",
+        "run-local",
+        "audit-retained",
+        "captain-review",
+        "archive",
+        "do-not-export"
+      ]
+    },
+    "sensitiveExportPolicy": {
+      "type": "string",
+      "enum": [
+        "exportable",
+        "internal-only",
+        "non-exportable",
+        "redact-before-export",
+        "unknown-review-required"
+      ]
+    },
+    "sourceCommand": {
+      "type": "string",
+      "enum": [
+        "write-run-evidence.ps1",
+        "new-audit-package.ps1",
+        "invoke-audit-loop-package.ps1",
+        "new-external-agent-workflow.ps1",
+        "ingest-task-packet.ps1",
+        "invoke-mobile-console.ps1",
+        "invoke-control-room.ps1",
+        "invoke-overnight-mode.ps1",
+        "tests/run-fleet-tests.ps1",
+        "manual-captain-note"
+      ]
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "hash-present",
+              "hash-missing",
+              "artifact-exists",
+              "artifact-missing",
+              "retention-classified",
+              "exportable",
+              "internal-only",
+              "non-exportable",
+              "redact-before-export",
+              "unknown-review-required",
+              "secret-like-path",
+              "source-command-reference-only"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

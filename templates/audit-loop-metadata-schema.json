@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Audit Loop Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "projectName",
+    "repository",
+    "surfaces",
+    "inScopeSurfaces",
+    "safeDataSources",
+    "forbiddenDataSources",
+    "auditPackageFiles",
+    "defaultChecks",
+    "maxTasks",
+    "acceptedLimitations",
+    "ownerContact",
+    "riskTier",
+    "requiresCaptainApproval"
+  ],
+  "properties": {
+    "projectName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable project name for audit package titles and reports."
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Selected repo root or fixture root. This does not grant permission outside runtime scope policy."
+    },
+    "surfaces": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "All known product or harness surfaces for this project."
+    },
+    "inScopeSurfaces": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Surfaces included in the current audit loop."
+    },
+    "safeDataSources": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Fixture files, docs, logs, or sanitized evidence allowed in the package."
+    },
+    "forbiddenDataSources": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Secrets, private data, generated output, dependency folders, raw locks, or product paths to exclude."
+    },
+    "auditPackageFiles": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "High-signal files explicitly selected for the compact external audit package."
+    },
+    "defaultChecks": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Focused commands or checks expected after audit-loop tasks."
+    },
+    "maxTasks": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "description": "Maximum tasks that may be generated from one audit report."
+    },
+    "acceptedLimitations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Known caveats that should not repeatedly generate new queue tasks."
+    },
+    "ownerContact": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Captain or project owner note for ambiguous product decisions."
+    },
+    "riskTier": {
+      "type": "string",
+      "enum": ["fixture", "safe-demo", "product-demo", "sensitive"],
+      "description": "Risk tier used to decide approval and packaging strictness."
+    },
+    "requiresCaptainApproval": {
+      "type": "boolean",
+      "description": "Whether queue conversion or execution requires explicit captain approval."
+    }
+  }
+}

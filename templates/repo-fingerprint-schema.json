@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Repo Fingerprint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fingerprintId",
+    "shipId",
+    "repoRoot",
+    "gitTopLevel",
+    "branch",
+    "head",
+    "dirtyState",
+    "changedFileSummary",
+    "worktreePath",
+    "generatedAt",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "fingerprintId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "enum": ["all", "*", "ALL"]
+      }
+    },
+    "repoRoot": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Configured absolute repository root for the selected ship."
+    },
+    "gitTopLevel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Absolute path returned by git rev-parse --show-toplevel."
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "head": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Full or short commit hash recorded at fingerprint time."
+    },
+    "dirtyState": {
+      "type": "string",
+      "enum": ["clean", "dirty", "missing", "wrong-root", "git-error", "path-traversal", "stale-head"]
+    },
+    "changedFileSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "files", "truncated"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "worktreePath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dedicated worktree path for a write-capable run, or the fixture path for fixture-only checks."
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["valid", "invalid", "unknown"]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "clean",
+              "dirty",
+              "wrong-root",
+              "missing-repo",
+              "stale-head",
+              "path-traversal",
+              "git-error",
+              "dirty-state-ambiguous",
+              "worktree-missing",
+              "evidence-missing"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "auditId": "audit-id-from-package",
+  "agentRole": "Issue Auditor",
+  "ship": "SelectedShip",
+  "baseCommit": "abcdef0",
+  "verdict": "PASS_WITH_FIXES",
+  "findings": [
+    {
+      "severity": "P1",
+      "title": "Concrete issue title",
+      "evidence": ["path/in/audit/package.md"],
+      "recommendation": "Small bounded recommendation"
+    }
+  ],
+  "rejectedIdeas": [
+    {
+      "idea": "Broad rewrite or unsafe scope",
+      "reason": "Too broad, stale, unsafe, or subjective"
+    }
+  ],
+  "taskPacket": {
+    "tasks": [
+      {
+        "id": "task-001",
+        "title": "Small bounded task",
+        "priority": "P1",
+        "risk": "low",
+        "lane": "harness",
+        "userPain": "What this fixes for the user",
+        "target": "Specific file or bounded surface",
+        "change": "Specific change",
+        "guardrails": "Do not touch forbidden scope",
+        "acceptance": "Concrete acceptance",
+        "proof": "Evidence to collect",
+        "stopIf": "When to stop",
+        "checkCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+      }
+    ]
+  },
+  "captainQuestions": [
+    "Only taste, business, or high-risk approval questions belong here."
+  ]
+}
+

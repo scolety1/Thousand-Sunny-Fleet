@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Audit Manifest",
+  "type": "object",
+  "required": ["auditId", "generatedAt", "fleetRoot", "ships", "files"],
+  "properties": {
+    "auditId": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "fleetRoot": { "type": "string" },
+    "configPath": { "type": "string" },
+    "ships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "repo", "state"],
+        "properties": {
+          "name": { "type": "string" },
+          "repo": { "type": "string" },
+          "state": { "type": "string" },
+          "branch": { "type": "string" },
+          "head": { "type": "string" },
+          "changedFileCount": { "type": "integer" }
+        }
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Failure Fingerprint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fingerprintId",
+    "shipId",
+    "runId",
+    "failureClass",
+    "rawSummary",
+    "normalizedSummary",
+    "normalizationRules",
+    "hypothesis",
+    "attemptCount",
+    "firstSeenAt",
+    "lastSeenAt",
+    "decision",
+    "retriable",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "fingerprintId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "failureClass": {
+      "type": "string",
+      "enum": [
+        "build-failure",
+        "test-failure",
+        "runtime-failure",
+        "invalid-run-result",
+        "missing-evidence",
+        "stale-lock",
+        "dirty-unowned-repo",
+        "invalid-task-packet",
+        "stale-task-packet",
+        "broad-unsafe-task",
+        "backend-sensitive-scope",
+        "low-budget",
+        "report-write-failure",
+        "audit-package-too-large",
+        "policy-denial"
+      ]
+    },
+    "rawSummary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "normalizedSummary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "normalizationRules": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "timestamp",
+          "temp-path",
+          "guid",
+          "noisy-id",
+          "machine-root",
+          "duration",
+          "line-ending",
+          "absolute-path",
+          "port"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attemptCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "firstSeenAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lastSeenAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "retry-once",
+        "repair-task",
+        "safe-pause",
+        "block",
+        "wait-for-rate-reset",
+        "non-retriable-policy-denial"
+      ]
+    },
+    "retriable": {
+      "type": "boolean"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "normalized",
+              "same-hypothesis-twice",
+              "safe-pause-required",
+              "repair-task-required",
+              "policy-denial-non-retriable",
+              "blind-retry-forbidden",
+              "missing-evidence",
+              "failure-class-erased",
+              "noisy-id-normalized"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

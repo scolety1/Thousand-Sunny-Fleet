@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet HQ Repair Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "status",
+    "goal",
+    "prerequisites",
+    "allowedFiles",
+    "readFirst",
+    "acceptance",
+    "validationCommands",
+    "stopIf",
+    "evidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "maxLength": 16,
+      "pattern": "^HQ-[0-9]{3}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "done",
+        "blocked",
+        "needs_audit"
+      ]
+    },
+    "goal": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 12
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "allowedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 160,
+        "minLength": 1,
+        "not": {
+          "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+        }
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "readFirst": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 160,
+        "minLength": 1,
+        "not": {
+          "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+        }
+      },
+      "uniqueItems": true
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500,
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "validationCommands": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 240,
+        "minLength": 1,
+        "not": {
+          "pattern": "(?i)(git\\s+(merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|start-overnight-autopilot|fleet-supervisor|fleet-remote-control|all-fleet|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216)"
+        }
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "stopIf": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    }
+  }
+}

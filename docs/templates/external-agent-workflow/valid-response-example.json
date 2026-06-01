@@ -1,0 +1,37 @@
+{
+  "auditId": "stage9-fixture-audit",
+  "agentRole": "Issue Auditor",
+  "ship": "FixtureStage9",
+  "baseCommit": "abc1234",
+  "verdict": "PASS_WITH_FIXES",
+  "findings": [
+    {
+      "severity": "P1",
+      "title": "Wrapper report lacks a concise top summary",
+      "evidence": ["reports/cycle-summary.md"],
+      "recommendation": "Add a captain summary before detailed tables."
+    }
+  ],
+  "rejectedIdeas": [],
+  "taskPacket": {
+    "tasks": [
+      {
+        "id": "stage9-task-001",
+        "title": "Add concise captain summary to wrapper report",
+        "priority": "P1",
+        "risk": "low",
+        "lane": "harness",
+        "userPain": "The captain needs to understand the wrapper outcome quickly from a phone.",
+        "target": "invoke-autonomy-wrapper.ps1 report writer",
+        "change": "Add a short captain summary before the detailed report sections.",
+        "guardrails": "Do not touch product repos, secrets, deploy config, auth, payments, packages, or locks.",
+        "acceptance": "Generated report starts with Captain Summary and Next Captain Action.",
+        "proof": "Run fleet tests and inspect a fixture wrapper report.",
+        "stopIf": "Report generation touches product repos or broadens scope.",
+        "checkCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+      }
+    ]
+  },
+  "captainQuestions": []
+}
+

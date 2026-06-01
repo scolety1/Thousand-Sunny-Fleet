@@ -85,6 +85,14 @@
 
 ## Safety Gap List
 
+## Human Approval Gate Note
+
+Low-risk read/report operations can remain local and evidence-only when they inspect sanitized status, fixture data, or an explicitly selected project and write only reports. Write/delete/external-side-effect operations are different: broad launchers, legacy fleet commands, product-repo mutation scripts, ship launchers, repair/relaunch switches, supervisor/remote-control flows, deployments, migrations, package installs, lock cleanup, secrets/auth/payments access, and permission widening require explicit exact-action human approval.
+
+Human approval must bind the operation to one selected project or ship and must not imply all-fleet scope. This recon did not run any high-risk entrypoint, did not touch product repos, and did not launch ships.
+
+Pre-demo sentinel: broad launchers, product mutation wrappers, remote/mobile wrappers, and overnight/autonomy wrappers remain human-approval-gated before any demo-ready trial. Mobile wrappers are request-only and must keep `executes = false`; external review wrappers are evidence-only and must not execute reviewer prose. Read/report commands may write local report artifacts only, while write/delete/external-side-effect commands require exact-action approval and must never be inferred from mobile requests, external reports, task packets, audit packages, or queue prose.
+
 1. **Product repo mutation without selected ship**
    - Current Stage 8/10 wrappers require explicit `-Ship` or fixture preset.
    - Gap: older launch/supervisor/checkpoint scripts still exist and are not centrally labeled by risk. I did not run them. A future agent could choose a legacy command by habit.

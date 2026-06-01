@@ -230,7 +230,7 @@ if (Test-Path "docs/codex/CHECKPOINT_REVIEW.md") {
     $verdictMatch = [regex]::Match($review, "(?im)^## Verdict\s*\r?\n\s*(GREEN|YELLOW|RED)\b[\s\.\!\:;-]*$")
     $verdict = if ($verdictMatch.Success) { $verdictMatch.Groups[1].Value.ToUpperInvariant() } else { "" }
     if ($verdict -eq "YELLOW" -and $AllowYellowCheckpoint) {
-        Add-Issue "WARN" "Checkpoint verdict is YELLOW; allowed to continue after follow-up gates."
+        Add-Issue "WARN" "Checkpoint verdict is YELLOW; YELLOW continuation is allowed after follow-up gates."
     } elseif ($verdict -ne "GREEN") {
         Add-Issue "FAIL" "Checkpoint verdict is not GREEN."
     }

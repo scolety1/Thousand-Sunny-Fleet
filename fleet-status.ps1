@@ -5,6 +5,9 @@ param(
 $ErrorActionPreference = "Continue"
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 . (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-state.ps1")
+# Repo state checks are centralized in Get-FleetRepoState, which preserves the
+# old fleet-status expectation that direct probes use: git status --short 2>$null.
 
 function Test-FleetStatusProcessAlive {
     param([int]$ProcessId)
@@ -126,29 +129,38 @@ foreach ($project in $projects) {
     Write-Host ""
     Write-Host "===== $($project.name) =====" -ForegroundColor Cyan
 
-    if (!(Test-Path $project.repo)) {
+    $repoState = Get-FleetRepoState -Repo ([string]$project.repo)
+    if ($repoState.state -eq "missing") {
+        Write-Host "Repo state: missing" -ForegroundColor Red
         Write-Host "Repo missing: $($project.repo)" -ForegroundColor Red
         continue
     }
+    if ($repoState.state -eq "git-error") {
+        Write-Host "Repo state: git-error" -ForegroundColor Red
+        Write-Host "Git error: $($repoState.gitError)" -ForegroundColor Red
+        continue
+    }
 
-    Push-Location $project.repo
-    $branch = git branch --show-current
-    $status = @(git status --short 2>$null)
+    Push-Location $repoState.repo
+    $branch = $repoState.branch
+    $status = @($repoState.changedFiles)
     $unchecked = @(Select-String -Path "docs/codex/TASK_QUEUE.md" -Pattern "^\s*-\s+\[ \]" -ErrorAction SilentlyContinue)
     $head = git rev-parse --short HEAD 2>$null
     if ($LASTEXITCODE -ne 0) {
         $head = "none"
     }
 
-    Write-Host "Path: $($project.repo)"
+    Write-Host "Path: $($repoState.repo)"
     Write-Host "Branch: $branch"
     Write-Host "HEAD: $head"
     Write-Host "Unchecked tasks: $($unchecked.Count)"
     Write-Host "Run lock: $(Get-FleetStatusLock -ProjectName $project.name)"
 
     if ($status.Count -eq 0) {
+        Write-Host "Repo state: clean" -ForegroundColor Green
         Write-Host "Working tree: clean" -ForegroundColor Green
     } else {
+        Write-Host "Repo state: dirty" -ForegroundColor Yellow
         Write-Host "Working tree: dirty" -ForegroundColor Yellow
         $status | ForEach-Object { Write-Host "  $_" }
     }

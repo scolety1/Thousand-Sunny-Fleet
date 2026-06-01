@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Decision",
+  "type": "object",
+  "required": ["schemaVersion", "ship", "state", "decision", "reason", "generatedAt"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "ship": { "type": "string", "minLength": 1 },
+    "state": { "type": "string" },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "NOOP",
+        "RUN_AGAIN",
+        "REPAIR",
+        "PACKAGE_AUDIT",
+        "WAIT_FOR_EXTERNAL_AUDIT",
+        "WAIT_FOR_TASK_PACKET",
+        "USER_TASTE_GATE",
+        "WAIT_FOR_RATE_RESET",
+        "PARK",
+        "BLOCK",
+        "ARCHIVE"
+      ]
+    },
+    "reason": { "type": "string" },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "requiredHumanAction": { "type": "string" },
+    "allowedNextCommands": { "type": "array", "items": { "type": "string" } },
+    "forbiddenNextCommands": { "type": "array", "items": { "type": "string" } },
+    "budgetNotes": { "type": "string" },
+    "safetyNotes": { "type": "string" },
+    "generatedAt": { "type": "string" }
+  }
+}

@@ -242,6 +242,124 @@ function ConvertTo-FleetStringArray {
     return @([string]$Value)
 }
 
+function ConvertTo-FleetFailureNormalizedSummary {
+    param([string]$Text)
+
+    $rules = [System.Collections.Generic.List[string]]::new()
+    $normalized = if ($null -eq $Text) { "" } else { [string]$Text }
+
+    if ($normalized -match "(`r`n|`r)") {
+        $rules.Add("line-ending") | Out-Null
+        $normalized = $normalized -replace "`r`n", "`n"
+        $normalized = $normalized -replace "`r", "`n"
+    }
+
+    $patterns = @(
+        @{ rule = "timestamp"; pattern = "(?i)\b\d{4}-\d{2}-\d{2}[T ][0-9:.]+Z?\b"; replacement = "<timestamp>" },
+        @{ rule = "guid"; pattern = "(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b"; replacement = "<guid>" },
+        @{ rule = "temp-path"; pattern = "(?i)([A-Z]:\\Users\\[^\\\s]+\\AppData\\Local\\Temp\\[^\s]+|[A-Z]:\\Temp\\[^\s]+|/tmp/[^\s]+)"; replacement = "<temp-path>" },
+        @{ rule = "machine-root"; pattern = "(?i)([A-Z]:\\Users\\[^\\\s]+|/Users/[^/\s]+|/home/[^/\s]+)"; replacement = "<machine-root>" },
+        @{ rule = "absolute-path"; pattern = "(?i)\b[A-Z]:\\[^\s]+|/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+"; replacement = "<absolute-path>" },
+        @{ rule = "duration"; pattern = "(?i)\b\d+(?:\.\d+)?\s*(ms|milliseconds?|seconds?|secs?|s|minutes?|mins?|m)\b"; replacement = "<duration>" },
+        @{ rule = "port"; pattern = "(?i)\bport\s*[:=]?\s*\d+\b"; replacement = "port <port>" },
+        @{ rule = "noisy-id"; pattern = "(?i)\b(run|request|trace|job|pid|attempt)[-_:\s]?[0-9a-f]{6,}\b"; replacement = '$1-<id>' }
+    )
+
+    foreach ($item in $patterns) {
+        if ($normalized -match $item.pattern) {
+            $rules.Add([string]$item.rule) | Out-Null
+            $normalized = $normalized -replace $item.pattern, $item.replacement
+        }
+    }
+
+    $normalized = ($normalized -replace "\s+", " ").Trim().ToLowerInvariant()
+    return [pscustomobject]@{
+        summary = $normalized
+        rules = @($rules | Select-Object -Unique)
+    }
+}
+
+function New-FleetFailureFingerprint {
+    param(
+        [string]$ShipId = "FixtureShip",
+        [string]$RunId = "fixture-run",
+        [string]$FailureClass = "runtime-failure",
+        [Parameter(Mandatory = $true)][string]$RawSummary,
+        [string]$Hypothesis = "fixture hypothesis",
+        [int]$AttemptCount = 1,
+        [string[]]$EvidenceRefs = @(),
+        [switch]$RepairTaskOnRepeat,
+        [string]$FirstSeenAt = "",
+        [string]$LastSeenAt = ""
+    )
+
+    if ($AttemptCount -lt 1) { $AttemptCount = 1 }
+    if ([string]::IsNullOrWhiteSpace($FirstSeenAt)) { $FirstSeenAt = (Get-Date).ToUniversalTime().ToString("o") }
+    if ([string]::IsNullOrWhiteSpace($LastSeenAt)) { $LastSeenAt = (Get-Date).ToUniversalTime().ToString("o") }
+
+    $normalized = ConvertTo-FleetFailureNormalizedSummary -Text $RawSummary
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $reasons.Add("normalized") | Out-Null
+    foreach ($rule in @($normalized.rules)) {
+        if ($rule -eq "noisy-id") { $reasons.Add("noisy-id-normalized") | Out-Null }
+    }
+
+    if (@($EvidenceRefs).Count -eq 0) {
+        $reasons.Add("missing-evidence") | Out-Null
+    }
+
+    $decision = "retry-once"
+    $retriable = $true
+    if ($FailureClass -eq "policy-denial") {
+        $decision = "non-retriable-policy-denial"
+        $retriable = $false
+        $reasons.Add("policy-denial-non-retriable") | Out-Null
+        $reasons.Add("blind-retry-forbidden") | Out-Null
+    } elseif ($AttemptCount -ge 2) {
+        $reasons.Add("same-hypothesis-twice") | Out-Null
+        $reasons.Add("blind-retry-forbidden") | Out-Null
+        if ($RepairTaskOnRepeat) {
+            $decision = "repair-task"
+            $reasons.Add("repair-task-required") | Out-Null
+        } else {
+            $decision = "safe-pause"
+            $reasons.Add("safe-pause-required") | Out-Null
+        }
+        $retriable = $false
+    }
+
+    $hashInput = "{0}|{1}|{2}" -f $FailureClass, $normalized.summary, $Hypothesis
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($hashInput)
+        $hash = ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace("-", "").Substring(0, 12).ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+
+    return [pscustomobject]@{
+        schemaVersion = 1
+        fingerprintId = "failure-$hash"
+        shipId = $ShipId
+        runId = $RunId
+        failureClass = $FailureClass
+        rawSummary = $RawSummary
+        normalizedSummary = $normalized.summary
+        normalizationRules = @($normalized.rules)
+        hypothesis = $Hypothesis
+        attemptCount = $AttemptCount
+        firstSeenAt = $FirstSeenAt
+        lastSeenAt = $LastSeenAt
+        decision = $decision
+        retriable = $retriable
+        evidenceRefs = @($EvidenceRefs)
+        validation = [pscustomobject]@{
+            status = "valid"
+            reasons = @($reasons | Select-Object -Unique)
+        }
+    }
+}
+
 function Add-FleetArrayArgument {
     param(
         [string[]]$Arguments = @(),
@@ -454,8 +572,20 @@ function Invoke-FleetCodexReadOnly {
 
         [int]$RateLimitCooldownSeconds = 3600,
 
-        [int]$RateLimitMaxCooldowns = 4
+        [int]$RateLimitMaxCooldowns = 4,
+
+        [int]$MaxNoOutputRetries = 1,
+
+        [string]$CodexExecutable = "codex",
+
+        [string[]]$CodexBaseArguments = @("exec"),
+
+        [switch]$SkipOutputArgument
     )
+
+    if ($MaxNoOutputRetries -lt 1) {
+        $MaxNoOutputRetries = 1
+    }
 
     $modelChain = @(ConvertTo-FleetStringArray -Value $Models)
     if ($modelChain.Count -eq 0) {
@@ -467,6 +597,7 @@ function Invoke-FleetCodexReadOnly {
     foreach ($model in $modelChain) {
         $modelLabel = if ([string]::IsNullOrWhiteSpace($model)) { "default" } else { $model }
         $safeModel = ($modelLabel -replace "[^a-zA-Z0-9_.-]+", "-")
+        $noOutputAttempts = 0
 
         while ($true) {
             $suffix = if ($cooldownsUsed -eq 0) { "" } else { "-cooldown-$cooldownsUsed" }
@@ -481,14 +612,16 @@ function Invoke-FleetCodexReadOnly {
                 Clear-Content -Path $OutputPath -ErrorAction SilentlyContinue
             }
 
-            $codexArgs = @("exec")
+            $codexArgs = @($CodexBaseArguments)
             if (![string]::IsNullOrWhiteSpace($model)) {
                 $codexArgs += @("-m", $model)
             }
-            $codexArgs += @("-o", $OutputPath, "-")
+            if (!$SkipOutputArgument) {
+                $codexArgs += @("-o", $OutputPath, "-")
+            }
 
             Write-Host "Starting read-only Codex run with model $modelLabel" -ForegroundColor DarkCyan
-            $lastResult = Invoke-FleetProcess -FilePath "codex" -Arguments $codexArgs -InputText $Prompt -WorkingDirectory $WorkingDirectory -LogPath $modelLogPath -TimeoutSeconds $TimeoutSeconds
+            $lastResult = Invoke-FleetProcess -FilePath $CodexExecutable -Arguments $codexArgs -InputText $Prompt -WorkingDirectory $WorkingDirectory -LogPath $modelLogPath -TimeoutSeconds $TimeoutSeconds
             if ($lastResult.timedOut) {
                 Write-Host "Read-only Codex run timed out after $TimeoutSeconds seconds on model $modelLabel." -ForegroundColor Yellow
             }
@@ -503,6 +636,16 @@ function Invoke-FleetCodexReadOnly {
                 Write-Host "Codex appears rate-limited. Waiting $sleepSeconds seconds before retry $cooldownsUsed of $RateLimitMaxCooldowns." -ForegroundColor Yellow
                 Start-Sleep -Seconds $sleepSeconds
                 continue
+            }
+
+            $noOutputAttempts++
+            if ($noOutputAttempts -lt $MaxNoOutputRetries) {
+                Write-Host "Read-only Codex run produced no output on model $modelLabel. Retry $($noOutputAttempts + 1) of $MaxNoOutputRetries." -ForegroundColor Yellow
+                continue
+            }
+
+            if ($noOutputAttempts -ge $MaxNoOutputRetries) {
+                Write-Host "Read-only Codex run stopped after $noOutputAttempts no-output attempt(s) on model $modelLabel." -ForegroundColor Yellow
             }
 
             break

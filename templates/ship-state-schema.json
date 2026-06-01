@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Ship State",
+  "type": "object",
+  "required": ["schemaVersion", "ship", "status", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "ship": { "type": "string", "minLength": 1 },
+    "repo": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "READY",
+        "RUNNING",
+        "REVIEWING",
+        "AUDIT_READY",
+        "PACKET_READY",
+        "REPAIRING",
+        "BLOCKED",
+        "TASTE_GATE",
+        "RATE_LIMIT_PAUSED",
+        "PARKED",
+        "ARCHIVED"
+      ]
+    },
+    "previousStatus": { "type": "string" },
+    "phase": { "type": "string" },
+    "riskTier": { "type": "string" },
+    "activePid": { "type": "integer" },
+    "lockStatus": { "type": "string" },
+    "heartbeatFreshness": { "type": "string" },
+    "repoClean": { "type": ["boolean", "null"] },
+    "tasksRemaining": { "type": "integer", "minimum": 0 },
+    "quarantinedTasks": { "type": "integer", "minimum": 0 },
+    "lastRunId": { "type": "string" },
+    "lastRunResultPath": { "type": "string" },
+    "lastAuditPackagePath": { "type": "string" },
+    "lastTaskPacketPath": { "type": "string" },
+    "gates": { "type": "object" },
+    "rateLimit": {
+      "type": "object",
+      "properties": {
+        "pausedUntil": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "tasteGateReasons": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "reason": { "type": "string" },
+    "nextSafeHumanAction": { "type": "string" },
+    "updatedAt": { "type": "string" }
+  }
+}

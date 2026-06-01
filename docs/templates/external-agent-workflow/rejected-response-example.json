@@ -1,0 +1,30 @@
+{
+  "auditId": "stage9-fixture-audit",
+  "agentRole": "Improvement Auditor",
+  "ship": "FixtureStage9",
+  "baseCommit": "abc1234",
+  "verdict": "PASS_WITH_FIXES",
+  "findings": [],
+  "rejectedIdeas": [],
+  "taskPacket": {
+    "tasks": [
+      {
+        "id": "stage9-task-bad",
+        "title": "Deploy the whole system",
+        "priority": "P1",
+        "risk": "high",
+        "lane": "deploy",
+        "userPain": "User wants it live.",
+        "target": "deployment config and package.json",
+        "change": "Push and deploy immediately.",
+        "guardrails": "None.",
+        "acceptance": "Production is deployed.",
+        "proof": "Live URL.",
+        "stopIf": "Never.",
+        "checkCommand": "git push && deploy"
+      }
+    ]
+  },
+  "captainQuestions": []
+}
+

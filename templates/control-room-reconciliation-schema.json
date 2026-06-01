@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Control-Room Reconciliation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reconciliationId",
+    "shipId",
+    "repoFingerprintRef",
+    "runArtifactRef",
+    "dbStateRef",
+    "statusSnapshotRef",
+    "reconciliationStatus",
+    "mismatchReasons",
+    "displayStatus",
+    "generatedAt",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "reconciliationId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "all",
+          "ALL",
+          "*"
+        ]
+      }
+    },
+    "repoFingerprintRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runArtifactRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dbStateRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "statusSnapshotRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reconciliationStatus": {
+      "type": "string",
+      "enum": [
+        "MATCH",
+        "MISMATCH",
+        "UNKNOWN"
+      ]
+    },
+    "mismatchReasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "stale-artifact",
+          "repo-fingerprint-drift",
+          "missing-db-state-ref",
+          "missing-run-artifact-ref",
+          "missing-repo-fingerprint-ref",
+          "status-snapshot-mismatch",
+          "contradictory-lease",
+          "dirty-state-conflict",
+          "ship-id-mismatch",
+          "unknown-source"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "displayStatus": {
+      "type": "string",
+      "enum": [
+        "MATCH",
+        "UNKNOWN"
+      ]
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "matched",
+              "mismatch-shows-unknown",
+              "unknown-shows-unknown",
+              "stale-artifact",
+              "repo-fingerprint-drift",
+              "missing-db-state-ref",
+              "missing-run-artifact-ref",
+              "missing-repo-fingerprint-ref",
+              "status-snapshot-mismatch",
+              "contradictory-lease",
+              "ship-id-mismatch"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

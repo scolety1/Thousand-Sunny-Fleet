@@ -26,9 +26,17 @@ $ErrorActionPreference = "Continue"
 $fleetRoot = if (![string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $fleetRoot
 . (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-state.ps1")
 
 function Stop-Experiment {
-    param([string]$Message)
+    param(
+        [string]$Message,
+        [switch]$WriteEvidence
+    )
+
+    if ($WriteEvidence -and ![string]::IsNullOrWhiteSpace([string]$script:ExperimentOutPath) -and ![string]::IsNullOrWhiteSpace([string]$script:ExperimentJsonOutPath)) {
+        Write-ExperimentFailureOutputs -Message $Message -MarkdownPath $script:ExperimentOutPath -JsonPath $script:ExperimentJsonOutPath
+    }
 
     Write-Host $Message -ForegroundColor Red
     exit 1
@@ -187,20 +195,8 @@ function Get-ProjectsFromConfig {
 function Test-RepoDirty {
     param([string]$Repo)
 
-    if (!(Test-Path $Repo)) {
-        return $true
-    }
-
-    Push-Location $Repo
-    try {
-        $status = @(git status --short 2>$null)
-        if ($LASTEXITCODE -ne 0) {
-            return $true
-        }
-        return ($status.Count -gt 0)
-    } finally {
-        Pop-Location
-    }
+    $state = Get-FleetRepoState -Repo $Repo
+    return ($state.state -ne "clean")
 }
 
 function Get-RepoStatusEntries {
@@ -210,12 +206,9 @@ function Get-RepoStatusEntries {
         return @("!! repo missing: $Repo")
     }
 
-    Push-Location $Repo
-    try {
-        return @(git status --short 2>$null)
-    } finally {
-        Pop-Location
-    }
+    $state = Get-FleetRepoState -Repo $Repo
+    if ($state.state -eq "git-error") { return @("!! git error: $($state.gitError)") }
+    return @($state.changedFiles)
 }
 
 function Get-RepoDirtyPaths {
@@ -512,10 +505,69 @@ function Write-ExperimentOutputs {
     Set-Content -Path $MarkdownPath -Value $lines -Encoding UTF8
 }
 
+function Write-ExperimentFailureOutputs {
+    param(
+        [string]$Message,
+        [string]$MarkdownPath,
+        [string]$JsonPath
+    )
+
+    $markdownParent = Split-Path -Parent $MarkdownPath
+    if (![string]::IsNullOrWhiteSpace($markdownParent)) {
+        New-Item -ItemType Directory -Force -Path $markdownParent | Out-Null
+    }
+    $jsonParent = Split-Path -Parent $JsonPath
+    if (![string]::IsNullOrWhiteSpace($jsonParent)) {
+        New-Item -ItemType Directory -Force -Path $jsonParent | Out-Null
+    }
+
+    $failure = [pscustomobject]@{
+        experimentId = "failed-{0}-{1}" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"), ([guid]::NewGuid().ToString("N").Substring(0, 6))
+        dryRun = [bool]$DryRun
+        failed = $true
+        status = "FAILED_BEFORE_LAUNCH"
+        failureMessage = $Message
+        manifestPath = $manifestFullPath
+        configPath = $configFullPath
+        writtenAt = (Get-Date).ToString("o")
+        entries = @()
+        metrics = [pscustomobject]@{
+            shipCount = 0
+            baselineSerialMinutes = 0
+            parallelWallClockMinutes = 0
+            speedup = 0
+            efficiency = 0
+            loadImbalance = 0
+            failureRetryOverhead = 0
+            reviewerGateOverhead = "not run"
+        }
+    }
+    $failure | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonPath -Encoding UTF8
+
+    Set-Content -Path $MarkdownPath -Encoding UTF8 -Value @(
+        "# Fleet Experiment",
+        "",
+        "- Mode: FAILURE",
+        "- Status: FAILED_BEFORE_LAUNCH",
+        "- Manifest: $manifestFullPath",
+        "- Raw JSON: $JsonPath",
+        "",
+        "## Failure",
+        "",
+        $Message,
+        "",
+        "## Evidence",
+        "",
+        "The experiment stopped before launch, but Markdown and JSON evidence were written so the failure can be audited."
+    )
+}
+
 $manifestFullPath = Resolve-ControlPath -Path $ManifestPath
 $outFullPath = Resolve-ControlPath -Path $OutPath
 $jsonOutFullPath = Resolve-ControlPath -Path $JsonOutPath
 $configFullPath = Resolve-ControlPath -Path $ConfigPath
+$script:ExperimentOutPath = $outFullPath
+$script:ExperimentJsonOutPath = $jsonOutFullPath
 
 if ($Template) {
     Write-ExperimentTemplate -Path $manifestFullPath
@@ -592,7 +644,7 @@ if ($batchSize -lt 1) { Stop-Experiment "batchSize must be at least 1." }
 if ($maxBatches -lt 1) { Stop-Experiment "maxBatches must be at least 1." }
 if ($maxRuntimeMinutes -lt 1) { Stop-Experiment "maxRuntimeMinutes must be at least 1." }
 
-Assert-NoFleetSafeStopRequests -FleetRoot $fleetRoot -ProjectFilter "" -ExcludeProject @() -AllowSafeStopRequests:$AllowSafeStopRequests
+Assert-NoFleetSafeStopRequests -FleetRoot $fleetRoot -ProjectScope $selectedShips -ExcludeProject @() -AllowSafeStopRequests:$AllowSafeStopRequests
 
 $projects = @(Get-ProjectsFromConfig -Path $configFullPath)
 $selectedProjects = @()
@@ -606,7 +658,7 @@ foreach ($shipName in $selectedShips) {
     }
 }
 if ($missingShips.Count -gt 0) {
-    Stop-Experiment "Experiment references unknown ship(s): $($missingShips -join ', ')"
+    Stop-Experiment "Experiment references unknown ship(s): $($missingShips -join ', ')" -WriteEvidence
 }
 
 $dirtyShips = @()
@@ -618,7 +670,7 @@ if (!$AllowDirty) {
     }
 }
 if ($dirtyShips.Count -gt 0) {
-    Stop-Experiment "Experiment refused because selected ship(s) are dirty or unreadable: $($dirtyShips -join ', '). Use -AllowDirty only for an approved rescue."
+    Stop-Experiment "Experiment refused because selected ship(s) are dirty, missing, or git-error: $($dirtyShips -join ', '). Use -AllowDirty only for an approved rescue." -WriteEvidence
 }
 
 if (!$SkipDoctor) {
@@ -626,7 +678,7 @@ if (!$SkipDoctor) {
         $doctorArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $fleetRoot "fleet-doctor.ps1"), "-ConfigPath", $configFullPath, "-Project", $shipName)
         & powershell @doctorArgs
         if ($LASTEXITCODE -ne 0) {
-            Stop-Experiment "Experiment refused. Chopper found that $shipName is not ready."
+            Stop-Experiment "Experiment refused. Chopper found that $shipName is not ready." -WriteEvidence
         }
     }
 }

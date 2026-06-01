@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Runtime Policy Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "decisionId",
+    "selectedShipId",
+    "entrypoint",
+    "action",
+    "riskClass",
+    "decision",
+    "approvalRequirement",
+    "denialReason",
+    "repoFingerprintRef",
+    "worktreeBoundaryRef",
+    "budgetRecordRef",
+    "evidenceRefs",
+    "generatedAt",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "policyVersion": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^runtime-policy-v[0-9]+$"
+    },
+    "decisionId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "selectedShipId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entrypoint": {
+      "type": "string",
+      "enum": [
+        "invoke-autonomy-wrapper.ps1",
+        "invoke-overnight-mode.ps1",
+        "invoke-mobile-console.ps1",
+        "invoke-control-room.ps1",
+        "new-audit-package.ps1",
+        "ingest-task-packet.ps1",
+        "new-external-agent-workflow.ps1",
+        "invoke-audit-loop-package.ps1",
+        "new-audit-loop-queue.ps1",
+        "invoke-audit-loop-task.ps1",
+        "run-checkpoint-loop.ps1",
+        "fleet-supervisor.ps1",
+        "fleet-remote-control.ps1",
+        "run-fleet.ps1",
+        "launch-overnight-run.ps1",
+        "start-overnight-autopilot.ps1",
+        "manual-captain-note"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "WRITE_STATUS_REPORT",
+        "RUN_ONE_BATCH",
+        "MAKE_AUDIT_PACKAGE",
+        "IMPORT_APPROVED_PACKET",
+        "WRITE_REPAIR_TASK",
+        "PARK_SHIP",
+        "REQUEST_TASTE_GATE",
+        "BLOCK_WITH_REASON"
+      ]
+    },
+    "riskClass": {
+      "type": "string",
+      "enum": [
+        "report_only",
+        "audit_package",
+        "packet_import",
+        "bounded_selected_ship",
+        "repair_task_writer",
+        "park_or_stop_request",
+        "external_review_request_only",
+        "mobile_request_only",
+        "legacy_broad_requires_human",
+        "forbidden"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "DEFER"
+      ]
+    },
+    "approvalRequirement": {
+      "type": "string",
+      "enum": [
+        "none",
+        "captain_exact_action",
+        "captain_selected_ship",
+        "captain_selected_project",
+        "captain_packet_import",
+        "captain_legacy_broad",
+        "external_audit_review",
+        "not_approvable"
+      ]
+    },
+    "denialReason": {
+      "type": "string",
+      "enum": [
+        "",
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "forbidden-scope",
+        "missing-approval",
+        "stale-fingerprint",
+        "missing-repo-fingerprint",
+        "missing-worktree-boundary",
+        "legacy-broad-entrypoint",
+        "external-report-non-executable",
+        "mobile-request-non-executable",
+        "task-packet-not-validated",
+        "low-budget",
+        "secret-like-path",
+        "product-launch-forbidden",
+        "unknown-policy-version"
+      ]
+    },
+    "repoFingerprintRef": {
+      "type": "string"
+    },
+    "worktreeBoundaryRef": {
+      "type": "string"
+    },
+    "budgetRecordRef": {
+      "type": "string"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons",
+        "fixtureName"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "selected-ship-present",
+              "blank-ship",
+              "all-ship",
+              "wildcard-ship",
+              "multi-ship",
+              "forbidden-scope",
+              "missing-approval",
+              "stale-fingerprint",
+              "missing-repo-fingerprint",
+              "missing-worktree-boundary",
+              "legacy-broad-entrypoint",
+              "external-report-non-executable",
+              "mobile-request-non-executable",
+              "task-packet-not-validated",
+              "low-budget",
+              "secret-like-path",
+              "product-launch-forbidden",
+              "model-cannot-grant-permission",
+              "policy-version-recorded",
+              "evidence-recorded"
+            ]
+          }
+        },
+        "fixtureName": {
+          "type": "string",
+          "enum": [
+            "blank-ship-denied",
+            "all-ship-denied",
+            "multi-ship-denied",
+            "forbidden-scope-denied",
+            "missing-approval-deferred",
+            "stale-fingerprint-denied",
+            "legacy-broad-entrypoint-deferred",
+            "mobile-request-non-executable",
+            "external-report-non-executable",
+            "validated-selected-ship-allowed"
+          ]
+        }
+      }
+    }
+  }
+}

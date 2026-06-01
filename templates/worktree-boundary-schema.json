@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Worktree Boundary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "boundaryId",
+    "shipId",
+    "sourceRepoRoot",
+    "sourceGitTopLevel",
+    "worktreePath",
+    "branch",
+    "owner",
+    "leaseId",
+    "cleanupPosture",
+    "boundaryState",
+    "generatedAt",
+    "evidenceRefs",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "boundaryId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "all",
+          "ALL",
+          "*"
+        ]
+      }
+    },
+    "sourceRepoRoot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceGitTopLevel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "worktreePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "leaseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cleanupPosture": {
+      "type": "string",
+      "enum": [
+        "preserve",
+        "manual-review",
+        "safe-dispose-fixture-only",
+        "do-not-delete-locks"
+      ]
+    },
+    "boundaryState": {
+      "type": "string",
+      "enum": [
+        "fixture-only",
+        "planned",
+        "active",
+        "stale",
+        "blocked",
+        "invalid"
+      ]
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "single-selected-ship",
+              "missing-worktree",
+              "broad-ship-selection",
+              "direct-product-root-mutation",
+              "ship-mismatch",
+              "source-root-mismatch",
+              "fixture-root-escape",
+              "ambiguous-boundary",
+              "fixture-only-exception",
+              "lock-deletion-forbidden"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

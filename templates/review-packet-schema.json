@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Review Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reviewPacketId",
+    "auditId",
+    "reviewer",
+    "shipId",
+    "baseCommit",
+    "verdict",
+    "findings",
+    "evidenceRefs",
+    "suggestedTasks",
+    "limitations",
+    "rejectedIdeas",
+    "captainQuestions",
+    "policy",
+    "generatedAt",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "reviewPacketId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 80,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "auditId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "role",
+        "source"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "Issue Auditor",
+            "Improvement Auditor",
+            "Product Taste Auditor",
+            "Formula Auditor",
+            "Security Scope Auditor",
+            "Tie-Breaker Auditor"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "external-agent",
+            "captain",
+            "local-audit",
+            "manual-review",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "shipId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "not": {
+        "pattern": "(?i)^(all|\\*|.*,.*)$|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$"
+      }
+    },
+    "baseCommit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "PASS_WITH_FIXES",
+        "FAIL",
+        "NEEDS_CAPTAIN",
+        "LIMITED"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "title",
+          "description",
+          "evidenceRefs",
+          "recommendation",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "P0",
+              "P1",
+              "P2",
+              "P3",
+              "info"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "not": {
+                "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key)"
+              }
+            }
+          },
+          "recommendation": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "accepted",
+              "rejected",
+              "deferred",
+              "accepted_limitation"
+            ]
+          }
+        }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "not": {
+          "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+        }
+      }
+    },
+    "suggestedTasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "priority",
+          "risk",
+          "lane",
+          "target",
+          "change",
+          "acceptance",
+          "proof",
+          "stopIf",
+          "validationStatus"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          "risk": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "sensitive"
+            ]
+          },
+          "lane": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string"
+          },
+          "change": {
+            "type": "string"
+          },
+          "acceptance": {
+            "type": "string"
+          },
+          "proof": {
+            "type": "string"
+          },
+          "stopIf": {
+            "type": "string"
+          },
+          "validationStatus": {
+            "type": "string",
+            "enum": [
+              "suggested_only",
+              "requires_stage4_validation",
+              "rejected_forbidden_operation",
+              "rejected_broad_scope",
+              "rejected_stale_base",
+              "needs_captain_approval",
+              "accepted_limitation"
+            ]
+          },
+          "forbiddenOperation": {
+            "type": "string",
+            "enum": [
+              "",
+              "merge",
+              "push",
+              "deploy",
+              "install-packages",
+              "run-migrations",
+              "touch-secrets",
+              "touch-auth",
+              "touch-payments",
+              "delete-locks",
+              "widen-permissions",
+              "launch-product-ships",
+              "run-all-fleet-commands",
+              "bypass-task-packet-validation",
+              "treat-prose-as-command"
+            ]
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "description",
+          "accepted"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "accepted_limitation",
+              "audit_scope_limit",
+              "external_tool_limit",
+              "missing_context",
+              "out_of_scope",
+              "captain_decision_needed"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "rejectedIdeas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idea",
+          "reason"
+        ],
+        "properties": {
+          "idea": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "unsafe",
+              "stale",
+              "too-broad",
+              "forbidden-operation",
+              "subjective-without-captain",
+              "accepted-limitation",
+              "duplicate",
+              "unsupported"
+            ]
+          }
+        }
+      }
+    },
+    "captainQuestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canApprove",
+        "canExecute",
+        "canOverridePolicy",
+        "canBypassTaskPacketValidation"
+      ],
+      "properties": {
+        "canApprove": {
+          "type": "boolean",
+          "const": false
+        },
+        "canExecute": {
+          "type": "boolean",
+          "const": false
+        },
+        "canOverridePolicy": {
+          "type": "boolean",
+          "const": false
+        },
+        "canBypassTaskPacketValidation": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons",
+        "fixtureName"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "findings-separated-from-tasks",
+              "evidence-refs-present",
+              "suggested-tasks-non-executable",
+              "limitations-recorded",
+              "reviewer-identity-present",
+              "cannot-approve",
+              "cannot-execute",
+              "cannot-override-policy",
+              "cannot-bypass-task-packet-validation",
+              "forbidden-operation-rejected",
+              "accepted-limitation-recorded",
+              "captain-approval-required",
+              "stale-base-rejected",
+              "external-prose-non-executable"
+            ]
+          }
+        },
+        "fixtureName": {
+          "type": "string",
+          "enum": [
+            "valid-review-packet",
+            "forbidden-merge-rejected",
+            "forbidden-deploy-rejected",
+            "forbidden-secret-touch-rejected",
+            "task-packet-bypass-rejected",
+            "mobile-command-rejected",
+            "accepted-limitation-recorded",
+            "captain-approval-required",
+            "stale-base-rejected",
+            "external-prose-non-executable"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "accepted": [
+    {
+      "bucket": "ACCEPT_WITH_EDITS",
+      "reason": "Structurally valid single-agent suggestion; normalize through Stage 4 before import.",
+      "task": {
+        "id": "task-summary",
+        "title": "Generate a concise captain summary"
+      }
+    }
+  ],
+  "deferred": [
+    {
+      "bucket": "DEFER",
+      "reason": "Low priority single-agent suggestion.",
+      "task": {
+        "id": "task-polish",
+        "title": "Polish wording after the next audit"
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "source": "Improvement Auditor",
+      "reason": "Task touches forbidden scope or unsafe command language."
+    }
+  ],
+  "needsCaptain": [
+    {
+      "bucket": "NEEDS_CAPTAIN",
+      "reason": "Taste or visual-direction recommendation requires captain approval.",
+      "task": {
+        "id": "task-taste",
+        "title": "Choose between two visual directions"
+      }
+    }
+  ]
+}
+

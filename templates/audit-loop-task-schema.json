@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Audit Loop Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "dispatchPhrase",
+    "goal",
+    "readList",
+    "workList",
+    "acceptanceCriteria",
+    "requiredChecks",
+    "commitExpectation",
+    "riskLevel",
+    "notes",
+    "stopIf",
+    "proof"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "Stable task identifier from the audit queue."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Short task title."
+    },
+    "dispatchPhrase": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Exact phrase the captain can send to start this single task."
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 20,
+      "description": "Concrete outcome expected from this one task."
+    },
+    "readList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Files or docs to inspect before editing."
+    },
+    "workList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Files, docs, or tests this task may edit."
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Concrete pass criteria for this task."
+    },
+    "requiredChecks": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Commands or checks to run before marking the task done."
+    },
+    "commitExpectation": {
+      "type": "string",
+      "enum": ["none", "optional", "one-commit", "captain-decides"],
+      "description": "Whether this task expects a commit after completion."
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Risk level for the task itself."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Reviewer context or implementation notes."
+    },
+    "stopIf": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Conditions that should stop the task before editing further."
+    },
+    "proof": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Evidence to record when the task is complete."
+    }
+  }
+}
