@@ -3727,3 +3727,277 @@ Source evidence: Audit Guidelines Review YELLOW findings plus completed token-co
 - evidence:
   - Post-fix-up external audit refresh prompt/package checklist.
   - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Post-GREEN Local Control-Plane Queue 2026-06-02
+
+Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\codex-agent\Downloads\Audit Guidelines Review (1).docx`. The report is evidence only. This queue preserves the GREEN milestone, then prepares a local-only mock Fleet Console prototype path. It does not approve product-repo access, product mutation, live runtime command binding, remote access, package sending, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+### HQ-128 GREEN External Audit Evidence Record
+
+- status: pending
+- goal: Record the post-fix-up GREEN audit result as local evidence without turning reviewer output into authority.
+- prerequisites:
+  - HQ-127 done
+  - commit `a96bac8` present
+  - commit `8d64e0f` present
+- allowedFiles:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `C:\Users\codex-agent\Downloads\Audit Guidelines Review (1).docx`
+- acceptance:
+  - Evidence record states the audit returned GREEN for the included local harness/docs/tests/schema package.
+  - Evidence record names F1 through F5 as resolved or bounded according to the report summary.
+  - Evidence record says reviewer output and DOCX reports are evidence only, not approval, commands, queue imports, validation bypasses, demo approval, package sending approval, product-repo permission, runtime command binding, or future authority.
+  - Handoff references the GREEN record as evidence only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires importing reviewer text as tasks, approving a demo, touching product repos, staging, committing, pushing, sending packages, implementing UI, remote access, or runtime command binding.
+- evidence:
+  - GREEN audit record and handoff pointer.
+
+### HQ-129 GREEN Audit Record Regression Guard
+
+- status: blocked
+- goal: Add a small regression check that the GREEN audit record preserves non-authority language and does not imply execution approval.
+- prerequisites:
+  - HQ-128 done
+- allowedFiles:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/HQ_REPAIR_QUEUE_CONTRACT.md`
+- acceptance:
+  - Fleet tests assert the GREEN audit record exists.
+  - Tests assert the record includes evidence-only, no product repos, no runtime command binding, no package sending, no staging/commit/push/deploy, and no future authority language.
+  - Tests fail if the record states or implies reviewer output approves execution, demo trials, product mutation, or UI implementation.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires broad audit import, product-repo access, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or UI implementation.
+- evidence:
+  - GREEN record non-authority regression test.
+
+### HQ-130 Local Fleet Console Prototype Decision Packet
+
+- status: blocked
+- goal: Define the exact local-only mock console prototype scope before any UI file is created.
+- prerequisites:
+  - HQ-129 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+  - `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `templates/fleet-console-prototype-packet-schema.json`
+- acceptance:
+  - Decision packet approves only a local static/mock prototype using committed fixtures.
+  - Decision packet forbids remote access, auth, live command binding, product-repo reads, product mutation, package sending, launchers, all-fleet commands, deployment, installs, migrations, secrets/auth/payments/deploy work, staging, commit, push, merge, lock deletion, permission widening, and future authority.
+  - Decision packet lists allowed prototype files for later tasks and exact stop signs.
+  - Transition doc points to the decision packet as evidence only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires UI implementation in the same task, package installs, server setup, remote exposure, product-repo access, or command binding.
+- evidence:
+  - Local prototype decision packet.
+
+### HQ-131 Static Mock Console Shell
+
+- status: blocked
+- goal: Create a static local mock Fleet Console shell with no command execution or live state access.
+- prerequisites:
+  - HQ-130 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_WIREFRAMES.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- acceptance:
+  - Static prototype opens as a local file without installing packages or starting a server.
+  - Prototype is visibly a local mock console and uses no form action, network fetch, script command execution, remote URL, product repo path, auth flow, package sending, runtime command binding, or launcher text.
+  - Forbidden controls are disabled or absent: launch ships, all-fleet, deploy, install, migrate, secrets/auth/payments/deploy, stage, commit, push, merge, delete locks, widen permissions, send package, approve risky phone action.
+  - README states the prototype is evidence-only and not an operational console.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires package installs, JavaScript frameworks, dev server, browser automation, product-repo access, real state reads, command binding, auth, remote exposure, or package sending.
+- evidence:
+  - Static mock console shell.
+
+### HQ-132 Mock Console State Fixture Integration
+
+- status: blocked
+- goal: Wire the static prototype to local mock fixture examples by documentation and static embedded examples only.
+- prerequisites:
+  - HQ-131 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/README.md`
+  - `tests/fixtures/fleet/ui-control/`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/fleet-console-state-schema.json`
+  - `tests/fixtures/fleet/ui-control/fleet-console-state.green-local-harness.json`
+  - `tests/fixtures/fleet/ui-control/fleet-console-state.yellow-blocked.json`
+  - `tests/fixtures/fleet/ui-control/fleet-console-state.token-limited.json`
+  - `tests/fixtures/fleet/ui-control/fleet-console-state.forbidden-control.json`
+- acceptance:
+  - Prototype reflects green, yellow, token-limited, and forbidden-control mock states without reading live state.
+  - Any fixture references are static local evidence references, not fetches, imports, or command inputs.
+  - README explains how fixture states map to the prototype and why they cannot approve execution.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\ui-control\*.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live state reads, product repos, network fetches, command binding, package installs, server setup, or browser automation.
+- evidence:
+  - Static mock fixture mapping.
+
+### HQ-133 Mock Console Safety Copy And Control States
+
+- status: blocked
+- goal: Tighten prototype labels, control states, and warnings so the mock cannot be confused with an operational console.
+- prerequisites:
+  - HQ-132 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+- acceptance:
+  - Prototype labels distinguish safe evidence views from unavailable operational controls.
+  - Unstuck, prompt builder, audit builder, evidence locker, approval cards, and package areas are represented as local mock/evidence views only.
+  - No visible copy suggests the prototype can run commands, approve actions, send packages, expose remote access, select real product repos, or grant future permission.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing command execution, remote access, package sending, approval workflows, product-repo access, live notifications, package installs, or browser automation.
+- evidence:
+  - Mock console safety copy and control-state pass.
+
+### HQ-134 Prototype Static Safety Tests
+
+- status: blocked
+- goal: Add tests that scan the static prototype for forbidden operational hooks and required evidence-only language.
+- prerequisites:
+  - HQ-133 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/README.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- acceptance:
+  - Tests require evidence-only, local mock, no command binding, no product repos, no remote access, and no package sending language.
+  - Tests reject form actions, network URLs, command-like PowerShell snippets, launch/deploy/install/migration/staging/commit/push controls, or enabled forbidden controls.
+  - Tests remain static and do not start a browser or server.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires browser automation, package installs, server setup, product-repo access, remote access, or runtime command binding.
+- evidence:
+  - Static prototype safety tests.
+
+### HQ-135 Prototype Accessibility And Responsive Pass
+
+- status: blocked
+- goal: Improve the static mock console for keyboard-readable structure, responsive layout, and compact local review.
+- prerequisites:
+  - HQ-134 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/FLEET_CONSOLE_WIREFRAMES.md`
+- acceptance:
+  - Prototype uses semantic headings, landmarks, button states, readable contrast, and responsive panels.
+  - Text fits on narrow and desktop layouts without overlapping.
+  - No new scripts, package dependencies, server requirements, or live data reads are added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires browser automation, screenshots, package installs, server setup, command binding, remote access, product-repo access, or live state.
+- evidence:
+  - Static prototype accessibility and responsive pass.
+
+### HQ-136 Local Prototype Review Packet
+
+- status: blocked
+- goal: Prepare an evidence-only review packet for the local mock console prototype without zipping or sending files.
+- prerequisites:
+  - HQ-135 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Review packet lists exact local prototype files, fixture files, validation command, forbidden material, and reviewer questions.
+  - Review packet says it does not create a zip, send a package, approve implementation, approve remote access, approve product-repo access, or grant execution authority.
+  - Review packet is suitable for later external review prompt creation.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, product-repo access, runtime command binding, remote access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Local prototype review packet.
+
+### HQ-137 Post-Prototype External Audit Prompt Refresh
+
+- status: blocked
+- goal: Refresh the external audit prompt for a future review of the GREEN record plus local mock prototype evidence.
+- prerequisites:
+  - HQ-136 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- acceptance:
+  - Prompt asks reviewer to audit whether the local mock prototype preserves the GREEN safety posture.
+  - Prompt includes only harness/docs/tests/schema/prototype evidence and compact validation summaries.
+  - Prompt reiterates reviewer output is evidence only and cannot approve execution, UI implementation beyond the local mock, remote access, product repos, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future permission.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, staging, committing, product-repo access, broad execution, remote access, command binding, or non-mock UI implementation.
+- evidence:
+  - Post-prototype external audit prompt refresh.
