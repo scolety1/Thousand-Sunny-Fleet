@@ -2,3 +2,16 @@ out/
 *.log
 .codex-logs/
 .codex-local/
+audit-packages/
+docs/codex/CURRENT_STATE.md
+docs/codex/EVIDENCE_INDEX.md
+docs/codex/RUN_RESULT.json
+docs/codex/RUN_SUMMARY.md
+docs/codex/STAGE7_AUDIT_REPAIR.md
+docs/codex/STAGE7_PATH_RECONCILIATION.md
+docs/codex/TASK_QUEUE.md
+docs/codex/test-summary.md
+fleet/state/ship-state.json
+fleet/status/current.json
+fleet/status/decisions.json
+fleet/status/decisions.md
