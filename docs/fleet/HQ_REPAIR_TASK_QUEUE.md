@@ -3734,7 +3734,7 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
 
 ### HQ-128 GREEN External Audit Evidence Record
 
-- status: pending
+- status: done
 - goal: Record the post-fix-up GREEN audit result as local evidence without turning reviewer output into authority.
 - prerequisites:
   - HQ-127 done
@@ -3760,10 +3760,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires importing reviewer text as tasks, approving a demo, touching product repos, staging, committing, pushing, sending packages, implementing UI, remote access, or runtime command binding.
 - evidence:
   - GREEN audit record and handoff pointer.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-129 GREEN Audit Record Regression Guard
 
-- status: blocked
+- status: done
 - goal: Add a small regression check that the GREEN audit record preserves non-authority language and does not imply execution approval.
 - prerequisites:
   - HQ-128 done
@@ -3784,10 +3785,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires broad audit import, product-repo access, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or UI implementation.
 - evidence:
   - GREEN record non-authority regression test.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-130 Local Fleet Console Prototype Decision Packet
 
-- status: blocked
+- status: done
 - goal: Define the exact local-only mock console prototype scope before any UI file is created.
 - prerequisites:
   - HQ-129 done
@@ -3812,10 +3814,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires UI implementation in the same task, package installs, server setup, remote exposure, product-repo access, or command binding.
 - evidence:
   - Local prototype decision packet.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-131 Static Mock Console Shell
 
-- status: blocked
+- status: done
 - goal: Create a static local mock Fleet Console shell with no command execution or live state access.
 - prerequisites:
   - HQ-130 done
@@ -3840,10 +3843,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires package installs, JavaScript frameworks, dev server, browser automation, product-repo access, real state reads, command binding, auth, remote exposure, or package sending.
 - evidence:
   - Static mock console shell.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-132 Mock Console State Fixture Integration
 
-- status: blocked
+- status: done
 - goal: Wire the static prototype to local mock fixture examples by documentation and static embedded examples only.
 - prerequisites:
   - HQ-131 done
@@ -3869,10 +3873,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires live state reads, product repos, network fetches, command binding, package installs, server setup, or browser automation.
 - evidence:
   - Static mock fixture mapping.
+  - Validation passed 2026-06-02 with listed UI-control fixture JSON parse check and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-133 Mock Console Safety Copy And Control States
 
-- status: blocked
+- status: done
 - goal: Tighten prototype labels, control states, and warnings so the mock cannot be confused with an operational console.
 - prerequisites:
   - HQ-132 done
@@ -3896,10 +3901,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires implementing command execution, remote access, package sending, approval workflows, product-repo access, live notifications, package installs, or browser automation.
 - evidence:
   - Mock console safety copy and control-state pass.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-134 Prototype Static Safety Tests
 
-- status: blocked
+- status: done
 - goal: Add tests that scan the static prototype for forbidden operational hooks and required evidence-only language.
 - prerequisites:
   - HQ-133 done
@@ -3922,10 +3928,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires browser automation, package installs, server setup, product-repo access, remote access, or runtime command binding.
 - evidence:
   - Static prototype safety tests.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-135 Prototype Accessibility And Responsive Pass
 
-- status: blocked
+- status: done
 - goal: Improve the static mock console for keyboard-readable structure, responsive layout, and compact local review.
 - prerequisites:
   - HQ-134 done
@@ -3948,10 +3955,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires browser automation, screenshots, package installs, server setup, command binding, remote access, product-repo access, or live state.
 - evidence:
   - Static prototype accessibility and responsive pass.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-136 Local Prototype Review Packet
 
-- status: blocked
+- status: done
 - goal: Prepare an evidence-only review packet for the local mock console prototype without zipping or sending files.
 - prerequisites:
   - HQ-135 done
@@ -3974,10 +3982,11 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires creating or sending a package, product-repo access, runtime command binding, remote access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
 - evidence:
   - Local prototype review packet.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 
 ### HQ-137 Post-Prototype External Audit Prompt Refresh
 
-- status: blocked
+- status: done
 - goal: Refresh the external audit prompt for a future review of the GREEN record plus local mock prototype evidence.
 - prerequisites:
   - HQ-136 done
@@ -4001,3 +4010,4 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
   - Requires creating or sending a package, staging, committing, product-repo access, broad execution, remote access, command binding, or non-mock UI implementation.
 - evidence:
   - Post-prototype external audit prompt refresh.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.

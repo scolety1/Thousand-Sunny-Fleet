@@ -55,6 +55,8 @@ Any Fleet Console prototype remains future-only until a separate bounded task ex
 
 The future prototype gate is currently documented in `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`. It does not approve UI code.
 
+`docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md` records the local static/mock prototype boundary for the next bounded prototype task. It is evidence only: it permits only a later task shape with exact allowed files, committed fixtures, local file review, disabled or absent forbidden controls, no command binding, no remote access, no product-repo access, no package sending, and no future authority. It does not create UI files or approve implementation outside that later bounded task.
+
 ### Future Remote Security Gate
 
 Remote access remains not approved. The current posture is local desktop only.

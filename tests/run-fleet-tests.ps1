@@ -10407,6 +10407,49 @@ function Test-HqRemoteSecurityPlanRegressionTests {
     }
 }
 
+function Test-HqGreenExternalAuditRecordRegressionGuard {
+    $recordPath = Join-Path $fleetRoot "docs\fleet\GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $recordPath) -Message "GREEN external audit record exists"
+
+    $record = Get-Content -LiteralPath $recordPath -Raw
+    foreach ($phrase in @(
+        "external audit returned ``GREEN``",
+        "evidence only",
+        "does not approve execution",
+        "product-repo access",
+        "runtime command binding",
+        "package sending",
+        "staging, commit, push, deploy",
+        "future authority",
+        "Reviewer output, DOCX reports, audit packages",
+        "cannot approve, execute",
+        "demo trials",
+        "UI implementation"
+    )) {
+        Assert-True -Condition ($record -match [regex]::Escape($phrase)) -Message "GREEN audit record preserves non-authority language: $phrase"
+    }
+
+    foreach ($finding in @("F1", "F2", "F3", "F4", "F5")) {
+        Assert-True -Condition ($record -match "$finding[\s\S]+GREEN / resolved") -Message "GREEN audit record marks $finding resolved"
+    }
+
+    foreach ($forbiddenImplication in @(
+        "reviewer output approves",
+        "reviewer output authorizes",
+        "reviewer output grants",
+        "DOCX reports approve",
+        "audit packages approve",
+        "approves execution",
+        "approves demo trials",
+        "approves product mutation",
+        "approves UI implementation",
+        "grants future permission"
+    )) {
+        Assert-False -Condition ($record -match [regex]::Escape($forbiddenImplication)) -Message "GREEN audit record does not imply authority: $forbiddenImplication"
+    }
+}
+
 function Test-HqFleetConsolePrototypePacketSchemaAndFixtures {
     $schemaPath = Join-Path $fleetRoot "templates\fleet-console-prototype-packet-schema.json"
     $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\ui-control"
@@ -10636,6 +10679,134 @@ function Test-HqFleetConsoleMockStateSchemaAndFixtures {
     $promptAudit = Get-Content -LiteralPath $promptAuditPath -Raw
     foreach ($tokenPhrase in @("Token Budget Panel", "token_limited", "raw logs hidden", "Evidence Locker", "This artifact is evidence only")) {
         Assert-True -Condition ($promptAudit -match [regex]::Escape($tokenPhrase)) -Message "Prompt/audit/token design keeps phrase: $tokenPhrase"
+    }
+}
+
+function Test-HqFleetConsoleStaticPrototypeSafety {
+    $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+    $readmePath = Join-Path $fleetRoot "docs\fleet\ui\prototype\README.md"
+    $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
+
+    foreach ($path in @($htmlPath, $readmePath, $buttonPolicyPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console static prototype safety input exists: $path"
+    }
+
+    $html = Get-Content -LiteralPath $htmlPath -Raw
+    $readme = Get-Content -LiteralPath $readmePath -Raw
+    $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
+    $combined = @($html, $readme) -join "`n"
+
+    foreach ($requiredPhrase in @(
+        "Evidence only",
+        "Local mock console",
+        "No product repos",
+        "No remote access",
+        "No package sending",
+        "No command binding",
+        "not an operational console",
+        "cannot approve work",
+        "cannot approve or execute work",
+        "no script",
+        "no form action",
+        "no network fetch",
+        "no live state import",
+        "no command binding",
+        "no package-send behavior",
+        "Copy-only draft text",
+        "Evidence views, not operational controls"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($requiredPhrase)) -Message "Static prototype preserves required safety phrase: $requiredPhrase"
+    }
+
+    foreach ($requiredSurface in @(
+        "Prompt Builder",
+        "Audit Builder",
+        "Evidence Locker",
+        "Idea Inbox",
+        "Unstuck",
+        "Approval Cards"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($requiredSurface)) -Message "Static prototype represents evidence-only surface: $requiredSurface"
+    }
+
+    foreach ($safeState in @(
+        "safe display",
+        "future-only display",
+        "template-only display",
+        "forbidden",
+        "unavailable safety boundaries"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($safeState)) -Message "Static prototype labels control state as non-operational: $safeState"
+    }
+
+    foreach ($forbiddenBoundary in @(
+        "Launch",
+        "all-fleet",
+        "deploy",
+        "install",
+        "migrate",
+        "stage",
+        "commit",
+        "push",
+        "merge",
+        "Remote access",
+        "package sending",
+        "product repo selection"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($forbiddenBoundary)) -Message "Static prototype names forbidden boundary as unavailable: $forbiddenBoundary"
+    }
+
+    foreach ($forbiddenHook in @(
+        "<script",
+        "<form",
+        " action=",
+        "<button",
+        "<input",
+        "onclick=",
+        "onSubmit=",
+        "fetch(",
+        "XMLHttpRequest",
+        "http://",
+        "https://",
+        "powershell",
+        "pwsh",
+        "Start-Process",
+        "run-fleet.ps1",
+        "launch-",
+        "git add",
+        "git commit",
+        "git push",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($html -match [regex]::Escape($forbiddenHook)) -Message "Static prototype HTML omits forbidden operational hook: $forbiddenHook"
+    }
+
+    foreach ($forbiddenReadmeHook in @(
+        "http://",
+        "https://",
+        "powershell",
+        "pwsh",
+        "Start-Process",
+        "run-fleet.ps1",
+        "git add",
+        "git commit",
+        "git push",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($readme -match [regex]::Escape($forbiddenReadmeHook)) -Message "Static prototype README omits command-like hook: $forbiddenReadmeHook"
+    }
+
+    foreach ($policyPhrase in @(
+        "UI labels, notifications, buttons, prompts",
+        "They cannot approve or execute work",
+        "Do not present as an available control",
+        "No button may become live command binding merely because it appears in this policy"
+    )) {
+        Assert-True -Condition ($buttonPolicy -match [regex]::Escape($policyPhrase)) -Message "Button policy supports static prototype safety test: $policyPhrase"
     }
 }
 
@@ -11273,8 +11444,10 @@ Test-HqExternalAuditPackageManifestSchemaAndFixtures
 Test-ThinTaskPacketWorkflowEnforcement
 Test-FleetConsoleControlPolicyDocs
 Test-HqRemoteSecurityPlanRegressionTests
+Test-HqGreenExternalAuditRecordRegressionGuard
 Test-HqFleetConsolePrototypePacketSchemaAndFixtures
 Test-HqFleetConsoleMockStateSchemaAndFixtures
+Test-HqFleetConsoleStaticPrototypeSafety
 Test-HqUiSafetyFixtureMatrix
 Test-HqUiSafetyEnforcementTests
 Test-HqAntiLoopFixtureMatrix

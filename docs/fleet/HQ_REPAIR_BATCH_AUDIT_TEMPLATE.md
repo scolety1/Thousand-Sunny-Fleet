@@ -415,3 +415,58 @@ Post-fix-up YELLOW:
 Post-fix-up RED:
 
 - Validation fails, package scope expands to forbidden material, external evidence is treated as authority, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, package sending, or remote exposure.
+
+## Post-Prototype Local Mock Console Audit Checklist
+
+Use this checklist after the local static mock Fleet Console prototype and review packet have local GREEN validation. This checklist is evidence-only planning. It does not create a package, send a package, approve UI implementation beyond the bounded local static mock, approve remote access, approve product-repo access, approve runtime command binding, approve package sending, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, run all-fleet commands, or grant future permission.
+
+Reviewer ask:
+
+- Audit whether the local static mock prototype preserves the GREEN safety posture from `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`.
+- Confirm the prototype remains local static HTML/CSS only and has no scripts, form actions, network fetches, live state reads, command binding, remote URL, product-repo path, auth flow, package-send behavior, or launcher text.
+- Confirm Prompt Builder, Audit Builder, Evidence Locker, Idea Inbox, Unstuck, Approval Cards, fixture-state references, and forbidden-control displays remain evidence-only local mock surfaces.
+- Confirm forbidden controls are absent as actions or clearly unavailable for launch, all-fleet, deploy, install, migrate, stage, commit, push, merge, product repo selection, remote access, package sending, lock deletion, permission widening, and risky phone approval.
+- Confirm the local prototype review packet asks bounded reviewer questions without creating a zip, sending a package, approving implementation, approving remote access, approving product-repo access, or granting execution authority.
+
+Evidence to include only after human package-scope review:
+
+- `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+- `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+- `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+- `docs/fleet/ui/prototype/README.md`
+- `docs/fleet/ui/prototype/fleet-console.html`
+- `docs/fleet/ui/prototype/fleet-console.css`
+- `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- relevant UI-control fixtures under `tests/fixtures/fleet/ui-control/`
+- Fleet Console schemas in `templates/`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Material not to export:
+
+- product repositories, product source snapshots, real project exports, unscoped project material, `.git`, `.env`, dependency folders, build outputs, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, real approval material, or package creation output without a separate human-approved manifest.
+
+Post-prototype GREEN:
+
+- `tests/run-fleet-tests.ps1` passes.
+- The prototype is clearly a local mock and evidence-only planning surface.
+- Forbidden controls remain unavailable and non-executable.
+- The review packet is suitable for external review preparation without approving implementation, remote access, product-repo access, package sending, runtime command binding, or future authority.
+- Package scope remains harness/docs/tests/schema/prototype/scrubbed compact evidence only.
+
+Post-prototype YELLOW:
+
+- Validation passes, but reviewer needs narrower evidence, clearer prototype labels, or an explicit bounded follow-up task.
+- Package contents are safe but require human package-scope review before any package creation or sending.
+- A finding is an accepted limitation only if it does not require product-repo access, runtime command binding, remote access, package sending, automation, or sensitive-scope work.
+
+Post-prototype RED:
+
+- Validation fails, package scope expands to forbidden material, UI evidence is treated as authority, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, remote access, package sending, or non-mock UI implementation.

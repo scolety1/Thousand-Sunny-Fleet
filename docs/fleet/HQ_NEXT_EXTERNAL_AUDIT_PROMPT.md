@@ -387,3 +387,62 @@ RED stop signs:
 - package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, or package sending
 - reviewer output is used as commands, approval, queue import, validation bypass, demo approval, future permission, or authority
 - any included artifact implies UI planning docs, package manifests, validation summaries, queue status, or reviewer output approve implementation or runtime control
+
+## Post-Prototype Local Mock Console Audit Request
+
+Prepared: 2026-06-02
+
+This post-prototype request is evidence-only planning for a future review of the GREEN external audit record plus the local static mock Fleet Console prototype. It does not create a package, send a package, approve UI implementation beyond the already bounded local static mock, approve remote access, approve product-repo access, approve runtime command binding, approve package sending, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, run all-fleet commands, or grant future permission.
+
+Reviewer mission:
+
+- Return one overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Audit whether the local static mock Fleet Console prototype preserves the post-GREEN safety posture.
+- Verify the prototype remains a local file only with no scripts, no form actions, no network fetches, no live state reads, no package sending, no remote URL, no product-repo path, no auth flow, no launcher text, and no runtime command binding.
+- Verify UI labels, notifications, buttons, approvals, prompts, generated evidence, reviewer output, audit packages, DOCX reports, mobile requests, task packets, fixture references, and queue prose remain evidence only and cannot approve or execute work.
+- Verify forbidden controls are absent as actions or clearly unavailable for launch, all-fleet, deploy, install, migrate, secrets/auth/payments/deploy, stage, commit, push, merge, delete locks, widen permissions, remote access, package sending, and product repo selection.
+- Verify the local prototype review packet is suitable for external review preparation without creating a zip, sending a package, approving implementation, approving remote access, approving product-repo access, or granting execution authority.
+
+Post-prototype evidence to include only after human package-scope review:
+
+- `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+- `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+- `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+- `docs/fleet/ui/prototype/README.md`
+- `docs/fleet/ui/prototype/fleet-console.html`
+- `docs/fleet/ui/prototype/fleet-console.css`
+- `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- relevant UI-control fixtures under `tests/fixtures/fleet/ui-control/`
+- `templates/fleet-console-state-schema.json`
+- `templates/fleet-console-prototype-packet-schema.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Post-prototype package exclusions:
+
+- product repositories, product source snapshots, real project exports, or unscoped project material
+- `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, or full terminal logs
+- secrets, tokens, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, or approval material for real product work
+- package creation output unless a human separately approved the exact manifest and file list
+
+Required reviewer output:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Findings ordered by severity and grounded in included file/path evidence.
+- Explicit statement whether the local static mock prototype preserves the GREEN safety posture.
+- Explicit statement whether the prototype remains safe for harness/docs/tests/schema/prototype-only review without approving implementation beyond the local mock.
+- Missing tests, ambiguous UI safety boundaries, or unclear package-scope risks.
+- Suggested follow-up tasks only as non-executable bounded queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+RED stop signs:
+
+- package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, remote access, package sending, or non-mock UI implementation
+- reviewer output is used as commands, approval, queue import, validation bypass, demo approval, future permission, package sending approval, or authority
+- any included artifact implies UI labels, buttons, fixture examples, package manifests, validation summaries, queue status, reviewer output, DOCX reports, or prompts approve implementation, runtime control, remote access, product-repo access, package sending, or future authority
