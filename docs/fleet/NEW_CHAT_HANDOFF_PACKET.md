@@ -2,6 +2,30 @@
 
 Use this file to move Codex Fleet / Thousand Sunny Fleet work into a fresh Codex chat without losing the value from the audits and Deep Research reports.
 
+## Current Bounded Handoff Path
+
+For active implementation work, prefer the compact path below instead of pasting the full historical handoff into every Codex run:
+
+1. Read `docs/fleet/STABLE_CONTEXT_CAPSULE.md`.
+2. Read only the active queue section in `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`.
+3. Read the selected task's `readFirst` files.
+4. If a thin task packet exists for the selected task, read that packet instead of broad historical prose.
+5. Use compact validation summaries and external-audit intake digests instead of raw logs, DOCX reports, full audit prose, or generated evidence dumps.
+6. For anti-loop runs, use `docs/fleet/anti-loop/CODEX_PROMPT_AND_POST_RUN_CHECKLIST.md` as the latest prompt and post-run checklist, `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md` as the latest ledger/fingerprint reference, and `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md` as the latest stop/repacketization rule.
+7. For Fleet Console planning, treat `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`, `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`, `docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md`, `docs/fleet/ui/FLEET_CONSOLE_WIREFRAMES.md`, `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`, `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`, `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`, `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`, `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`, and `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md` as evidence-only planning inputs. They do not approve UI code, server setup, package installation, authentication, remote exposure, runtime command binding, product-repo access, or future implementation.
+8. For next-phase local control-plane preparation, use `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md` as the transition decision record. It is evidence only and does not approve UI implementation, remote access, package sending, runtime command binding, product-repo work, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+9. For future external audit package preparation, use `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` with `templates/external-audit-package-manifest-schema.json`. The runbook and manifest are evidence only; they do not create or send packages, approve execution, inspect product repos, or grant future authority.
+
+This compressed handoff path is evidence only. It does not approve product-repo access, product mutation, all-fleet execution, ship launch, staging, commit, push, deploy, package installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or dirty-work reverts.
+
+If the compact capsule, active queue entry, thin task packet, or source-of-truth docs conflict, stop and ask for repacketization instead of broadening scope.
+
+Latest bounded move: continue the active queue by selecting exactly one eligible task, using the checklist above, recording the latest ledger/fingerprint in the final report, and stopping after that task's validation and status update.
+
+Latest UI planning posture: Fleet Console planning docs are local planning evidence only. Prompt Builder, Audit Builder, Evidence Locker, Idea Inbox, Work On Something Else, Unstuck, approval cards, token counters, button-policy docs, remote-access docs, and the remote security plan do not start Codex, send packages, import findings, approve actions, run tasks, choose real projects, expose a server, create auth, or execute commands. Any prototype, remote access, auth, package export, notification, or implementation requires a new bounded task with explicit allowed files, validation commands, security posture, and stop conditions.
+
+Latest next-phase posture: after the Audit Guidelines Review fix-up tasks, the next phase is local-only control-plane preparation. `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md` separates completed fix-ups, schema/test/runbook preparation, future UI prototype gates, future remote security gates, and future external audit gates. It does not approve UI code, remote access, package sending, runtime command binding, product-repo work, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
 ## Current Repo Status
 
 - Repo: `C:\Dev\codex-fleet`
@@ -9,6 +33,14 @@ Use this file to move Codex Fleet / Thousand Sunny Fleet work into a fresh Codex
 - Current working tree: dirty, intentionally.
 - Product repos: do not touch by default.
 - All-fleet commands: do not run.
+- Stable context capsule: `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- Token-control operating model: `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- Next-phase local control-plane transition: `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+- Thin task packet schema: `templates/thin-task-packet-schema.json`
+- Compact validation summary schema: `templates/validation-output-summary-schema.json`
+- External audit intake digest schema: `templates/external-audit-intake-digest-schema.json`
+- External audit package manifest schema: `templates/external-audit-package-manifest-schema.json`
+- External audit package allowlist runbook: `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
 - Latest known full test evidence: `docs/codex/test-summary.md`
 - Latest HQ recon: `docs/fleet/HQ_IMPORT_RECON.md`
 - HQ packet source of truth: `C:\Users\codex-agent\Documents\When Low on Rate Limits\codex_fleet_repair_hq\Codex_Fleet_Codex_Ready_Next_Cycle`
@@ -68,6 +100,10 @@ Implemented themes:
 ## Remaining Open Findings
 
 These are the important unfinished items from the audits/research. Do not try to do all of them at once.
+
+Current bounded-run orientation should start from `docs/fleet/STABLE_CONTEXT_CAPSULE.md` plus the active task packet or active queue entry. The capsule is compact evidence only; it does not override source docs, approve product-repo work, or authorize execution.
+
+External reports and audit outputs should be reduced to bounded intake digests before queue authoring. Suggested tasks from reviewers remain non-executable until converted into local queue entries with `allowedFiles`, `validationCommands`, `stopIf`, and status update rules.
 
 1. Entrypoint safety inventory is missing.
    - Risk: future agents may accidentally use older broad scripts instead of the safer Stage 8+ wrappers.

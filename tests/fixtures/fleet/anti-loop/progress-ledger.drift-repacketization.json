@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "ledgerId": "progress-ledger-drift-repacketization",
+  "taskId": "HQ-113",
+  "intendedGoal": "Represent broad file-open drift as repacketization evidence.",
+  "filesOpened": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md",
+    "docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md",
+    "docs/golden-gameplan/00-overview.md"
+  ],
+  "filesEdited": [
+    "tests/fixtures/fleet/anti-loop/progress-ledger.drift-repacketization.json"
+  ],
+  "validationCommandsRun": [],
+  "validationResult": "blocked",
+  "failureFingerprint": {
+    "kind": "scope",
+    "taskId": "HQ-113",
+    "command": null,
+    "primarySignal": "unrelated historical document opened after scope lock",
+    "hypothesis": "extra context was needed but not listed in readFirst",
+    "affectedFiles": [
+      "docs/golden-gameplan/00-overview.md"
+    ]
+  },
+  "progressClaim": "Broad context expansion was detected and stopped.",
+  "evidenceForProgress": [
+    "The ledger records the opened files.",
+    "The next safe action is repacketization instead of continuing with broad context."
+  ],
+  "remainingGap": "A narrowed packet must name any extra source-of-truth file if it is genuinely required.",
+  "nextSafeAction": "needs_repacketization",
+  "goalChanged": false,
+  "humanInputRequired": false,
+  "forbiddenEvidence": [
+    {
+      "contentClassification": "none",
+      "evidenceSummary": "No product-repo path or runnable forbidden command was included.",
+      "safeDisposition": "not_applicable"
+    }
+  ],
+  "nonAuthorityNotice": "This progress ledger is compact evidence only and cannot approve product-repo access, execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+}

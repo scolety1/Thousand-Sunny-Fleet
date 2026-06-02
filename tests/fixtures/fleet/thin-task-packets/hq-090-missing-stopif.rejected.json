@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "packetId": "packet-HQ-090-missing-stopif",
+  "taskId": "HQ-090",
+  "mode": "docs_and_tests",
+  "goal": "Rejected fixture that omits stopIf so tests can prove bounded task packets must carry stop conditions.",
+  "stableContextCapsuleRef": "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+  "allowedFiles": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "tests/run-fleet-tests.ps1"
+  ],
+  "readFirst": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md",
+    "docs/fleet/STABLE_CONTEXT_CAPSULE.md"
+  ],
+  "acceptance": [
+    "Rejected because stopIf is missing."
+  ],
+  "validationCommands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "statusUpdateRules": {
+    "onValidationPass": "mark_this_task_done",
+    "onValidationFail": "patch_only_task_caused_failures_or_mark_blocked",
+    "onScopeExpansion": "mark_this_task_blocked_and_stop",
+    "queueFile": "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "oneTaskOnly": true
+  },
+  "evidenceDigest": {
+    "sourceRefs": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "nonAuthorityNotice": "Rejected packet fixture is evidence only and does not approve execution.",
+    "expectedEvidence": [
+      "Test proves missing stopIf remains invalid for bounded implementation packets."
+    ]
+  }
+}

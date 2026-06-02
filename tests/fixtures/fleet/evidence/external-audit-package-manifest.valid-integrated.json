@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "packageId": "external-audit-package-token-control-integrated-20260602",
+  "preparedAt": "2026-06-02T09:00:00Z",
+  "sourceRepo": "codex-fleet-harness",
+  "packagePurpose": "token-control-integrated-audit",
+  "includedFiles": [
+    {
+      "path": "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+      "kind": "prompt",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false
+    },
+    {
+      "path": "docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md",
+      "kind": "template",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false
+    },
+    {
+      "path": "templates/external-audit-intake-digest-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false
+    },
+    {
+      "path": "templates/external-audit-package-manifest-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false
+    },
+    {
+      "path": "tests/run-fleet-tests.ps1",
+      "kind": "test",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false
+    },
+    {
+      "path": "docs/codex/test-summary.md",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false
+    }
+  ],
+  "excludedPatterns": [
+    ".git",
+    ".env",
+    "product repositories",
+    "product source snapshots",
+    "node_modules",
+    "dist",
+    "build",
+    "raw locks",
+    "unknown zip files",
+    "live worker state",
+    "secrets",
+    "credentials",
+    "private keys",
+    "auth material",
+    "payment material",
+    "deploy material",
+    "migration material",
+    "package-install material",
+    "staging material",
+    "commit material",
+    "push material",
+    "merge material",
+    "runtime-execution material"
+  ],
+  "validationSummaryRef": "docs/codex/test-summary.md",
+  "externalAuditDigestSchemaRef": "templates/external-audit-intake-digest-schema.json",
+  "evidenceOnlyNotice": "This manifest describes a proposed external audit package as evidence only. It does not create, send, approve, execute, import, or authorize any task, command, product repository access, product launch, or future run.",
+  "noProductRepos": true,
+  "noAuthorityNotice": "This manifest cannot approve a demo, bypass local validation, import reviewer output as tasks, grant future permission, stage files, commit, push, deploy, install packages, run migrations, touch secrets, or widen permissions.",
+  "expectedValidity": "valid"
+}

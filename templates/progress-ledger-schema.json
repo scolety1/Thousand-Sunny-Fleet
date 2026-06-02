@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-fleet.local/schemas/progress-ledger-schema.json",
+  "title": "Codex Fleet Progress Ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "ledgerId",
+    "taskId",
+    "intendedGoal",
+    "filesOpened",
+    "filesEdited",
+    "validationCommandsRun",
+    "validationResult",
+    "failureFingerprint",
+    "progressClaim",
+    "evidenceForProgress",
+    "remainingGap",
+    "nextSafeAction",
+    "goalChanged",
+    "humanInputRequired",
+    "forbiddenEvidence",
+    "nonAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "ledgerId": {
+      "type": "string",
+      "pattern": "^progress-ledger-[A-Za-z0-9._-]+$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^HQ-[0-9]{3}$"
+    },
+    "intendedGoal": {
+      "type": "string",
+      "minLength": 12,
+      "maxLength": 500
+    },
+    "filesOpened": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localEvidencePath"
+      }
+    },
+    "filesEdited": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localEvidencePath"
+      }
+    },
+    "validationCommandsRun": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/safeValidationCommand"
+      }
+    },
+    "validationResult": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "interrupted",
+        "notRun",
+        "blocked"
+      ]
+    },
+    "failureFingerprint": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "taskId",
+        "command",
+        "primarySignal",
+        "hypothesis",
+        "affectedFiles"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "validation",
+            "scope",
+            "authority",
+            "ambiguity",
+            "noProgress",
+            "interruption"
+          ]
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^HQ-[0-9]{3}$"
+        },
+        "command": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 260
+        },
+        "primarySignal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "hypothesis": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "affectedFiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/localEvidencePath"
+          }
+        }
+      }
+    },
+    "progressClaim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "evidenceForProgress": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 360
+      }
+    },
+    "remainingGap": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "nextSafeAction": {
+      "type": "string",
+      "enum": [
+        "rerun_allowed_validation",
+        "mark_done",
+        "mark_blocked",
+        "needs_repacketization",
+        "needs_human_review",
+        "failed_validation_stop",
+        "continue_next_prompt_only"
+      ]
+    },
+    "goalChanged": {
+      "type": "boolean"
+    },
+    "humanInputRequired": {
+      "type": "boolean"
+    },
+    "forbiddenEvidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contentClassification",
+          "evidenceSummary",
+          "safeDisposition"
+        ],
+        "properties": {
+          "contentClassification": {
+            "type": "string",
+            "enum": [
+              "forbidden_path",
+              "forbidden_command",
+              "product_repo_request",
+              "external_authority_request",
+              "none"
+            ]
+          },
+          "evidenceSummary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "safeDisposition": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "needs_repacketization",
+              "needs_human_review",
+              "not_applicable"
+            ]
+          }
+        }
+      }
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 50,
+      "maxLength": 600
+    }
+  },
+  "$defs": {
+    "localEvidencePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|product[-_ ]?repo|[\\u0000-\\u001F\\u007F-\\u009F])"
+      }
+    },
+    "safeValidationCommand": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "not": {
+        "pattern": "(?i)(git\\s+(add|commit|merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|start-overnight-autopilot|fleet-supervisor|fleet-remote-control|all-fleet)"
+      }
+    }
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Exact-Action Approval Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "recordId",
+    "taskId",
+    "approvalState",
+    "owner",
+    "selectedTarget",
+    "repoPathRequired",
+    "repoPath",
+    "entrypoint",
+    "action",
+    "commandList",
+    "expectedOutput",
+    "approvedAt",
+    "expiresAt",
+    "stopConditions",
+    "approvalChannel",
+    "validationDecision",
+    "denialReason",
+    "reuseStatus",
+    "nonAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "recordId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 96,
+      "pattern": "^approval-[A-Za-z0-9._:-]+$"
+    },
+    "taskId": {
+      "type": "string",
+      "const": "HQ-114"
+    },
+    "approvalState": {
+      "type": "string",
+      "enum": [
+        "approved_exact_action",
+        "denied",
+        "expired",
+        "reused",
+        "not_approvable"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "selectedTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetType",
+        "targetId",
+        "singleTargetOnly"
+      ],
+      "properties": {
+        "targetType": {
+          "type": "string",
+          "enum": [
+            "project",
+            "ship",
+            "fixture"
+          ]
+        },
+        "targetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "singleTargetOnly": {
+          "type": "boolean"
+        }
+      }
+    },
+    "repoPathRequired": {
+      "type": "boolean"
+    },
+    "repoPath": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 240
+    },
+    "entrypoint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "not": {
+        "pattern": "(?i)(fleet-supervisor|fleet-remote-control|run-fleet\\.ps1|launch-|start-overnight-autopilot|all-fleet)"
+      }
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "not": {
+        "pattern": "(?i)(write|mutate|repair|relaunch|deploy|install|migration|stage|commit|push|merge|delete lock|widen permission|secrets?|auth|payments?)"
+      }
+    },
+    "commandList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/safeApprovalCommand"
+      }
+    },
+    "expectedOutput": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localEvidencePath"
+      }
+    },
+    "approvedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stopConditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "approvalChannel": {
+      "type": "string",
+      "enum": [
+        "local_desktop",
+        "phone_read_only_request",
+        "fixture_evidence",
+        "external_report_evidence"
+      ]
+    },
+    "validationDecision": {
+      "type": "string",
+      "enum": [
+        "valid_exact_action",
+        "deny_missing_fields",
+        "deny_expired_or_reused",
+        "deny_broad_scope",
+        "deny_write_or_external_effect",
+        "deny_forbidden_operation",
+        "deny_phone_only_approval",
+        "deny_evidence_as_authority"
+      ]
+    },
+    "denialReason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 300
+    },
+    "reuseStatus": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "copied_or_reused",
+        "not_applicable"
+      ]
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 12,
+      "maxLength": 500
+    }
+  },
+  "$defs": {
+    "safeApprovalCommand": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "not": {
+        "pattern": "(?i)(git\\s+(add|commit|merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|start-overnight-autopilot|fleet-supervisor|fleet-remote-control|all-fleet|delete\\s+locks?|widen\\s+permissions?)"
+      }
+    },
+    "localEvidencePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+      }
+    }
+  }
+}

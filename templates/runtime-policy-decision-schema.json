@@ -12,6 +12,7 @@
     "action",
     "riskClass",
     "decision",
+    "dryRunResult",
     "approvalRequirement",
     "denialReason",
     "repoFingerprintRef",
@@ -96,6 +97,14 @@
         "ALLOW",
         "DENY",
         "DEFER"
+      ]
+    },
+    "dryRunResult": {
+      "type": "string",
+      "enum": [
+        "ALLOW_DRY_RUN",
+        "DEFER_NEEDS_HUMAN",
+        "DENY_UNSAFE"
       ]
     },
     "approvalRequirement": {
@@ -212,6 +221,142 @@
             "external-report-non-executable",
             "validated-selected-ship-allowed"
           ]
+        }
+      }
+    },
+    "evidenceBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selectedShipId",
+        "entrypoint",
+        "action",
+        "repoFingerprintRef",
+        "worktreeBoundaryRef",
+        "leaseHeartbeatRef",
+        "failureFingerprintRef",
+        "approvalEvidenceRef",
+        "budgetEvidenceRef",
+        "sourceProvenance",
+        "generatedAt",
+        "validation"
+      ],
+      "properties": {
+        "selectedShipId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entrypoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repoFingerprintRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worktreeBoundaryRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "leaseHeartbeatRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failureFingerprintRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approvalEvidenceRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budgetEvidenceRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceProvenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceType",
+            "sourceRef",
+            "nonExecutable"
+          ],
+          "properties": {
+            "sourceType": {
+              "type": "string",
+              "enum": [
+                "local_fixture",
+                "captain_approval_packet",
+                "external_report",
+                "mobile_request",
+                "task_packet",
+                "audit_package",
+                "docx_report",
+                "queue_prose",
+                "generated_evidence"
+              ]
+            },
+            "sourceRef": {
+              "type": "string",
+              "minLength": 1
+            },
+            "nonExecutable": {
+              "type": "boolean",
+              "const": true
+            }
+          }
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reasons"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "valid",
+                "invalid"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "bundle-local-dry-run-only",
+                  "selected-ship-ref-required",
+                  "repo-fingerprint-ref-required",
+                  "worktree-boundary-ref-required",
+                  "lease-heartbeat-ref-required",
+                  "failure-fingerprint-ref-required",
+                  "approval-evidence-ref-required",
+                  "budget-evidence-ref-required",
+                  "source-provenance-recorded",
+                  "external-source-non-executable",
+                  "mobile-source-non-executable",
+                  "task-packet-source-non-executable",
+                  "audit-package-source-non-executable",
+                  "docx-source-non-executable",
+                  "queue-prose-source-non-executable",
+                  "generated-evidence-non-executable",
+                  "missing-or-stale-ref-denies-or-defers",
+                  "never-executes"
+                ]
+              }
+            }
+          }
         }
       }
     }

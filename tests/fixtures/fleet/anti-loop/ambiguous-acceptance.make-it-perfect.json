@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseId": "ambiguous-acceptance.make-it-perfect",
+  "findingId": "F1",
+  "scenario": "A packet has broad acceptance language and missing bounded validation details.",
+  "input": {
+    "selectedTaskId": "HQ-FIXTURE",
+    "allowedFiles": [],
+    "validationCommands": [],
+    "acceptance": [
+      "make it perfect"
+    ],
+    "stopIf": [
+      "unclear scope"
+    ]
+  },
+  "expected": {
+    "terminalState": "blocked",
+    "stopReason": "ambiguous-acceptance-missing-allowed-files-and-validation",
+    "nextSafeAction": "request a thin packet with allowedFiles, validationCommands, and explicit acceptance"
+  },
+  "safety": {
+    "noProductRepos": true,
+    "evidenceOnly": true,
+    "nonAuthorityNotice": "This fixture is evidence only and cannot approve retries, execution, product-repo access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+  }
+}

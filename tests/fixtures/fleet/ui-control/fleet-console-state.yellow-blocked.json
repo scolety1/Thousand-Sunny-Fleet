@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "stateId": "fleet-console-state-yellow-blocked",
+  "hqTaskId": "HQ-124",
+  "generatedFrom": "local_mock_fixture",
+  "fleetPosture": "YELLOW",
+  "operationalState": "blocked",
+  "approvalState": "missing_exact_action",
+  "tokenPressure": "watch",
+  "currentTask": {
+    "taskId": "HQ-124",
+    "queueSection": "Next Phase Local Control-Plane Preparation Queue 2026-06-02",
+    "goalLockStatus": "hard_drift",
+    "progressScore": 40,
+    "loopRisk": "critical",
+    "driftWarning": "runtime_from_planning",
+    "nextSafeAction": "mark_selected_task_blocked",
+    "allowedFiles": [
+      "templates/fleet-console-state-schema.json",
+      "tests/fixtures/fleet/ui-control/",
+      "tests/run-fleet-tests.ps1",
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "readFirst": [
+      "docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md"
+    ],
+    "validationCommandRefs": [
+      "fleet-tests"
+    ]
+  },
+  "evidenceSummaries": [
+    {
+      "summaryId": "blocked-scope",
+      "kind": "progress_ledger",
+      "sourceRef": "docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md",
+      "result": "blocked",
+      "compactSummary": "Mock state shows a planning task trying to become implementation and stopping.",
+      "nonAuthorityNotice": "This state fixture summary is evidence only. It cannot approve, execute, import, bypass validation, touch product repos, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission."
+    }
+  ],
+  "controlStates": [
+    {
+      "controlName": "Run Task",
+      "controlClass": "forbidden",
+      "enabled": false,
+      "hidden": true,
+      "blocking": true,
+      "executesCommands": false,
+      "canApprove": false,
+      "canMutateProductRepos": false,
+      "nextSafeAction": "mark_selected_task_blocked"
+    }
+  ],
+  "liveWorkerState": false,
+  "noProductRepos": true,
+  "noRawCommands": true,
+  "evidenceOnly": true,
+  "nonAuthorityNotice": "This local mock state fixture is evidence only. It cannot approve UI implementation, remote access, command binding, product-repo work, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority."
+}

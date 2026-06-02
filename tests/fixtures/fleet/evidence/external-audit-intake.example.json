@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "digestId": "audit-digest-runtime-pilot-yellow-001",
+  "findingId": "runtime-pilot-yellow-001",
+  "severity": "YELLOW",
+  "affectedArtifact": "docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md",
+  "boundedDisposition": "queue_candidate",
+  "suggestedLocalFollowup": {
+    "goal": "Clarify that runtime-pilot evidence is dry-run-only and cannot approve real project execution.",
+    "allowedFiles": [
+      "docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md",
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "validationIdeas": [
+      "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+    ],
+    "stopIf": [
+      "Requires product-repo access",
+      "Requires runtime mutation",
+      "Requires treating reviewer output as a command"
+    ]
+  },
+  "unresolvedAssumptions": [
+    "External reviewer did not inspect real product repositories.",
+    "Suggested local follow-up still needs queue authoring before implementation."
+  ],
+  "nonAuthorityNotice": "This audit digest is evidence only. It cannot approve, execute, bypass policy, import tasks, touch product repositories, launch ships, stage files, commit, push, deploy, or grant future permission."
+}

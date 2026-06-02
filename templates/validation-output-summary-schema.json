@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-fleet.local/schemas/validation-output-summary-schema.json",
+  "title": "Validation Output Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "summaryId",
+    "taskId",
+    "command",
+    "result",
+    "failureFingerprint",
+    "firstError",
+    "fullLogPath",
+    "nextAction",
+    "nonAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "summaryId": {
+      "type": "string",
+      "pattern": "^validation-[A-Za-z0-9._-]+$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^HQ-[0-9]{3}$"
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 260,
+      "not": {
+        "pattern": "(?i)(git\\s+(add|commit|push|merge|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secret|token|credential|private-key|run-fleet\\.ps1|all-fleet)"
+      }
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INTERRUPTED",
+        "BLOCKED"
+      ]
+    },
+    "failureFingerprint": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 160
+    },
+    "firstError": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    },
+    "fullLogPath": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 220,
+      "not": {
+        "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(secret|token|credential|private-key|node_modules|dist|build)"
+      }
+    },
+    "nextAction": {
+      "type": "string",
+      "enum": [
+        "mark_task_done",
+        "patch_task_caused_failure_only",
+        "mark_task_blocked",
+        "rerun_allowed_validation_once",
+        "ask_human"
+      ]
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 40,
+      "maxLength": 500
+    }
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Console Prototype Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packetId",
+    "taskId",
+    "goal",
+    "localOnly",
+    "evidenceOnly",
+    "allowedFiles",
+    "readFirst",
+    "acceptance",
+    "validationCommands",
+    "stopIf",
+    "disabledForbiddenControls",
+    "noCommandBinding",
+    "noRemoteAccess",
+    "noProductRepos",
+    "nonAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "packetId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^HQ-[0-9]{3}$"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 12,
+      "maxLength": 500
+    },
+    "localOnly": {
+      "type": "boolean",
+      "const": true
+    },
+    "evidenceOnly": {
+      "type": "boolean",
+      "const": true
+    },
+    "allowedFiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localSafePath"
+      }
+    },
+    "readFirst": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localSafePath"
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "validationCommands": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300,
+        "not": {
+          "pattern": "(?i)(git\\s+(add|commit|merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|all-fleet|remote[-_ ]?access|product[-_ ]?repo|command[-_ ]?binding)"
+        }
+      }
+    },
+    "stopIf": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "disabledForbiddenControls": {
+      "type": "array",
+      "minItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "product_ship_launch",
+          "all_fleet_execution",
+          "freeform_terminal",
+          "deploy",
+          "package_install",
+          "migration",
+          "secrets_auth_payments_deploy",
+          "lock_deletion",
+          "permission_widening",
+          "stage_commit_push_merge_revert",
+          "broad_approval",
+          "background_autonomy",
+          "risky_phone_approval",
+          "remote_access",
+          "command_binding",
+          "product_repo_access",
+          "package_sending",
+          "evidence_execution"
+        ]
+      },
+      "contains": {
+        "const": "command_binding"
+      }
+    },
+    "noCommandBinding": {
+      "type": "boolean",
+      "const": true
+    },
+    "noRemoteAccess": {
+      "type": "boolean",
+      "const": true
+    },
+    "noProductRepos": {
+      "type": "boolean",
+      "const": true
+    },
+    "expectedValidity": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "rejected"
+      ]
+    },
+    "rejectionReason": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 120
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 80,
+      "maxLength": 800
+    }
+  },
+  "$defs": {
+    "localSafePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?|product-repos?|product-repo)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+      }
+    }
+  }
+}

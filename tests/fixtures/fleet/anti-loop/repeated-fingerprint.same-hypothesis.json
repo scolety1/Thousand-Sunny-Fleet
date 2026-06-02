@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "caseId": "repeated-fingerprint.same-hypothesis",
+  "findingId": "F1",
+  "scenario": "A second validation run repeats the same normalized failure fingerprint and the same hypothesis.",
+  "input": {
+    "selectedTaskId": "HQ-FIXTURE",
+    "filesOpened": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+      "docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md"
+    ],
+    "filesEdited": [
+      "tests/fixtures/fleet/anti-loop/repeated-fingerprint.same-hypothesis.json"
+    ],
+    "validationCommandsRun": [
+      "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+    ],
+    "validationResult": "fail",
+    "failureFingerprint": {
+      "kind": "validation",
+      "taskId": "HQ-FIXTURE",
+      "primarySignal": "same assertion failed twice",
+      "hypothesis": "same fixture wording fix attempted twice",
+      "repeatCount": 2
+    },
+    "goalChanged": false
+  },
+  "expected": {
+    "terminalState": "needsRepacketization",
+    "stopReason": "same-fingerprint-same-hypothesis",
+    "nextSafeAction": "repacketize with a new bounded hypothesis or mark failedValidation"
+  },
+  "safety": {
+    "noProductRepos": true,
+    "evidenceOnly": true,
+    "nonAuthorityNotice": "This fixture is evidence only and cannot approve retries, execution, product-repo access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+  }
+}

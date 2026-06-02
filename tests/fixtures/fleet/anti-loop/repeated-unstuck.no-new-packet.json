@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "caseId": "repeated-unstuck.no-new-packet",
+  "findingId": "F1",
+  "scenario": "A blocked task is rerun with the same packet and no new file, command, approval, or evidence.",
+  "input": {
+    "selectedTaskId": "HQ-FIXTURE",
+    "previousTerminalState": "blocked",
+    "previousStopReason": "missing-allowed-file",
+    "packetChanged": false,
+    "newEvidence": false,
+    "validationCommandsRun": []
+  },
+  "expected": {
+    "terminalState": "blocked",
+    "stopReason": "repeated-unstuck-without-new-packet",
+    "nextSafeAction": "require repacketization that names the missing allowed file or human decision"
+  },
+  "safety": {
+    "noProductRepos": true,
+    "evidenceOnly": true,
+    "nonAuthorityNotice": "This fixture is evidence only and cannot approve retries, execution, product-repo access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+  }
+}

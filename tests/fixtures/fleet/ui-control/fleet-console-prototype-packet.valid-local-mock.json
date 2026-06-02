@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fleet-console-prototype-packet-local-mock-001",
+  "taskId": "HQ-123",
+  "goal": "Prepare a local-only mock Fleet Console prototype packet without creating UI code.",
+  "localOnly": true,
+  "evidenceOnly": true,
+  "allowedFiles": [
+    "templates/fleet-console-prototype-packet-schema.json",
+    "tests/fixtures/fleet/ui-control/",
+    "tests/run-fleet-tests.ps1",
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+  ],
+  "readFirst": [
+    "docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md",
+    "docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md",
+    "templates/thin-task-packet-schema.json"
+  ],
+  "acceptance": [
+    "No UI files are created.",
+    "Forbidden controls remain disabled or absent.",
+    "Prototype packet stays local-only and evidence-only.",
+    "No command binding, remote access, or product-repo access is introduced."
+  ],
+  "validationCommands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "stopIf": [
+    "Requires UI implementation",
+    "Requires remote access",
+    "Requires product-repo access",
+    "Requires command binding",
+    "Requires package sending"
+  ],
+  "disabledForbiddenControls": [
+    "product_ship_launch",
+    "all_fleet_execution",
+    "freeform_terminal",
+    "deploy",
+    "package_install",
+    "migration",
+    "secrets_auth_payments_deploy",
+    "lock_deletion",
+    "permission_widening",
+    "stage_commit_push_merge_revert",
+    "broad_approval",
+    "background_autonomy",
+    "risky_phone_approval",
+    "remote_access",
+    "command_binding",
+    "product_repo_access",
+    "package_sending",
+    "evidence_execution"
+  ],
+  "noCommandBinding": true,
+  "noRemoteAccess": true,
+  "noProductRepos": true,
+  "expectedValidity": "valid",
+  "nonAuthorityNotice": "This local mock prototype packet is evidence only. It cannot approve UI implementation, remote access, command binding, product-repo work, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority."
+}

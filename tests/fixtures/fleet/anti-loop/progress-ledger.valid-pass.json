@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "ledgerId": "progress-ledger-valid-pass",
+  "taskId": "HQ-113",
+  "intendedGoal": "Add progress ledger schema and fixtures for anti-loop evidence.",
+  "filesOpened": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md",
+    "templates/thin-task-packet-schema.json",
+    "templates/validation-output-summary-schema.json"
+  ],
+  "filesEdited": [
+    "templates/progress-ledger-schema.json",
+    "tests/fixtures/fleet/anti-loop/progress-ledger.valid-pass.json",
+    "tests/run-fleet-tests.ps1",
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+  ],
+  "validationCommandsRun": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-Content .\\templates\\progress-ledger-schema.json -Raw | ConvertFrom-Json | Out-Null\"",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "validationResult": "pass",
+  "failureFingerprint": null,
+  "progressClaim": "Schema, fixtures, and parser tests satisfy HQ-113 acceptance.",
+  "evidenceForProgress": [
+    "Progress ledger schema is present and JSON parses.",
+    "Fixture validates a passing task exit shape.",
+    "Fleet tests parse progress-ledger fixtures."
+  ],
+  "remainingGap": "None for HQ-113 after validation passes.",
+  "nextSafeAction": "mark_done",
+  "goalChanged": false,
+  "humanInputRequired": false,
+  "forbiddenEvidence": [
+    {
+      "contentClassification": "none",
+      "evidenceSummary": "No forbidden path or command content was needed for the passing fixture.",
+      "safeDisposition": "not_applicable"
+    }
+  ],
+  "nonAuthorityNotice": "This progress ledger is compact evidence only and cannot approve product-repo access, execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+}

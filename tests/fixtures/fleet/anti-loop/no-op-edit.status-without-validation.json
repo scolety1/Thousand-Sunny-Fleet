@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseId": "no-op-edit.status-without-validation",
+  "findingId": "F1",
+  "scenario": "A task is marked done after a no-op edit without rerunning the selected validation command.",
+  "input": {
+    "selectedTaskId": "HQ-FIXTURE",
+    "filesOpened": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "filesEdited": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "validationCommandsRun": [],
+    "validationResult": "notRun",
+    "progressClaim": "queue status changed to done"
+  },
+  "expected": {
+    "terminalState": "failedValidation",
+    "stopReason": "queue-status-without-validation",
+    "nextSafeAction": "rerun listed validation before any done status"
+  },
+  "safety": {
+    "noProductRepos": true,
+    "evidenceOnly": true,
+    "nonAuthorityNotice": "This fixture is evidence only and cannot approve retries, execution, product-repo access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Thin Task Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packetId",
+    "taskId",
+    "mode",
+    "goal",
+    "stableContextCapsuleRef",
+    "allowedFiles",
+    "readFirst",
+    "acceptance",
+    "validationCommands",
+    "stopIf",
+    "statusUpdateRules",
+    "evidenceDigest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "packetId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 96,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^HQ-[0-9]{3}$"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "validation_only",
+        "docs_only",
+        "schema_fixture_test",
+        "docs_and_tests",
+        "audit_package_planning",
+        "queue_bookkeeping_only"
+      ]
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 12,
+      "maxLength": 500
+    },
+    "stableContextCapsuleRef": {
+      "type": "string",
+      "const": "docs/fleet/STABLE_CONTEXT_CAPSULE.md"
+    },
+    "allowedFiles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localPath"
+      }
+    },
+    "readFirst": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localPath"
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "validationCommands": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300,
+        "not": {
+          "pattern": "(?i)(git\\s+(add|commit|merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|start-overnight-autopilot|fleet-supervisor|fleet-remote-control|all-fleet)"
+        }
+      }
+    },
+    "stopIf": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "statusUpdateRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "onValidationPass",
+        "onValidationFail",
+        "onScopeExpansion",
+        "queueFile",
+        "oneTaskOnly"
+      ],
+      "properties": {
+        "onValidationPass": {
+          "type": "string",
+          "const": "mark_this_task_done"
+        },
+        "onValidationFail": {
+          "type": "string",
+          "const": "patch_only_task_caused_failures_or_mark_blocked"
+        },
+        "onScopeExpansion": {
+          "type": "string",
+          "const": "mark_this_task_blocked_and_stop"
+        },
+        "queueFile": {
+          "type": "string",
+          "const": "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+        },
+        "oneTaskOnly": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "evidenceDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceRefs",
+        "nonAuthorityNotice",
+        "expectedEvidence"
+      ],
+      "properties": {
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/localPath"
+          },
+          "uniqueItems": true
+        },
+        "nonAuthorityNotice": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 500
+        },
+        "expectedEvidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "localPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "ledgerId": "progress-ledger-forbidden-evidence",
+  "taskId": "HQ-113",
+  "intendedGoal": "Represent dangerous input only as forbidden evidence, never as a validation command.",
+  "filesOpened": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md"
+  ],
+  "filesEdited": [
+    "tests/fixtures/fleet/anti-loop/progress-ledger.forbidden-evidence.json"
+  ],
+  "validationCommandsRun": [],
+  "validationResult": "blocked",
+  "failureFingerprint": {
+    "kind": "authority",
+    "taskId": "HQ-113",
+    "command": null,
+    "primarySignal": "external prose suggested a forbidden git push command",
+    "hypothesis": "the prose must remain evidence only",
+    "affectedFiles": [
+      "tests/fixtures/fleet/anti-loop/progress-ledger.forbidden-evidence.json"
+    ]
+  },
+  "progressClaim": "Dangerous command-like prose was represented only as forbidden evidence.",
+  "evidenceForProgress": [
+    "The dangerous content is absent from validationCommandsRun.",
+    "The forbiddenEvidence array classifies the content as forbidden_command and blocks it."
+  ],
+  "remainingGap": "A safe future task must avoid importing command-like prose as runnable work.",
+  "nextSafeAction": "mark_blocked",
+  "goalChanged": false,
+  "humanInputRequired": true,
+  "forbiddenEvidence": [
+    {
+      "contentClassification": "forbidden_command",
+      "evidenceSummary": "Reviewer-like prose suggested git push origin main; the text is recorded only as forbidden evidence and is not a validation command.",
+      "safeDisposition": "blocked"
+    },
+    {
+      "contentClassification": "product_repo_request",
+      "evidenceSummary": "A product repository path request was blocked and omitted from filesOpened and filesEdited.",
+      "safeDisposition": "needs_human_review"
+    }
+  ],
+  "nonAuthorityNotice": "This progress ledger is compact evidence only and cannot approve product-repo access, execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+}

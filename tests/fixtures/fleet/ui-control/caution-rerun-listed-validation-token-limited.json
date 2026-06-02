@@ -1,0 +1,25 @@
+{
+  "fixtureId": "ui-control-caution-rerun-listed-validation-token-limited",
+  "hqTaskId": "HQ-118",
+  "controlName": "Rerun Listed Validation",
+  "controlClass": "caution",
+  "expectedTreatment": "disabled_until_packet_scope_confirmed",
+  "signals": {
+    "loopRisk": "watch",
+    "tokenPressure": "token_limited",
+    "stuckState": "stuck_token",
+    "approvalState": "not_required_for_read_report",
+    "riskyPhoneApproval": false
+  },
+  "expectedPosture": {
+    "enabled": false,
+    "hidden": false,
+    "blocking": true,
+    "executesCommands": false,
+    "canApprove": false,
+    "canMutateProductRepos": false
+  },
+  "nextSafeAction": "pause_and_write_ledger",
+  "implementsUiCode": false,
+  "nonAuthorityNotice": "This fixture is evidence only. It cannot approve, execute, import, bypass validation, touch product repos, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission."
+}

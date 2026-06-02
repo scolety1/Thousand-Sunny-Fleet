@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-fleet.local/schemas/external-audit-package-manifest-schema.json",
+  "title": "External Audit Package Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "preparedAt",
+    "sourceRepo",
+    "packagePurpose",
+    "includedFiles",
+    "excludedPatterns",
+    "validationSummaryRef",
+    "externalAuditDigestSchemaRef",
+    "evidenceOnlyNotice",
+    "noProductRepos",
+    "noAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^external-audit-package-[A-Za-z0-9._-]+$"
+    },
+    "preparedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceRepo": {
+      "type": "string",
+      "const": "codex-fleet-harness"
+    },
+    "packagePurpose": {
+      "type": "string",
+      "enum": [
+        "harness-docs-tests-external-audit",
+        "runtime-pilot-evidence-audit",
+        "token-control-integrated-audit"
+      ]
+    },
+    "includedFiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 80,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "kind",
+          "evidenceOnly",
+          "containsRawLogs",
+          "containsReviewerCommands"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240,
+            "not": {
+              "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(product[-_ ]?repo|node_modules|dist|build|raw[-_ ]?locks?|unknown[-_ ]?zip|live[-_ ]?worker|secret|credential|private[-_ ]?key|auth|payments?|deploy|migration)"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "doc",
+              "schema",
+              "fixture",
+              "test",
+              "summary",
+              "prompt",
+              "template"
+            ]
+          },
+          "evidenceOnly": {
+            "const": true
+          },
+          "containsRawLogs": {
+            "const": false
+          },
+          "containsReviewerCommands": {
+            "const": false
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "reviewerOutputSnippet": {
+            "type": "string",
+            "maxLength": 300,
+            "not": {
+              "pattern": "(?i)(run\\s+all-fleet|launch\\s+ships|touch\\s+product|git\\s+(add|commit|push|merge)|deploy|npm\\s+install|pnpm\\s+install|yarn\\s+install|delete\\s+locks|widen\\s+permissions)"
+            }
+          }
+        }
+      }
+    },
+    "excludedPatterns": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 80,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      }
+    },
+    "validationSummaryRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "not": {
+        "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(product[-_ ]?repo|node_modules|dist|build|raw[-_ ]?locks?|unknown[-_ ]?zip|live[-_ ]?worker|secret|credential|private[-_ ]?key|auth|payments?|deploy|migration)"
+      }
+    },
+    "externalAuditDigestSchemaRef": {
+      "const": "templates/external-audit-intake-digest-schema.json"
+    },
+    "evidenceOnlyNotice": {
+      "type": "string",
+      "minLength": 80,
+      "maxLength": 800
+    },
+    "noProductRepos": {
+      "const": true
+    },
+    "noAuthorityNotice": {
+      "type": "string",
+      "minLength": 80,
+      "maxLength": 800
+    },
+    "expectedValidity": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "rejected"
+      ]
+    },
+    "rejectionReason": {
+      "type": "string",
+      "maxLength": 200
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseId": "file-open-overrun.unrelated-docs",
+  "findingId": "F1",
+  "scenario": "A bounded task keeps opening unrelated historical docs and raw reports after the task scope is known.",
+  "input": {
+    "selectedTaskId": "HQ-FIXTURE",
+    "filesOpened": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+      "docs/fleet/anti-loop/ANTI_LOOP_TEST_PLAN.md",
+      "audit-packages/external-report-extract.txt",
+      "docs/golden-gameplan/00-overview.md"
+    ],
+    "filesEdited": [],
+    "validationCommandsRun": [],
+    "validationResult": "notRun",
+    "extraContextJustification": ""
+  },
+  "expected": {
+    "terminalState": "needsRepacketization",
+    "stopReason": "unrelated-read-overrun-after-scope-lock",
+    "nextSafeAction": "return to readFirst files or ask for a narrower packet"
+  },
+  "safety": {
+    "noProductRepos": true,
+    "evidenceOnly": true,
+    "nonAuthorityNotice": "This fixture is evidence only and cannot approve retries, execution, product-repo access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "fixtureId": "ui-control-safe-view-fleet-status",
+  "hqTaskId": "HQ-118",
+  "controlName": "View Fleet Status",
+  "controlClass": "safe",
+  "expectedTreatment": "enabled_display_only",
+  "signals": {
+    "loopRisk": "low",
+    "tokenPressure": "normal",
+    "stuckState": "none",
+    "approvalState": "not_required_for_read_report",
+    "riskyPhoneApproval": false
+  },
+  "expectedPosture": {
+    "enabled": true,
+    "hidden": false,
+    "blocking": false,
+    "executesCommands": false,
+    "canApprove": false,
+    "canMutateProductRepos": false
+  },
+  "nextSafeAction": "continue_current_task",
+  "implementsUiCode": false,
+  "nonAuthorityNotice": "This fixture is evidence only. It cannot approve, execute, import, bypass validation, touch product repos, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission."
+}

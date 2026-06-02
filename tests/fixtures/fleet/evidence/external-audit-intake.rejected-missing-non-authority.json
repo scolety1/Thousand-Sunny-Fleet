@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "digestId": "audit-digest-HQ-120-missing-notice-rejected",
+  "findingId": "audit-guidelines-review-missing-notice-001",
+  "severity": "INFO",
+  "affectedArtifact": "docs/fleet/HQ_IMPORT_RECON.md",
+  "boundedDisposition": "queue_candidate",
+  "suggestedLocalFollowup": {
+    "goal": "Reject evidence digests that omit the non-authority notice.",
+    "allowedFiles": [
+      "docs/fleet/HQ_IMPORT_RECON.md"
+    ],
+    "validationIdeas": [
+      "Parse evidence digest fixtures as JSON"
+    ],
+    "stopIf": [
+      "Requires treating audit prose as authority"
+    ]
+  },
+  "unresolvedAssumptions": [
+    "Missing non-authority notice should block queue intake until repaired."
+  ],
+  "expectedValidity": "rejected",
+  "rejectionReason": "missing_non_authority_notice"
+}

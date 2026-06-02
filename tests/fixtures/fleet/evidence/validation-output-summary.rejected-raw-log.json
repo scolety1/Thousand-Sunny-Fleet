@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "summaryId": "validation-HQ-120-raw-log-rejected",
+  "taskId": "HQ-120",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1",
+  "result": "FAIL",
+  "failureFingerprint": "hq-120-placeholder-output-embedded",
+  "firstError": "Compact summaries may record the first bounded error only.",
+  "fullLogPath": "out/fleet-validation/hq-120-failure-summary.log",
+  "nextAction": "patch_task_caused_failure_only",
+  "expectedValidity": "rejected",
+  "rejectionReason": "embedded_terminal_output",
+  "embeddedOutput": "REJECTED_PLACEHOLDER_DO_NOT_STORE_TERMINAL_OUTPUT",
+  "nonAuthorityNotice": "This rejected validation summary fixture is evidence only. It cannot approve execution, broaden scope, replace source logs when exact details are needed, authorize product-repo work, launch ships, stage files, commit, push, or grant future permission."
+}

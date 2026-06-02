@@ -57,6 +57,40 @@ Allowed decision values:
 
 `DEFER` means the next step is a request for missing evidence or captain approval, not an execution step.
 
+## Dry-Run Result Vocabulary
+
+Each schema-shaped decision record also carries `dryRunResult` so dry-run pilot evidence is explicit without changing legacy `ALLOW`, `DENY`, and `DEFER` semantics.
+
+Allowed dry-run result values:
+
+- `ALLOW_DRY_RUN`
+- `DEFER_NEEDS_HUMAN`
+- `DENY_UNSAFE`
+
+`ALLOW_DRY_RUN` is not execution authority. It is local evidence that a fixture or explicitly selected dry-run input satisfied the policy vocabulary. It cannot mutate product repos, launch product ships, run all-fleet commands, stage files, commit, push, create or delete worktrees, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, approve a demo trial, or approve future runs.
+
+Plain-language guard: `ALLOW_DRY_RUN` means "the dry-run fixture passed". It never means approval to execute, mutate, stage, commit, push, launch, run a demo, or carry future authority.
+
+Any report, JSON record, evidence bundle, audit prompt, or summary that names `ALLOW_DRY_RUN` must tie the label to non-executable evidence fields: `executesProductActions = false`, `mutatesProductRepos = false`, `canApproveFutureRuns = false`, and `commandInput = false`. Those fields are part of the meaning of the label, not optional context.
+
+`DEFER_NEEDS_HUMAN` means exact-action human approval, missing evidence, or captain review is required before any later task may proceed. It is not permission to run the requested action.
+
+`DENY_UNSAFE` is the fail-closed result for malformed, stale, broad, external, mobile, missing-approval, unauthorized, forbidden, task-packet, DOCX-report, audit-package, queue-prose, or generated-evidence inputs that cannot become executable authority.
+
+Compatibility rule: existing `ALLOW`, `DEFER`, and `DENY` remain evidence-only policy decisions. A future task may update the dry-run evaluator to emit `dryRunResult`, but this vocabulary alone does not implement runtime enforcement or wire behavior into launchers.
+
+## Runtime Evidence Bundle
+
+A policy decision record may include an optional `evidenceBundle` object. The bundle is a local dry-run evidence bundle for the pilot vocabulary only. It is not runtime storage, not a queue claim, not a launcher input, and not permission.
+
+The bundle references exactly one selected ship, one entrypoint, one action, one repo fingerprint ref, one worktree boundary ref, one lease heartbeat ref, one failure fingerprint ref, one approval evidence ref, one budget evidence ref, generated time, validation reasons, and source provenance.
+
+Source provenance records where the bundle facts came from without treating that source as executable. Allowed source types are `local_fixture`, `captain_approval_packet`, `external_report`, `mobile_request`, `task_packet`, `audit_package`, `docx_report`, `queue_prose`, and `generated_evidence`. The source provenance field must carry `nonExecutable: true`; external reports, mobile requests, task packets, audit packages, DOCX reports, queue prose, and generated evidence have no authority for execution.
+
+Missing or stale refs deny/defer and never execute. A missing repo fingerprint ref, worktree boundary ref, lease heartbeat ref, failure fingerprint ref, approval evidence ref, budget evidence ref, selected ship ref, or source provenance record cannot be converted into `ALLOW_DRY_RUN`.
+
+No new runtime storage, DB, SQLite, migration, worktree creation, product repo access, or real product repo fingerprinting is introduced by this bundle contract.
+
 ## Actions
 
 Allowed action values mirror current bounded autonomy vocabulary:
@@ -164,6 +198,10 @@ The evaluator must fail closed for:
 
 Allowed fixture outcomes are `ALLOW`, `DENY`, and `DEFER`. `DEFER` means the next step is to request missing approval or review evidence, not to run a command.
 
+Dry-run-result outcomes map as follows: `ALLOW` maps to `ALLOW_DRY_RUN`, `DEFER` maps to `DEFER_NEEDS_HUMAN`, and `DENY` maps to `DENY_UNSAFE`. The dry-run evaluator emits this mapping as evidence-only output and does not execute actions.
+
+`New-FleetRuntimePolicyDecisionDryRun` defaults to `DENY_UNSAFE` for ambiguous, stale, missing, broad, malformed, unauthorized, external, mobile, task-packet, DOCX-report, audit-package, or queue-prose sourced evidence. Missing exact-action human approval returns `DEFER_NEEDS_HUMAN`, not allow. Valid fixture-only evidence may return `ALLOW_DRY_RUN` and writes or executes nothing.
+
 ## Expanded Negative Fixture Expectations
 
 Runtime policy negative fixtures must prove that dry-run decisions with unsafe or incomplete evidence never execute actions and never approve product-repo mutation. The required negative set is:
@@ -181,6 +219,8 @@ Runtime policy negative fixtures must prove that dry-run decisions with unsafe o
 - legacy broad entrypoint: `DEFER` with `legacy-broad-entrypoint`
 - mobile request input: `DENY` with `mobile-request-non-executable`
 - external report input: `DENY` with `external-report-non-executable`
+
+Runtime pilot audit follow-up negative fixtures also cover weird input and ambiguity. Unicode bidi/control-character text, traversal-like or otherwise ambiguous requested paths, stale repo fingerprints, missing or contradictory worktree boundary evidence, expired leases, ambiguous lease ownership, and repeated deterministic failures must remain fixture-only evidence and must not return `ALLOW_DRY_RUN`. When the runtime policy evaluator receives weird input or ambiguous requested paths, it reuses the existing `forbidden-scope` denial so the current schema stays strict.
 
 Positive dry-run fixtures may return `ALLOW` only when the selected ship is singular, repo fingerprint and worktree boundary refs are present, required approval is present, policy version is known, evidence is recorded, and no forbidden scope is requested.
 

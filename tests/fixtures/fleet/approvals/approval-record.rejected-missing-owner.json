@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "recordId": "approval-rejected-missing-owner",
+  "taskId": "HQ-114",
+  "approvalState": "denied",
+  "owner": "",
+  "selectedTarget": {
+    "targetType": "fixture",
+    "targetId": "FixtureOnlyDemoProject",
+    "singleTargetOnly": true
+  },
+  "repoPathRequired": true,
+  "repoPath": "C:\\Dev\\codex-fleet\\.codex-local\\fixtures\\demo-trial\\FixtureOnlyDemoProject",
+  "entrypoint": "fixture-only-demo-readiness-example",
+  "action": "manual read-only single-project inspection only",
+  "commandList": [
+    "fixture-only no-op shape check"
+  ],
+  "expectedOutput": [
+    ".codex-local/fixtures/demo-trial/evidence/fixture-report.md"
+  ],
+  "approvedAt": "2026-06-02T12:00:00Z",
+  "expiresAt": "2026-06-02T12:30:00Z",
+  "stopConditions": [
+    "stop because owner is missing"
+  ],
+  "approvalChannel": "fixture_evidence",
+  "validationDecision": "deny_missing_fields",
+  "denialReason": "owner is required and cannot be blank",
+  "reuseStatus": "not_applicable",
+  "nonAuthorityNotice": "This rejected fixture is evidence only and cannot approve execution or product-repo work."
+}

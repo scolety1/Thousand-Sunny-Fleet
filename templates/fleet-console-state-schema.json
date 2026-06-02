@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Console Local Mock State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "stateId",
+    "hqTaskId",
+    "generatedFrom",
+    "fleetPosture",
+    "operationalState",
+    "approvalState",
+    "tokenPressure",
+    "currentTask",
+    "evidenceSummaries",
+    "controlStates",
+    "liveWorkerState",
+    "noProductRepos",
+    "noRawCommands",
+    "evidenceOnly",
+    "nonAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "stateId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "hqTaskId": {
+      "type": "string",
+      "const": "HQ-124"
+    },
+    "generatedFrom": {
+      "type": "string",
+      "const": "local_mock_fixture"
+    },
+    "fleetPosture": {
+      "type": "string",
+      "enum": [
+        "GREEN",
+        "YELLOW",
+        "RED",
+        "UNKNOWN"
+      ]
+    },
+    "operationalState": {
+      "type": "string",
+      "enum": [
+        "running",
+        "paused",
+        "parked",
+        "needs_review",
+        "blocked",
+        "crashed",
+        "interrupted",
+        "approval_pending",
+        "token_limited"
+      ]
+    },
+    "approvalState": {
+      "type": "string",
+      "enum": [
+        "not_required_for_read_report",
+        "missing_exact_action",
+        "approval_pending",
+        "approved_exact_action",
+        "expired_or_reused",
+        "not_approvable"
+      ]
+    },
+    "tokenPressure": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "watch",
+        "high",
+        "token_limited"
+      ]
+    },
+    "currentTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "taskId",
+        "queueSection",
+        "goalLockStatus",
+        "progressScore",
+        "loopRisk",
+        "driftWarning",
+        "nextSafeAction",
+        "allowedFiles",
+        "readFirst",
+        "validationCommandRefs"
+      ],
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "pattern": "^HQ-[0-9]{3}$"
+        },
+        "queueSection": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 160
+        },
+        "goalLockStatus": {
+          "type": "string",
+          "enum": [
+            "locked",
+            "soft_drift",
+            "hard_drift",
+            "changed_by_human",
+            "unknown"
+          ]
+        },
+        "progressScore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "loopRisk": {
+          "type": "string",
+          "enum": [
+            "low",
+            "watch",
+            "high",
+            "critical"
+          ]
+        },
+        "driftWarning": {
+          "type": "string",
+          "enum": [
+            "none",
+            "outside_allowed_files",
+            "new_command_needed",
+            "goal_changed",
+            "evidence_as_authority",
+            "product_repo_expansion",
+            "runtime_from_planning",
+            "token_budget_exceeded"
+          ]
+        },
+        "nextSafeAction": {
+          "$ref": "#/$defs/nextSafeAction"
+        },
+        "allowedFiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/localSafePath"
+          }
+        },
+        "readFirst": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/localSafePath"
+          }
+        },
+        "validationCommandRefs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          }
+        }
+      }
+    },
+    "evidenceSummaries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "summaryId",
+          "kind",
+          "sourceRef",
+          "result",
+          "compactSummary",
+          "nonAuthorityNotice"
+        ],
+        "properties": {
+          "summaryId": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "validation_summary",
+              "audit_digest",
+              "progress_ledger",
+              "package_manifest_plan",
+              "approval_evidence"
+            ]
+          },
+          "sourceRef": {
+            "$ref": "#/$defs/localSafePath"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "blocked",
+              "not_run",
+              "interrupted",
+              "evidence_only"
+            ]
+          },
+          "compactSummary": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 500,
+            "not": {
+              "pattern": "(?i)(git\\s+(add|commit|merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|all-fleet|product[-_ ]?repo)"
+            }
+          },
+          "nonAuthorityNotice": {
+            "$ref": "#/$defs/nonAuthorityNotice"
+          }
+        }
+      }
+    },
+    "controlStates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "controlName",
+          "controlClass",
+          "enabled",
+          "hidden",
+          "blocking",
+          "executesCommands",
+          "canApprove",
+          "canMutateProductRepos",
+          "nextSafeAction"
+        ],
+        "properties": {
+          "controlName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "controlClass": {
+            "type": "string",
+            "enum": [
+              "safe",
+              "caution",
+              "approval-required",
+              "future-only",
+              "forbidden"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "executesCommands": {
+            "type": "boolean",
+            "const": false
+          },
+          "canApprove": {
+            "type": "boolean",
+            "const": false
+          },
+          "canMutateProductRepos": {
+            "type": "boolean",
+            "const": false
+          },
+          "nextSafeAction": {
+            "$ref": "#/$defs/nextSafeAction"
+          }
+        }
+      }
+    },
+    "liveWorkerState": {
+      "type": "boolean",
+      "const": false
+    },
+    "noProductRepos": {
+      "type": "boolean",
+      "const": true
+    },
+    "noRawCommands": {
+      "type": "boolean",
+      "const": true
+    },
+    "evidenceOnly": {
+      "type": "boolean",
+      "const": true
+    },
+    "nonAuthorityNotice": {
+      "$ref": "#/$defs/nonAuthorityNotice"
+    }
+  },
+  "$defs": {
+    "nextSafeAction": {
+      "type": "string",
+      "enum": [
+        "continue_current_task",
+        "run_listed_validation",
+        "patch_task_caused_failure",
+        "update_selected_task_status",
+        "mark_selected_task_blocked",
+        "pause_and_write_ledger",
+        "request_repacketization",
+        "request_human_review",
+        "prepare_external_audit_prompt",
+        "stop_no_eligible_task"
+      ]
+    },
+    "localSafePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?|product-repos?|product-repo|locks?)([\\\\/]|$)|secret|credential|private[-_]?key|live[-_ ]?worker|raw[-_ ]?command|[\\u0000-\\u001F\\u007F-\\u009F]|\\u2215|\\u2044|\\uFF0F|\\uFF3C|\\u2216|^\\s|\\s$)"
+      }
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 80,
+      "maxLength": 800
+    }
+  }
+}

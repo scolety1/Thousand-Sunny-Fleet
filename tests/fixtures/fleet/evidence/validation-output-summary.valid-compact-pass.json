@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "summaryId": "validation-HQ-120-compact-pass",
+  "taskId": "HQ-120",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1",
+  "result": "PASS",
+  "failureFingerprint": null,
+  "firstError": null,
+  "fullLogPath": "out/fleet-validation/hq-120-summary.log",
+  "nextAction": "mark_task_done",
+  "nonAuthorityNotice": "This compact validation summary is evidence only. It cannot approve execution, broaden scope, replace source logs when exact details are needed, authorize product-repo work, launch ships, stage files, commit, push, or grant future permission."
+}

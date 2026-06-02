@@ -255,6 +255,19 @@ function New-FleetRuntimePolicyDecisionDryRun {
         [switch]$TaskPacketValidated,
         [switch]$ExternalReportInput,
         [switch]$MobileRequestInput,
+        [switch]$DocxReportInput,
+        [switch]$AuditPackageInput,
+        [switch]$QueueProseInput,
+        [switch]$MalformedInput,
+        [switch]$UnauthorizedEvidence,
+        [switch]$BroadInput,
+        [string]$RawInputText = "",
+        [switch]$IncludeEvidenceBundle,
+        [string]$LeaseHeartbeatRef = "lease:heartbeat:fixture",
+        [string]$FailureFingerprintRef = "failure:fingerprint:fixture",
+        [string]$ApprovalEvidenceRef = "",
+        [string]$SourceProvenanceType = "local_fixture",
+        [string]$SourceProvenanceRef = "fixture://runtime-policy",
         [string]$PolicyVersion = "runtime-policy-v1",
         [datetime]$GeneratedAt = (Get-Date),
         [string[]]$EvidenceRefs = @()
@@ -369,6 +382,24 @@ function New-FleetRuntimePolicyDecisionDryRun {
         $reasons.Add("external-report-non-executable") | Out-Null
     }
 
+    $hasControlOrBidiText = (![string]::IsNullOrEmpty($RawInputText) -and $RawInputText -match "[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u202A-\u202E\u2066-\u2069]")
+    $ambiguousRequestedPath = @($RequestedPaths | Where-Object {
+        $path = [string]$_
+        $path -match "(^|[\\/])\.\.([\\/]|$)" -or
+        $path -match "[\x00-\x1F\x7F\u202A-\u202E\u2066-\u2069]" -or
+        $path -match "^[\\/]?~([\\/]|$)" -or
+        $path -match "^[A-Za-z]:\s*$"
+    })
+
+    if ($decision -eq "ALLOW" -and ($DocxReportInput -or $AuditPackageInput -or $QueueProseInput -or $MalformedInput -or $UnauthorizedEvidence -or $BroadInput -or $hasControlOrBidiText -or $ambiguousRequestedPath.Count -gt 0)) {
+        $decision = "DENY"
+        $denialReason = "forbidden-scope"
+        $approvalRequirement = "not_approvable"
+        $fixtureName = "forbidden-scope-denied"
+        $riskClass = "forbidden"
+        $reasons.Add("forbidden-scope") | Out-Null
+    }
+
     if ($decision -eq "ALLOW" -and $actionValue -eq "IMPORT_APPROVED_PACKET" -and !$TaskPacketValidated) {
         $decision = "DENY"
         $denialReason = "task-packet-not-validated"
@@ -416,13 +447,19 @@ function New-FleetRuntimePolicyDecisionDryRun {
         $fixtureName = "forbidden-scope-denied"
     }
 
+    $dryRunResult = switch ($decision) {
+        "ALLOW" { "ALLOW_DRY_RUN" }
+        "DEFER" { "DEFER_NEEDS_HUMAN" }
+        default { "DENY_UNSAFE" }
+    }
+
     $reasons.Add("model-cannot-grant-permission") | Out-Null
     $reasons.Add("policy-version-recorded") | Out-Null
     if (@($EvidenceRefs).Count -gt 0) {
         $reasons.Add("evidence-recorded") | Out-Null
     }
 
-    return [pscustomobject]@{
+    $record = [pscustomobject]@{
         schemaVersion = 1
         policyVersion = $PolicyVersion
         decisionId = "policy:$($ship -replace '[^A-Za-z0-9_.-]+','-'):$($GeneratedAt.ToUniversalTime().ToString("yyyyMMddHHmmss"))"
@@ -431,6 +468,7 @@ function New-FleetRuntimePolicyDecisionDryRun {
         action = $actionValue
         riskClass = $riskClass
         decision = $decision
+        dryRunResult = $dryRunResult
         approvalRequirement = $approvalRequirement
         denialReason = $denialReason
         repoFingerprintRef = $RepoFingerprintRef
@@ -444,6 +482,47 @@ function New-FleetRuntimePolicyDecisionDryRun {
             fixtureName = $fixtureName
         }
     }
+
+    if ($IncludeEvidenceBundle) {
+        $approvalRef = if (![string]::IsNullOrWhiteSpace($ApprovalEvidenceRef)) { $ApprovalEvidenceRef } elseif ($CaptainApproval) { "approval:captain:fixture" } else { "approval:missing" }
+        $bundleReasons = @(
+            "bundle-local-dry-run-only",
+            "selected-ship-ref-required",
+            "repo-fingerprint-ref-required",
+            "worktree-boundary-ref-required",
+            "lease-heartbeat-ref-required",
+            "failure-fingerprint-ref-required",
+            "approval-evidence-ref-required",
+            "budget-evidence-ref-required",
+            "source-provenance-recorded",
+            "generated-evidence-non-executable",
+            "missing-or-stale-ref-denies-or-defers",
+            "never-executes"
+        )
+        $record | Add-Member -NotePropertyName evidenceBundle -NotePropertyValue ([pscustomobject]@{
+            selectedShipId = $ship
+            entrypoint = $entrypointValue
+            action = $actionValue
+            repoFingerprintRef = $RepoFingerprintRef
+            worktreeBoundaryRef = $WorktreeBoundaryRef
+            leaseHeartbeatRef = $LeaseHeartbeatRef
+            failureFingerprintRef = $FailureFingerprintRef
+            approvalEvidenceRef = $approvalRef
+            budgetEvidenceRef = $BudgetRecordRef
+            sourceProvenance = [pscustomobject]@{
+                sourceType = $SourceProvenanceType
+                sourceRef = $SourceProvenanceRef
+                nonExecutable = $true
+            }
+            generatedAt = $GeneratedAt.ToUniversalTime().ToString("o")
+            validation = [pscustomobject]@{
+                status = if ($decision -eq "ALLOW") { "valid" } else { "invalid" }
+                reasons = $bundleReasons
+            }
+        })
+    }
+
+    return $record
 }
 
 function Write-FleetSelectedShipLedgerDryRun {

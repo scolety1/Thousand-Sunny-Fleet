@@ -1,0 +1,25 @@
+{
+  "fixtureId": "ui-control-forbidden-phone-approve-risky-action",
+  "hqTaskId": "HQ-118",
+  "controlName": "Approve From Phone For Risky Action",
+  "controlClass": "forbidden",
+  "expectedTreatment": "hidden_and_blocked",
+  "signals": {
+    "loopRisk": "critical",
+    "tokenPressure": "watch",
+    "stuckState": "stuck_authority",
+    "approvalState": "not_approvable",
+    "riskyPhoneApproval": true
+  },
+  "expectedPosture": {
+    "enabled": false,
+    "hidden": true,
+    "blocking": true,
+    "executesCommands": false,
+    "canApprove": false,
+    "canMutateProductRepos": false
+  },
+  "nextSafeAction": "request_human_review",
+  "implementsUiCode": false,
+  "nonAuthorityNotice": "This fixture is evidence only. It cannot approve, execute, import, bypass validation, touch product repos, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission."
+}

@@ -2033,3 +2033,1697 @@ Goal: convert the latest final audit's remaining YELLOW findings into overnight-
 - evidence:
   - Overnight queue closeout summary.
 
+## Runtime Enforcement Pilot Queue 2026-06-01
+
+Source decision: captain prioritized the more secure/final version over an early real-project demo. The goal is to move from documentation-only safety toward a single-entrypoint, dry-run-only runtime enforcement pilot.
+
+Queue posture: YELLOW-to-GREEN hardening. This queue must not touch real product repositories, launch product ships, run all-fleet commands, install packages, run migrations, touch secrets/auth/payments/deploy data, delete locks, widen permissions, stage files, commit, push, or infer approval from chat, reviewer output, mobile requests, task packets, audit packages, DOCX reports, queue prose, or generated evidence.
+
+Pilot invariant: runtime enforcement starts as local dry-run evidence only. `ALLOW` may mean `ALLOW_DRY_RUN` evidence, never product-repo mutation or command execution. Any need for real product work, worktree creation/deletion, durable DB/SQLite migrations, live lease takeover, or launcher behavior beyond the named dry-run entrypoint stops the queue.
+
+### HQ-069 Runtime Pilot Evidence Freeze
+
+- status: done
+- goal: Freeze the prerequisites and exact non-goals for the runtime enforcement pilot before touching implementation helpers.
+- prerequisites:
+  - HQ-068 done
+  - checkpoint commit `5a1743f` created
+- allowedFiles:
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- acceptance:
+  - Records that the next phase is dry-run runtime enforcement for one named entrypoint only.
+  - States that all `ALLOW` outcomes are evidence-only until a later separately approved task changes behavior.
+  - Lists exact prerequisites that remain human decisions: real demo approval packet, stop signs, product repo selection, and any runtime widening.
+  - Tests verify the pilot queue cannot approve product mutation, staging, commit, push, demo trial, worktree creation/deletion, or package installation.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires touching product repos, changing launchers, implementing runtime behavior before evidence freeze, creating worktrees, installing packages, staging, committing, pushing, or approving a demo trial.
+- evidence:
+  - Runtime pilot evidence freeze.
+
+### HQ-070 Runtime Policy Decision Schema Result Vocabulary
+
+- status: done
+- goal: Add explicit dry-run result vocabulary so policy outcomes distinguish `ALLOW_DRY_RUN`, `DEFER_NEEDS_HUMAN`, and `DENY_UNSAFE` without enabling execution.
+- prerequisites:
+  - HQ-069 done
+- allowedFiles:
+  - `templates/runtime-policy-decision-schema.json`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `templates/runtime-policy-decision-schema.json`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+- acceptance:
+  - Schema supports a dry-run result field or equivalent vocabulary for `ALLOW_DRY_RUN`, `DEFER_NEEDS_HUMAN`, and `DENY_UNSAFE`.
+  - Existing `ALLOW`, `DEFER`, and `DENY` semantics remain compatible and evidence-only.
+  - Contract states `ALLOW_DRY_RUN` is not execution authority and cannot mutate product repos.
+  - Tests verify malformed, stale, broad, external, mobile, and missing-approval inputs cannot produce executable authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\runtime-policy-decision-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+- stopIf:
+  - Requires changing real launcher behavior, product repo access, staging, committing, pushing, or treating schema vocabulary as runtime enforcement.
+- evidence:
+  - Dry-run result vocabulary.
+
+### HQ-071 Runtime Policy Dry-Run Evaluator Hardening
+
+- status: done
+- goal: Harden `New-FleetRuntimePolicyDecisionDryRun` so it emits the new dry-run result vocabulary and denies/defer unsafe inputs deterministically.
+- prerequisites:
+  - HQ-070 done
+- allowedFiles:
+  - `tools/codex-fleet-autonomy.ps1`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `tools/codex-fleet-autonomy.ps1`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `templates/runtime-policy-decision-schema.json`
+- acceptance:
+  - Evaluator defaults to `DENY_UNSAFE` for ambiguous, stale, missing, broad, malformed, unauthorized, external, mobile, task-packet, DOCX, audit-package, or queue-prose sourced evidence.
+  - Missing exact-action human approval returns `DEFER_NEEDS_HUMAN`, not allow.
+  - Valid fixture-only evidence may return `ALLOW_DRY_RUN` and writes/executes nothing.
+  - Tests cover blank ship, `all`, wildcard, multi-ship, stale fingerprint, missing fingerprint, missing worktree boundary, missing approval, legacy broad entrypoint, external report, mobile request, and validated fixture dry-run.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product repo access, command execution, changing launchers, importing packets, installing packages, staging, committing, pushing, or broadening beyond dry-run evaluator behavior.
+- evidence:
+  - Hardened runtime policy dry-run evaluator.
+
+### HQ-072 Runtime Evidence Bundle Contract
+
+- status: done
+- goal: Define the exact evidence bundle shape passed into the pilot before wiring it into an entrypoint.
+- prerequisites:
+  - HQ-071 done
+- allowedFiles:
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `templates/runtime-policy-decision-schema.json`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/REPO_FINGERPRINT_CONTRACT.md`
+  - `docs/fleet/WORKTREE_ISOLATION_CONTRACT.md`
+  - `docs/fleet/LEASE_HEARTBEAT_CONTRACT.md`
+  - `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+- acceptance:
+  - Defines a local dry-run evidence bundle that references selected ship, entrypoint, action, repo fingerprint, worktree boundary, lease heartbeat, failure fingerprint, approval evidence, budget evidence, and source provenance.
+  - States missing or stale refs deny/defer and never execute.
+  - Tests verify bundle docs/schema vocabulary includes non-executable provenance for external/mobile/task/audit/DOCX/queue sources.
+  - No new runtime storage, DB, SQLite, migration, or product repo access is introduced.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\runtime-policy-decision-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+- stopIf:
+  - Requires creating DB tables, migrations, worktrees, product repo fingerprints from real repos, staging, committing, pushing, or approval inference.
+- evidence:
+  - Runtime evidence bundle contract.
+
+### HQ-073 One-Entrypoint Dry-Run Pilot Wrapper Contract
+
+- status: done
+- goal: Add a dry-run-only pilot contract to `invoke-autonomy-wrapper.ps1` without enabling product mutation or changing default launcher behavior.
+- prerequisites:
+  - HQ-072 done
+- allowedFiles:
+  - `invoke-autonomy-wrapper.ps1`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `invoke-autonomy-wrapper.ps1`
+  - `tools/codex-fleet-autonomy.ps1`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+- acceptance:
+  - Adds a dry-run pilot switch or documented contract for one entrypoint only.
+  - The pilot path can call/evaluate dry-run policy evidence but must not execute product actions, launch ships, import packets, or mutate product repos.
+  - Default wrapper behavior remains as safe or safer than before.
+  - Tests verify the pilot is dry-run-only and broad/legacy/all/wildcard targets stay denied or deferred.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires enabling execution, touching product repos, launching ships, changing broad launchers, creating worktrees, deleting locks, installing packages, staging, committing, or pushing.
+- evidence:
+  - One-entrypoint dry-run pilot wrapper contract.
+
+### HQ-074 Pilot Evidence Output And Audit Trail
+
+- status: done
+- goal: Ensure the dry-run pilot emits local evidence that can be audited without becoming execution authority.
+- prerequisites:
+  - HQ-073 done
+- allowedFiles:
+  - `invoke-autonomy-wrapper.ps1`
+  - `tools/codex-fleet-autonomy.ps1`
+  - `docs/fleet/ARTIFACT_INDEX_CONTRACT.md`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/ARTIFACT_INDEX_CONTRACT.md`
+  - `write-run-evidence.ps1`
+  - `invoke-autonomy-wrapper.ps1`
+  - `tools/codex-fleet-autonomy.ps1`
+- acceptance:
+  - Dry-run pilot evidence includes selected ship or fixture id, entrypoint, action, policy result, denial/defer reasons, evidence refs, generatedAt, and non-executable status.
+  - Evidence path stays under local harness evidence roots or test fixtures and never under product repos.
+  - Tests verify evidence output cannot approve future runs and cannot be treated as command input.
+  - No audit package is created or sent by this task.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending audit packages, writing product repos, staging, committing, pushing, installing packages, or treating evidence as permission.
+- evidence:
+  - Dry-run pilot evidence output and audit trail.
+
+### HQ-075 Runtime Pilot Fixture Matrix
+
+- status: done
+- goal: Add focused fixture coverage for the dry-run pilot path so every unsafe class fails closed before any demo trial.
+- prerequisites:
+  - HQ-074 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+- acceptance:
+  - Tests include validated fixture dry-run positive case and negative cases for blank/all/wildcard/multi-ship, stale fingerprint, missing fingerprint, missing worktree, missing approval, stale/ambiguous lease, repeated deterministic failure, external report, mobile request, DOCX report, audit package, and queue prose.
+  - Positive case proves `ALLOW_DRY_RUN` writes local evidence only and executes nothing.
+  - Negative cases prove `DENY_UNSAFE` or `DEFER_NEEDS_HUMAN` and no mutation.
+  - Go/no-go summary states pilot tests do not approve a real-project demo.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product repo fixtures, launchers, package installs, migrations, lock deletion, staging, committing, pushing, or broadening fixture scope.
+- evidence:
+  - Runtime pilot fixture matrix.
+
+### HQ-076 Runtime Pilot External Audit Package Plan
+
+- status: done
+- goal: Refresh the external audit prompt/checklist for the runtime pilot without creating or sending a package.
+- prerequisites:
+  - HQ-075 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- acceptance:
+  - Defines an audit ask for the runtime pilot: verify dry-run-only behavior, fail-closed defaults, evidence-only output, and no product repo access.
+  - Package plan excludes product repos, product source, `.git`, `.env`, dependency folders, build outputs, raw locks, secrets, auth/payments/deploy/migration material, unknown zips, and live worker state.
+  - Reviewer output remains evidence only and cannot approve execution or demo trial.
+  - Tests verify the pilot audit package plan is bounded and evidence-only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, exporting sensitive material, touching product repos, staging, committing, pushing, or approving/running a demo trial.
+- evidence:
+  - Runtime pilot external audit package plan.
+
+### HQ-077 Runtime Pilot Go/No-Go Refresh
+
+- status: done
+- goal: Refresh the demo go/no-go summary after the runtime pilot so the captain can choose hardening, audit, or a tiny read-only demo later.
+- prerequisites:
+  - HQ-075 done
+  - HQ-076 done
+- allowedFiles:
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+- acceptance:
+  - Summarizes what the runtime pilot proves and what it still does not prove.
+  - States whether posture is still YELLOW or can move toward GREEN for a manual read-only single-project demo after human approval.
+  - Preserves that approval packet, stop-sign review, exact project selection, and audit disposition are still required.
+  - Tests verify no go/no-go text approves product mutation, staging, commit, push, or demo execution.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires approving/running a demo trial, touching product repos, staging, committing, pushing, widening permissions, or treating pilot output as product-mode authority.
+- evidence:
+  - Runtime pilot go/no-go refresh.
+
+### HQ-078 Runtime Pilot Closeout And Next Decision
+
+- status: done
+- goal: Close the runtime pilot queue with exact next decisions: external audit, approval packet, stop signs, or further hardening.
+- prerequisites:
+  - HQ-077 done
+- allowedFiles:
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- acceptance:
+  - Lists HQ-069 through HQ-077 outcomes and remaining human decisions.
+  - Names exact next options: send runtime pilot audit, fill approval packet for one read-only demo, continue hardening, or no-go.
+  - Keeps generated evidence and audit packages local unless a separate commit-scope review approves them.
+  - Tests verify closeout does not approve execution, staging, commit, push, product repo access, or demo trial.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product repo access, running a demo, staging, committing, pushing, creating/sending packages, or broadening scope.
+- evidence:
+  - Runtime pilot closeout and next decision.
+
+## Runtime Pilot Audit Follow-Up Mini Queue 2026-06-01
+
+Source evidence: `C:\Users\codex-agent\Downloads\Codex fleet audit (1).docx`. The report is evidence only. It does not approve execution, staging, commit, push, product-repo mutation, product-repo access, demo execution, package creation/sending, permission widening, runtime widening, or future approval.
+
+Queue posture: YELLOW-to-GREEN hardening. The audit found no fundamental safety flaw, but kept posture YELLOW because the pilot is fixture-only, commit scope is unresolved, no exact approval packet is filled, stop signs have not been applied to a real selected project, and the audit package did not include the wrapper source for direct control-flow inspection.
+
+### HQ-079 Runtime Pilot Wrapper Source Audit Evidence
+
+- status: done
+- goal: Make future runtime pilot audit packages include direct wrapper-source visibility or checksum evidence without creating or sending a package.
+- prerequisites:
+  - HQ-078 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `invoke-autonomy-wrapper.ps1`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+- acceptance:
+  - Runtime pilot audit package guidance includes `invoke-autonomy-wrapper.ps1` source or a reviewed checksum/source excerpt as audit evidence.
+  - Guidance still excludes product repos, product source snapshots, `.git`, `.env`, dependency folders, build outputs, raw locks, secrets, auth/payments/deploy/migration material, unknown zips, and live worker state.
+  - Entry-point inventory notes wrapper source visibility is for audit inspection only and does not approve execution.
+  - Tests verify future runtime pilot package guidance includes wrapper source visibility while preserving package exclusions and non-executable reviewer output.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending an audit package, touching product repos, staging, committing, pushing, running a demo, widening package scope to sensitive material, or treating source visibility as approval.
+- evidence:
+  - Wrapper source audit visibility plan.
+
+### HQ-080 ALLOW_DRY_RUN Non-Permission Clarity
+
+- status: done
+- goal: Reduce the audit-noted risk that a superficial reader could misread `ALLOW_DRY_RUN` as execution permission.
+- prerequisites:
+  - HQ-079 done
+- allowedFiles:
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- acceptance:
+  - Docs state in plain language that `ALLOW_DRY_RUN` means "the dry-run fixture passed" and never means approval to execute, mutate, stage, commit, push, launch, or run a demo.
+  - Evidence/report language ties every `ALLOW_DRY_RUN` mention to non-executable fields such as `executesProductActions = false`, `mutatesProductRepos = false`, `canApproveFutureRuns = false`, and `commandInput = false`.
+  - Go/no-go and ledger text preserve YELLOW posture until human approval packet, stop-sign review, commit-scope review, and exact project selection are complete.
+  - Tests verify `ALLOW_DRY_RUN` cannot be described as approval, authorization, permission, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime semantics, enabling execution, product repo access, staging, committing, pushing, or treating positive dry-run evidence as approval.
+- evidence:
+  - `ALLOW_DRY_RUN` non-permission clarity.
+
+### HQ-081 Runtime Pilot Negative Fixture Expansion
+
+- status: done
+- goal: Add focused negative fixture coverage for weird input, freshness ambiguity, boundary ambiguity, and lease expiry concerns from the audit.
+- prerequisites:
+  - HQ-080 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `tools/codex-fleet-autonomy.ps1`
+  - `tools/codex-fleet-state.ps1`
+  - `tools/codex-fleet-overnight.ps1`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `tests/run-fleet-tests.ps1`
+  - `tools/codex-fleet-autonomy.ps1`
+  - `tools/codex-fleet-state.ps1`
+  - `tools/codex-fleet-overnight.ps1`
+  - `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+- acceptance:
+  - Adds or tightens local fixture coverage for Unicode/control-character inputs, ambiguous paths, stale repo fingerprints, missing or contradictory worktree boundaries, expired leases, and ambiguous lease ownership.
+  - Unsafe cases produce `DENY_UNSAFE`, `DEFER_NEEDS_HUMAN`, `REQUIRE_REVIEW`, safe-pause, or repair-task evidence rather than `ALLOW_DRY_RUN`.
+  - Coverage remains fixture-only and does not inspect product repos, create real worktrees, delete locks, install packages, run migrations, stage, commit, push, or launch ships.
+  - Tests verify no negative fixture writes outside allowed local fixture/evidence roots.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product repo fixtures, real worktree creation/deletion, lock deletion, broad launcher changes, package installs, migrations, staging, committing, pushing, or all-fleet commands.
+- evidence:
+  - Expanded runtime pilot negative fixtures.
+
+### HQ-082 Commit Scope And Demo Evidence Separation Refresh
+
+- status: done
+- goal: Make commit-scope review explicitly separate existing repair/audit evidence from any future demo evidence before a real-project approval packet is prepared.
+- prerequisites:
+  - HQ-081 done
+- allowedFiles:
+  - `docs/fleet/HQ_COMMIT_READINESS_INVENTORY.md`
+  - `docs/fleet/HQ_COMMIT_SCOPE_DECISION_PACKET.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/HQ_COMMIT_READINESS_INVENTORY.md`
+  - `docs/fleet/HQ_COMMIT_SCOPE_DECISION_PACKET.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- acceptance:
+  - Commit-scope docs distinguish existing repair/audit evidence, generated audit packages, `docs/codex` evidence, fleet state/status artifacts, runtime script changes, and any future demo evidence.
+  - Docs state future demo evidence should be created only after a separate approval packet and should not be mixed into the current repair checkpoint by accident.
+  - Go/no-go and ledger retain YELLOW posture until commit-scope review is complete enough to avoid evidence confusion.
+  - Tests verify the refresh does not stage files, commit, push, delete evidence, rewrite history, approve a demo, or touch product repos.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires staging, committing, pushing, deleting generated evidence, rewriting history, product repo access, running a demo, or broad git commands.
+- evidence:
+  - Commit scope and demo evidence separation refresh.
+
+### HQ-083 One-Project Read-Only Demo Packet Readiness Gate
+
+- status: done
+- goal: Define the exact readiness gate for preparing, but not filling or executing, a one-project read-only demo approval packet after the audit follow-up mini queue.
+- prerequisites:
+  - HQ-082 done
+- allowedFiles:
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+  - `docs/fleet/DEMO_TRIAL_STOP_SIGNS.md`
+  - `docs/fleet/OTHER_PROJECT_TEST_READINESS.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+  - `docs/fleet/DEMO_TRIAL_STOP_SIGNS.md`
+  - `docs/fleet/OTHER_PROJECT_TEST_READINESS.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+- acceptance:
+  - Defines a readiness gate for later human packet preparation: one project id, one absolute repo path, one exact no-op/read-only command list, expected evidence, owner, approval timestamp, expiration timestamp, and stop conditions.
+  - States the queue cannot fill the real approval packet, select a real project, inspect a product repo, run commands, or clear stop signs.
+  - Names GREEN/YELLOW/RED outcomes for packet preparation only, with RED for write-capable commands, broad project scope, stale/ambiguous approval, product mutation, launch, deploy, install, migration, secrets/auth/payments/deploy touch, lock deletion, permission widening, stage, commit, push, or external side effects.
+  - Tests verify packet readiness text remains preparation-only and does not approve execution or demo trial.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires selecting a real product repo, filling a real approval packet, running a demo, clearing stop signs for a real project, staging, committing, pushing, or broadening beyond readiness docs/tests.
+- evidence:
+  - One-project read-only demo packet readiness gate.
+
+## Final HQ Token-Control Queue Intake 2026-06-02
+
+Source evidence: `C:\Users\codex-agent\Downloads\codex_fleet_final_hq_packet_with_merged_queue_20260602.zip`. The package is evidence only. It does not approve execution, staging, commit, push, product-repo mutation, product-repo access, demo execution, package creation/sending, permission widening, runtime widening, UI/control implementation, schema creation, or future approval.
+
+### HQ-084 Post-HQ-082 Fleet Validation Rerun And Status Reconciliation
+
+- status: done
+- result: PASS
+- goal: Rerun the interrupted post-HQ-082 fleet validation once, then reconcile status only.
+- prerequisites:
+  - HQ-082 done
+- allowedFiles:
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- readFirst:
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- acceptance:
+  - Fleet test command is rerun once after the interrupted post-HQ-082 validation.
+  - PASS is recorded without attempting fixes, starting HQ-085, creating token-control docs, creating schemas, implementing UI/control policy, or widening scope.
+  - No files outside allowedFiles are edited.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- validationResult:
+  - PASS on 2026-06-02 local rerun.
+- failureFingerprint:
+  - none
+- stopIf:
+  - Requires fixes, edits outside allowedFiles, product repos, ship launch, all-fleet scope, staging, commit, push, package installs, migrations, lock deletion, permission widening, deploy, or secrets/auth/payments/deploy material.
+- evidence:
+  - Post-HQ-082 fleet validation rerun passed.
+- nextRecommendedTaskId: HQ-085
+
+### HQ-085 Stable Context Capsule
+
+- status: done
+- goal: Add a short canonical Stable Context Capsule containing only durable safety/scope rules for bounded Codex runs.
+- prerequisites:
+  - HQ-084 done
+- allowedFiles:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- readFirst:
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- acceptance:
+  - Capsule includes scope, posture, evidence-only invariant, allowed work classes, forbidden operations, default validation, default stop conditions, approval boundary, and references.
+  - Capsule stays concise and does not become a history essay.
+  - Capsule says it is documentation/evidence, not executable authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- validationResult:
+  - PASS on 2026-06-02 local rerun.
+- stopIf:
+  - Requires adding AGENTS.md, changing runtime behavior, widening permissions, or product-repo work.
+- evidence:
+  - Stable Context Capsule doc and passing tests.
+
+### HQ-086 Token And Model Control Operating Model
+
+- status: done
+- goal: Add one canonical operating-model doc for token budget, model routing, run lifecycle, failure loop breaker, validation summary rule, session restart rule, and human-only approval boundary.
+- prerequisites:
+  - HQ-085 done
+- allowedFiles:
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+- acceptance:
+  - Doc includes Token Budget Policy, Model Routing Policy, Run Lifecycle, Failure Loop Breaker, Validation Output Summary Rule, Session Restart Rule, and Human-only Approval Boundary.
+  - Model routing incorporates routine `gpt-5.4-mini`, stronger `gpt-5.5` for safety-sensitive/ambiguous work, no Fast mode by default, no subagents by default.
+  - Cost reduction never overrides safety, validation, or human approval.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- validationResult:
+  - PASS on 2026-06-02 local rerun.
+- stopIf:
+  - Requires implementation of model routing in runtime code, subagent rollout, Fast mode defaults, or product-repo changes.
+- evidence:
+  - Operating-model doc and passing tests.
+
+### HQ-087 Thin Task Packet Schema And First Example
+
+- status: done
+- goal: Formalize thin task packets as schema-validated artifacts and add a committed example packet for the HQ-084 validation-only state.
+- prerequisites:
+  - HQ-086 done
+- allowedFiles:
+  - `templates/thin-task-packet-schema.json`
+  - `tests/fixtures/fleet/thin-task-packets/hq-084-thin-task-packet.example.json`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Schema requires packetId, taskId, mode, goal, stableContextCapsuleRef, allowedFiles, readFirst, acceptance, validationCommands, stopIf, statusUpdateRules, and evidenceDigest.
+  - Example packet models HQ-084 without depending on the capsule for the actual HQ-084 execution.
+  - Tests validate schema parsing and example validity.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\thin-task-packet-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\thin-task-packets\hq-084-thin-task-packet.example.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires a packet executor, importer change, runtime mutation, or broad queue redesign.
+- evidence:
+  - Thin packet schema, example packet, and passing tests.
+- validationResult: PASS 2026-06-02
+
+### HQ-088 Validation Output Summary And Audit Intake Digest Schemas
+
+- status: done
+- goal: Replace repeated raw logs and long audit prose with compact evidence schemas.
+- prerequisites:
+  - HQ-087 done
+- allowedFiles:
+  - `templates/validation-output-summary-schema.json`
+  - `templates/external-audit-intake-digest-schema.json`
+  - `tests/fixtures/fleet/evidence/validation-output-summary.example.json`
+  - `tests/fixtures/fleet/evidence/external-audit-intake.example.json`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- acceptance:
+  - Validation summary schema records result, failureFingerprint, firstError, fullLogPath, and nextAction without pasting full logs.
+  - Audit intake digest schema records findingId, severity, affectedArtifact, boundedDisposition, suggestedLocalFollowup, unresolvedAssumptions, and nonAuthorityNotice.
+  - External audit prompt requests digest structure rather than long quasi-command prose.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\validation-output-summary-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\external-audit-intake-digest-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires contacting external reviewers, sending packages, runtime import behavior, or product-repo access.
+- evidence:
+  - Schemas, fixtures, updated audit prompt, and passing tests.
+- validationResult: PASS 2026-06-02
+
+### HQ-089 Handoff And Import Compression Refresh
+
+- status: done
+- goal: Shrink handoff/import flow so Codex receives capsule + thin packet + exact evidence delta rather than long handoff essays.
+- prerequisites:
+  - HQ-088 done
+- allowedFiles:
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- acceptance:
+  - Handoff points to capsule and current thin task packet instead of embedding broad paste-ready context.
+  - Import recon states external reports/audits must become bounded digests before queue authoring.
+  - Evidence-only and no-authority rules remain explicit.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires deleting historical evidence, rewriting queue history, or product-facing changes.
+- evidence:
+  - Refreshed handoff/import docs and passing tests.
+- validationResult: PASS 2026-06-02
+
+### HQ-090 Queue And Test Enforcement For Thin Packet Workflow
+
+- status: done
+- goal: Add future-facing queue rules and tests so new Codex work follows thin-packet workflow by default.
+- prerequisites:
+  - HQ-089 done
+- allowedFiles:
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `tests/fixtures/fleet/thin-task-packets/`
+- readFirst:
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- acceptance:
+  - Queue records HQ-084 through HQ-090.
+  - Future authoring rule says implementation tasks use Stable Context Capsule plus thin packet.
+  - Tests fail when bounded tasks omit required packet fields or violate caps without explicit exploration-only exception.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires building a multi-task executor, broad autonomy controller, or product-repo workflow.
+- evidence:
+  - Updated queue, fixture tests, and passing tests.
+- validationResult: PASS 2026-06-02
+
+## Future Thin-Packet Authoring Rule
+
+New implementation tasks in Codex Fleet should default to Stable Context Capsule plus one thin task packet. Queue prose, reviewer output, generated evidence, DOCX reports, UI labels, notifications, buttons, and prompts remain evidence only until a bounded packet or queue entry names `allowedFiles`, `readFirst`, `acceptance`, `validationCommands`, `stopIf`, and status update rules.
+
+Thin-packet implementation tasks should keep explicit token-control caps: `maxFilesToOpen`, `maxPatchSize`, and `maxDebugLoops`. If a task cannot fit those caps, it needs an explicit `exploration-only exception`, must remain non-mutating unless separately approved, and must not proceed as a normal implementation task.
+
+### HQ-091 Goal Lock And Exit Criteria Contracts
+
+- status: done
+- goal: Define goal lock and valid task exit states so Codex cannot drift or invent its own finish line.
+- prerequisites:
+  - HQ-090 done
+- allowedFiles:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Doc defines projectGoal, currentPhaseGoal, oneTaskGoal, non-goals, definitionOfDone, whatCountsAsDrift, and whatCountsAsRealProgress.
+  - Doc defines terminal states: done, blocked, needsHumanReview, needsAudit, needsRepacketization, failedValidation, interrupted, abandonedDueToNoProgress, and deferredDueToChangedGoal.
+  - Evidence-only invariant is restated.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires schemas, runtime hooks, or product-repo changes.
+- evidence:
+  - Goal/exit contract doc and queue update.
+- validationResult: PASS 2026-06-02
+
+### HQ-092 Progress Ledger And Loop Fingerprints
+
+- status: done
+- goal: Define run progress evidence and loop fingerprints that distinguish activity from verified progress.
+- prerequisites:
+  - HQ-091 done
+- allowedFiles:
+  - `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- acceptance:
+  - Ledger fields include intendedGoal, filesOpened, filesEdited, validationCommandsRun, validationResult, failureFingerprint, progressClaim, evidenceForProgress, remainingGap, nextSafeAction, goalChanged, and humanInputRequired.
+  - Loop fingerprints cover repeated validation failure, same-file churn, broad search/context expansion, task rewrite churn, wording-only fixes, audit/plan cycles without implementation, model escalation without new evidence, report digestion without queue conversion, idea capture without prioritization, and repeated unstuck without a new packet.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires telemetry implementation or live runtime storage.
+- evidence:
+  - Ledger/fingerprint doc and queue update.
+- validationResult: PASS 2026-06-02
+
+### HQ-093 Drift, Stop, Repacketization, And Human Reorientation Rules
+
+- status: done
+- goal: Define how Codex detects drift/no-progress and safely exits into repacketization or human review.
+- prerequisites:
+  - HQ-092 done
+- allowedFiles:
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- acceptance:
+  - Drift patterns include editing outside allowedFiles, too many unrelated reads, changing goals mid-run, adding tasks while implementing, changing safety policy to finish, evidence-as-authority, product-repo expansion, runtime implementation from planning task, and adjacent-problem solving.
+  - No-progress stop rules include repeated fingerprint, no criterion improvement, validation not rerun after claimed fix, changes not tied to goal, new allowed file needed, new command needed, broader authority needed, token budget exceeded, or human idea changes direction.
+  - Repacketization carries forward useful evidence only and discards stale narrative.
+  - Human reorientation triggers are explicit.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires automatic retries, new runtime authority, or product-repo access.
+- evidence:
+  - Drift/stop/repacketization doc and queue update.
+- validationResult: PASS 2026-06-02
+
+### HQ-094 Codex Prompt And Post-Run Checklist
+
+- status: done
+- goal: Create a prompt checklist and post-run reflection summary so each run preserves the goal and next safe action without chat bloat.
+- prerequisites:
+  - HQ-093 done
+- allowedFiles:
+  - `docs/fleet/anti-loop/CODEX_PROMPT_AND_POST_RUN_CHECKLIST.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- acceptance:
+  - Checklist includes end goal, one task, out of scope, allowed files, read first, proof done, retry allowance, stop triggers, final response report, and forbidden helpful-looking actions.
+  - Post-run summary includes goal reached, what changed, evidence, validation, remaining gaps, drift/loop status, next step clarity, and nextStepType.
+  - Handoff references latest packet, latest ledger, latest fingerprint, and next allowed move instead of long narrative paste.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires test-enforcement edits or runtime code changes.
+- evidence:
+  - Prompt/post-run checklist and handoff refresh.
+- validationResult: PASS 2026-06-02
+
+### HQ-095 Anti-Loop Test Plan Only
+
+- status: done
+- goal: Define how future validation should test goal lock, loop detection, repacketization, and dashboard logic without editing tests yet.
+- prerequisites:
+  - HQ-094 done
+- allowedFiles:
+  - `docs/fleet/anti-loop/ANTI_LOOP_TEST_PLAN.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+  - `docs/fleet/anti-loop/CODEX_PROMPT_AND_POST_RUN_CHECKLIST.md`
+- acceptance:
+  - Test plan covers unchanged fingerprints, doc churn, no-op edits, file-open overrun, goal change, ambiguous acceptance, repeated unstuck, and idea-inbox behavior.
+  - Fixture path recommendation uses committed `tests/fixtures/fleet/` unless `.codex-local` tracking intent is explicitly confirmed later.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Starts editing tests or adding runtime instrumentation.
+- evidence:
+  - Anti-loop test plan and queue update.
+- validationResult: PASS 2026-06-02
+
+### HQ-096 Fleet Console Product Brief And Scope Fence
+
+- status: done
+- goal: Define the simplest useful console, operator goals, and explicit v1 non-goals.
+- prerequisites:
+  - HQ-095 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/DEMO_TRIAL_STOP_SIGNS.md`
+- acceptance:
+  - V1 scope is dashboard, monitoring, stoppages, idea capture, prompt builder, audit builder, evidence locker, safety gates, and settings.
+  - Non-goals exclude product-repo mutation, all-fleet control, broad autonomy, public exposure, phone risky approval, freeform terminal, deploy/commit/push/stage/revert/delete-lock controls.
+  - Evidence-only invariant is explicit.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Drifts into implementation, package installs, server setup, or runtime control code.
+- evidence:
+  - Product brief and queue update.
+- validationResult: PASS 2026-06-02
+
+### HQ-097 Fleet Console Status, Action, And Goal/Loop Signals
+
+- status: done
+- goal: Define posture, ship status, approval state, alerts, action classes, and anti-loop dashboard signals.
+- prerequisites:
+  - HQ-096 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+  - `docs/fleet/DEMO_TRIAL_STOP_SIGNS.md`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+- acceptance:
+  - Separates fleet posture, operational state, approval state, and token pressure.
+  - Defines states: running, paused, parked, needs_review, blocked, crashed, interrupted, approval_pending, token_limited.
+  - Defines goal lock status, progress score, loop risk, failure fingerprint, file counts, validation rerun count, drift warning, and next safe action.
+  - Actions grouped as safe, caution, approval-required, forbidden, and future-only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Implies hidden authority, broad approvals, or autonomous unstuck behavior.
+- evidence:
+  - Status/action/signal docs and queue update.
+  - validationResult: PASS 2026-06-02
+
+### HQ-098 Fleet Console Wireframes And Screen Flows
+
+- status: done
+- goal: Produce simple desktop/mobile wireframes for the main console screens without code.
+- prerequisites:
+  - HQ-097 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_WIREFRAMES.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md`
+- acceptance:
+  - Includes Fleet Dashboard, Ship Detail, Current Task, Stoppage/Needs Review, Prompt Builder, External Audit Builder, Idea Inbox, Evidence Locker, Safety Gates, and Settings.
+  - Includes desktop and phone ASCII wireframes.
+  - Shows disabled/hidden states for forbidden/future-only controls.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Wireframes imply command execution authority from evidence artifacts.
+- evidence:
+  - Wireframe doc and queue update.
+  - validationResult: PASS 2026-06-02
+
+### HQ-099 Prompt, Audit, And Token Budget Panel Design
+
+- status: done
+- goal: Specify Prompt Builder, Audit Builder, Evidence Locker, and token-budget UI.
+- prerequisites:
+  - HQ-098 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- acceptance:
+  - Prompt Builder shows packet size/context warnings and does not start Codex automatically.
+  - Audit Builder creates prompt/package/manifest locally and requires manual download/send.
+  - Evidence Locker defaults to summaries/digests.
+  - Generated prompts/packages remain evidence, not authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires turning audit findings or prompts into executable control flow.
+- evidence:
+  - Prompt/audit/token design and queue update.
+  - validationResult: PASS 2026-06-02
+
+### HQ-100 Mobile Access And Approval Boundary Decision Record
+
+- status: done
+- goal: Decide safe remote-access posture and phone approval boundaries for the future console.
+- prerequisites:
+  - HQ-099 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+  - `docs/fleet/DEMO_TRIAL_STOP_SIGNS.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- acceptance:
+  - Recommends LAN-only or private-tailnet access for v1.
+  - Rejects public exposure for v1.
+  - States phone mode is read-mostly first.
+  - Future phone approvals, if discussed, are exact-action-bound, expiring, and denied by default.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Normalizes broad approval, background autonomy, risky phone approvals, or public exposure.
+- evidence:
+  - Mobile/approval ADR and queue update.
+  - validationResult: PASS 2026-06-02
+
+### HQ-101 UI Planning Integration And Future Prototype Gate
+
+- status: done
+- goal: Integrate UI planning docs into handoff and define future gate for any implementation work.
+- prerequisites:
+  - HQ-096 through HQ-100 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_WIREFRAMES.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- acceptance:
+  - Handoff points to approved UI planning docs.
+  - Future prototype gate requires separate bounded approval before any UI code work.
+  - Planning docs/wireframes are evidence only, not command authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Turns planning approval into implementation permission.
+- evidence:
+  - Prototype gate and handoff update.
+  - validationResult: PASS 2026-06-02
+
+### HQ-102 Fleet Console Button Action Policy
+
+- status: done
+- goal: Define exact v1 button matrix, including enabled, conditional, disabled, future-only, and forbidden actions.
+- prerequisites:
+  - HQ-101 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+- acceptance:
+  - Every candidate button is classified as safe, caution, approval-required, future-only, or forbidden.
+  - Main dashboard buttons are distinguished from detail-page buttons.
+  - Each button states allowed effects and forbidden effects.
+  - Buttons, labels, and prompts are explicitly non-authoritative.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementation patches, live command bindings, or product-repo operation.
+- evidence:
+  - Complete v1 control-button matrix.
+  - validationResult: PASS 2026-06-02
+
+### HQ-103 Fleet Console Unstuck Workflow And Failure Summary Policy
+
+- status: done
+- goal: Define safe Unstuck semantics, stuck-state taxonomy, retry limits, repacketization rules, and plain-language failure summaries.
+- prerequisites:
+  - HQ-102 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+- acceptance:
+  - Unstuck is diagnosis/summarization/repacketization only and never extra autonomy.
+  - Stuck taxonomy covers validation failure, repeated fingerprint, loop, heartbeat/lease issues, boundary issues, token overrun, long-session bloat, interruption, and ambiguous audit intake.
+  - Plain-language failure summary template is defined.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing automatic retries, lease takeover, or runtime mutation logic.
+- evidence:
+  - Unstuck state machine and summary template.
+  - validationResult: PASS 2026-06-02
+
+### HQ-104 Fleet Console Approval Gates And Phone Control Boundary
+
+- status: done
+- goal: Define exact-action approval semantics, expiration rules, denial options, and device restrictions.
+- prerequisites:
+  - HQ-103 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+  - `docs/fleet/DEMO_TRIAL_STOP_SIGNS.md`
+  - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- acceptance:
+  - Approval cards are exact-action-bound, single-use, expiring, deny-by-default, and non-inheritable.
+  - No risky phone approvals in v1.
+  - No global approve or approve-all-similar path.
+  - Future demo approval is separated from current harness/docs/tests control policy.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live auth, push notifications, MFA implementation, or public internet exposure.
+- evidence:
+  - Approval and phone-boundary policy.
+  - validationResult: PASS 2026-06-02
+
+### HQ-105 Audit, Idea, Task-Switch, And Token-Control Workflow
+
+- status: done
+- goal: Define audit-package buttons, idea inbox, work-on-something-else policy, and token-saving indicators.
+- prerequisites:
+  - HQ-104 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- readFirst:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+- acceptance:
+  - Audit workflow builds prompt/package/manifest locally and requires manual send.
+  - Returned audits import only as digests/evidence.
+  - Idea capture is idea-only and non-authoritative.
+  - Work On Something Else chooses eligible bounded tasks and drafts a thin packet instead of auto-running.
+  - Token counters include prompt size, readFirst count, allowedFiles count, reruns, debug loops, and session age.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires background agents, auto-task launch, direct queue execution, or product-repo access.
+- evidence:
+  - Audit/idea/task-switch/token-control policy.
+  - validationResult: PASS 2026-06-02
+
+### HQ-106 Fleet Console Control Policy Validation And Handoff Refresh
+
+- status: done
+- goal: Add docs/tests enforcement for required control-policy sections and refresh handoff references.
+- prerequisites:
+  - HQ-105 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `tests/fixtures/fleet/ui-control/`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+- acceptance:
+  - Tests fail if control-policy docs lose evidence-only language, remove forbidden-button boundaries, or allow risky phone approvals in v1.
+  - Handoff points future bounded work to these docs.
+  - No runtime control implementation is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires UI code, control-plane runtime wiring, or product-repo mutation.
+- evidence:
+  - Passing docs-policy enforcement and refreshed handoff.
+  - validationResult: PASS 2026-06-02
+
+### HQ-107 Integrated External Audit Package Prep
+
+- status: done
+- goal: Prepare a bounded external audit prompt/package request for the token-control, anti-loop, UI, and control-policy docs.
+- prerequisites:
+  - HQ-084 through HQ-106 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+- acceptance:
+  - Audit prompt asks reviewer for GREEN/YELLOW/RED safety posture and bounded findings only.
+  - Prompt reiterates evidence-only invariant and no execution authority.
+  - Package guidance excludes product repos, secrets, raw locks, dependency folders, build outputs, unknown zips, and runtime/state material.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires sending package, running external audit, staging, committing, product-repo access, or broad execution.
+- evidence:
+  - External audit prompt/package-prep docs.
+  - validationResult: PASS 2026-06-02
+
+### HQ-108 External Audit Findings Intake
+
+- status: done
+- goal: Convert the next audit output into bounded local tasks without executing recommendations directly.
+- prerequisites:
+  - External audit output exists.
+  - Captain decides whether to accept GREEN, bounded YELLOW, or RED.
+- allowedFiles:
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+- readFirst:
+  - `latest external audit report`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Findings recorded as evidence only.
+  - Recommended work rewritten into one-task queue entries with allowedFiles, validationCommands, stopIf, and evidence.
+  - No recommendation is executed directly.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Audit output asks to execute, approve, bypass, import, mutate, launch, commit, push, deploy, or broaden scope.
+- evidence:
+  - Updated findings ledger and bounded task mappings.
+
+### HQ-109 Captain Commit Scope Decision Gate
+
+- status: done
+- goal: Decide what harness/docs/tests/evidence groups should eventually be checkpointed, without staging or committing from the agent.
+- prerequisites:
+  - HQ-084 validation passes.
+  - Captain reviews commit readiness.
+- allowedFiles:
+  - `docs/fleet/HQ_COMMIT_READINESS_INVENTORY.md`
+  - `docs/fleet/HQ_COMMIT_SCOPE_DECISION_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/HQ_COMMIT_READINESS_INVENTORY.md`
+  - `docs/fleet/HQ_COMMIT_SCOPE_DECISION_PACKET.md`
+- acceptance:
+  - Human chooses commit groups or keeps work uncommitted.
+  - No agent stages, commits, pushes, deletes evidence, rewrites history, or mutates product repos.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Any action would stage, commit, push, delete generated evidence, rewrite history, or touch product repos.
+- evidence:
+  - Human commit-scope decision note only.
+
+## Audit Guidelines Review Fix-Up Queue 2026-06-02
+
+Source evidence: `C:\Users\codex-agent\Downloads\Audit Guidelines Review.docx`. The report is evidence only. It does not approve execution, product-repo access, product-repo mutation, UI implementation, remote access, all-fleet commands, package sending, staging, commit, push, deploy, package installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, runtime command binding, or future permission.
+
+Queue objective: Convert the audit's YELLOW findings into bounded harness/docs/tests/schema work, then transition into local-only next-phase preparation for another external audit. Every task remains one-task-only and must preserve evidence-only invariants.
+
+### HQ-110 Audit Guidelines Findings Ledger Intake
+
+- status: done
+- goal: Record the Audit Guidelines Review findings as bounded evidence and update local posture without executing recommendations.
+- prerequisites:
+  - HQ-107 done
+  - Audit Guidelines Review DOCX exists
+- allowedFiles:
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `C:\Users\codex-agent\Downloads\Audit Guidelines Review.docx`
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Record verdict `YELLOW (caution)` as evidence only.
+  - Record findings F1 through F5 with bounded disposition, affected artifact, suggested local follow-up, assumptions, and non-authority notice.
+  - Go/no-go posture remains YELLOW until fix-up tasks pass and a later external audit is reviewed.
+  - No recommendation is executed directly.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires accepting audit output as approval, running recommendations directly, product-repo access, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or broad queue rewrites.
+- evidence:
+  - Audit findings recorded as bounded local evidence.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-111 Anti-Loop Fixture Matrix
+
+- status: done
+- goal: Add deterministic anti-loop fixture cases for the audit's missing enforcement finding.
+- prerequisites:
+  - HQ-110 done
+- allowedFiles:
+  - `tests/fixtures/fleet/anti-loop/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+  - `docs/fleet/anti-loop/ANTI_LOOP_TEST_PLAN.md`
+- acceptance:
+  - Fixtures cover repeated fingerprint, doc churn, no-op edit, file-open overrun, goal change, ambiguous acceptance, repeated unstuck, and evidence-as-authority.
+  - Fixtures are committed local test data only and do not touch product repos.
+  - Tests parse the fixture files and confirm each case has expected terminal state and stop reason.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live telemetry, runtime hooks, product-repo access, or editing files outside test fixtures/test runner/queue.
+- evidence:
+  - Anti-loop negative fixture matrix and parser smoke tests.
+  - Validation passed 2026-06-02 with JSON fixture parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-112 Anti-Loop Enforcement Tests
+
+- status: done
+- goal: Enforce anti-loop stop behavior in the deterministic harness using the new fixture matrix.
+- prerequisites:
+  - HQ-111 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `tests/fixtures/fleet/anti-loop/`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md`
+  - `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+  - `tests/fixtures/fleet/anti-loop/`
+- acceptance:
+  - Tests fail if repeated fingerprints do not stop as blocked, needsRepacketization, or abandonedDueToNoProgress.
+  - Tests fail if doc churn, no-op edits, file overrun, goal change, ambiguous acceptance, repeated unstuck, or evidence-as-authority cases resolve as done.
+  - Tests remain fixture-only and do not implement live runtime hooks.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live runtime instrumentation, product-repo mutation, all-fleet execution, or changing actual runner authority.
+- evidence:
+  - Anti-loop enforcement test coverage.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-113 Progress Ledger Schema And Regression Fixtures
+
+- status: done
+- goal: Add a progress-ledger schema and fixtures so anti-loop evidence has a validated shape.
+- prerequisites:
+  - HQ-112 done
+- allowedFiles:
+  - `templates/progress-ledger-schema.json`
+  - `tests/fixtures/fleet/anti-loop/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md`
+  - `templates/thin-task-packet-schema.json`
+  - `templates/validation-output-summary-schema.json`
+- acceptance:
+  - Schema captures intendedGoal, filesOpened, filesEdited, validationCommandsRun, validationResult, failureFingerprint, progressClaim, evidenceForProgress, remainingGap, nextSafeAction, goalChanged, and humanInputRequired.
+  - Fixtures include one valid pass, one repeated-fingerprint stop, and one drift/repacketization case.
+  - JSON parse checks pass for schema and fixtures.
+  - Tests confirm dangerous path/command patterns remain rejected or represented only as forbidden evidence.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\progress-ledger-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires telemetry implementation, generated runtime storage, product-repo access, or all-fleet execution.
+- evidence:
+  - Progress ledger schema, fixtures, and parsing tests.
+  - Validation passed 2026-06-02 with progress-ledger schema/fixture parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-114 Approval Record Schema And Fixtures
+
+- status: done
+- goal: Define and validate exact-action approval record structure flagged by the audit.
+- prerequisites:
+  - HQ-110 done
+- allowedFiles:
+  - `templates/approval-record-schema.json`
+  - `tests/fixtures/fleet/approvals/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`
+  - `templates/thin-task-packet-schema.json`
+- acceptance:
+  - Schema requires owner, selected target, repo path if applicable, entrypoint, action, command list, expected output, approval timestamp, expiration timestamp, stop conditions, and non-authority notice.
+  - Fixtures include valid exact-action approval plus rejected missing owner, broad target, wildcard target, expired approval, reused approval, write-capable action, and phone-only approval.
+  - JSON parse checks pass for schema and fixtures.
+  - Tests confirm malformed or broad approvals cannot be represented as valid.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\approval-record-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live auth, approval execution, product-repo mutation, phone approval implementation, staging, commit, push, deploy, or secrets/auth/payments/deploy work.
+- evidence:
+  - Approval record schema and negative fixtures.
+  - Validation passed 2026-06-02 with approval-record schema/fixture parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-115 Approval Boundary Enforcement Tests
+
+- status: done
+- goal: Add tests that connect approval record schema rules to the existing approval-boundary docs.
+- prerequisites:
+  - HQ-114 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `tests/fixtures/fleet/approvals/`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/approval-record-schema.json`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- acceptance:
+  - Tests fail if approval docs lose exact-action, expiring, single-target, deny-by-default, non-inheritable, no risky phone approval, or evidence-only language.
+  - Tests fail if rejected approval fixtures are accidentally treated as valid.
+  - No live approval, auth, UI, or runtime behavior is implemented.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires UI implementation, auth implementation, product-repo access, phone approval behavior, or runtime command binding.
+- evidence:
+  - Approval boundary doc/schema regression tests.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-116 Remote Access Security Plan
+
+- status: done
+- goal: Draft a local-only remote-access security plan before any future LAN/tailnet/phone console work.
+- prerequisites:
+  - HQ-110 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- acceptance:
+  - Plan covers local-only default, LAN/private-tailnet future candidate posture, public exposure rejection, authentication/authorization, session expiration, network boundary, CSRF/clickjacking, evidence redaction, export controls, audit logging, and no-command UI surfaces.
+  - Plan states it is evidence only and does not implement remote access.
+  - Handoff points future remote planning to the plan without approving implementation.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires server setup, package install, live auth, remote exposure, public internet access, product-repo access, or UI implementation.
+- evidence:
+  - Remote security plan and handoff refresh.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-117 Remote Security Plan Regression Tests
+
+- status: done
+- goal: Add tests that lock the remote security plan and remote-access boundary to local-only/future-only posture.
+- prerequisites:
+  - HQ-116 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- acceptance:
+  - Tests fail if public exposure is not rejected for v1.
+  - Tests fail if phone mode can approve risky actions or execute commands.
+  - Tests fail if remote access plan loses authentication/session/network/redaction/no-command boundary sections.
+  - No server, UI, auth, or remote access implementation is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live network, browser app, auth code, package installs, or remote exposure.
+- evidence:
+  - Remote security posture regression tests.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-118 UI Safety Fixture Matrix
+
+- status: done
+- goal: Add mocked UI safety-state fixtures for button classes, forbidden controls, goal/loop signals, token pressure, and unstuck states.
+- prerequisites:
+  - HQ-115 done
+  - HQ-117 done
+- allowedFiles:
+  - `tests/fixtures/fleet/ui-control/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+- acceptance:
+  - Fixtures model safe, caution, approval-required, future-only, and forbidden controls.
+  - Fixtures model loop risk, token_limited, stuck_scope, stuck_authority, and risky phone approval states.
+  - Tests parse fixtures and confirm expected disabled/hidden/blocking posture.
+  - Fixtures do not implement UI code.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires a UI framework, browser test, package install, server setup, or live command binding.
+- evidence:
+  - UI safety-state fixture matrix.
+  - Validation passed 2026-06-02 with UI-control fixture JSON parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-119 UI Safety Enforcement Tests
+
+- status: done
+- goal: Add docs/fixture tests that fail if future UI safety policy would enable forbidden controls.
+- prerequisites:
+  - HQ-118 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `tests/fixtures/fleet/ui-control/`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `tests/fixtures/fleet/ui-control/`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+- acceptance:
+  - Tests fail if forbidden controls are enabled in fixtures.
+  - Tests fail if approval-required controls appear executable without exact approval.
+  - Tests fail if Unstuck fixtures imply command execution, automatic retry, lease takeover, or runtime mutation.
+  - Tests remain docs/fixture-only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires UI implementation, browser automation, product-repo access, or runtime command binding.
+- evidence:
+  - UI safety fixture enforcement tests.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-120 Evidence Digest Regression Fixtures
+
+- status: done
+- goal: Add regression fixtures for validation summaries and external audit intake digests so long logs/prose remain compact evidence.
+- prerequisites:
+  - HQ-110 done
+- allowedFiles:
+  - `tests/fixtures/fleet/evidence/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/validation-output-summary-schema.json`
+  - `templates/external-audit-intake-digest-schema.json`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+- acceptance:
+  - Fixtures include valid compact validation summary, rejected raw-log summary, valid audit digest, rejected command-like digest, and rejected missing nonAuthorityNotice digest.
+  - Tests parse fixtures and confirm compact/non-authority fields.
+  - Fixtures do not include raw full logs, product-repo paths, secrets, deploy/install/migration instructions, or command scripts.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires importing external findings as tasks, sending packages, product-repo access, or raw log dumps.
+- evidence:
+  - Evidence digest regression fixture set.
+  - Validation passed 2026-06-02 with evidence fixture JSON parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-121 Evidence Digest And Validation Summary Enforcement Tests
+
+- status: done
+- goal: Add tests that enforce compact digest/summary shapes and reject command-like evidence.
+- prerequisites:
+  - HQ-120 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `tests/fixtures/fleet/evidence/`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/HQ_IMPORT_RECON.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/validation-output-summary-schema.json`
+  - `templates/external-audit-intake-digest-schema.json`
+  - `tests/fixtures/fleet/evidence/`
+- acceptance:
+  - Tests fail if summaries/digests omit nonAuthorityNotice.
+  - Tests fail if summaries/digests include raw logs, staging/commit/push, install/deploy/migration, secret/auth/payment/deploy, lock deletion, permission widening, product-repo mutation, launch, or all-fleet command-like content as actionable steps.
+  - Import recon and token model retain compact evidence guidance.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires runtime importer changes, external package sending, product-repo access, or broad queue execution.
+- evidence:
+  - Compact evidence enforcement tests.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Next Phase Local Control-Plane Preparation Queue 2026-06-02
+
+Source evidence: Audit Guidelines Review YELLOW findings plus completed token-control/UI planning queue. This next phase remains local-only harness/docs/tests/schema preparation. It does not approve UI implementation, remote access, product-repo access, package sending, product mutation, all-fleet commands, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or runtime command binding.
+
+### HQ-122 Next Phase Transition Decision Record
+
+- status: done
+- goal: Define the next phase as local-only control-plane preparation after audit fix-ups, with explicit non-goals and readiness gates.
+- prerequisites:
+  - HQ-111 through HQ-121 done
+- allowedFiles:
+  - `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+- acceptance:
+  - Decision record separates fix-up completion, local-only schema/test preparation, future UI prototype gate, future remote security gate, and future external audit gate.
+  - Non-goals explicitly exclude product repos, live UI command binding, remote access, package sending, all-fleet commands, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, and permission widening.
+  - Handoff points to the next-phase record as evidence only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing UI, remote access, runtime command binding, or product-repo work.
+- evidence:
+  - Next phase transition decision record.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-123 Fleet Console Prototype Packet Schema
+
+- status: done
+- goal: Define a schema for future local-only Fleet Console prototype task packets before any UI code is allowed.
+- prerequisites:
+  - HQ-122 done
+- allowedFiles:
+  - `templates/fleet-console-prototype-packet-schema.json`
+  - `tests/fixtures/fleet/ui-control/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `templates/thin-task-packet-schema.json`
+- acceptance:
+  - Schema requires localOnly, evidenceOnly, allowedFiles, readFirst, acceptance, validationCommands, stopIf, disabledForbiddenControls, noCommandBinding, noRemoteAccess, noProductRepos, and nonAuthorityNotice.
+  - Fixtures include valid local mock prototype packet and rejected packet with remote access/product repo/live command binding.
+  - JSON parse checks pass for schema and fixtures.
+  - No UI code is written.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\fleet-console-prototype-packet-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating UI files, installing packages, server setup, browser tests, remote exposure, product-repo access, or command binding.
+- evidence:
+  - Fleet Console prototype packet schema and fixtures.
+  - Validation passed 2026-06-02 with Fleet Console prototype packet schema/fixture JSON parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-124 Fleet Console Mock State Schema
+
+- status: done
+- goal: Define a local mock-state schema for future console tests without reading live product state.
+- prerequisites:
+  - HQ-123 done
+- allowedFiles:
+  - `templates/fleet-console-state-schema.json`
+  - `tests/fixtures/fleet/ui-control/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`
+- acceptance:
+  - Schema models posture, operational state, approval state, token pressure, current task, evidence summaries, control states, and nonAuthorityNotice.
+  - Schema rejects product-repo paths, raw commands, secrets, auth/payment/deploy material, and live worker state.
+  - Fixtures include green local harness state, yellow blocked state, token-limited state, and forbidden-control state.
+  - JSON parse checks pass for schema and fixtures.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\fleet-console-state-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires reading live fleet state, product repos, browser UI, server setup, package installs, or runtime command binding.
+- evidence:
+  - Fleet Console mock-state schema and fixtures.
+  - Validation passed 2026-06-02 with Fleet Console mock-state schema/fixture JSON parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-125 Explicit External Audit Package Manifest Schema
+
+- status: done
+- goal: Define a manifest schema for future external audit zips so package contents remain allowlisted and evidence-only.
+- prerequisites:
+  - HQ-121 done
+- allowedFiles:
+  - `templates/external-audit-package-manifest-schema.json`
+  - `tests/fixtures/fleet/evidence/`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `templates/external-audit-intake-digest-schema.json`
+- acceptance:
+  - Schema requires packageId, preparedAt, sourceRepo, includedFiles, excludedPatterns, validationSummaryRef, evidenceOnlyNotice, noProductRepos, and noAuthorityNotice.
+  - Fixtures include valid integrated audit package manifest and rejected manifest containing product repo, `.env`, dependency folder, raw locks, unknown zip, live worker state, or command-like reviewer output.
+  - JSON parse checks pass for schema and fixtures.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\external-audit-package-manifest-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, inspecting product repos, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - External audit package manifest schema and fixtures.
+  - Validation passed 2026-06-02 with external audit package manifest schema/fixture JSON parse checks and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-126 External Audit Package Allowlist Runbook
+
+- status: done
+- goal: Write a runbook for preparing future audit packages from explicit allowlists and compact summaries.
+- prerequisites:
+  - HQ-125 done
+- allowedFiles:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/external-audit-package-manifest-schema.json`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- acceptance:
+  - Runbook gives explicit allowlist-first package steps, manual verification checklist, compact validation summary rule, and forbidden material checklist.
+  - Runbook states package creation and sending are separate human-approved actions.
+  - Handoff references the runbook as evidence only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires building package automation, sending files, product-repo inspection, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - External audit package allowlist runbook.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-127 Post-Fix-Up External Audit Refresh Prep
+
+- status: done
+- goal: Refresh the external audit prompt and package checklist after fix-up and next-phase preparation tasks pass.
+- prerequisites:
+  - HQ-110 through HQ-126 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+  - `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- acceptance:
+  - Prompt asks reviewer to re-check YELLOW findings F1-F5 and the local-only next-phase preparation artifacts.
+  - Package checklist includes only harness/docs/tests/schema evidence and compact validation summaries.
+  - Prompt reiterates reviewer output is evidence only and cannot approve execution, UI implementation, remote access, product repos, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future permission.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending the package, staging, committing, product-repo access, broad execution, remote access, or UI implementation.
+- evidence:
+  - Post-fix-up external audit refresh prompt/package checklist.
+  - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.

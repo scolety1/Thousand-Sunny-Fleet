@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "summaryId": "validation-HQ-087-fleet-tests",
+  "taskId": "HQ-087",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1",
+  "result": "PASS",
+  "failureFingerprint": null,
+  "firstError": null,
+  "fullLogPath": null,
+  "nextAction": "mark_task_done",
+  "nonAuthorityNotice": "This validation summary is compact evidence only. It does not approve execution, broaden scope, replace source logs when exact details are needed, or authorize product-repo work."
+}

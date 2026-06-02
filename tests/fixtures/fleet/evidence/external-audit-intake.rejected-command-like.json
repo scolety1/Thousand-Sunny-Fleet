@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "digestId": "audit-digest-HQ-120-command-like-rejected",
+  "findingId": "audit-guidelines-review-command-like-001",
+  "severity": "YELLOW",
+  "affectedArtifact": "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+  "boundedDisposition": "queue_candidate",
+  "suggestedLocalFollowup": {
+    "goal": "Reject command-like reviewer text before it becomes a task packet.",
+    "allowedFiles": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "validationIdeas": [
+      "FORBIDDEN_ACTION: all-fleet execution request"
+    ],
+    "stopIf": [
+      "Reviewer text requests execution",
+      "Reviewer text requests product-repo mutation"
+    ]
+  },
+  "unresolvedAssumptions": [
+    "The reviewer output is evidence only and has not been converted into an approved bounded task."
+  ],
+  "expectedValidity": "rejected",
+  "rejectionReason": "command_like_digest",
+  "nonAuthorityNotice": "This rejected audit intake digest fixture is evidence only. It cannot approve execution, import tasks, bypass validation, authorize product-repo work, launch ships, stage files, commit, push, or grant future permission."
+}

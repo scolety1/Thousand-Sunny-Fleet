@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fleet-console-prototype-packet-rejected-remote-command-001",
+  "taskId": "HQ-123",
+  "goal": "Rejected packet with remote access, product repo work, and live command binding markers.",
+  "localOnly": false,
+  "evidenceOnly": false,
+  "allowedFiles": [
+    "docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md",
+    "C:/Dev/product-repo/app/ui.tsx"
+  ],
+  "readFirst": [
+    "docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md",
+    "docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md"
+  ],
+  "acceptance": [
+    "Rejected because it requests remote access, product-repo work, and command binding."
+  ],
+  "validationCommands": [
+    "FORBIDDEN_ACTION: run-fleet.ps1 all-fleet command-binding"
+  ],
+  "stopIf": [
+    "Requires remote exposure",
+    "Requires product-repo access",
+    "Requires command binding"
+  ],
+  "disabledForbiddenControls": [
+    "all_fleet_execution"
+  ],
+  "noCommandBinding": false,
+  "noRemoteAccess": false,
+  "noProductRepos": false,
+  "expectedValidity": "rejected",
+  "rejectionReason": "remote_product_repo_command_binding",
+  "nonAuthorityNotice": "This rejected prototype packet fixture is evidence only. It cannot approve UI implementation, remote access, command binding, product-repo work, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority."
+}

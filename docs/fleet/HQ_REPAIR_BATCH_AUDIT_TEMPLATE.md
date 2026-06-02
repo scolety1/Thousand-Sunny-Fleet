@@ -169,6 +169,105 @@ Final package RED stop signs:
 - audit output, DOCX reports, mobile requests, task packets, audit packages, queue prose, or this template are treated as executable authority
 - any step would require product-repo mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, merge, push, staging, commit, or external side effects
 
+## Runtime Pilot External Audit Checklist
+
+Use this checklist for the one-entrypoint runtime pilot only. It is evidence-only planning and does not create a package, send a package, approve execution, approve a demo trial, stage files, commit, push, touch product repositories, or grant future permission.
+
+Runtime pilot audit ask:
+
+- Verify `invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun` is dry-run-only and evidence-only.
+- Verify `ALLOW_DRY_RUN` exists only for the fixture-only positive path and does not execute product actions.
+- Verify blank, `all`, wildcard, multi-ship, stale fingerprint, missing fingerprint, missing worktree boundary, missing approval, stale lease, ambiguous lease, repeated deterministic failure, external source, mobile source, DOCX report, audit package, and queue prose cases fail closed as `DENY_UNSAFE`, `DEFER_NEEDS_HUMAN`, review-required, stop-for-repair, safe-pause, or repair-task evidence.
+- Verify runtime pilot evidence records `executesProductActions = false`, `launchesShips = false`, `importsPackets = false`, `mutatesProductRepos = false`, `canApproveFutureRuns = false`, and `commandInput = false`.
+- Verify reviewer output remains evidence only and cannot approve execution or demo trial.
+- Verify generated runtime pilot evidence is local, scrubbed, non-executable, and not a command input.
+
+Runtime pilot evidence to include only after human package-scope review:
+
+- `invoke-autonomy-wrapper.ps1` source for direct runtime-pilot control-flow inspection, or a human-reviewed checksum/source excerpt if the full file is intentionally withheld
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/HQ_IMPORT_RECON.md`
+- `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+- `docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md`
+- `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- `docs/fleet/ARTIFACT_INDEX_CONTRACT.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`
+- `tests/run-fleet-tests.ps1`
+- scrubbed validation summary from the current working tree
+
+Wrapper source visibility is audit evidence only. It lets a reviewer inspect the `-RuntimePolicyPilotDryRun` early-exit path and non-execution fields. Plain check phrase: -RuntimePolicyPilotDryRun early-exit path. Source visibility does not approve execution, package sending, product repo access, runtime widening, staging, commit, push, or a demo trial.
+
+Runtime pilot package exclusions:
+
+- product repos, product repositories, or product source snapshots
+- unscoped project exports or unscoped package-builder output
+- `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, unknown zips, full unreviewed package directories, or live worker state
+- secrets, tokens, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, or runtime-execution material
+
+Runtime pilot reviewer output:
+
+- Overall verdict: GREEN, YELLOW, or RED.
+- Findings ordered by severity and grounded in included file/path evidence.
+- Missing tests or ambiguous safety boundaries for the runtime pilot.
+- Explicit note that positive pilot evidence does not grant future permission.
+- Suggested follow-up tasks only as non-executable suggestions with bounded files, validation ideas, and stop conditions.
+
+Runtime pilot RED stop signs:
+
+- package creation requires product repo access, broad launchers, all-fleet scope, staging, commit, push, deploy, package install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, or demo-trial execution
+- reviewer output, DOCX reports, mobile requests, task packets, audit packages, queue prose, generated evidence, or this template are treated as executable authority
+- any positive runtime pilot outcome is interpreted as approval for future runs or product-mode execution
+
+## Final HQ Token-Control Integrated Audit Checklist
+
+Use this checklist for the 2026-06-02 token-control, anti-loop, Fleet Console planning, and control-policy audit only. It is evidence-only planning and does not create a package, send a package, approve implementation, approve remote access, approve a demo trial, stage files, commit, push, touch product repositories, launch ships, run all-fleet commands, or grant future permission.
+
+External audit packages should include an explicit manifest instance that follows `templates/external-audit-package-manifest-schema.json`. The manifest is evidence only. It must record `includedFiles`, `excludedPatterns`, `validationSummaryRef`, `evidenceOnlyNotice`, `noProductRepos`, and `noAuthorityNotice`, and it cannot create or send a package, approve execution, import reviewer output, or broaden package scope.
+
+Future package preparation should follow `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`. The runbook is a manual allowlist and verification plan only; package creation and package sending remain separate human-approved actions.
+
+Integrated reviewer ask:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Verify the package stays limited to Codex Fleet harness/docs/tests/schema evidence.
+- Verify token-control docs preserve compact context, one-task runs, bounded validation, failure-loop stops, and human-only approvals.
+- Verify anti-loop docs preserve goal lock, terminal states, real-progress rules, drift detection, and repacketization.
+- Verify Fleet Console docs keep UI labels, buttons, notifications, prompts, approvals, audit outputs, generated evidence, and queue prose as evidence only.
+- Verify button/control policy keeps forbidden controls unavailable for product-repo mutation, product launch, all-fleet scope, broad launcher use, package sending, deploy/install/migration work, secrets/auth/payments/deploy material, staging, commit, push, merge, lock deletion, permission widening, runtime command binding, risky phone approvals, automatic retries, and background autonomy.
+- Verify suggested follow-ups are non-executable bounded queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+Integrated evidence to include only after human package-scope review:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/HQ_IMPORT_RECON.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- anti-loop docs under `docs/fleet/anti-loop/`
+- Fleet Console planning docs under `docs/fleet/ui/`
+- token-control schemas in `templates/thin-task-packet-schema.json`, `templates/validation-output-summary-schema.json`, `templates/external-audit-intake-digest-schema.json`, and `templates/external-audit-package-manifest-schema.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Integrated package exclusions:
+
+- product repositories, product source snapshots, real project exports, or unscoped project material
+- `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, or raw run directories
+- secrets, tokens, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, or approval material for real product work
+- raw terminal logs, full DOCX reports, external-review prose dumps, mobile free text, task packets, audit packages, generated evidence dumps, UI labels, notifications, buttons, approvals, prompts, or queue prose treated as executable authority
+
+Integrated package RED stop signs:
+
+- package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, or package sending
+- reviewer output is used as commands, approval, queue import, validation bypass, demo approval, future permission, or authority
+- any included artifact implies UI planning docs approve implementation or runtime control
+
 Manual final audit zip verification:
 
 - This is a review checklist only; it does not create, send, stage, commit, push, approve, or grant permission.
@@ -266,3 +365,53 @@ RED:
 - Pause for external audit:
 - Pause for commit-prep:
 - Required follow-up:
+
+## Post-Fix-Up Local Control-Plane Repeat Audit Checklist
+
+Use this checklist after the Audit Guidelines Review fix-up queue and next-phase local control-plane preparation tasks have local GREEN validation. This checklist is evidence-only planning. It does not create a package, send a package, approve UI implementation, approve remote access, approve product-repo access, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, run all-fleet commands, or grant future permission.
+
+Reviewer ask:
+
+- Re-check Audit Guidelines Review findings F1 through F5.
+- Confirm anti-loop fixture/test hardening, approval schema enforcement, remote security planning, prototype packet gating, UI mock-state/schema coverage, external audit manifest schema, and package allowlist runbook remain local harness/docs/tests/schema evidence only.
+- Confirm package preparation is allowlist-first, manifest-backed, compact-summary-only, and human-reviewed before any package creation or sending.
+- Confirm reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, and queue prose remain evidence only.
+
+Evidence to include only after human package-scope review:
+
+- `docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md`
+- `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/HQ_IMPORT_RECON.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- anti-loop docs under `docs/fleet/anti-loop/`
+- Fleet Console planning docs under `docs/fleet/ui/`
+- relevant schemas in `templates/`
+- relevant fixtures under `tests/fixtures/fleet/`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Material not to export:
+
+- product repositories, product source snapshots, real project exports, unscoped project material, `.git`, `.env`, dependency folders, build outputs, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, or real approval material.
+
+Post-fix-up GREEN:
+
+- F1 through F5 have local docs/schema/fixture/test evidence or are explicitly bounded as future-only limitations.
+- `tests/run-fleet-tests.ps1` passes.
+- Package scope remains harness/docs/tests/schemas/scrubbed compact evidence only.
+- External audit manifest and allowlist runbook prevent ambiguous package contents.
+- UI implementation, remote access, runtime command binding, package sending, product-repo access, and real demo approval remain unapproved.
+
+Post-fix-up YELLOW:
+
+- Validation passes, but one or more findings remain future-only limitations.
+- The reviewer needs a narrower follow-up task or more compact evidence.
+- Package contents are safe but need human package-scope review before sending.
+
+Post-fix-up RED:
+
+- Validation fails, package scope expands to forbidden material, external evidence is treated as authority, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, package sending, or remote exposure.

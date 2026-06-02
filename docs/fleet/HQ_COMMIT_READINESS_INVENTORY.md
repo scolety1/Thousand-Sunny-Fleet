@@ -150,6 +150,16 @@ Staged-file risk outcomes:
 - YELLOW: generated evidence, audit packages, state/status artifacts, `docs/codex/` evidence, or harness scripts need human review before staging or commit.
 - RED: any excluded class is staged, any path is ambiguous, or review would require broad staging, commit, push, delete, rewrite, product-repo work, lock deletion, permission widening, package install, migration, deploy, or secrets/auth/payments touch.
 
+## Current Repair Evidence Vs Future Demo Evidence
+
+Current repair evidence is the evidence already produced by the HQ repair and runtime-pilot hardening work. It includes Fleet policy docs, contract docs, schemas, focused tests, harness/runtime script changes, findings ledgers, generated audit-package plans, scrubbed validation summaries, `docs/codex` evidence, and fleet state/status artifacts. These items may be reviewed for a later checkpoint, but they are not a demo trial record and must not be treated as proof that a real project was selected, inspected, or safely exercised.
+
+Generated audit packages, audit package manifests, package prompts, extracted external report text, and reviewer outputs are evidence-only review material. They should stay local by default unless a human explicitly selects them for a checkpoint scope after export-safety review. They do not approve staging, committing, pushing, product-repo access, demo execution, or future permission.
+
+Future demo evidence is separate. It may be created only after a separate approval packet is filled with exact current values for one project, one absolute repo path, one no-op/read-only command list, expected local evidence paths, owner, approval timestamp, expiration timestamp, and stop conditions. Future demo evidence must not be mixed into the current repair checkpoint by accident.
+
+Commit-scope posture remains YELLOW until a human chooses explicit dispositions for generated audit packages, `docs/codex` evidence, fleet state/status artifacts, runtime script changes, and any future demo evidence. If any path is ambiguous, generated, sensitive, product-repo-related, or likely to be mistaken for executable instructions, keep it out of the checkpoint or mark it `human_decision_needed`.
+
 ## Suggested Checkpoint Strategy
 
 This section is advisory only, not a command.

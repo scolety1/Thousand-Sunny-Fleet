@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "ledgerId": "progress-ledger-repeated-fingerprint-stop",
+  "taskId": "HQ-113",
+  "intendedGoal": "Represent repeated validation failure as a stop condition instead of blind retry.",
+  "filesOpened": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md"
+  ],
+  "filesEdited": [
+    "tests/fixtures/fleet/anti-loop/progress-ledger.repeated-fingerprint-stop.json"
+  ],
+  "validationCommandsRun": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "validationResult": "fail",
+  "failureFingerprint": {
+    "kind": "validation",
+    "taskId": "HQ-113",
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1",
+    "primarySignal": "same anti-loop assertion failed twice",
+    "hypothesis": "same fixture assertion wording fix attempted twice",
+    "affectedFiles": [
+      "tests/run-fleet-tests.ps1",
+      "tests/fixtures/fleet/anti-loop/progress-ledger.repeated-fingerprint-stop.json"
+    ]
+  },
+  "progressClaim": "Repeated fingerprint was captured and stopped.",
+  "evidenceForProgress": [
+    "The ledger records a stable failure fingerprint.",
+    "The next safe action is repacketization, not another blind validation rerun."
+  ],
+  "remainingGap": "A new bounded hypothesis is required before another attempt.",
+  "nextSafeAction": "needs_repacketization",
+  "goalChanged": false,
+  "humanInputRequired": false,
+  "forbiddenEvidence": [
+    {
+      "contentClassification": "none",
+      "evidenceSummary": "No forbidden path or command content was needed for this repeated-fingerprint stop fixture.",
+      "safeDisposition": "not_applicable"
+    }
+  ],
+  "nonAuthorityNotice": "This progress ledger is compact evidence only and cannot approve product-repo access, execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+}

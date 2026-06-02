@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseId": "doc-churn.wording-only",
+  "findingId": "F1",
+  "scenario": "A run edits the same allowed doc with wording-only changes that do not satisfy a new acceptance bullet.",
+  "input": {
+    "selectedTaskId": "HQ-FIXTURE",
+    "filesOpened": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+      "docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md"
+    ],
+    "filesEdited": [
+      "docs/fleet/anti-loop/GOAL_LOCK_AND_EXIT_CRITERIA.md"
+    ],
+    "validationCommandsRun": [],
+    "validationResult": "notRun",
+    "progressClaim": "made wording clearer",
+    "acceptanceMapping": []
+  },
+  "expected": {
+    "terminalState": "abandonedDueToNoProgress",
+    "stopReason": "wording-only-no-acceptance-mapping",
+    "nextSafeAction": "map edits to acceptance or repacketize"
+  },
+  "safety": {
+    "noProductRepos": true,
+    "evidenceOnly": true,
+    "nonAuthorityNotice": "This fixture is evidence only and cannot approve retries, execution, product-repo access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, or future permission."
+  }
+}

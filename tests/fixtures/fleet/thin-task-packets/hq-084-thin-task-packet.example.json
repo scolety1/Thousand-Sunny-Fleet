@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "packetId": "packet-HQ-084-validation-rerun",
+  "taskId": "HQ-084",
+  "mode": "validation_only",
+  "goal": "Rerun the interrupted post-HQ-082 fleet validation once and reconcile status only.",
+  "stableContextCapsuleRef": "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+  "allowedFiles": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+    "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md"
+  ],
+  "readFirst": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+    "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md"
+  ],
+  "acceptance": [
+    "Run the fleet test command exactly once.",
+    "If validation passes, record the rerun evidence and leave HQ-085 as the next recommended task.",
+    "If validation fails or is interrupted, record one concise fingerprint and stop without fixes."
+  ],
+  "validationCommands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "stopIf": [
+    "Any failure requires edits outside allowedFiles.",
+    "The task expands into fixes, feature work, package creation, product repos, all-fleet execution, staging, commit, push, deploy, install, migration, secrets/auth/payments/deploy material, lock deletion, or permission widening.",
+    "A second task would be started in the same run."
+  ],
+  "statusUpdateRules": {
+    "onValidationPass": "mark_this_task_done",
+    "onValidationFail": "patch_only_task_caused_failures_or_mark_blocked",
+    "onScopeExpansion": "mark_this_task_blocked_and_stop",
+    "queueFile": "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "oneTaskOnly": true
+  },
+  "evidenceDigest": {
+    "sourceRefs": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+      "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+      "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md"
+    ],
+    "nonAuthorityNotice": "This thin task packet is evidence and bounded task shape only; it does not approve execution beyond the listed validation-only task.",
+    "expectedEvidence": [
+      "Fleet test rerun result",
+      "Queue/status reconciliation for HQ-084 only",
+      "No implementation, package creation, product repo access, staging, commit, push, deploy, install, migration, lock deletion, or permission widening"
+    ]
+  }
+}

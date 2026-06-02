@@ -1,0 +1,25 @@
+{
+  "fixtureId": "ui-control-future-only-unstuck-stuck-scope",
+  "hqTaskId": "HQ-118",
+  "controlName": "Unstuck",
+  "controlClass": "future-only",
+  "expectedTreatment": "future_only_copy_repacketization",
+  "signals": {
+    "loopRisk": "high",
+    "tokenPressure": "high",
+    "stuckState": "stuck_scope",
+    "approvalState": "not_required_for_read_report",
+    "riskyPhoneApproval": false
+  },
+  "expectedPosture": {
+    "enabled": false,
+    "hidden": false,
+    "blocking": true,
+    "executesCommands": false,
+    "canApprove": false,
+    "canMutateProductRepos": false
+  },
+  "nextSafeAction": "request_repacketization",
+  "implementsUiCode": false,
+  "nonAuthorityNotice": "This fixture is evidence only. It cannot approve, execute, import, bypass validation, touch product repos, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission."
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "stateId": "fleet-console-state-green-local-harness",
+  "hqTaskId": "HQ-124",
+  "generatedFrom": "local_mock_fixture",
+  "fleetPosture": "GREEN",
+  "operationalState": "parked",
+  "approvalState": "not_required_for_read_report",
+  "tokenPressure": "normal",
+  "currentTask": {
+    "taskId": "HQ-124",
+    "queueSection": "Next Phase Local Control-Plane Preparation Queue 2026-06-02",
+    "goalLockStatus": "locked",
+    "progressScore": 100,
+    "loopRisk": "low",
+    "driftWarning": "none",
+    "nextSafeAction": "continue_current_task",
+    "allowedFiles": [
+      "templates/fleet-console-state-schema.json",
+      "tests/fixtures/fleet/ui-control/",
+      "tests/run-fleet-tests.ps1",
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "readFirst": [
+      "docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md",
+      "docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md",
+      "docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md"
+    ],
+    "validationCommandRefs": [
+      "fleet-tests"
+    ]
+  },
+  "evidenceSummaries": [
+    {
+      "summaryId": "validation-green",
+      "kind": "validation_summary",
+      "sourceRef": "docs/codex/test-summary.md",
+      "result": "pass",
+      "compactSummary": "Local harness validation summary is compact and evidence-only.",
+      "nonAuthorityNotice": "This state fixture summary is evidence only. It cannot approve, execute, import, bypass validation, touch product repos, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission."
+    }
+  ],
+  "controlStates": [
+    {
+      "controlName": "View Fleet Status",
+      "controlClass": "safe",
+      "enabled": true,
+      "hidden": false,
+      "blocking": false,
+      "executesCommands": false,
+      "canApprove": false,
+      "canMutateProductRepos": false,
+      "nextSafeAction": "continue_current_task"
+    }
+  ],
+  "liveWorkerState": false,
+  "noProductRepos": true,
+  "noRawCommands": true,
+  "evidenceOnly": true,
+  "nonAuthorityNotice": "This local mock state fixture is evidence only. It cannot approve UI implementation, remote access, command binding, product-repo work, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority."
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "digestId": "audit-digest-HQ-120-valid-local-001",
+  "findingId": "audit-guidelines-review-fixture-001",
+  "severity": "INFO",
+  "affectedArtifact": "docs/fleet/HQ_IMPORT_RECON.md",
+  "boundedDisposition": "queue_candidate",
+  "suggestedLocalFollowup": {
+    "goal": "Keep external audit findings compact and non-authoritative before queue authoring.",
+    "allowedFiles": [
+      "docs/fleet/HQ_IMPORT_RECON.md",
+      "tests/fixtures/fleet/evidence/",
+      "tests/run-fleet-tests.ps1"
+    ],
+    "validationIdeas": [
+      "Parse evidence digest fixtures as JSON",
+      "Run the bounded fleet validation command"
+    ],
+    "stopIf": [
+      "Requires product-repo access",
+      "Requires importing audit prose as tasks",
+      "Requires runtime mutation"
+    ]
+  },
+  "unresolvedAssumptions": [
+    "External audit prose remains evidence until converted into a bounded queue item."
+  ],
+  "nonAuthorityNotice": "This audit intake digest is evidence only. It cannot approve execution, import tasks, bypass validation, authorize product-repo work, launch ships, stage files, commit, push, or grant future permission."
+}

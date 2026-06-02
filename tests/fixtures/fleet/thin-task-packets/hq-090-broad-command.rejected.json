@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "packetId": "packet-HQ-090-broad-command",
+  "taskId": "HQ-090",
+  "mode": "docs_and_tests",
+  "goal": "Rejected fixture that includes a broad all-fleet command so tests can prove command caps fail closed.",
+  "stableContextCapsuleRef": "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+  "allowedFiles": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "tests/run-fleet-tests.ps1"
+  ],
+  "readFirst": [
+    "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+  ],
+  "acceptance": [
+    "Rejected because validation command attempts a forbidden broad fleet command."
+  ],
+  "validationCommands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run-fleet.ps1"
+  ],
+  "stopIf": [
+    "Requires broad all-fleet command."
+  ],
+  "statusUpdateRules": {
+    "onValidationPass": "mark_this_task_done",
+    "onValidationFail": "patch_only_task_caused_failures_or_mark_blocked",
+    "onScopeExpansion": "mark_this_task_blocked_and_stop",
+    "queueFile": "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+    "oneTaskOnly": true
+  },
+  "evidenceDigest": {
+    "sourceRefs": [
+      "docs/fleet/HQ_REPAIR_TASK_QUEUE.md"
+    ],
+    "nonAuthorityNotice": "Rejected packet fixture is evidence only and does not approve broad commands.",
+    "expectedEvidence": [
+      "Test proves broad command patterns remain invalid for bounded implementation packets."
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "packageId": "external-audit-package-rejected-forbidden-material-20260602",
+  "preparedAt": "2026-06-02T09:05:00Z",
+  "sourceRepo": "mixed-product-and-harness",
+  "packagePurpose": "token-control-integrated-audit",
+  "includedFiles": [
+    {
+      "path": "C:/Dev/product-repo/src/App.tsx",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rejected marker for product repo material."
+    },
+    {
+      "path": ".env",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rejected marker for environment file material."
+    },
+    {
+      "path": "node_modules/example/index.js",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rejected marker for dependency folder material."
+    },
+    {
+      "path": ".codex-local/locks/live.lock",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rejected marker for raw lock material."
+    },
+    {
+      "path": "out/unknown.zip",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rejected marker for unknown zip material."
+    },
+    {
+      "path": "fleet/state/live-worker-state.json",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rejected marker for live worker state material."
+    },
+    {
+      "path": "reviewer-output/run-all-fleet-now.txt",
+      "kind": "summary",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": true,
+      "reviewerOutputSnippet": "Reviewer said to run all-fleet now.",
+      "notes": "Rejected marker for command-like reviewer output."
+    }
+  ],
+  "excludedPatterns": [
+    ".git",
+    ".env",
+    "product repositories",
+    "product source snapshots",
+    "node_modules",
+    "dist",
+    "build",
+    "raw locks",
+    "unknown zip files",
+    "live worker state",
+    "secrets",
+    "credentials",
+    "private keys",
+    "auth material",
+    "payment material",
+    "deploy material",
+    "migration material",
+    "package-install material"
+  ],
+  "validationSummaryRef": "docs/codex/test-summary.md",
+  "externalAuditDigestSchemaRef": "templates/external-audit-intake-digest-schema.json",
+  "evidenceOnlyNotice": "This rejected manifest fixture is evidence only. It cannot create, send, approve, execute, import, or authorize any task, command, product repository access, product launch, or future run.",
+  "noProductRepos": true,
+  "noAuthorityNotice": "This rejected manifest fixture cannot approve a demo, bypass local validation, import reviewer output as tasks, grant future permission, stage files, commit, push, deploy, install packages, run migrations, touch secrets, or widen permissions.",
+  "expectedValidity": "rejected",
+  "rejectionReason": "contains_forbidden_package_material"
+}

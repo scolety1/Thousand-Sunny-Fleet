@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "recordId": "approval-rejected-wildcard-target",
+  "taskId": "HQ-114",
+  "approvalState": "denied",
+  "owner": "Captain",
+  "selectedTarget": {
+    "targetType": "project",
+    "targetId": "*",
+    "singleTargetOnly": false
+  },
+  "repoPathRequired": false,
+  "repoPath": null,
+  "entrypoint": "fixture-only-demo-readiness-example",
+  "action": "manual read-only single-project inspection only",
+  "commandList": [
+    "fixture-only no-op shape check"
+  ],
+  "expectedOutput": [
+    ".codex-local/fixtures/demo-trial/evidence/fixture-report.md"
+  ],
+  "approvedAt": "2026-06-02T12:00:00Z",
+  "expiresAt": "2026-06-02T12:30:00Z",
+  "stopConditions": [
+    "stop because wildcard target is denied"
+  ],
+  "approvalChannel": "fixture_evidence",
+  "validationDecision": "deny_broad_scope",
+  "denialReason": "wildcard target is not exact-action-bound",
+  "reuseStatus": "not_applicable",
+  "nonAuthorityNotice": "This rejected fixture is evidence only and cannot approve execution or product-repo work."
+}

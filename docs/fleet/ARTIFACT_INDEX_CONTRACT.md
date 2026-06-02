@@ -52,6 +52,8 @@ Existing Fleet artifacts map to these stable types:
 | `control-room-report` | `invoke-control-room.ps1` markdown/json outputs |
 | `safe-pause` | Stage 10 resume metadata and weekly preview plans |
 | `diff-snapshot` | sanitized changed-source snapshots and diffs in audit packages |
+| `runtime-pilot-evidence` | `invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun` JSON output |
+| `runtime-pilot-report` | `invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun` Markdown output |
 
 ## Retention Classes
 
@@ -90,6 +92,7 @@ Known source command families:
 - `invoke-mobile-console.ps1`
 - `invoke-control-room.ps1`
 - `invoke-overnight-mode.ps1`
+- `invoke-autonomy-wrapper.ps1`
 - `tests/run-fleet-tests.ps1`
 - `manual-captain-note`
 

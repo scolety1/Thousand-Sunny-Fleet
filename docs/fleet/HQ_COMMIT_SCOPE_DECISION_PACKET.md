@@ -175,6 +175,25 @@ These groups need human choice before staging:
 
 If a file's purpose is unclear, leave it unstaged and record the ambiguity. Do not delete or revert it from this packet.
 
+## Repair Evidence And Future Demo Evidence Boundary
+
+Existing repair/audit evidence means the current HQ remediation record: policy docs, schemas, tests, harness/runtime script changes, findings ledgers, generated audit-package plans, scrubbed validation summaries, `docs/codex` evidence, fleet state/status artifacts, and local audit-package material. These may support a human checkpoint review, but they are not future demo evidence and must not be interpreted as proof that any real product repository was selected, inspected, or run.
+
+Future demo evidence must be created only after a separate approval packet is complete and current. That future packet must name exactly one project, one absolute repo path, one no-op/read-only command list, expected evidence paths, owner, approval timestamp, expiration timestamp, and stop conditions. Until then, no file in the current repair checkpoint should be labeled or committed as demo-run output.
+
+Checkpoint reviewers should keep these dispositions distinct:
+
+| Evidence class | Default disposition before human choice |
+| --- | --- |
+| Fleet policy docs, schemas, and tests | candidate checkpoint group after review |
+| Harness/runtime script changes | review separately from policy docs |
+| Generated audit packages and reviewer outputs | keep local by default; export-safety review required |
+| `docs/codex` evidence | review-needed local evidence |
+| Fleet state/status artifacts | review-needed generated state |
+| Future demo evidence | absent until a separate approval packet is filled |
+
+Mixing future demo evidence into the current repair checkpoint keeps posture YELLOW or RED. It is RED if the mix would imply demo approval, product-repo access, staging, commit, push, deletion, rewrite, broad git commands, product mutation, ship launch, deploy, install, migration, secrets/auth/payments/deploy access, lock deletion, or permission widening.
+
 ## Pre-Commit Review Checklist
 
 Before any checkpoint commit, a human should confirm:

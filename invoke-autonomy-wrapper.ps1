@@ -21,6 +21,12 @@ param(
     [int]$MaxAuditPackages = 1,
     [int]$MaxTaskPacketImports = 1,
     [int]$StopBeforeRateLimitPercent = 3,
+    [switch]$RuntimePolicyPilotDryRun,
+    [string]$RuntimePilotAction = "RUN_ONE_BATCH",
+    [string]$RuntimePilotRepoFingerprintRef = "repo:fingerprint:fixture",
+    [string]$RuntimePilotWorktreeBoundaryRef = "worktree:boundary:fixture",
+    [string]$RuntimePilotBudgetRecordRef = "budget:fixture",
+    [switch]$RuntimePilotCaptainApproval,
     [string]$ReportPath = "",
     [string]$JsonReportPath = ""
 )
@@ -38,6 +44,32 @@ function Resolve-Stage8Path {
     return [System.IO.Path]::GetFullPath((Join-Path $fleetRoot $Path))
 }
 
+function Test-Stage8RuntimePilotEvidencePath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$FleetRoot
+    )
+
+    $rootFull = [System.IO.Path]::GetFullPath($FleetRoot)
+    if (!$rootFull.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $rootFull += [System.IO.Path]::DirectorySeparatorChar
+    }
+    $fullPath = Resolve-Stage8Path $Path
+    if (!$fullPath.StartsWith($rootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Runtime pilot evidence path must stay inside the fleet root: $Path"
+    }
+
+    $relative = $fullPath.Substring($rootFull.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar).Replace("\", "/")
+    $allowed = (
+        $relative -match "^(out/stage8-autonomy/|out/runtime-pilot/|\.codex-local/fixtures/|\.codex-local/runtime-pilot/)" -and
+        $relative -notmatch "(?i)(^|/)(\.git|node_modules|dist|build)(/|$)|(^|/)\.env($|/)|secret|token|credential|private[-_]?key|auth|payment|stripe|deploy|migration"
+    )
+    if (!$allowed) {
+        throw "Runtime pilot evidence path must use local harness evidence roots or test fixtures: $relative"
+    }
+    return $fullPath
+}
+
 $started = Get-Date
 $runId = "stage8-cycle-" + $started.ToString("yyyyMMdd-HHmmss-fff") + "-" + ([guid]::NewGuid().ToString("N").Substring(0, 8))
 if ([string]::IsNullOrWhiteSpace($ReportPath)) { $ReportPath = "out\stage8-autonomy\$runId\cycle-summary.md" }
@@ -52,6 +84,116 @@ $shipResults = @()
 $scopeResult = $null
 $budget = New-FleetAutonomyBudget -MaxCycles $MaxCycles -MaxRuntimeMinutes $MaxRuntimeMinutes -MaxShips $MaxShips -MaxRunBatchesPerShip $MaxRunBatchesPerShip -MaxRepairAttempts $MaxRepairAttempts -MaxAuditPackages $MaxAuditPackages -MaxTaskPacketImports $MaxTaskPacketImports -LowTokenMode:$LowTokenMode -StopBeforeRateLimitPercent $StopBeforeRateLimitPercent
 $approvedPacketEvidenceResult = Test-FleetApprovedPacketEvidence -Path $ApprovedPacketEvidence -FleetRoot $fleetRoot
+
+if ($RuntimePolicyPilotDryRun) {
+    $reportFull = Test-Stage8RuntimePilotEvidencePath -Path $ReportPath -FleetRoot $fleetRoot
+    $jsonFull = Test-Stage8RuntimePilotEvidencePath -Path $JsonReportPath -FleetRoot $fleetRoot
+    $shipForPolicy = ""
+    $selectedShipValues = @($Ship | ForEach-Object { [string]$_ } | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($selectedShipValues.Count -gt 0) {
+        $shipForPolicy = ($selectedShipValues -join ",")
+    } elseif ($Preset -eq "fixture-only") {
+        $shipForPolicy = "FixtureShip"
+    }
+
+    $policyDecision = New-FleetRuntimePolicyDecisionDryRun `
+        -SelectedShipId $shipForPolicy `
+        -Entrypoint "invoke-autonomy-wrapper.ps1" `
+        -Action $RuntimePilotAction `
+        -RepoFingerprintRef $RuntimePilotRepoFingerprintRef `
+        -WorktreeBoundaryRef $RuntimePilotWorktreeBoundaryRef `
+        -BudgetRecordRef $RuntimePilotBudgetRecordRef `
+        -CaptainApproval:$RuntimePilotCaptainApproval `
+        -IncludeEvidenceBundle `
+        -LeaseHeartbeatRef "lease:heartbeat:fixture" `
+        -FailureFingerprintRef "failure:fingerprint:fixture" `
+        -SourceProvenanceType "local_fixture" `
+        -SourceProvenanceRef "fixture://runtime-policy-pilot/invoke-autonomy-wrapper" `
+        -GeneratedAt $started `
+        -EvidenceRefs @("evidence://runtime-policy-pilot/invoke-autonomy-wrapper")
+
+    $pilotStatus = if ($policyDecision.dryRunResult -eq "ALLOW_DRY_RUN") { "GREEN" } elseif ($policyDecision.dryRunResult -eq "DEFER_NEEDS_HUMAN") { "YELLOW" } else { "RED" }
+    $pilotResult = [pscustomobject]@{
+        schemaVersion = 1
+        runId = $runId
+        stage = "Runtime Enforcement Pilot"
+        mode = "runtime-policy-pilot-dry-run"
+        entrypoint = "invoke-autonomy-wrapper.ps1"
+        executeRequested = [bool]$Execute
+        executesProductActions = $false
+        launchesShips = $false
+        importsPackets = $false
+        mutatesProductRepos = $false
+        status = $pilotStatus
+        nonExecutable = $true
+        canApproveFutureRuns = $false
+        commandInput = $false
+        startedAt = $started.ToUniversalTime().ToString("o")
+        endedAt = (Get-Date).ToUniversalTime().ToString("o")
+        generatedAt = $started.ToUniversalTime().ToString("o")
+        evidenceRefs = @($policyDecision.evidenceRefs)
+        denialOrDeferReason = $policyDecision.denialReason
+        policyDecision = $policyDecision
+        selectedShips = @($shipForPolicy)
+        evidenceArtifacts = @(
+            [pscustomobject]@{ path = $jsonFull; artifactType = "runtime-pilot-evidence"; sourceCommand = "invoke-autonomy-wrapper.ps1"; nonExecutable = $true },
+            [pscustomobject]@{ path = $reportFull; artifactType = "runtime-pilot-report"; sourceCommand = "invoke-autonomy-wrapper.ps1"; nonExecutable = $true }
+        )
+        nextCaptainAction = if ($policyDecision.dryRunResult -eq "ALLOW_DRY_RUN") { "Review dry-run evidence only; this pilot did not execute product actions." } elseif ($policyDecision.dryRunResult -eq "DEFER_NEEDS_HUMAN") { "Provide exact-action human approval or missing evidence before any later task." } else { "Repair denied or unsafe inputs before retrying the dry-run pilot." }
+    }
+
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $jsonFull) | Out-Null
+    $pilotResult | ConvertTo-Json -Depth 12 | Set-Content -Path $jsonFull -Encoding UTF8
+
+    $pilotLines = @(
+        "# Runtime Policy Pilot Dry Run",
+        "",
+        "## Captain Summary",
+        "",
+        "- Status: $pilotStatus",
+        "- Entrypoint: invoke-autonomy-wrapper.ps1",
+        "- Mode: runtime-policy-pilot-dry-run",
+        "- Execute requested: $([bool]$Execute)",
+        "- Executes product actions: false",
+        "- Launches ships: false",
+        "- Imports packets: false",
+        "- Mutates product repos: false",
+        "- Non-executable: true",
+        "- Can approve future runs: false",
+        "- Command input: false",
+        "- Dry-run result: $($policyDecision.dryRunResult)",
+        "- Decision: $($policyDecision.decision)",
+        "- Denial/defer reason: $($policyDecision.denialReason)",
+        "",
+        "## Policy Evidence",
+        "",
+        "- Selected ship: $shipForPolicy",
+        "- Action: $($policyDecision.action)",
+        "- Repo fingerprint ref: $($policyDecision.repoFingerprintRef)",
+        "- Worktree boundary ref: $($policyDecision.worktreeBoundaryRef)",
+        "- Budget record ref: $($policyDecision.budgetRecordRef)",
+        "- Lease heartbeat ref: $($policyDecision.evidenceBundle.leaseHeartbeatRef)",
+        "- Failure fingerprint ref: $($policyDecision.evidenceBundle.failureFingerprintRef)",
+        "- Approval evidence ref: $($policyDecision.evidenceBundle.approvalEvidenceRef)",
+        "- Source provenance: $($policyDecision.evidenceBundle.sourceProvenance.sourceType) / $($policyDecision.evidenceBundle.sourceProvenance.sourceRef)",
+        "- Evidence refs: $(@($policyDecision.evidenceRefs) -join ', ')",
+        "- JSON evidence path: $jsonFull",
+        "- Report evidence path: $reportFull",
+        "",
+        "## Next Captain Action",
+        "",
+        $pilotResult.nextCaptainAction
+    )
+
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $reportFull) | Out-Null
+    $pilotLines | Set-Content -Path $reportFull -Encoding UTF8
+
+    Write-Host "RUNTIME_POLICY_PILOT_STATUS: $pilotStatus"
+    Write-Host "RUNTIME_POLICY_PILOT_RESULT: $($policyDecision.dryRunResult)"
+    Write-Host "RUNTIME_POLICY_PILOT_REPORT: $reportFull"
+    Write-Host "RUNTIME_POLICY_PILOT_JSON: $jsonFull"
+    exit 0
+}
 
 try {
     if ($budget.maxCycles -ne 1) { throw "Stage 8 only supports one bounded cycle; MaxCycles must be 1." }
