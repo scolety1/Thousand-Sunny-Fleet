@@ -470,3 +470,62 @@ Post-prototype YELLOW:
 Post-prototype RED:
 
 - Validation fails, package scope expands to forbidden material, UI evidence is treated as authority, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, remote access, package sending, or non-mock UI implementation.
+
+## Post-Polish Static Prototype Audit Checklist
+
+Use this checklist after the post-GREEN prototype polish and controlled hardening queue has local GREEN validation. This checklist is evidence-only planning. It does not create a package, send a package, approve UI implementation beyond bounded static mocks, approve remote access, approve product-repo access, approve runtime command binding, approve package sending, approve phone approvals, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, run all-fleet commands, or grant future permission.
+
+Reviewer ask:
+
+- Audit the post-polish static prototype hardening, accessibility checklist, forbidden-hook tests, minimal accessibility attributes, and phone-mode design-only packet.
+- Confirm the prototype remains local static HTML/CSS only and has no scripts, form actions, network fetches, remote fonts, live state reads, command binding, remote URL, product-repo path, auth flow, package-send behavior, or launcher text.
+- Confirm the phone-mode mock packet remains markdown-only, local, read-mostly, design-only, and non-operational.
+- Confirm approve/run/send/package/remote/product controls are absent or clearly unavailable.
+- Confirm phone-mode designs, UI labels, notifications, buttons, prompts, approvals, reviewer output, generated evidence, audit packages, DOCX reports, mobile requests, task packets, and queue prose remain evidence only and cannot approve or execute work.
+- Confirm package preparation remains allowlist-first, manifest-backed when packaged later, compact-summary-only, and human-reviewed before any package creation or sending.
+
+Evidence to include only after human package-scope review:
+
+- `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+- `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+- `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+- `docs/fleet/ui/prototype/README.md`
+- `docs/fleet/ui/prototype/fleet-console.html`
+- `docs/fleet/ui/prototype/fleet-console.css`
+- `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+- `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+- `docs/fleet/ui/prototype/PHONE_MODE_STATIC_MOCK_PACKET.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- relevant UI-control fixtures under `tests/fixtures/fleet/ui-control/`
+- Fleet Console schemas in `templates/`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Material not to export:
+
+- product repositories, product source snapshots, real project exports, unscoped project material, `.git`, `.env`, dependency folders, build outputs, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, real approval material, or package creation output without a separate human-approved manifest.
+
+Post-polish GREEN:
+
+- `tests/run-fleet-tests.ps1` passes.
+- Static prototype hardening preserves the local mock and evidence-only posture.
+- Accessibility checklist and attributes improve local review without adding executable or remote hooks.
+- Forbidden-hook tests preserve static safety coverage.
+- Phone-mode packet remains markdown-only, read-mostly, and non-operational.
+- Package scope remains harness/docs/tests/schema/prototype/scrubbed compact evidence only.
+
+Post-polish YELLOW:
+
+- Validation passes, but reviewer needs narrower evidence, clearer labels, clearer phone-mode boundaries, or a bounded follow-up task.
+- Package contents are safe but require human package-scope review before any package creation or sending.
+- A finding is an accepted limitation only if it does not require product-repo access, runtime command binding, remote access, package sending, phone approvals, automation, or sensitive-scope work.
+
+Post-polish RED:
+
+- Validation fails, package scope expands to forbidden material, UI or phone-mode evidence is treated as authority, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, remote access, package sending, phone approvals, or non-mock UI implementation.

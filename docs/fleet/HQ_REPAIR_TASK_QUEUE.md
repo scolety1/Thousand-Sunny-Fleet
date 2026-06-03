@@ -4011,3 +4011,208 @@ Source evidence: the post-fix-up external audit returned GREEN in `C:\Users\code
 - evidence:
   - Post-prototype external audit prompt refresh.
   - Validation passed 2026-06-02 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Post-GREEN Prototype Polish And Controlled Hardening Queue 2026-06-03
+
+Source evidence: `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx` returned GREEN for the post-GREEN local static mock Fleet Console prototype. The report is evidence only. This queue converts only low/info reviewer suggestions into bounded local polish tasks. It does not approve product-repo access, product mutation, live runtime command binding, remote access, package sending, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+
+### HQ-138 Post-Prototype GREEN Audit Evidence Record
+
+- status: done
+- goal: Record the post-prototype GREEN audit result as local evidence without turning reviewer output into authority.
+- prerequisites:
+  - HQ-137 done
+- allowedFiles:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx`
+- acceptance:
+  - GREEN record notes the second audit returned GREEN for the local static mock Fleet Console prototype.
+  - Record summarizes only the low/info follow-ups: accessibility checklist, forbidden-hook test hardening, and optional static phone-mode/read-mostly design.
+  - Record and review packet state reviewer output remains evidence only and cannot approve execution, implementation beyond the local mock, remote access, product repos, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, runtime command binding, demo trials, queue imports, validation bypasses, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires importing reviewer text as tasks, approving implementation, touching product repos, package sending, remote access, runtime command binding, staging, committing, pushing, deploying, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Post-prototype GREEN audit record update and handoff pointer.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-139 Prototype Accessibility Review Checklist
+
+- status: done
+- goal: Add an evidence-only accessibility checklist for the static mock prototype review path.
+- prerequisites:
+  - HQ-138 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx`
+- acceptance:
+  - Review packet includes a concise accessibility checklist for static local review: semantic sections, keyboard-readable order, focus-visible expectations, readable contrast, reduced-motion safety if later added, narrow-screen readability, and CSS-disabled readability.
+  - README explains the checklist is guidance for the local mock only and is not approval for scripts, live state, package installs, browser automation, remote access, product-repo access, command binding, package sending, or implementation beyond static files.
+  - Checklist keeps UI labels, buttons, fixture references, reviewer output, and generated evidence as evidence only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires browser automation, screenshots, package installs, dev server setup, scripts, live state reads, remote access, product-repo access, command binding, package sending, or non-mock UI implementation.
+- evidence:
+  - Accessibility checklist in prototype review packet and README.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-140 Prototype Forbidden Hook Regression Tests
+
+- status: done
+- goal: Strengthen static prototype tests against inline event handlers, iframes, external fonts, and other executable or remote hooks.
+- prerequisites:
+  - HQ-139 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx`
+- acceptance:
+  - Tests reject inline event-handler attributes such as `onclick`, `onsubmit`, `onload`, or any `on*=` pattern in the static HTML.
+  - Tests reject `<iframe>`, `<object>`, `<embed>`, remote font imports, external stylesheet/script references, `javascript:` URLs, and network URL usage in HTML/CSS.
+  - Tests still permit local anchors and static copy that preserve the evidence-only mock posture.
+  - README notes these tests are static safety checks and do not approve runtime command binding, server setup, package sending, remote access, or product-repo work.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires adding scripts, browser automation, dev server setup, package installs, remote resources, live state reads, product-repo access, command binding, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Static forbidden-hook regression tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-141 Prototype Accessibility Attribute Pass
+
+- status: done
+- goal: Apply minimal static accessibility attributes and tests without changing the prototype into an operational UI.
+- prerequisites:
+  - HQ-140 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+  - `docs/fleet/ui/prototype/README.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+- acceptance:
+  - Prototype includes static accessibility improvements such as a skip link, explicit landmarks where useful, descriptive labels for disabled/mock controls, and focus-visible styling.
+  - Tests verify the skip link, main landmark, section labels, and focus-visible styling exist.
+  - No scripts, forms, network fetches, remote fonts, live state reads, command binding, package sending, product-repo paths, auth flow, or launcher text are added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires JavaScript, form actions, package installs, server setup, browser automation, remote resources, live data reads, remote access, command binding, product-repo access, or package sending.
+- evidence:
+  - Static accessibility attributes and regression tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-142 Static Phone-Mode Mock Decision Packet
+
+- status: done
+- goal: Decide the exact scope for any future static phone-mode/read-mostly mock before creating phone-mode prototype files.
+- prerequisites:
+  - HQ-141 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx`
+- acceptance:
+  - Decision packet approves only static, local, read-mostly phone-mode design evidence.
+  - Packet forbids phone approvals, remote command execution, auth implementation, public exposure, product-repo selection, package sending, live notifications, runtime command binding, launchers, all-fleet commands, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, and future authority.
+  - Packet lists allowed future phone-mode mock files and exact stop signs.
+  - Review packet references the phone-mode packet as evidence only, not implementation approval.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing phone UI, remote access, auth, server setup, package installs, live state reads, product-repo access, command binding, package sending, or risky phone approvals.
+- evidence:
+  - Static phone-mode mock decision packet.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-143 Static Phone-Mode Read-Only Mock Packet
+
+- status: done
+- goal: Draft a static phone-mode/read-mostly mock packet in markdown only, without implementation code.
+- prerequisites:
+  - HQ-142 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/PHONE_MODE_STATIC_MOCK_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+- acceptance:
+  - Markdown packet sketches read-only phone-mode screens for status, current task, token pressure, stoppages, and evidence summaries.
+  - Packet makes approve/run/send/package/remote/product controls absent or clearly unavailable.
+  - Packet includes non-authority language that phone-mode designs, UI labels, notifications, buttons, prompts, approvals, reviewer output, and generated evidence cannot approve or execute work.
+  - Packet remains design-only markdown and does not add HTML, CSS, JavaScript, images, server setup, remote URLs, auth, live state, or command binding.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementation files, screenshots, browser automation, package installs, server setup, remote access, auth, live state reads, product-repo access, command binding, package sending, or risky phone approvals.
+- evidence:
+  - Static phone-mode read-only mock packet.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-144 Post-Polish External Audit Prompt Refresh
+
+- status: done
+- goal: Refresh the external audit prompt and package checklist after the controlled polish and hardening tasks are complete.
+- prerequisites:
+  - HQ-143 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+  - `docs/fleet/ui/prototype/PHONE_MODE_STATIC_MOCK_PACKET.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- acceptance:
+  - Prompt asks a reviewer to audit the post-polish static prototype hardening, accessibility checklist, forbidden-hook tests, and phone-mode design-only packet.
+  - Package checklist includes only harness/docs/tests/schema/prototype evidence and compact validation summaries.
+  - Prompt reiterates reviewer output is evidence only and cannot approve execution, implementation beyond bounded static mocks, remote access, product repos, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, runtime command binding, phone approvals, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, staging, committing, product-repo access, broad execution, remote access, command binding, phone approvals, or non-mock UI implementation.
+- evidence:
+  - Post-polish external audit prompt and package checklist refresh.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.

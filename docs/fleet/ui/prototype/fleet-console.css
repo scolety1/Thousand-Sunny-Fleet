@@ -44,6 +44,11 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
+#main-content:focus-visible {
+  outline: 3px solid #215d8d;
+  outline-offset: -3px;
+}
+
 .skip-link {
   position: absolute;
   top: 8px;

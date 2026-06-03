@@ -10684,14 +10684,16 @@ function Test-HqFleetConsoleMockStateSchemaAndFixtures {
 
 function Test-HqFleetConsoleStaticPrototypeSafety {
     $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+    $cssPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.css"
     $readmePath = Join-Path $fleetRoot "docs\fleet\ui\prototype\README.md"
     $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
 
-    foreach ($path in @($htmlPath, $readmePath, $buttonPolicyPath)) {
+    foreach ($path in @($htmlPath, $cssPath, $readmePath, $buttonPolicyPath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console static prototype safety input exists: $path"
     }
 
     $html = Get-Content -LiteralPath $htmlPath -Raw
+    $css = Get-Content -LiteralPath $cssPath -Raw
     $readme = Get-Content -LiteralPath $readmePath -Raw
     $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
     $combined = @($html, $readme) -join "`n"
@@ -10758,6 +10760,9 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
 
     foreach ($forbiddenHook in @(
         "<script",
+        "<iframe",
+        "<object",
+        "<embed",
         "<form",
         " action=",
         "<button",
@@ -10783,6 +10788,25 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         Assert-False -Condition ($html -match [regex]::Escape($forbiddenHook)) -Message "Static prototype HTML omits forbidden operational hook: $forbiddenHook"
     }
 
+    foreach ($forbiddenHtmlPattern in @(
+        '(?i)<\s*(script|iframe|object|embed)\b',
+        '(?i)\son[a-z]+\s*=',
+        '(?i)javascript\s*:',
+        '(?i)<\s*link\b[^>]+\bhref\s*=\s*["'']?\s*(https?:|//)',
+        '(?i)<\s*script\b[^>]+\bsrc\s*=\s*["'']?\s*(https?:|//)'
+    )) {
+        Assert-False -Condition ($html -match $forbiddenHtmlPattern) -Message "Static prototype HTML rejects forbidden hook pattern: $forbiddenHtmlPattern"
+    }
+
+    foreach ($forbiddenCssPattern in @(
+        '(?i)@import',
+        '(?i)url\(\s*["'']?\s*(https?:|//)',
+        '(?i)https?://',
+        '(?i)javascript\s*:'
+    )) {
+        Assert-False -Condition ($css -match $forbiddenCssPattern) -Message "Static prototype CSS rejects external or executable reference pattern: $forbiddenCssPattern"
+    }
+
     foreach ($forbiddenReadmeHook in @(
         "http://",
         "https://",
@@ -10798,6 +10822,51 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "yarn install"
     )) {
         Assert-False -Condition ($readme -match [regex]::Escape($forbiddenReadmeHook)) -Message "Static prototype README omits command-like hook: $forbiddenReadmeHook"
+    }
+
+    foreach ($readmePhrase in @(
+        "static safety checks",
+        "inline event-handler attributes",
+        "iframe",
+        "external font",
+        "runtime command binding"
+    )) {
+        Assert-True -Condition ($readme -match [regex]::Escape($readmePhrase)) -Message "Static prototype README documents forbidden-hook regression coverage: $readmePhrase"
+    }
+
+    foreach ($accessibilityPhrase in @(
+        '<a class="skip-link" href="#main-content">',
+        '<main id="main-content" class="layout" aria-label="Static mock console content" tabindex="-1">',
+        'aria-labelledby="dashboard-title"',
+        'aria-label="Mock console sections"',
+        'aria-label="Static mock console panels"',
+        'aria-describedby="unstuck-boundary"',
+        'aria-describedby="approval-cards-boundary"',
+        'aria-describedby="forbidden-publication-boundary"',
+        'aria-describedby="forbidden-remote-boundary"',
+        'id="unstuck-boundary"',
+        'id="approval-cards-boundary"',
+        'id="forbidden-publication-boundary"',
+        'id="forbidden-remote-boundary"'
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($accessibilityPhrase)) -Message "Static prototype preserves accessibility attribute: $accessibilityPhrase"
+    }
+
+    foreach ($accessibilityCssPhrase in @(
+        "a:focus-visible",
+        "#main-content:focus-visible",
+        ".skip-link:focus"
+    )) {
+        Assert-True -Condition ($css -match [regex]::Escape($accessibilityCssPhrase)) -Message "Static prototype CSS preserves focus-visible or skip-link styling: $accessibilityCssPhrase"
+    }
+
+    foreach ($accessibilityReadmePhrase in @(
+        "skip link to the main landmark",
+        "focus-visible treatment",
+        "aria-describedby",
+        "disabled/mock controls"
+    )) {
+        Assert-True -Condition ($readme -match [regex]::Escape($accessibilityReadmePhrase)) -Message "Static prototype README documents accessibility attribute pass: $accessibilityReadmePhrase"
     }
 
     foreach ($policyPhrase in @(

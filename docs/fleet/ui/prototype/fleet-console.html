@@ -19,7 +19,7 @@
     </div>
   </header>
 
-  <main class="layout">
+  <main id="main-content" class="layout" aria-label="Static mock console content" tabindex="-1">
     <nav class="sidebar" aria-label="Mock console sections">
       <a href="#dashboard">Dashboard</a>
       <a href="#fixtures">Mock States</a>
@@ -33,7 +33,7 @@
       <a href="#gates">Safety Gates</a>
     </nav>
 
-    <section id="main-content" class="content" aria-label="Static mock console content" tabindex="-1">
+    <section class="content" aria-label="Static mock console panels">
       <section id="dashboard" class="panel hero-panel" aria-labelledby="dashboard-title">
         <div>
           <p class="eyebrow">Evidence only</p>
@@ -144,25 +144,25 @@
             <h3>Idea Inbox</h3>
             <p>Stores planning notes as non-authority text. Ideas cannot become tasks until a bounded queue entry is authored elsewhere.</p>
           </article>
-          <article class="control-card unavailable-control" role="group" aria-disabled="true" aria-label="Unstuck future-only display">
+          <article class="control-card unavailable-control" role="group" aria-disabled="true" aria-label="Unstuck future-only display" aria-describedby="unstuck-boundary">
             <span class="state-chip">future-only display</span>
             <h3>Unstuck</h3>
-            <p>Represents diagnosis and repacketization guidance only. It cannot retry, take over leases, delete locks, or mutate runtime state.</p>
+            <p id="unstuck-boundary">Represents diagnosis and repacketization guidance only. It cannot retry, take over leases, delete locks, or mutate runtime state.</p>
           </article>
-          <article class="control-card unavailable-control" role="group" aria-disabled="true" aria-label="Approval Cards template-only display">
+          <article class="control-card unavailable-control" role="group" aria-disabled="true" aria-label="Approval Cards template-only display" aria-describedby="approval-cards-boundary">
             <span class="state-chip">template-only display</span>
             <h3>Approval Cards</h3>
-            <p>Show missing exact-action fields and stop signs. They cannot approve from UI labels, phone taps, fixtures, reviewer output, or prompts.</p>
+            <p id="approval-cards-boundary">Show missing exact-action fields and stop signs. They cannot approve from UI labels, phone taps, fixtures, reviewer output, or prompts.</p>
           </article>
-          <article class="control-card forbidden-control" role="group" aria-disabled="true" aria-label="Forbidden publication and operations boundary">
+          <article class="control-card forbidden-control" role="group" aria-disabled="true" aria-label="Forbidden publication and operations boundary" aria-describedby="forbidden-publication-boundary">
             <span class="state-chip">forbidden</span>
             <h3>Launch, deploy, install, migrate, stage, commit, push, merge</h3>
-            <p>These controls are absent as actions and shown here only as unavailable safety boundaries.</p>
+            <p id="forbidden-publication-boundary">These controls are absent as actions and shown here only as unavailable safety boundaries.</p>
           </article>
-          <article class="control-card forbidden-control" role="group" aria-disabled="true" aria-label="Forbidden remote and product boundary">
+          <article class="control-card forbidden-control" role="group" aria-disabled="true" aria-label="Forbidden remote and product boundary" aria-describedby="forbidden-remote-boundary">
             <span class="state-chip">forbidden</span>
             <h3>Remote access, package sending, product repo selection</h3>
-            <p>These require future bounded tasks and are not active in this local static mock.</p>
+            <p id="forbidden-remote-boundary">These require future bounded tasks and are not active in this local static mock.</p>
           </article>
         </div>
       </section>

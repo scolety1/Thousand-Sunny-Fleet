@@ -40,9 +40,13 @@ Forbidden controls are absent or represented as unavailable concepts only. The m
 
 ## Static Accessibility And Responsive Shape
 
-The prototype uses static semantic regions for the header, section navigation, main content, panels, fixture tables, and control-state groups. It includes a skip link, visible focus treatment for links, section labels, unavailable-state labels, and readable text hierarchy for local review.
+The prototype uses static semantic regions for the header, section navigation, main landmark, panels, fixture tables, and control-state groups. It includes a skip link to the main landmark, visible focus-visible treatment for links and the main skip target, section labels, unavailable-state labels, `aria-describedby` descriptions for disabled/mock controls, and readable text hierarchy for local review.
 
 The stylesheet keeps long fixture names, status labels, and forbidden-control text wrapped inside their panels. Narrow layouts collapse the sidebar, status cards, columns, tables, and control-state cards into one column so text remains readable without adding scripts, package dependencies, server requirements, screenshots, live data reads, product-repo access, remote access, package sending, or command binding.
+
+`LOCAL_PROTOTYPE_REVIEW_PACKET.md` now carries the high-level static accessibility review checklist for this mock. That checklist is review guidance only. It does not approve scripts, live state reads, package installs, browser automation, remote access, product-repo access, command binding, package sending, runtime control, or implementation beyond bounded static files.
+
+The local test suite also runs static safety checks for forbidden executable hooks. It rejects inline event-handler attributes such as `onclick` or other `on*=` patterns, `iframe`/`object`/`embed` hooks, `javascript:` URLs, external font or network references, remote stylesheets, script sources, and command-like setup text. These checks are regression coverage only; they do not approve runtime command binding, server setup, package sending, remote access, product-repo work, or implementation beyond the static mock.
 
 ## Static Control State Mapping
 

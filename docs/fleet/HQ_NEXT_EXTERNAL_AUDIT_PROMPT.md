@@ -446,3 +446,63 @@ RED stop signs:
 - package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, remote access, package sending, or non-mock UI implementation
 - reviewer output is used as commands, approval, queue import, validation bypass, demo approval, future permission, package sending approval, or authority
 - any included artifact implies UI labels, buttons, fixture examples, package manifests, validation summaries, queue status, reviewer output, DOCX reports, or prompts approve implementation, runtime control, remote access, product-repo access, package sending, or future authority
+
+## Post-Polish Static Prototype Audit Request
+
+Prepared: 2026-06-03
+
+This post-polish request is evidence-only planning for a future review of the static Fleet Console prototype polish and controlled hardening work. It does not create a package, send a package, approve UI implementation beyond bounded static mocks, approve remote access, approve product-repo access, approve package sending, approve runtime command binding, approve phone approvals, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, run all-fleet commands, or grant future authority.
+
+Reviewer mission:
+
+- Return one overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Audit whether the post-polish static prototype work preserves the prior GREEN safety posture.
+- Verify the accessibility checklist, forbidden-hook tests, accessibility attribute pass, phone-mode decision packet, and phone-mode markdown mock packet remain local harness/docs/tests/schema/prototype evidence only.
+- Verify the static prototype remains local HTML/CSS only with no scripts, form actions, network fetches, remote fonts, live state reads, command binding, package sending, product-repo paths, auth flow, remote URLs, or launcher text.
+- Verify the phone-mode packet remains markdown-only, local, read-mostly, design-only, and non-operational.
+- Verify approve, run, send, package, remote, product-repo, launch, all-fleet, stage, commit, push, merge, deploy, install, migrate, lock, permission, auth, secret, and runtime-control concepts are absent as active controls or clearly unavailable.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, and queue prose remain evidence only and cannot approve, execute, import tasks, bypass validation, send packages, or grant future authority.
+
+Post-polish evidence to include only after human package-scope review:
+
+- `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md`
+- `docs/fleet/ui/FLEET_CONSOLE_LOCAL_PROTOTYPE_DECISION_PACKET.md`
+- `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+- `docs/fleet/ui/prototype/README.md`
+- `docs/fleet/ui/prototype/fleet-console.html`
+- `docs/fleet/ui/prototype/fleet-console.css`
+- `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+- `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+- `docs/fleet/ui/prototype/PHONE_MODE_STATIC_MOCK_PACKET.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- relevant UI-control fixtures under `tests/fixtures/fleet/ui-control/`
+- Fleet Console schemas in `templates/`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Post-polish package exclusions:
+
+- product repositories, product source snapshots, real project exports, or unscoped project material
+- `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, or full terminal logs
+- secrets, tokens, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, real approval material, or package creation output without a separate human-approved manifest
+
+Required reviewer output:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Findings ordered by severity and grounded in included file/path evidence.
+- Explicit statement whether the post-polish static prototype hardening preserves the GREEN safety posture.
+- Explicit statement whether the phone-mode markdown packet remains design-only and read-mostly without approving phone UI implementation, phone approvals, remote access, package sending, product-repo access, runtime command binding, or future authority.
+- Missing tests, ambiguous UI safety boundaries, unclear phone-mode boundaries, or unclear package-scope risks.
+- Suggested follow-up tasks only as non-executable bounded queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+Post-polish RED stop signs:
+
+- package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, remote access, package sending, or non-mock UI implementation
+- reviewer output is used as commands, approval, queue import, validation bypass, demo approval, package sending approval, phone approval, future permission, or authority
+- any included artifact implies UI labels, buttons, fixture examples, phone-mode sketches, package manifests, validation summaries, queue status, reviewer output, DOCX reports, or prompts approve implementation, runtime control, remote access, product-repo access, package sending, phone approvals, or future authority
