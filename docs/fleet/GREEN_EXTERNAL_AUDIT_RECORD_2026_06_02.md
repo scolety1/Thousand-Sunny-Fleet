@@ -10,6 +10,10 @@ Post-prototype source: `C:\Users\codex-agent\Downloads\Audit Guidelines Review (
 
 Post-prototype scope: Codex Fleet / Thousand Sunny Fleet post-GREEN local static mock Fleet Console prototype package. The reviewed package covered the local static HTML/CSS prototype, prototype review packet, GREEN evidence record, button/action policy, future prototype gate, remote-access boundaries, remote security plan, UI-control fixtures, prototype packet schema, state schema, external-audit package manifest, and compact validation summary.
 
+Post-polish source: `C:\Users\codex-agent\.codex\attachments\56448c66-1bdf-4dbe-9815-78999b44cd66\pasted-text.txt`
+
+Post-polish scope: Codex Fleet / Thousand Sunny Fleet post-polish static Fleet Console prototype package built from `C:\Users\codex-agent\Downloads\codex_fleet_post_polish_external_audit_20260603.zip` at commit `1a6d170`. The reviewed package covered static prototype hardening, accessibility checklist guidance, forbidden-hook tests, minimal accessibility attributes, phone-mode decision packet, markdown-only phone-mode mock packet, package manifest, compact validation summary, and refreshed external-audit prompt/checklist evidence.
+
 ## Verdict
 
 The external audit returned `GREEN` for the included local harness/docs/tests/schema package.
@@ -17,6 +21,8 @@ The external audit returned `GREEN` for the included local harness/docs/tests/sc
 Local interpretation: the prior Audit Guidelines Review findings `F1` through `F5` are resolved for this evidence package, and the next-phase local control-plane artifacts remain safe for review without approving implementation.
 
 The post-prototype external audit also returned `GREEN` for the local static mock Fleet Console prototype. Local interpretation: the prototype preserves the GREEN safety posture and remains safe for harness/docs/tests/schema/prototype-only review without approving implementation beyond the bounded local mock.
+
+The post-polish external audit also returned `GREEN`. Local interpretation: the post-polish static prototype lane is complete for the current bounded scope. The reviewer found no YELLOW or RED findings and identified only optional INFO follow-ups.
 
 This GREEN record is evidence only. It does not approve execution, product-repo access, product-repo mutation, UI implementation, remote access, package creation, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, runtime command binding, demo trials, queue imports, validation bypasses, or future authority.
 
@@ -46,6 +52,12 @@ The post-prototype audit suggested only non-blocking follow-ups. These suggestio
 - Static forbidden-hook regression tests for inline event handlers, iframe/embed/object hooks, external fonts, external URLs, and `javascript:` URLs.
 - Minimal static accessibility attributes such as skip-link, landmarks, labels, and focus-visible styling.
 - Optional static phone-mode/read-mostly design packet, with phone approvals, remote execution, package sending, product-repo access, and runtime command binding forbidden.
+
+The post-polish audit suggested only optional INFO follow-ups. These suggestions are evidence only until converted into bounded queue tasks:
+
+- Optional static accessibility lint or equivalent local accessibility checks.
+- Optional phone-mode markdown tests for disallowed HTML, remote URLs, images, and command-like text.
+- Optional broader non-authority wording review across selected Fleet Console planning docs.
 
 ## Non-Authority Boundary
 
