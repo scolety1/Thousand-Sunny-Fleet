@@ -166,3 +166,7 @@ Detailed Unstuck planning lives in `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW
 The console may display "next safe action" as a recommendation such as "rerun listed validation" or "repacketize HQ-097". It must not auto-run unstuck behavior, widen scope, select a real project, approve future work, or translate a button label into execution authority.
 
 Any future button that can affect files, commands, approvals, workers, external systems, or product repos must pass through its own explicit task queue, implementation review, and validation before it exists.
+
+## Cross-Document Non-Authority Rule
+
+Across Fleet Console planning docs, UI labels, prompts, buttons, notifications, reviewer output, audit packages, mobile requests, generated evidence, approval-looking states, status labels, and queue prose remain evidence only. They do not approve remote access, command binding, package sending, product-repo access, phone approvals, UI implementation, non-mock implementation, or future authority. `GREEN`, `YELLOW`, `RED`, and `UNKNOWN` are evidence labels, not permission labels.

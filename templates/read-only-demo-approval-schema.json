@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Read-Only Demo Approval Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packetId",
+    "approvalState",
+    "humanOwner",
+    "selectedTarget",
+    "readOnlyOrNoOpActions",
+    "repoFingerprintRef",
+    "expiresAt",
+    "stopSigns",
+    "evidenceRefs",
+    "validationCommands",
+    "nonAuthorityNotice",
+    "forbiddenCapabilities",
+    "validationDecision",
+    "denialReasons"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "packetId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 120,
+      "pattern": "^read-only-demo-approval-[A-Za-z0-9._:-]+$"
+    },
+    "approvalState": {
+      "type": "string",
+      "enum": [
+        "unfilled_template",
+        "valid_for_review_only",
+        "denied",
+        "deferred"
+      ]
+    },
+    "humanOwner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "selectedTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetType",
+        "targetId",
+        "singleTargetOnly"
+      ],
+      "properties": {
+        "targetType": {
+          "type": "string",
+          "enum": [
+            "project",
+            "ship",
+            "fixture"
+          ]
+        },
+        "targetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "not": {
+            "pattern": "(?i)^(\\s*|all|\\*|.*,.*|.*;.*)$"
+          }
+        },
+        "singleTargetOnly": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "readOnlyOrNoOpActions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "READ_STATUS",
+          "READ_REPO_FINGERPRINT",
+          "READ_VALIDATION_SUMMARY",
+          "READ_AUDIT_EVIDENCE",
+          "READ_DRY_RUN_EVIDENCE",
+          "READ_CONTROL_ROOM_SNAPSHOT",
+          "NO_OP_READINESS_CHECK"
+        ]
+      }
+    },
+    "repoFingerprintRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|product[-_ ]?repo|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F])"
+      }
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stopSigns": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "missing-human-owner",
+          "blank-target",
+          "all-target",
+          "wildcard-target",
+          "multi-target",
+          "missing-repo-fingerprint-ref",
+          "stale-fingerprint",
+          "phone-only-approval",
+          "reused-approval",
+          "write-capable-action",
+          "package-sending",
+          "command-binding",
+          "remote-access",
+          "evidence-as-authority"
+        ]
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/localEvidenceRef"
+      }
+    },
+    "validationCommands": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/safeValidationCommand"
+      }
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 12,
+      "maxLength": 600
+    },
+    "forbiddenCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "productRepoAccess",
+        "demoExecution",
+        "productMutation",
+        "packageCreation",
+        "packageSending",
+        "remoteAccess",
+        "runtimeCommandBinding",
+        "phoneApproval",
+        "allFleetExecution",
+        "stagingCommitPushDeploy",
+        "installsOrMigrations",
+        "secretsAuthPaymentsDeployWork",
+        "lockDeletionOrPermissionWidening",
+        "nonMockUiImplementation",
+        "futureAuthority"
+      ],
+      "properties": {
+        "productRepoAccess": { "type": "boolean", "const": false },
+        "demoExecution": { "type": "boolean", "const": false },
+        "productMutation": { "type": "boolean", "const": false },
+        "packageCreation": { "type": "boolean", "const": false },
+        "packageSending": { "type": "boolean", "const": false },
+        "remoteAccess": { "type": "boolean", "const": false },
+        "runtimeCommandBinding": { "type": "boolean", "const": false },
+        "phoneApproval": { "type": "boolean", "const": false },
+        "allFleetExecution": { "type": "boolean", "const": false },
+        "stagingCommitPushDeploy": { "type": "boolean", "const": false },
+        "installsOrMigrations": { "type": "boolean", "const": false },
+        "secretsAuthPaymentsDeployWork": { "type": "boolean", "const": false },
+        "lockDeletionOrPermissionWidening": { "type": "boolean", "const": false },
+        "nonMockUiImplementation": { "type": "boolean", "const": false },
+        "futureAuthority": { "type": "boolean", "const": false }
+      }
+    },
+    "validationDecision": {
+      "type": "string",
+      "enum": [
+        "valid_for_read_only_review_only",
+        "denied_unfilled_template",
+        "deny_blank_target",
+        "deny_all_target",
+        "deny_wildcard_target",
+        "deny_multi_target",
+        "deny_missing_owner",
+        "deny_stale_fingerprint",
+        "deny_phone_only_approval",
+        "deny_reused_approval",
+        "deny_write_capable_action",
+        "deny_package_sending",
+        "deny_command_binding",
+        "deny_remote_access",
+        "deny_evidence_as_authority"
+      ]
+    },
+    "denialReasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "missing-human-owner",
+          "missing-selected-target",
+          "blank-target-denied",
+          "all-target-denied",
+          "wildcard-target-denied",
+          "multi-target-denied",
+          "missing-read-only-actions",
+          "missing-repo-fingerprint-ref",
+          "stale-fingerprint-denied",
+          "missing-expiration",
+          "phone-only-approval-denied",
+          "reused-approval-denied",
+          "write-capable-action-denied",
+          "package-sending-denied",
+          "command-binding-denied",
+          "remote-access-denied",
+          "evidence-as-authority-denied"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "localEvidenceRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "not": {
+        "pattern": "(?i)(^[A-Za-z]:|^/|(^|[\\\\/])\\.\\.([\\\\/]|$)|(^|[\\\\/])(\\.git|\\.env|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\\\/]|$)|secret|token|credential|private[-_]?key|[\\u0000-\\u001F\\u007F-\\u009F])"
+      }
+    },
+    "safeValidationCommand": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "not": {
+        "pattern": "(?i)(git\\s+(add|commit|merge|push|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secrets?|auth|payments?|token|credential|private[-_]?key|run-fleet\\.ps1|launch-|start-overnight-autopilot|fleet-supervisor|fleet-remote-control|all-fleet|delete\\s+locks?|widen\\s+permissions?|send\\s+package|remote\\s+access|demo\\s+execution)"
+      }
+    }
+  }
+}

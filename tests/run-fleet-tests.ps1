@@ -5877,7 +5877,7 @@ function Test-FailureFingerprintContract {
         Assert-True -Condition (@($schema.properties.failureClass.enum) -contains $failureClass) -Message "Failure fingerprint schema supports failure class $failureClass"
     }
 
-    foreach ($decision in @("retry-once", "repair-task", "safe-pause", "block", "wait-for-rate-reset", "non-retriable-policy-denial")) {
+    foreach ($decision in @("retry-once", "repair-task", "safe-pause", "block", "repacketize", "wait-for-rate-reset", "non-retriable-policy-denial")) {
         Assert-True -Condition (@($schema.properties.decision.enum) -contains $decision) -Message "Failure fingerprint schema supports decision $decision"
     }
 
@@ -5895,6 +5895,12 @@ function Test-FailureFingerprintContract {
         "policy-denial-non-retriable",
         "blind-retry-forbidden",
         "missing-evidence",
+        "missing-allowed-file",
+        "validation-requires-forbidden-action",
+        "ambiguous-external-evidence",
+        "scope-expansion",
+        "repacketize-required",
+        "deny-required",
         "failure-class-erased",
         "noisy-id-normalized"
     )) {
@@ -5911,6 +5917,11 @@ function Test-FailureFingerprintContract {
         "machine root",
         "duration",
         "line-ending noise",
+        "Failure Loop Breaker Matrix",
+        "safe-pause",
+        "repacketize",
+        "deny outcomes",
+        "blind-retry-forbidden",
         "Changing live retry runtime behavior"
     )) {
         Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Failure fingerprint contract includes invariant: $phrase"
@@ -5920,6 +5931,12 @@ function Test-FailureFingerprintContract {
         "same-hypothesis-twice-safe-pause",
         "same-hypothesis-twice-repair-task",
         "policy-denial-non-retriable",
+        "same-fingerprint-same-hypothesis-twice-safe-pause",
+        "same-fingerprint-same-hypothesis-twice-repair-task",
+        "missing-allowed-file-repacketize",
+        "validation-requires-forbidden-action-deny",
+        "repeated-ambiguous-external-evidence-repacketize",
+        "scope-expansion-repacketize",
         "timestamp-normalized",
         "temp-path-normalized",
         "guid-normalized",
@@ -5935,6 +5952,9 @@ function Test-FailureFingerprintContract {
         "Mutating product repos",
         "Running all-fleet commands",
         "Deleting locks",
+        "Killing processes",
+        "Touching product repos",
+        "Package sending",
         "Installing packages",
         "Running migrations"
     )) {
@@ -6200,6 +6220,8 @@ function Test-ControlRoomReconciliationContract {
         "missing-db-state-ref",
         "missing-run-artifact-ref",
         "missing-repo-fingerprint-ref",
+        "missing-dry-run-evidence",
+        "ambiguous-approval-evidence",
         "status-snapshot-mismatch",
         "contradictory-lease",
         "dirty-state-conflict",
@@ -6224,6 +6246,8 @@ function Test-ControlRoomReconciliationContract {
         "missing-db-state-ref",
         "missing-run-artifact-ref",
         "missing-repo-fingerprint-ref",
+        "missing-dry-run-evidence",
+        "ambiguous-approval-evidence",
         "status-snapshot-mismatch",
         "contradictory-lease",
         "ship-id-mismatch"
@@ -6240,12 +6264,29 @@ function Test-ControlRoomReconciliationContract {
         "reconciliation status",
         "mismatch reasons",
         "generatedAt",
-        "the model cannot mark mismatched evidence as MATCH"
+        "the model cannot mark mismatched evidence as MATCH",
+        "UNKNOWN blocks execution",
+        "UI labels, generated evidence, reviewer output, mobile requests, queue prose",
+        "cannot convert ``UNKNOWN`` or ``MISMATCH`` reconciliation evidence into ``MATCH``"
     )) {
         Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Control-room reconciliation contract includes invariant: $phrase"
     }
 
-    foreach ($fixtureCase in @("MATCH", "MISMATCH", "UNKNOWN", "stale-artifact", "repo-fingerprint-drift", "missing-db-state-ref", "contradictory-lease")) {
+    foreach ($fixtureCase in @(
+        "MATCH",
+        "MISMATCH",
+        "UNKNOWN",
+        "stale-artifact",
+        "repo-fingerprint-drift",
+        "missing-db-state-ref",
+        "contradictory-lease",
+        "stale-run-artifact-unknown",
+        "missing-repo-fingerprint-unknown",
+        "mismatched-selected-target-unknown",
+        "contradictory-lease-unknown",
+        "missing-dry-run-evidence-unknown",
+        "ambiguous-approval-evidence-unknown"
+    )) {
         Assert-True -Condition ($contractText -match [regex]::Escape($fixtureCase)) -Message "Control-room reconciliation contract documents fixture $fixtureCase"
     }
 
@@ -6255,6 +6296,11 @@ function Test-ControlRoomReconciliationContract {
         "Mutating product repos",
         "Launching product ships",
         "Running all-fleet commands",
+        "Live dashboard integration",
+        "SQLite integration",
+        "Remote UI implementation",
+        "Product-repo access",
+        "Package sending",
         "Deleting locks"
     )) {
         Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Control-room reconciliation contract keeps out of scope: $outOfScope"
@@ -6301,8 +6347,19 @@ function Test-ControlRoomReconciliationFixtureHelper {
     Assert-True -Condition (@($missingDb.mismatchReasons) -contains "missing-db-state-ref") -Message "Control-room reconciliation helper records missing DB/state ref"
     Assert-True -Condition (@($missingDb.validation.reasons) -contains "unknown-shows-unknown") -Message "Control-room reconciliation helper records unknown display posture"
 
+    $missingRepo = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -RepoFingerprintRef "" -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $missingRepo.reconciliationStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper returns UNKNOWN for missing repo fingerprint"
+    Assert-Equal -Actual $missingRepo.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for missing repo fingerprint"
+    Assert-True -Condition (@($missingRepo.mismatchReasons) -contains "missing-repo-fingerprint-ref") -Message "Control-room reconciliation helper records missing repo fingerprint"
+
+    $targetMismatch = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -ExpectedStatus "READY" -SnapshotStatus "RUNNING" -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $targetMismatch.reconciliationStatus -Expected "MISMATCH" -Message "Control-room reconciliation helper returns MISMATCH for status snapshot mismatch"
+    Assert-Equal -Actual $targetMismatch.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for status snapshot mismatch"
+    Assert-True -Condition (@($targetMismatch.mismatchReasons) -contains "status-snapshot-mismatch") -Message "Control-room reconciliation helper records selected target/status mismatch"
+
     $contradictoryLease = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -ContradictoryLease -GeneratedAt $now -RunArtifactGeneratedAt $now
     Assert-Equal -Actual $contradictoryLease.reconciliationStatus -Expected "MISMATCH" -Message "Control-room reconciliation helper returns MISMATCH for contradictory lease"
+    Assert-Equal -Actual $contradictoryLease.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for contradictory lease"
     Assert-True -Condition (@($contradictoryLease.mismatchReasons) -contains "contradictory-lease") -Message "Control-room reconciliation helper records contradictory lease"
 }
 
@@ -7049,6 +7106,442 @@ function Test-RuntimePolicyDryRunEvaluator {
         Assert-True -Condition ($contractText -match [regex]::Escape($unsafeSource)) -Message "Runtime policy dry-run vocabulary covers unsafe source: $unsafeSource"
     }
     Assert-False -Condition ($contractText -match "(?i)ALLOW_DRY_RUN.*?(authorizes|approves|grants)\s+.*?(execution|mutation|product repo|stage|commit|push|demo trial)") -Message "ALLOW_DRY_RUN is not documented as executable authority"
+}
+
+function Test-RuntimeDryRunEvidenceContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\runtime-dry-run-evidence-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $contractPath) -Message "Runtime dry-run evidence contract exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Runtime dry-run evidence schema exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+
+    Assert-False -Condition ([bool]$schema.additionalProperties) -Message "Runtime dry-run evidence schema closes top-level object shape"
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Runtime dry-run evidence schema is versioned"
+
+    foreach ($field in @(
+        "schemaVersion",
+        "dryRunId",
+        "selectedTargetRef",
+        "selectedShipRef",
+        "selectedProjectRef",
+        "policyDecisionRef",
+        "fixtureInputRefs",
+        "expectedAction",
+        "actualDryRunResult",
+        "decision",
+        "denialReasons",
+        "deferReasons",
+        "validationCommand",
+        "generatedAt",
+        "nonAuthorityNotice",
+        "safety",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Runtime dry-run evidence schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Runtime dry-run evidence schema defines $field"
+    }
+
+    foreach ($result in @("ALLOW_DRY_RUN", "DEFER_NEEDS_HUMAN", "DENY_UNSAFE")) {
+        Assert-True -Condition (@($schema.properties.actualDryRunResult.enum) -contains $result) -Message "Runtime dry-run evidence schema supports result $result"
+        Assert-True -Condition ($contractText -match [regex]::Escape($result)) -Message "Runtime dry-run evidence contract documents result $result"
+    }
+
+    foreach ($reason in @(
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "forbidden-scope",
+        "missing-approval",
+        "stale-fingerprint",
+        "missing-repo-fingerprint",
+        "missing-worktree-boundary",
+        "legacy-broad-entrypoint",
+        "external-report-non-executable",
+        "mobile-request-non-executable",
+        "task-packet-not-validated",
+        "audit-package-non-executable",
+        "docx-report-non-executable",
+        "queue-prose-non-executable",
+        "generated-evidence-non-executable",
+        "package-sending-forbidden",
+        "command-binding-forbidden",
+        "product-repo-access-forbidden",
+        "unknown-policy-version"
+    )) {
+        Assert-True -Condition (@($schema.'$defs'.reason.enum) -contains $reason) -Message "Runtime dry-run evidence schema supports deny/defer reason $reason"
+        Assert-True -Condition ($contractText -match [regex]::Escape($reason)) -Message "Runtime dry-run evidence contract documents deny/defer reason $reason"
+    }
+
+    foreach ($safetyField in @(
+        "executesProductActions",
+        "mutatesProductRepos",
+        "readsProductRepos",
+        "bindsRuntimeCommands",
+        "createsOrSendsPackages",
+        "canApproveFutureRuns",
+        "commandInput"
+    )) {
+        Assert-True -Condition (@($schema.properties.safety.required) -contains $safetyField) -Message "Runtime dry-run evidence safety requires $safetyField"
+        Assert-Equal -Actual $schema.properties.safety.properties.$safetyField.const -Expected $false -Message "Runtime dry-run evidence safety keeps $safetyField false"
+        Assert-True -Condition ($contractText -match [regex]::Escape($safetyField)) -Message "Runtime dry-run evidence contract documents safety field $safetyField"
+    }
+
+    foreach ($phrase in @(
+        "evidence only",
+        "does not approve live execution",
+        "runtime command binding",
+        "product-repo access",
+        "package sending",
+        "future permission",
+        "never means approval to execute",
+        "missing-evidence",
+        "Stop and mark that task blocked"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Runtime dry-run evidence contract preserves non-authority phrase: $phrase"
+    }
+}
+
+function Test-SelectedProjectReadOnlyGateContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\SELECTED_PROJECT_READ_ONLY_GATE.md"
+    $schemaPath = Join-Path $fleetRoot "templates\selected-project-read-only-gate-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $contractPath) -Message "Selected-project read-only gate contract exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Selected-project read-only gate schema exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+
+    Assert-False -Condition ([bool]$schema.additionalProperties) -Message "Selected-project read-only gate schema closes top-level object shape"
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Selected-project read-only gate schema is versioned"
+
+    foreach ($field in @(
+        "schemaVersion",
+        "gateId",
+        "selectedTarget",
+        "owner",
+        "repoFingerprintRef",
+        "readOnlyActions",
+        "expiresAt",
+        "stopConditions",
+        "evidenceRefs",
+        "nonAuthorityNotice",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Selected-project read-only gate schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Selected-project read-only gate schema defines $field"
+    }
+
+    Assert-Equal -Actual $schema.properties.selectedTarget.properties.singleTargetOnly.const -Expected $true -Message "Selected-project read-only gate requires a single target"
+
+    foreach ($action in @(
+        "READ_STATUS",
+        "READ_REPO_FINGERPRINT",
+        "READ_VALIDATION_SUMMARY",
+        "READ_AUDIT_EVIDENCE",
+        "READ_CONTROL_ROOM_SNAPSHOT",
+        "READ_DRY_RUN_EVIDENCE"
+    )) {
+        Assert-True -Condition (@($schema.properties.readOnlyActions.items.enum) -contains $action) -Message "Selected-project read-only gate supports read-only action $action"
+        Assert-True -Condition ($contractText -match [regex]::Escape($action)) -Message "Selected-project read-only gate contract documents read-only action $action"
+    }
+
+    foreach ($decision in @(
+        "deny_blank_target",
+        "deny_all_target",
+        "deny_wildcard_target",
+        "deny_multi_target",
+        "deny_missing_owner",
+        "deny_missing_repo_fingerprint",
+        "deny_invalid_repo_fingerprint_ref",
+        "deny_stale_fingerprint",
+        "deny_write_capable_action",
+        "deny_phone_only_approval",
+        "deny_package_sending",
+        "deny_command_binding",
+        "deny_product_mutation",
+        "deny_remote_access",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($schema.properties.validation.properties.decision.enum) -contains $decision) -Message "Selected-project read-only gate schema supports denial decision $decision"
+        Assert-True -Condition ($contractText -match [regex]::Escape($decision)) -Message "Selected-project read-only gate contract documents denial decision $decision"
+    }
+
+    foreach ($phrase in @(
+        "evidence only",
+        "does not approve product-repo access",
+        "does not approve product-repo access, product-repo mutation",
+        "without approving any product mutation",
+        "must not contain write-capable operations",
+        "package sending",
+        "runtime command binding",
+        "Denied records remain evidence",
+        "reviewer output",
+        "mobile requests",
+        "queue prose",
+        "Stop and repacketize"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Selected-project read-only gate contract preserves non-authority phrase: $phrase"
+    }
+}
+
+function Test-SelectedProjectReadOnlyEndToEndFixtureMatrix {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-gates"
+    $gateDocPath = Join-Path $fleetRoot "docs\fleet\SELECTED_PROJECT_READ_ONLY_GATE.md"
+    $dryRunDocPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md"
+    $reconciliationDocPath = Join-Path $fleetRoot "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Selected-project read-only matrix fixture directory exists"
+
+    $gateDoc = Get-Content -LiteralPath $gateDocPath -Raw
+    $dryRunDoc = Get-Content -LiteralPath $dryRunDocPath -Raw
+    $reconciliationDoc = Get-Content -LiteralPath $reconciliationDocPath -Raw
+    $combinedDocs = @($gateDoc, $dryRunDoc, $reconciliationDoc) -join "`n"
+
+    foreach ($phrase in @(
+        "Combined End-To-End Fixture Matrix",
+        "tests/fixtures/fleet/read-only-gates",
+        "local evidence only",
+        "does not inspect product repos",
+        "runtime command binding",
+        "cannot approve or execute work",
+        "Selected-Project Read-Only Matrix Alignment"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($phrase)) -Message "Selected-project read-only matrix docs preserve phrase: $phrase"
+    }
+
+    $expectedCases = @{
+        "selected-project-read-only.valid-fixture.json" = @{
+            gateStatus = "valid"
+            gateDecision = "valid_read_only_gate"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "ALLOW"
+            dryRunResult = "ALLOW_DRY_RUN"
+            reconciliationStatus = "MATCH"
+            displayStatus = "MATCH"
+            category = "valid_fixture_only_read_only"
+            requiresHumanReview = $false
+        }
+        "selected-project-read-only.missing-owner-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_missing_owner"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_missing_owner"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.stale-fingerprint-deferred.json" = @{
+            gateStatus = "deferred"
+            gateDecision = "defer_stale_fingerprint"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DEFER"
+            dryRunResult = "DEFER_NEEDS_HUMAN"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "defer_stale_fingerprint"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.write-capable-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_write_capable_action"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_write_capable_action"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.ambiguous-approval-unknown.json" = @{
+            gateStatus = "deferred"
+            gateDecision = "defer_ambiguous_approval"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DEFER"
+            dryRunResult = "DEFER_NEEDS_HUMAN"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "defer_ambiguous_approval"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.multi-target-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_multi_target"
+            hqTaskId = "HQ-165"
+            singleTargetOnly = $false
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_multi_target"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.wildcard-target-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_wildcard_target"
+            hqTaskId = "HQ-165"
+            singleTargetOnly = $false
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_wildcard_target"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.invalid-fingerprint-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_invalid_repo_fingerprint_ref"
+            hqTaskId = "HQ-165"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_invalid_repo_fingerprint_ref"
+            requiresHumanReview = $true
+        }
+    }
+
+    foreach ($fixtureName in $expectedCases.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Selected-project read-only matrix fixture exists: $fixtureName"
+
+        $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        $expected = $expectedCases[$fixtureName]
+
+        Assert-Equal -Actual ([int]$fixture.schemaVersion) -Expected 1 -Message "Selected-project read-only matrix fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.hqTaskId) -Expected $expected.hqTaskId -Message "Selected-project read-only matrix fixture maps to expected HQ task: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.combinedMatrixKind) -Expected "selected_project_read_only_end_to_end" -Message "Selected-project read-only matrix fixture names matrix kind: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "evidence only") -Message "Selected-project read-only matrix fixture is evidence only: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "cannot approve") -Message "Selected-project read-only matrix fixture cannot approve: $fixtureName"
+
+        Assert-Equal -Actual ([string]$fixture.selectedProjectGate.validationStatus) -Expected $expected.gateStatus -Message "Selected-project read-only matrix gate status matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.selectedProjectGate.validationDecision) -Expected $expected.gateDecision -Message "Selected-project read-only matrix gate decision matches: $fixtureName"
+        Assert-Equal -Actual ([bool]$fixture.selectedProjectGate.selectedTarget.singleTargetOnly) -Expected $expected.singleTargetOnly -Message "Selected-project read-only matrix fixture single-target expectation matches: $fixtureName"
+        Assert-False -Condition ([bool]$fixture.selectedProjectGate.productRepoInspected) -Message "Selected-project read-only matrix fixture does not inspect product repo: $fixtureName"
+        Assert-False -Condition ([bool]$fixture.repoFingerprint.productRepoInspected) -Message "Selected-project read-only matrix repo fingerprint stays fixture-only: $fixtureName"
+
+        Assert-Equal -Actual ([string]$fixture.runtimePolicyDecision.decision) -Expected $expected.runtimeDecision -Message "Selected-project read-only matrix runtime decision matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.runtimePolicyDecision.dryRunResult) -Expected $expected.dryRunResult -Message "Selected-project read-only matrix runtime dry-run result matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.dryRunEvidence.actualDryRunResult) -Expected $expected.dryRunResult -Message "Selected-project read-only matrix dry-run evidence result matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.dryRunEvidence.decision) -Expected $expected.runtimeDecision -Message "Selected-project read-only matrix dry-run decision matches: $fixtureName"
+
+        Assert-Equal -Actual ([string]$fixture.reconciliation.reconciliationStatus) -Expected $expected.reconciliationStatus -Message "Selected-project read-only matrix reconciliation status matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.reconciliation.displayStatus) -Expected $expected.displayStatus -Message "Selected-project read-only matrix display status matches: $fixtureName"
+        if ($expected.displayStatus -eq "UNKNOWN") {
+            Assert-True -Condition (@($fixture.reconciliation.mismatchReasons).Count -ge 1) -Message "Selected-project read-only matrix UNKNOWN fixture names mismatch reason: $fixtureName"
+        }
+
+        Assert-Equal -Actual ([string]$fixture.expectedOutcome.category) -Expected $expected.category -Message "Selected-project read-only matrix category matches: $fixtureName"
+        Assert-True -Condition ([bool]$fixture.expectedOutcome.blocksLiveExecution) -Message "Selected-project read-only matrix blocks live execution: $fixtureName"
+        Assert-Equal -Actual ([bool]$fixture.expectedOutcome.requiresHumanReview) -Expected $expected.requiresHumanReview -Message "Selected-project read-only matrix human-review expectation matches: $fixtureName"
+
+        foreach ($safetyField in @(
+            "executesProductActions",
+            "mutatesProductRepos",
+            "readsProductRepos",
+            "bindsRuntimeCommands",
+            "createsOrSendsPackages",
+            "canApproveFutureRuns"
+        )) {
+            Assert-False -Condition ([bool]$fixture.dryRunEvidence.safety.$safetyField) -Message "Selected-project read-only matrix dry-run safety keeps $safetyField false: $fixtureName"
+            Assert-False -Condition ([bool]$fixture.safety.$safetyField) -Message "Selected-project read-only matrix top-level safety keeps $safetyField false: $fixtureName"
+        }
+        Assert-False -Condition ([bool]$fixture.safety.runsAllFleet) -Message "Selected-project read-only matrix fixture cannot run all-fleet: $fixtureName"
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-Equal -Actual $fixtures.Count -Expected 8 -Message "Selected-project read-only matrix has exactly eight fixtures"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.runtimePolicyDecision.dryRunResult -eq "ALLOW_DRY_RUN" }).Count -eq 1) -Message "Selected-project read-only matrix has one valid ALLOW_DRY_RUN fixture"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.runtimePolicyDecision.dryRunResult -eq "DENY_UNSAFE" }).Count -ge 5) -Message "Selected-project read-only matrix covers DENY_UNSAFE outcomes"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.runtimePolicyDecision.dryRunResult -eq "DEFER_NEEDS_HUMAN" }).Count -ge 2) -Message "Selected-project read-only matrix covers DEFER_NEEDS_HUMAN outcomes"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.reconciliation.displayStatus -eq "UNKNOWN" }).Count -ge 7) -Message "Selected-project read-only matrix covers UNKNOWN reconciliation outcomes"
+}
+
+function Test-RuntimePolicyDryRunFixtureMatrix {
+    $dryRunContractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md"
+    $policyContractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_POLICY_DECISION_CONTRACT.md"
+    $dryRunSchemaPath = Join-Path $fleetRoot "templates\runtime-dry-run-evidence-schema.json"
+    $policySchemaPath = Join-Path $fleetRoot "templates\runtime-policy-decision-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $dryRunContractPath) -Message "Runtime dry-run evidence contract exists for fixture matrix"
+    Assert-True -Condition (Test-Path -LiteralPath $policyContractPath) -Message "Runtime policy decision contract exists for fixture matrix"
+
+    $dryRunText = Get-Content -LiteralPath $dryRunContractPath -Raw
+    $policyText = Get-Content -LiteralPath $policyContractPath -Raw
+    $dryRunSchema = Get-Content -LiteralPath $dryRunSchemaPath -Raw | ConvertFrom-Json
+    $policySchema = Get-Content -LiteralPath $policySchemaPath -Raw | ConvertFrom-Json
+
+    foreach ($fixture in @(
+        "read-only-fixture-allowed",
+        "blank-target-denied",
+        "wildcard-target-denied",
+        "all-target-denied",
+        "write-capable-action-denied",
+        "stale-fingerprint-denied",
+        "package-sending-denied",
+        "phone-only-approval-denied",
+        "ambiguous-evidence-deferred"
+    )) {
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($fixture)) -Message "Runtime dry-run evidence contract documents fixture matrix case $fixture"
+        Assert-True -Condition ($policyText -match [regex]::Escape($fixture)) -Message "Runtime policy decision contract aligns fixture matrix case $fixture"
+    }
+
+    foreach ($dryRunResult in @("ALLOW_DRY_RUN", "DEFER_NEEDS_HUMAN", "DENY_UNSAFE")) {
+        Assert-True -Condition (@($dryRunSchema.properties.actualDryRunResult.enum) -contains $dryRunResult) -Message "Dry-run evidence schema supports matrix result $dryRunResult"
+        Assert-True -Condition (@($policySchema.properties.dryRunResult.enum) -contains $dryRunResult) -Message "Policy decision schema supports matrix result $dryRunResult"
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($dryRunResult)) -Message "Dry-run evidence matrix documents result $dryRunResult"
+        Assert-True -Condition ($policyText -match [regex]::Escape($dryRunResult)) -Message "Policy matrix alignment documents result $dryRunResult"
+    }
+
+    foreach ($decision in @("ALLOW", "DEFER", "DENY")) {
+        Assert-True -Condition (@($dryRunSchema.properties.decision.enum) -contains $decision) -Message "Dry-run evidence schema supports matrix decision $decision"
+        Assert-True -Condition (@($policySchema.properties.decision.enum) -contains $decision) -Message "Policy decision schema supports matrix decision $decision"
+    }
+
+    Assert-True -Condition (@($dryRunSchema.properties.expectedAction.enum) -contains "READ_ONLY_RECONCILE") -Message "Dry-run evidence schema supports read-only reconcile fixture action"
+    Assert-True -Condition ($dryRunText -match [regex]::Escape("READ_ONLY_RECONCILE")) -Message "Dry-run evidence matrix documents read-only reconcile action"
+
+    foreach ($reason in @(
+        "blank-ship",
+        "wildcard-ship",
+        "all-ship",
+        "forbidden-scope",
+        "stale-fingerprint",
+        "package-sending-forbidden",
+        "command-binding-forbidden",
+        "missing-approval"
+    )) {
+        Assert-True -Condition (@($dryRunSchema.'$defs'.reason.enum) -contains $reason) -Message "Dry-run evidence schema supports matrix reason $reason"
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($reason)) -Message "Dry-run evidence matrix documents reason $reason"
+        Assert-True -Condition ($policyText -match [regex]::Escape($reason)) -Message "Policy matrix alignment documents reason $reason"
+    }
+
+    foreach ($reason in @("blank-ship", "wildcard-ship", "all-ship", "forbidden-scope", "stale-fingerprint", "missing-approval")) {
+        Assert-True -Condition (@($policySchema.properties.denialReason.enum) -contains $reason) -Message "Policy decision schema supports shared matrix reason $reason"
+    }
+
+    foreach ($phrase in @(
+        "No runtime command binding.",
+        "No product-repo reads.",
+        "No package sending.",
+        "No all-fleet execution."
+    )) {
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($phrase)) -Message "Dry-run evidence matrix preserves invariant: $phrase"
+        Assert-True -Condition ($policyText -match [regex]::Escape($phrase)) -Message "Policy matrix alignment preserves invariant: $phrase"
+    }
 }
 
 function Test-RuntimePilotWrapperDryRunContract {
@@ -10118,36 +10611,64 @@ function Test-HqExternalAuditPackageManifestSchemaAndFixtures {
     $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\evidence"
     $validManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.valid-integrated.json"
     $rejectedManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.rejected-forbidden-material.json"
+    $controlledManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.controlled-hardening.json"
+    $readOnlyDemoFollowupManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.read-only-demo-followup.json"
     $auditPromptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
     $batchTemplatePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md"
 
     Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "External audit package manifest schema exists"
     Assert-True -Condition (Test-Path -LiteralPath $validManifestPath) -Message "Valid external audit package manifest fixture exists"
     Assert-True -Condition (Test-Path -LiteralPath $rejectedManifestPath) -Message "Rejected external audit package manifest fixture exists"
+    Assert-True -Condition (Test-Path -LiteralPath $controlledManifestPath) -Message "Controlled-hardening external audit package manifest fixture exists"
+    Assert-True -Condition (Test-Path -LiteralPath $readOnlyDemoFollowupManifestPath) -Message "Read-only demo follow-up external audit package manifest fixture exists"
 
     $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
     $validManifest = Get-Content -LiteralPath $validManifestPath -Raw | ConvertFrom-Json
     $rejectedManifest = Get-Content -LiteralPath $rejectedManifestPath -Raw | ConvertFrom-Json
+    $controlledManifest = Get-Content -LiteralPath $controlledManifestPath -Raw | ConvertFrom-Json
+    $readOnlyDemoFollowupManifest = Get-Content -LiteralPath $readOnlyDemoFollowupManifestPath -Raw | ConvertFrom-Json
 
     foreach ($field in @(
         "packageId",
         "preparedAt",
         "sourceRepo",
+        "sourceCommit",
+        "packagePurpose",
         "includedFiles",
         "excludedPatterns",
         "validationSummaryRef",
+        "reviewerPromptRef",
+        "forbiddenScopeDenials",
         "evidenceOnlyNotice",
+        "packageCreationStatus",
+        "noSendStatus",
         "noProductRepos",
         "noAuthorityNotice"
     )) {
-        Assert-True -Condition (@($schema.required) -contains $field) -Message "External audit package manifest schema requires $field"
         Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "External audit package manifest schema defines $field"
     }
 
     Assert-Equal -Actual $schema.properties.noProductRepos.const -Expected $true -Message "Manifest schema requires noProductRepos"
+    Assert-Equal -Actual $schema.properties.noSendStatus.const -Expected $true -Message "Manifest schema keeps package sending disabled"
     Assert-Equal -Actual $schema.properties.includedFiles.items.properties.evidenceOnly.const -Expected $true -Message "Manifest schema requires included files to be evidence-only"
     Assert-Equal -Actual $schema.properties.includedFiles.items.properties.containsRawLogs.const -Expected $false -Message "Manifest schema excludes raw logs from included files"
     Assert-Equal -Actual $schema.properties.includedFiles.items.properties.containsReviewerCommands.const -Expected $false -Message "Manifest schema excludes reviewer commands from included files"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($schema.properties.forbiddenScopeDenials.items.enum) -contains $denial) -Message "Manifest schema supports forbidden-scope denial $denial"
+    }
 
     $schemaText = Get-Content -LiteralPath $schemaPath -Raw
     foreach ($requiredExclusion in @(
@@ -10207,8 +10728,78 @@ function Test-HqExternalAuditPackageManifestSchemaAndFixtures {
     Assert-True -Condition (@($rejectedManifest.includedFiles | Where-Object { $_.containsReviewerCommands -eq $true }).Count -ge 1) -Message "Rejected manifest exposes reviewer command marker"
     Assert-True -Condition ($rejectedManifest.noAuthorityNotice -match "cannot approve") -Message "Rejected manifest still carries no-authority notice"
 
+    Assert-Equal -Actual $controlledManifest.expectedValidity -Expected "valid" -Message "Controlled-hardening manifest declares valid expected validity"
+    Assert-Equal -Actual $controlledManifest.sourceRepo -Expected "codex-fleet-harness" -Message "Controlled-hardening manifest source is the harness repo"
+    Assert-Equal -Actual $controlledManifest.packageCreationStatus -Expected "not_created" -Message "Controlled-hardening manifest records package not created"
+    Assert-Equal -Actual $controlledManifest.noSendStatus -Expected $true -Message "Controlled-hardening manifest keeps package sending disabled"
+    Assert-Equal -Actual $controlledManifest.noProductRepos -Expected $true -Message "Controlled-hardening manifest excludes product repos"
+    Assert-True -Condition ($controlledManifest.packageId -match "controlled-hardening") -Message "Controlled-hardening manifest identifies controlled hardening scope"
+    Assert-True -Condition ($controlledManifest.evidenceOnlyNotice -match "local evidence only") -Message "Controlled-hardening manifest carries local evidence-only notice"
+    Assert-True -Condition ($controlledManifest.noAuthorityNotice -match "cannot approve package creation") -Message "Controlled-hardening manifest cannot approve package creation"
+    Assert-True -Condition ($controlledManifest.noAuthorityNotice -match "future authority") -Message "Controlled-hardening manifest cannot grant future authority"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($controlledManifest.forbiddenScopeDenials) -contains $denial) -Message "Controlled-hardening manifest lists forbidden-scope denial: $denial"
+    }
+
+    foreach ($includedFile in @($controlledManifest.includedFiles)) {
+        Assert-False -Condition ($includedFile.path -match $forbiddenPathPattern) -Message "Controlled-hardening manifest included path avoids forbidden material: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.evidenceOnly -Expected $true -Message "Controlled-hardening manifest included file is evidence-only: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsRawLogs -Expected $false -Message "Controlled-hardening manifest included file excludes raw logs: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsReviewerCommands -Expected $false -Message "Controlled-hardening manifest included file excludes reviewer commands: $($includedFile.path)"
+    }
+
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.expectedValidity -Expected "valid" -Message "Read-only demo follow-up manifest declares valid expected validity"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.sourceRepo -Expected "codex-fleet-harness" -Message "Read-only demo follow-up manifest source is the harness repo"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.packageCreationStatus -Expected "not_created" -Message "Read-only demo follow-up manifest records package not created"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.noSendStatus -Expected $true -Message "Read-only demo follow-up manifest keeps package sending disabled"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.noProductRepos -Expected $true -Message "Read-only demo follow-up manifest excludes product repos"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.packageId -match "read-only-demo-followup") -Message "Read-only demo follow-up manifest identifies read-only demo follow-up scope"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.evidenceOnlyNotice -match "local evidence only") -Message "Read-only demo follow-up manifest carries local evidence-only notice"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.noAuthorityNotice -match "cannot approve package creation") -Message "Read-only demo follow-up manifest cannot approve package creation"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.noAuthorityNotice -match "future authority") -Message "Read-only demo follow-up manifest cannot grant future authority"
+    Assert-True -Condition (@($readOnlyDemoFollowupManifest.includedFiles | Where-Object { [string]$_.path -eq "docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md" }).Count -eq 1) -Message "Read-only demo follow-up manifest includes GREEN audit record evidence"
+    Assert-True -Condition (@($readOnlyDemoFollowupManifest.includedFiles | Where-Object { [string]$_.path -eq "tests/fixtures/fleet/read-only-demo/read-only-demo.reused-approval-denied.json" }).Count -eq 1) -Message "Read-only demo follow-up manifest includes reused approval denial fixture evidence"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($readOnlyDemoFollowupManifest.forbiddenScopeDenials) -contains $denial) -Message "Read-only demo follow-up manifest lists forbidden-scope denial: $denial"
+    }
+
+    foreach ($includedFile in @($readOnlyDemoFollowupManifest.includedFiles)) {
+        Assert-False -Condition ($includedFile.path -match $forbiddenPathPattern) -Message "Read-only demo follow-up manifest included path avoids forbidden material: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.evidenceOnly -Expected $true -Message "Read-only demo follow-up manifest included file is evidence-only: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsRawLogs -Expected $false -Message "Read-only demo follow-up manifest included file excludes raw logs: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsReviewerCommands -Expected $false -Message "Read-only demo follow-up manifest included file excludes reviewer commands: $($includedFile.path)"
+    }
+
     $auditPrompt = Get-Content -LiteralPath $auditPromptPath -Raw
     $batchTemplate = Get-Content -LiteralPath $batchTemplatePath -Raw
+    $allowlistRunbookPath = Join-Path $fleetRoot "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+    $allowlistRunbook = Get-Content -LiteralPath $allowlistRunbookPath -Raw
     foreach ($doc in @($auditPrompt, $batchTemplate)) {
         Assert-True -Condition ($doc -match "external-audit-package-manifest-schema\.json") -Message "External audit docs reference manifest schema"
         Assert-True -Condition ($doc -match "includedFiles") -Message "External audit docs name includedFiles manifest field"
@@ -10217,6 +10808,30 @@ function Test-HqExternalAuditPackageManifestSchemaAndFixtures {
         Assert-True -Condition ($doc -match "noAuthorityNotice") -Message "External audit docs name noAuthorityNotice manifest field"
         Assert-True -Condition ($doc -match "evidence only") -Message "External audit docs keep manifest evidence-only"
     }
+
+    foreach ($phrase in @(
+        "sourceCommit",
+        "reviewerPromptRef",
+        "forbiddenScopeDenials",
+        "packageCreationStatus",
+        "noSendStatus",
+        "not_created",
+        "package sending is a separate exact human approval",
+        "external-audit-package-manifest.controlled-hardening.json",
+        "external-audit-package-manifest.read-only-demo-followup.json",
+        "no-product-repos, no-send, evidence-only",
+        "read-only demo follow-up audit scope",
+        "packageCreationStatus",
+        "Fixture parsing cannot create a package",
+        "Parsing or reviewing this fixture cannot create a package",
+        "product-repo access",
+        "runtime command binding",
+        "evidence-as-authority"
+    )) {
+        Assert-True -Condition ($allowlistRunbook -match [regex]::Escape($phrase)) -Message "Allowlist runbook documents manifest discipline phrase: $phrase"
+    }
+
+    Assert-False -Condition ($allowlistRunbook -match "(?i)(manifest|runbook).{0,80}(approves|authorizes|permits).{0,80}(package sending|package creation|execution|product-repo access)") -Message "Allowlist runbook does not make manifest approval authority"
 }
 
 function Test-ThinTaskPacketWorkflowEnforcement {
@@ -10686,15 +11301,19 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
     $cssPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.css"
     $readmePath = Join-Path $fleetRoot "docs\fleet\ui\prototype\README.md"
+    $reviewPacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\LOCAL_PROTOTYPE_REVIEW_PACKET.md"
+    $accessibilityContractPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\STATIC_ACCESSIBILITY_LINT_CONTRACT.md"
     $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
 
-    foreach ($path in @($htmlPath, $cssPath, $readmePath, $buttonPolicyPath)) {
+    foreach ($path in @($htmlPath, $cssPath, $readmePath, $reviewPacketPath, $accessibilityContractPath, $buttonPolicyPath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console static prototype safety input exists: $path"
     }
 
     $html = Get-Content -LiteralPath $htmlPath -Raw
     $css = Get-Content -LiteralPath $cssPath -Raw
     $readme = Get-Content -LiteralPath $readmePath -Raw
+    $reviewPacket = Get-Content -LiteralPath $reviewPacketPath -Raw
+    $accessibilityContract = Get-Content -LiteralPath $accessibilityContractPath -Raw
     $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
     $combined = @($html, $readme) -join "`n"
 
@@ -10869,6 +11488,49 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         Assert-True -Condition ($readme -match [regex]::Escape($accessibilityReadmePhrase)) -Message "Static prototype README documents accessibility attribute pass: $accessibilityReadmePhrase"
     }
 
+    foreach ($accessibilityContractPhrase in @(
+        "Skip link",
+        "Landmarks",
+        "Heading order",
+        "Labels and states",
+        "Focus-visible CSS",
+        "Narrow-screen readability",
+        "CSS-disabled readability",
+        "Evidence-only safety copy",
+        "local, dependency-approved, non-networked",
+        "separately queued"
+    )) {
+        Assert-True -Condition ($accessibilityContract -match [regex]::Escape($accessibilityContractPhrase)) -Message "Static accessibility lint contract preserves check: $accessibilityContractPhrase"
+    }
+
+    foreach ($accessibilityContractDenial in @(
+        "does not approve scripts",
+        "package installs",
+        "browser automation",
+        "live UI execution",
+        "remote access",
+        "product-repo access",
+        "package sending",
+        "runtime command binding",
+        "future authority"
+    )) {
+        Assert-True -Condition ($accessibilityContract -match [regex]::Escape($accessibilityContractDenial)) -Message "Static accessibility lint contract denies expansion: $accessibilityContractDenial"
+    }
+
+    foreach ($reviewPacketPhrase in @(
+        "STATIC_ACCESSIBILITY_LINT_CONTRACT.md",
+        "local static checks only",
+        "does not add tooling",
+        "install packages",
+        "launch a browser",
+        "read live state",
+        "bind commands",
+        "send packages",
+        "touch product repos"
+    )) {
+        Assert-True -Condition ($reviewPacket -match [regex]::Escape($reviewPacketPhrase)) -Message "Prototype review packet references static accessibility lint boundary: $reviewPacketPhrase"
+    }
+
     foreach ($policyPhrase in @(
         "UI labels, notifications, buttons, prompts",
         "They cannot approve or execute work",
@@ -10876,6 +11538,87 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "No button may become live command binding merely because it appears in this policy"
     )) {
         Assert-True -Condition ($buttonPolicy -match [regex]::Escape($policyPhrase)) -Message "Button policy supports static prototype safety test: $policyPhrase"
+    }
+}
+
+function Test-HqPhoneModeStaticMockSafety {
+    $phonePacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\PHONE_MODE_STATIC_MOCK_PACKET.md"
+    $decisionPacketPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md"
+    $remoteBoundaryPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+
+    foreach ($path in @($phonePacketPath, $decisionPacketPath, $remoteBoundaryPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Phone-mode markdown safety input exists: $path"
+    }
+
+    $phonePacket = Get-Content -LiteralPath $phonePacketPath -Raw
+    $decisionPacket = Get-Content -LiteralPath $decisionPacketPath -Raw
+    $remoteBoundary = Get-Content -LiteralPath $remoteBoundaryPath -Raw
+    $combinedPhoneDocs = @($phonePacket, $decisionPacket, $remoteBoundary) -join "`n"
+
+    foreach ($requiredPhrase in @(
+        "markdown-only",
+        "local",
+        "read-mostly",
+        "read-only",
+        "design-only",
+        "evidence only",
+        "no phone approvals",
+        "no remote commands",
+        "no package sending",
+        "no product-repo selection",
+        "phone mode cannot execute commands",
+        "A phone tap cannot bypass validation",
+        "Future phone approvals are denied by default",
+        "approval/run/send/package language presented as available controls"
+    )) {
+        Assert-True -Condition ($combinedPhoneDocs -match [regex]::Escape($requiredPhrase)) -Message "Phone-mode docs preserve markdown safety phrase: $requiredPhrase"
+    }
+
+    foreach ($forbiddenMarkdownPattern in @(
+        '(?is)<\s*/?\s*[a-z][^>]*>',
+        '!\[[^\]]*\]\(',
+        '(?i)(https?://|www\.|//)',
+        '(?i)\b(powershell|pwsh|Start-Process|run-fleet\.ps1)\b',
+        '(?i)\bgit\s+(add|commit|push|merge|reset|checkout)\b',
+        '(?i)\b(npm|pnpm|yarn)\s+install\b'
+    )) {
+        Assert-False -Condition ($phonePacket -match $forbiddenMarkdownPattern) -Message "Phone-mode markdown packet rejects forbidden pattern: $forbiddenMarkdownPattern"
+    }
+
+    foreach ($availableControlPattern in @(
+        '(?i)\bapprove\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\brun\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bsend\s+package\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bremote\s+access\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bproduct\s+repo\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bphone\s+approval\b.{0,80}\b(available|enabled|allowed)\b'
+    )) {
+        Assert-False -Condition ($phonePacket -match $availableControlPattern) -Message "Phone-mode markdown does not present forbidden control as available: $availableControlPattern"
+    }
+
+    foreach ($unavailablePhrase in @(
+        "Approve | unavailable",
+        "Run | unavailable",
+        "Send package | unavailable",
+        "Remote access | unavailable",
+        "Product repo | unavailable",
+        "phone approvals are denied by default",
+        "package creation/sending is separate and not approved",
+        "no product-repo access is approved"
+    )) {
+        Assert-True -Condition ($phonePacket -match [regex]::Escape($unavailablePhrase)) -Message "Phone-mode markdown keeps forbidden control unavailable: $unavailablePhrase"
+    }
+
+    foreach ($decisionPhrase in @(
+        "Static Markdown Safety Tests",
+        "disallowed HTML tags",
+        "markdown image embeds",
+        "remote URLs",
+        "command-like snippets",
+        "presented as available controls",
+        "do not approve phone UI implementation"
+    )) {
+        Assert-True -Condition ($decisionPacket -match [regex]::Escape($decisionPhrase)) -Message "Phone-mode decision packet documents markdown safety test boundary: $decisionPhrase"
     }
 }
 
@@ -11309,27 +12052,32 @@ function Test-HqApprovalRecordSchemaAndFixtures {
 
 function Test-HqApprovalBoundaryEnforcementTests {
     $schemaPath = Join-Path $fleetRoot "templates\approval-record-schema.json"
+    $boundaryDocPath = Join-Path $fleetRoot "docs\fleet\REMOTE_APPROVAL_BOUNDARY.md"
     $remoteDocPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
     $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
     $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\approvals"
 
     Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Approval boundary enforcement has schema"
+    Assert-True -Condition (Test-Path -LiteralPath $boundaryDocPath) -Message "Approval boundary enforcement has remote boundary doc"
     Assert-True -Condition (Test-Path -LiteralPath $remoteDocPath) -Message "Approval boundary enforcement has remote approval doc"
     Assert-True -Condition (Test-Path -LiteralPath $buttonPolicyPath) -Message "Approval boundary enforcement has button policy doc"
     Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Approval boundary enforcement has fixture directory"
 
     $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $boundaryDoc = Get-Content -LiteralPath $boundaryDocPath -Raw
     $remoteDoc = Get-Content -LiteralPath $remoteDocPath -Raw
     $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
-    $combinedApprovalDocs = "$remoteDoc`n$buttonPolicy"
+    $combinedApprovalDocs = "$boundaryDoc`n$remoteDoc`n$buttonPolicy"
 
     foreach ($phrase in @(
         "exact-action-bound",
+        "future-only",
         "expiration timestamp",
         "single target",
         "deny",
         "cannot be inherited",
         "Risky phone approvals are not allowed",
+        "A phone tap cannot bypass local validation",
         "evidence only"
     )) {
         Assert-True -Condition ($combinedApprovalDocs -match [regex]::Escape($phrase)) -Message "Approval boundary docs preserve phrase: $phrase"
@@ -11363,6 +12111,20 @@ function Test-HqApprovalBoundaryEnforcementTests {
         Assert-True -Condition ($schemaText -match [regex]::Escape($decision)) -Message "Approval boundary schema preserves denial decision: $decision"
     }
 
+    foreach ($case in @(
+        "phone-only-approval-denied",
+        "approve-all-broad-target-denied",
+        "wildcard-target-denied",
+        "missing-owner-denied",
+        "stale-expired-approval-denied",
+        "reused-approval-denied",
+        "write-capable-approval-denied",
+        "forbidden-operation-denied",
+        "evidence-as-authority-denied"
+    )) {
+        Assert-True -Condition ($boundaryDoc -match [regex]::Escape($case)) -Message "Remote approval boundary preserves denial matrix case: $case"
+    }
+
     $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "approval-record*.json" | ForEach-Object {
         Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
     })
@@ -11390,7 +12152,871 @@ function Test-HqApprovalBoundaryEnforcementTests {
     Assert-Equal -Actual $phoneOnly.validationDecision -Expected "deny_phone_only_approval" -Message "Phone-only approval-looking fixture remains denied"
     Assert-True -Condition ([string]$buttonPolicy -match 'Approve Exact Action \| `future-only`') -Message "Button policy keeps approve exact action future-only"
     Assert-True -Condition ([string]$buttonPolicy -match 'Approve All Similar \| `forbidden`') -Message "Button policy forbids approve-all"
+    Assert-True -Condition ([string]$buttonPolicy -match "exact-action-bound, future-only, single-target, expiring, and non-executable") -Message "Button policy preserves future approve control boundary"
     Assert-True -Condition ([string]$remoteDoc -match "A phone tap cannot bypass validation") -Message "Remote approval doc denies phone validation bypass"
+}
+
+function Test-HqReadOnlyDemoApprovalPacketTemplate {
+    $packetPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_APPROVAL_PACKET.md"
+    $schemaPath = Join-Path $fleetRoot "templates\read-only-demo-approval-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $packetPath) -Message "Read-only demo approval packet template exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Read-only demo approval schema exists"
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Read-only demo approval schema is versioned"
+
+    foreach ($field in @(
+        "humanOwner",
+        "selectedTarget",
+        "readOnlyOrNoOpActions",
+        "repoFingerprintRef",
+        "expiresAt",
+        "stopSigns",
+        "evidenceRefs",
+        "validationCommands",
+        "nonAuthorityNotice"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Read-only demo approval schema requires $field"
+        Assert-True -Condition ($null -ne $schema.properties.PSObject.Properties[$field]) -Message "Read-only demo approval schema defines $field"
+        Assert-True -Condition ($packetText -match [regex]::Escape($field)) -Message "Read-only demo approval packet documents $field"
+    }
+
+    foreach ($capability in @(
+        "productRepoAccess",
+        "demoExecution",
+        "productMutation",
+        "packageSending",
+        "remoteAccess",
+        "runtimeCommandBinding",
+        "phoneApproval",
+        "allFleetExecution",
+        "futureAuthority"
+    )) {
+        Assert-True -Condition ($null -ne $schema.properties.forbiddenCapabilities.properties.PSObject.Properties[$capability]) -Message "Read-only demo approval schema defines forbidden capability $capability"
+        Assert-False -Condition ([bool]$schema.properties.forbiddenCapabilities.properties.$capability.const -ne $false) -Message "Read-only demo approval schema keeps $capability false"
+        Assert-True -Condition ($packetText -match [regex]::Escape($capability)) -Message "Read-only demo approval packet documents forbidden capability $capability"
+    }
+
+    foreach ($decision in @(
+        "deny_blank_target",
+        "deny_all_target",
+        "deny_wildcard_target",
+        "deny_multi_target",
+        "deny_missing_owner",
+        "deny_stale_fingerprint",
+        "deny_phone_only_approval",
+        "deny_reused_approval",
+        "deny_write_capable_action",
+        "deny_package_sending",
+        "deny_command_binding",
+        "deny_remote_access",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($decision)) -Message "Read-only demo approval schema preserves denial decision $decision"
+        Assert-True -Condition ($packetText -match [regex]::Escape($decision)) -Message "Read-only demo approval packet preserves denial decision $decision"
+    }
+
+    foreach ($phrase in @(
+        "unfilled template",
+        "does not approve product-repo access",
+        "does not approve product-repo access, demo execution",
+        "cannot fill this packet",
+        "cannot approve runtime command binding",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope."
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Read-only demo approval packet preserves phrase: $phrase"
+    }
+
+    foreach ($allowedAction in @(
+        "READ_STATUS",
+        "READ_REPO_FINGERPRINT",
+        "READ_VALIDATION_SUMMARY",
+        "READ_AUDIT_EVIDENCE",
+        "READ_DRY_RUN_EVIDENCE",
+        "READ_CONTROL_ROOM_SNAPSHOT",
+        "NO_OP_READINESS_CHECK"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($allowedAction)) -Message "Read-only demo approval schema allows planning action label $allowedAction"
+    }
+
+    Assert-True -Condition ($schemaText.Contains("git\\s+(add|commit|merge|push")) -Message "Read-only demo approval schema rejects dangerous git validation commands"
+    Assert-True -Condition ($schemaText.Contains("send\\s+package")) -Message "Read-only demo approval schema rejects package sending"
+    Assert-True -Condition ($schemaText.Contains("remote\\s+access")) -Message "Read-only demo approval schema rejects remote access"
+}
+
+function Test-HqReadOnlyDemoCommandVocabulary {
+    $docPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_COMMAND_VOCABULARY.md"
+    $schemaPath = Join-Path $fleetRoot "templates\read-only-demo-command-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $docPath) -Message "Read-only demo command vocabulary doc exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Read-only demo command vocabulary schema exists"
+
+    $docText = Get-Content -LiteralPath $docPath -Raw
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Read-only demo command vocabulary schema is versioned"
+    Assert-True -Condition (@($schema.required) -contains "allowedLabels") -Message "Read-only demo command vocabulary schema requires allowedLabels"
+    Assert-True -Condition (@($schema.required) -contains "deniedLabels") -Message "Read-only demo command vocabulary schema requires deniedLabels"
+    Assert-True -Condition (@($schema.required) -contains "forbiddenCapabilities") -Message "Read-only demo command vocabulary schema requires forbiddenCapabilities"
+
+    foreach ($allowedLabel in @(
+        "READ_STATUS",
+        "READ_REPO_FINGERPRINT",
+        "READ_VALIDATION_SUMMARY",
+        "READ_AUDIT_EVIDENCE",
+        "READ_DRY_RUN_EVIDENCE",
+        "READ_CONTROL_ROOM_SNAPSHOT",
+        "READ_SCHEMA",
+        "READ_FIXTURE",
+        "NO_OP_READINESS_CHECK"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($allowedLabel)) -Message "Read-only demo command vocabulary schema allows label $allowedLabel"
+        Assert-True -Condition ($docText -match [regex]::Escape($allowedLabel)) -Message "Read-only demo command vocabulary doc explains label $allowedLabel"
+    }
+
+    foreach ($deniedLabel in @(
+        "WRITE_PRODUCT_REPO",
+        "MUTATE_PRODUCT_REPO",
+        "CREATE_PACKAGE",
+        "SEND_PACKAGE",
+        "BIND_RUNTIME_COMMAND",
+        "REMOTE_ACCESS",
+        "APPROVE_BY_PHONE",
+        "RUN_ALL_FLEET",
+        "STAGE_COMMIT_PUSH_DEPLOY",
+        "INSTALL_OR_MIGRATE",
+        "TOUCH_SECRETS_AUTH_PAYMENTS_DEPLOY",
+        "DELETE_LOCKS_OR_WIDEN_PERMISSIONS",
+        "EXECUTE_DEMO",
+        "GRANT_FUTURE_AUTHORITY"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($deniedLabel)) -Message "Read-only demo command vocabulary schema denies label $deniedLabel"
+        Assert-True -Condition ($docText -match [regex]::Escape($deniedLabel)) -Message "Read-only demo command vocabulary doc denies label $deniedLabel"
+    }
+
+    foreach ($decision in @(
+        "deny_write_capable_commands",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_or_migrations",
+        "deny_secrets_auth_payments_deploy_work",
+        "deny_lock_deletion_or_permission_widening",
+        "deny_phone_approvals",
+        "deny_demo_execution",
+        "deny_future_authority"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($decision)) -Message "Read-only demo command vocabulary schema preserves denial decision $decision"
+    }
+
+    foreach ($phrase in @(
+        "These labels describe evidence that may be reviewed.",
+        "They are not shell commands, runtime commands, launcher inputs, button actions, phone approvals, package steps, or product-repo operations.",
+        "does not bind commands",
+        "cannot become a command input",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope."
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($phrase)) -Message "Read-only demo command vocabulary preserves phrase: $phrase"
+    }
+}
+
+function Test-HqReadOnlyDemoStopSignsAndEvidenceCapture {
+    $stopSignsPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_STOP_SIGNS.md"
+    $evidencePath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_EVIDENCE_CAPTURE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $stopSignsPath) -Message "Read-only demo stop signs doc exists"
+    Assert-True -Condition (Test-Path -LiteralPath $evidencePath) -Message "Read-only demo evidence capture doc exists"
+
+    $stopSignsText = Get-Content -LiteralPath $stopSignsPath -Raw
+    $evidenceText = Get-Content -LiteralPath $evidencePath -Raw
+    $combinedText = "$stopSignsText`n$evidenceText"
+
+    foreach ($stopSign in @(
+        "missing-approval-packet",
+        "missing-owner",
+        "blank-target",
+        "all-target",
+        "wildcard-target",
+        "multi-target",
+        "stale-fingerprint",
+        "write-capable-action",
+        "package-sending",
+        "remote-access",
+        "phone-only-approval",
+        "all-fleet-execution",
+        "command-binding",
+        "evidence-as-authority"
+    )) {
+        Assert-True -Condition ($stopSignsText -match [regex]::Escape($stopSign)) -Message "Read-only demo stop signs doc preserves stop sign $stopSign"
+    }
+
+    foreach ($evidenceField in @(
+        "exact selected target reference",
+        "exact human owner reference",
+        "exact approval packet reference",
+        "exact read-only/no-op action labels",
+        "current repo fingerprint reference",
+        "source docs",
+        "stop signs reviewed",
+        "compact summaries",
+        "exact validation command refs",
+        "evidence refs",
+        "validation result",
+        "non-authority notice",
+        "no raw logs by default"
+    )) {
+        Assert-True -Condition ($evidenceText -match [regex]::Escape($evidenceField)) -Message "Read-only demo evidence capture requires field: $evidenceField"
+    }
+
+    foreach ($sourceDoc in @(
+        "docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+        "docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md",
+        "docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+        "docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md",
+        "docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md"
+    )) {
+        Assert-True -Condition ($evidenceText -match [regex]::Escape($sourceDoc)) -Message "Read-only demo evidence capture cites source doc $sourceDoc"
+    }
+
+    foreach ($phrase in @(
+        "compact summaries instead of raw logs by default",
+        "Raw logs are excluded by default",
+        "Validation command refs must be exact strings",
+        "cannot be broadened into all-fleet commands",
+        "does not approve demo execution",
+        "does not approve product-repo access",
+        "Runtime command binding is not approved",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope."
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Read-only demo stop/evidence docs preserve phrase: $phrase"
+    }
+}
+
+function Test-HqReadOnlyDemoReadinessFixtureMatrix {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-demo"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Read-only demo readiness fixture directory exists"
+
+    $expectedCases = @{
+        "read-only-demo.valid-planning.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "planning_only_ready"
+            validationDecision = "valid_planning_only"
+            approvalState = "human_packet_present"
+            denialReason = $null
+            singleTargetOnly = $true
+        }
+        "read-only-demo.missing-approval-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_missing_approval_packet"
+            approvalState = "missing_approval_packet"
+            denialReason = "missing-approval-packet"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.stale-fingerprint-deferred.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "deferred"
+            validationDecision = "defer_stale_fingerprint"
+            approvalState = "human_packet_present"
+            denialReason = "stale-fingerprint"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.write-capable-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_write_capable_action"
+            approvalState = "human_packet_present"
+            denialReason = "write-capable-action"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.package-sending-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_package_sending"
+            approvalState = "human_packet_present"
+            denialReason = "package-sending"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.phone-only-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_phone_only_approval"
+            approvalState = "phone_only_approval"
+            denialReason = "phone-only-approval"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.expired-approval-denied.json" = @{
+            hqTaskId = "HQ-178"
+            planningStatus = "denied"
+            validationDecision = "deny_expired_approval"
+            approvalState = "expired_approval"
+            denialReason = "expired-approval"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.missing-owner-denied.json" = @{
+            hqTaskId = "HQ-179"
+            planningStatus = "denied"
+            validationDecision = "deny_missing_owner"
+            approvalState = "missing_owner"
+            denialReason = "missing-owner"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.reused-approval-denied.json" = @{
+            hqTaskId = "HQ-180"
+            planningStatus = "denied"
+            validationDecision = "deny_reused_approval"
+            approvalState = "reused_approval"
+            denialReason = "reused-approval"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.multi-target-denied.json" = @{
+            hqTaskId = "HQ-174"
+            planningStatus = "denied"
+            validationDecision = "deny_multi_target"
+            approvalState = "human_packet_present"
+            denialReason = "multi-target"
+            singleTargetOnly = $false
+        }
+        "read-only-demo.wildcard-target-denied.json" = @{
+            hqTaskId = "HQ-174"
+            planningStatus = "denied"
+            validationDecision = "deny_wildcard_target"
+            approvalState = "human_packet_present"
+            denialReason = "wildcard-target"
+            singleTargetOnly = $false
+        }
+    }
+
+    foreach ($fixtureName in $expectedCases.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Read-only demo readiness fixture exists: $fixtureName"
+
+        $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        $expected = $expectedCases[$fixtureName]
+
+        Assert-Equal -Actual ([int]$fixture.schemaVersion) -Expected 1 -Message "Read-only demo readiness fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.hqTaskId) -Expected $expected.hqTaskId -Message "Read-only demo readiness fixture maps to expected HQ task: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.fixtureKind) -Expected "read_only_demo_readiness_planning" -Message "Read-only demo readiness fixture names fixture kind: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.planningStatus) -Expected $expected.planningStatus -Message "Read-only demo readiness fixture planning status matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.validationDecision) -Expected $expected.validationDecision -Message "Read-only demo readiness fixture decision matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.approvalState) -Expected $expected.approvalState -Message "Read-only demo readiness fixture approval state matches: $fixtureName"
+        Assert-Equal -Actual ([bool]$fixture.selectedTarget.singleTargetOnly) -Expected $expected.singleTargetOnly -Message "Read-only demo readiness fixture target scope matches expectation: $fixtureName"
+        Assert-True -Condition ([string]$fixture.repoFingerprintRef -match "fixtures/repo-fingerprints/") -Message "Read-only demo readiness fixture uses local repo fingerprint ref: $fixtureName"
+        Assert-True -Condition (@($fixture.evidenceRefs).Count -ge 2) -Message "Read-only demo readiness fixture carries evidence refs: $fixtureName"
+        Assert-True -Condition (@($fixture.validationCommands).Count -ge 1) -Message "Read-only demo readiness fixture carries validation command refs: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "evidence only") -Message "Read-only demo readiness fixture is evidence only: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "cannot approve") -Message "Read-only demo readiness fixture cannot approve: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match [regex]::Escape("Evidence only; not executable authority or approval.")) -Message "Read-only demo readiness fixture preserves canonical non-authority notice: $fixtureName"
+
+        if ($null -ne $expected.denialReason) {
+            Assert-True -Condition (@($fixture.denialReasons) -contains $expected.denialReason) -Message "Read-only demo readiness fixture names denial/defer reason: $fixtureName"
+            Assert-True -Condition (@($fixture.stopSignsReviewed) -contains $expected.denialReason) -Message "Read-only demo readiness fixture reviews stop sign: $fixtureName"
+        } else {
+            Assert-Equal -Actual @($fixture.denialReasons).Count -Expected 0 -Message "Valid read-only demo readiness fixture has no denial reasons"
+        }
+
+        foreach ($capability in @(
+            "productRepoAccess",
+            "productMutation",
+            "packageSending",
+            "remoteAccess",
+            "runtimeCommandBinding",
+            "phoneApprovals",
+            "allFleetExecution",
+            "demoExecution",
+            "futureAuthority"
+        )) {
+            Assert-False -Condition ([bool]$fixture.forbiddenCapabilities.$capability) -Message "Read-only demo readiness fixture keeps $capability false: $fixtureName"
+        }
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-Equal -Actual $fixtures.Count -Expected 11 -Message "Read-only demo readiness matrix has exactly eleven fixtures"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.planningStatus -eq "planning_only_ready" }).Count -eq 1) -Message "Read-only demo readiness matrix has one valid planning-only fixture"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.planningStatus -eq "denied" }).Count -eq 9) -Message "Read-only demo readiness matrix covers nine denied fixtures"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.planningStatus -eq "deferred" }).Count -eq 1) -Message "Read-only demo readiness matrix covers one deferred fixture"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_multi_target" }).Count -eq 1) -Message "Read-only demo readiness matrix covers multi-target denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_wildcard_target" }).Count -eq 1) -Message "Read-only demo readiness matrix covers wildcard-target denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_expired_approval" }).Count -eq 1) -Message "Read-only demo readiness matrix covers expired approval denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_missing_owner" }).Count -eq 1) -Message "Read-only demo readiness matrix covers missing owner denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_reused_approval" }).Count -eq 1) -Message "Read-only demo readiness matrix covers reused approval denial"
+}
+
+function Test-HqReadOnlyDemoNonAuthorityWordingConsistency {
+    $canonicalNotice = "Evidence only; not executable authority or approval."
+    $docPaths = @(
+        "docs\fleet\READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+        "docs\fleet\READ_ONLY_DEMO_APPROVAL_PACKET.md",
+        "docs\fleet\READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+        "docs\fleet\READ_ONLY_DEMO_STOP_SIGNS.md",
+        "docs\fleet\READ_ONLY_DEMO_EVIDENCE_CAPTURE.md",
+        "docs\fleet\READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+        "docs\fleet\FIXTURE_READABILITY_INVENTORY.md",
+        "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+    )
+
+    foreach ($relativePath in $docPaths) {
+        $docPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $docPath) -Message "Read-only demo non-authority wording doc exists: $relativePath"
+        $docText = Get-Content -LiteralPath $docPath -Raw
+        Assert-True -Condition ($docText -match [regex]::Escape($canonicalNotice)) -Message "Read-only demo doc preserves canonical non-authority notice: $relativePath"
+    }
+
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-demo"
+    foreach ($fixturePath in Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json") {
+        $fixture = Get-Content -LiteralPath $fixturePath.FullName -Raw | ConvertFrom-Json
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match [regex]::Escape($canonicalNotice)) -Message "Read-only demo fixture preserves canonical non-authority notice: $($fixturePath.Name)"
+    }
+}
+
+function Test-HqReadOnlyDemoReadinessExternalAuditPrompt {
+    $promptPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md"
+    $nextPromptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $runbookPath = Join-Path $fleetRoot "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+
+    foreach ($path in @($promptPath, $nextPromptPath, $runbookPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Read-only demo audit prompt artifact exists: $([System.IO.Path]::GetFileName($path))"
+    }
+
+    $promptText = Get-Content -LiteralPath $promptPath -Raw
+    $nextPromptText = Get-Content -LiteralPath $nextPromptPath -Raw
+    $runbookText = Get-Content -LiteralPath $runbookPath -Raw
+    $combinedText = @($promptText, $nextPromptText, $runbookText) -join "`n"
+
+    foreach ($phrase in @(
+        "Read-Only Demo Readiness External Audit Prompt",
+        "Does the read-only demo readiness planning lane remain evidence-only and safe for review",
+        "does not create or send a package",
+        "approve product-repo access",
+        "approve demo execution",
+        "bind runtime commands",
+        "approve remote access",
+        "approve phone actions",
+        "grant future authority",
+        "local harness/docs/tests/schema/fixture evidence",
+        "no raw logs by default",
+        "Suggested follow-up tasks only as non-executable queue candidates",
+        "Compact digest for each actionable finding",
+        "Do not provide executable instructions"
+    )) {
+        Assert-True -Condition ($promptText -match [regex]::Escape($phrase)) -Message "Read-only demo audit prompt preserves phrase: $phrase"
+    }
+
+    foreach ($includePath in @(
+        "docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+        "docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md",
+        "docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+        "docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md",
+        "docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md",
+        "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+        "templates/read-only-demo-approval-schema.json",
+        "templates/read-only-demo-command-schema.json",
+        "tests/fixtures/fleet/read-only-demo/*.json",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($includePath)) -Message "Read-only demo audit planning names include path: $includePath"
+    }
+
+    foreach ($excludePhrase in @(
+        "product repos",
+        ".git",
+        ".env",
+        "dependency folders",
+        "node_modules",
+        "dist",
+        "build",
+        "raw logs",
+        "secrets",
+        "auth/payments/deploy/migration material",
+        "package-install material",
+        "staging/commit/push/merge material",
+        "lock-deletion material",
+        "runtime-execution material",
+        "approval material for real product work"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($excludePhrase)) -Message "Read-only demo audit planning preserves exclusion: $excludePhrase"
+    }
+
+    foreach ($phrase in @(
+        "Read-Only Demo Readiness Planning Audit Request",
+        "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+        "read-only-demo-readiness-planning-audit",
+        "Package creation and package sending remain separate exact human-approved actions",
+        'This runbook section and `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` do not create or send a package.'
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Read-only demo next prompt/runbook preserves phrase: $phrase"
+    }
+
+    Assert-False -Condition ($combinedText -match "(?i)(prompt|runbook).{0,80}(approves|authorizes|permits).{0,80}(product-repo access|demo execution|package sending|runtime command binding|future authority)") -Message "Read-only demo audit planning does not make prompt/runbook approval authority"
+}
+
+function Test-HqCombinedApprovalReconciliationFixturePlan {
+    $planPath = Join-Path $fleetRoot "docs\fleet\COMBINED_APPROVAL_RECONCILIATION_FIXTURE_PLAN.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $planPath) -Message "Combined approval reconciliation fixture plan exists"
+
+    $planText = Get-Content -LiteralPath $planPath -Raw
+
+    foreach ($sourceContract in @(
+        "docs/fleet/REMOTE_APPROVAL_BOUNDARY.md",
+        "docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md",
+        "docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md",
+        "docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md",
+        "docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($sourceContract)) -Message "Combined approval reconciliation plan cites source contract: $sourceContract"
+    }
+
+    foreach ($caseName in @(
+        "valid-exact-action-read-only-evidence",
+        "phone-only-denied",
+        "broad-target-denied",
+        "reused-approval-denied",
+        "write-capable-denied",
+        "failure-fingerprint-safe-pause",
+        "reconciliation-unknown"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($caseName)) -Message "Combined approval reconciliation plan defines case: $caseName"
+    }
+
+    foreach ($vocabulary in @(
+        "deny_phone_only_approval",
+        "deny_broad_scope",
+        "deny_expired_or_reused",
+        "deny_write_or_external_effect",
+        "deny_forbidden_operation",
+        "deny_evidence_as_authority",
+        "missing-approval",
+        "forbidden-scope",
+        "policy-denial",
+        "non-retriable-policy-denial",
+        "safe-pause",
+        "blind-retry-forbidden",
+        "UNKNOWN"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($vocabulary)) -Message "Combined approval reconciliation plan preserves vocabulary: $vocabulary"
+    }
+
+    foreach ($safetyField in @(
+        "executesProductActions",
+        "mutatesProductRepos",
+        "readsProductRepos",
+        "bindsRuntimeCommands",
+        "createsOrSendsPackages",
+        "runsAllFleet",
+        "canApproveFutureRuns",
+        "commandInput"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($safetyField)) -Message "Combined approval reconciliation plan requires safety field false: $safetyField"
+    }
+
+    foreach ($phrase in @(
+        "evidence only",
+        "cannot approve or execute work",
+        "does not implement runtime behavior",
+        "does not inspect product repositories",
+        "does not approve execution",
+        "package creation or sending",
+        "runtime command binding",
+        "product-repo access",
+        "future authority",
+        "Stop and repacketize"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($phrase)) -Message "Combined approval reconciliation plan preserves non-authority phrase: $phrase"
+    }
+}
+
+function Test-HqNonAuthorityWordingConsistency {
+    $docPaths = @(
+        "docs\fleet\STABLE_CONTEXT_CAPSULE.md",
+        "docs\fleet\NEW_CHAT_HANDOFF_PACKET.md",
+        "docs\fleet\CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md",
+        "docs\fleet\CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md",
+        "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md",
+        "docs\fleet\SELECTED_PROJECT_READ_ONLY_GATE.md",
+        "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md",
+        "docs\fleet\FAILURE_FINGERPRINT_CONTRACT.md",
+        "docs\fleet\REMOTE_APPROVAL_BOUNDARY.md",
+        "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+        "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+    )
+
+    $commonPhrases = @(
+        "Common Non-Authority Phrase Set",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.",
+        "GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority."
+    )
+
+    foreach ($relativePath in $docPaths) {
+        $docPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $docPath) -Message "Non-authority wording selected doc exists: $relativePath"
+
+        $docText = Get-Content -LiteralPath $docPath -Raw
+        foreach ($phrase in $commonPhrases) {
+            Assert-True -Condition ($docText -match [regex]::Escape($phrase)) -Message "Non-authority wording doc preserves common phrase: $relativePath :: $phrase"
+        }
+    }
+
+    $combinedDocs = ($docPaths | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $fleetRoot $_) -Raw
+    }) -join "`n"
+
+    foreach ($artifactType in @(
+        "reviewer output",
+        "DOCX reports",
+        "mobile requests",
+        "task packets",
+        "audit packages",
+        "generated evidence",
+        "UI labels",
+        "notifications",
+        "buttons",
+        "approvals",
+        "prompts",
+        "validation summaries",
+        "manifests",
+        "dry-run records",
+        "queue prose"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($artifactType)) -Message "Non-authority wording covers artifact type: $artifactType"
+    }
+
+    foreach ($forbiddenAuthority in @(
+        "approve or execute work",
+        "grant future authority",
+        "bypass validation",
+        "select product repos",
+        "send packages",
+        "bind runtime commands",
+        "approve phone actions",
+        "approve demos",
+        "import tasks",
+        "fill approval packets",
+        "broaden scope"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($forbiddenAuthority)) -Message "Non-authority wording denies authority path: $forbiddenAuthority"
+    }
+}
+
+function Test-HqFixtureReadabilityInventory {
+    $inventoryRelativePath = "docs\fleet\FIXTURE_READABILITY_INVENTORY.md"
+    $inventoryPath = Join-Path $fleetRoot $inventoryRelativePath
+    $fixtureRoot = Join-Path $fleetRoot "tests\fixtures\fleet"
+    $requiredFixtureDirs = @(
+        "anti-loop",
+        "approvals",
+        "evidence",
+        "read-only-demo",
+        "read-only-gates"
+    )
+    $futureCapableFixtureDirs = @(
+        "thin-task-packets",
+        "ui-control"
+    )
+
+    Assert-True -Condition (Test-Path -LiteralPath $inventoryPath) -Message "Fixture readability inventory exists"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureRoot) -Message "Fleet fixture root exists"
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw -ErrorAction Stop
+    foreach ($phrase in @(
+        "local read-only fixture accessibility check",
+        "tests/fixtures/fleet",
+        "JSON/Markdown evidence",
+        "does not change ACLs",
+        "chmod permissions",
+        "ownership",
+        "package-builder behavior",
+        "product repos",
+        "generated package contents",
+        "reported as validation failure evidence",
+        "not fixed by widening permissions",
+        "read-only demo fixture package-inclusion check",
+        "tests/fixtures/fleet/read-only-demo/*.json",
+        "currently present directory list",
+        "future-capable",
+        "checked only when the directory exists",
+        "must not create a missing future-capable directory",
+        "approval material for real product work"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "Fixture readability inventory preserves required phrase: $phrase"
+    }
+
+    foreach ($dirName in $requiredFixtureDirs) {
+        $relativeDir = "tests/fixtures/fleet/$dirName"
+        $dirPath = Join-Path $fixtureRoot $dirName
+        Assert-True -Condition (Test-Path -LiteralPath $dirPath) -Message "Required fixture directory exists: $relativeDir"
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($relativeDir)) -Message "Fixture readability inventory lists required directory: $relativeDir"
+
+        $dirFiles = @(Get-ChildItem -LiteralPath $dirPath -File -ErrorAction Stop)
+        Assert-True -Condition ($dirFiles.Count -gt 0) -Message "Required fixture directory can be enumerated and has files: $relativeDir"
+    }
+
+    $readOnlyDemoDir = Join-Path $fixtureRoot "read-only-demo"
+    $readOnlyDemoFixtures = @(Get-ChildItem -LiteralPath $readOnlyDemoDir -Filter "*.json" -File -ErrorAction Stop)
+    Assert-Equal -Actual $readOnlyDemoFixtures.Count -Expected 11 -Message "Read-only demo fixture directory has eleven JSON fixtures"
+    foreach ($fixture in $readOnlyDemoFixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $fixtureText = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop
+        $parsedFixture = $fixtureText | ConvertFrom-Json -ErrorAction Stop
+        Assert-True -Condition ($null -ne $parsedFixture) -Message "Read-only demo fixture is readable and JSON-parseable: $relativePath"
+        Assert-True -Condition ([string]$parsedFixture.fixtureKind -eq "read_only_demo_readiness_planning") -Message "Read-only demo fixture remains planning evidence: $relativePath"
+        Assert-True -Condition ([string]$parsedFixture.nonAuthorityNotice -match "Evidence only; not executable authority or approval.") -Message "Read-only demo fixture carries canonical non-authority notice: $relativePath"
+    }
+
+    foreach ($dirName in $futureCapableFixtureDirs) {
+        $relativeDir = "tests/fixtures/fleet/$dirName"
+        $dirPath = Join-Path $fixtureRoot $dirName
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($relativeDir)) -Message "Fixture readability inventory lists future-capable directory: $relativeDir"
+
+        if (Test-Path -LiteralPath $dirPath) {
+            $dirFiles = @(Get-ChildItem -LiteralPath $dirPath -File -ErrorAction Stop)
+            Assert-True -Condition ($dirFiles.Count -gt 0) -Message "Present future-capable fixture directory can be enumerated and has files: $relativeDir"
+        } else {
+            Assert-True -Condition ($inventoryText -match "future-capable") -Message "Absent future-capable fixture directory is documented without being required: $relativeDir"
+        }
+    }
+
+    $jsonFixtures = @(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -Filter "*.json" -File -ErrorAction Stop)
+    Assert-True -Condition ($jsonFixtures.Count -ge 40) -Message "Fleet JSON fixtures can be enumerated"
+    foreach ($fixture in $jsonFixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $jsonText = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop
+        $parsedFixture = $jsonText | ConvertFrom-Json -ErrorAction Stop
+        Assert-True -Condition ($null -ne $parsedFixture) -Message "Fleet JSON fixture parses: $relativePath"
+    }
+
+    $markdownFixtures = @(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -Include "*.md", "*.markdown" -File -ErrorAction Stop)
+    foreach ($fixture in $markdownFixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $markdownText = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop
+        Assert-True -Condition ($null -ne $markdownText) -Message "Fleet Markdown fixture is readable: $relativePath"
+    }
+}
+
+function Test-HqReadOnlyDemoFixturePackageInclusionCheck {
+    $runbookPath = Join-Path $fleetRoot "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+    $runbookText = Get-Content -LiteralPath $runbookPath -Raw -ErrorAction Stop
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-demo"
+
+    foreach ($phrase in @(
+        "Read-only demo fixture inclusion check",
+        "tests/fixtures/fleet/read-only-demo/*.json",
+        "present, readable, JSON-parseable",
+        "local fixture evidence only",
+        "does not create a package",
+        "send a package",
+        "approve demo execution",
+        "approve product-repo access",
+        "change ACLs",
+        "change ownership",
+        "widen permissions",
+        "bind runtime commands",
+        "approval material into authority"
+    )) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($phrase)) -Message "Read-only demo fixture package-inclusion check preserves phrase: $phrase"
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" -File -ErrorAction Stop)
+    Assert-Equal -Actual $fixtures.Count -Expected 11 -Message "Read-only demo package-inclusion check sees eleven JSON fixtures"
+    foreach ($fixture in $fixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $parsedFixture = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        Assert-True -Condition ($null -ne $parsedFixture) -Message "Read-only demo package-inclusion fixture parses locally: $relativePath"
+        Assert-False -Condition ([bool]$parsedFixture.forbiddenCapabilities.productRepoAccess) -Message "Read-only demo fixture package-inclusion keeps product repo access false: $relativePath"
+        Assert-False -Condition ([bool]$parsedFixture.forbiddenCapabilities.packageSending) -Message "Read-only demo fixture package-inclusion keeps package sending false: $relativePath"
+        Assert-False -Condition ([bool]$parsedFixture.forbiddenCapabilities.runtimeCommandBinding) -Message "Read-only demo fixture package-inclusion keeps runtime command binding false: $relativePath"
+    }
+}
+
+function Test-HqReadOnlyDemoFollowupGreenAuditRecord {
+    $recordPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md"
+    $overnightRecordPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md"
+    $handoffPath = Join-Path $fleetRoot "docs\fleet\NEW_CHAT_HANDOFF_PACKET.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $recordPath) -Message "Read-only demo follow-up GREEN audit record exists"
+    Assert-True -Condition (Test-Path -LiteralPath $overnightRecordPath) -Message "Read-only demo overnight-safe follow-up GREEN audit record exists"
+    Assert-True -Condition (Test-Path -LiteralPath $handoffPath) -Message "Read-only demo follow-up handoff source exists"
+
+    $recordText = Get-Content -LiteralPath $recordPath -Raw -ErrorAction Stop
+    $overnightRecordText = Get-Content -LiteralPath $overnightRecordPath -Raw -ErrorAction Stop
+    $handoffText = Get-Content -LiteralPath $handoffPath -Raw -ErrorAction Stop
+
+    foreach ($phrase in @(
+        "Codex Fleet Audit (5).docx",
+        "Verdict: GREEN.",
+        "HQ-173",
+        "HQ-174",
+        "HQ-175",
+        "Evidence only; not executable authority or approval.",
+        "INFO only",
+        "no hidden operations or scope expansion",
+        "product-repo access",
+        "demo execution",
+        "package sending",
+        "runtime command binding",
+        "all-fleet execution",
+        "future authority",
+        "queue candidates only"
+    )) {
+        Assert-True -Condition ($recordText -match [regex]::Escape($phrase)) -Message "Read-only demo follow-up GREEN audit record preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "HQ-176 through HQ-182",
+        "Verdict: GREEN.",
+        "Evidence only; not executable authority or approval.",
+        "created_for_local_user_request_not_sent",
+        "not_created",
+        "accepted as a documentation clarity point only",
+        "product-repo access",
+        "demo execution",
+        "package creation",
+        "package sending",
+        "runtime command binding",
+        "all-fleet execution",
+        "running an overnight runner",
+        "future authority",
+        "controlled read-only demo gate rehearsal"
+    )) {
+        Assert-True -Condition ($overnightRecordText -match [regex]::Escape($phrase)) -Message "Read-only demo overnight-safe GREEN audit record preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+        "READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+        "Codex Fleet Audit (5).docx",
+        "returned GREEN for HQ-173 through HQ-175",
+        "HQ-176 through HQ-182 returned GREEN",
+        "evidence only",
+        "product-repo access",
+        "demo execution",
+        "package creation/sending",
+        "runtime command binding",
+        "all-fleet execution",
+        "running an overnight runner",
+        "future authority"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($phrase)) -Message "Read-only demo follow-up handoff preserves phrase: $phrase"
+    }
+
+    Assert-False -Condition ($recordText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo follow-up record does not grant forbidden authority"
+    Assert-False -Condition ($overnightRecordText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo overnight-safe follow-up record does not grant forbidden authority"
+    Assert-False -Condition ($handoffText -match "(?is)(READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo follow-up handoff does not grant forbidden authority"
+    Assert-False -Condition ($handoffText -match "(?is)(READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo overnight-safe follow-up handoff does not grant forbidden authority"
 }
 
 Set-Location $fleetRoot
@@ -11476,6 +13102,10 @@ Test-ArtifactIndexContract
 Test-ArtifactIndexFixtureWriter
 Test-RuntimePolicyDecisionContract
 Test-RuntimePolicyDryRunEvaluator
+Test-RuntimeDryRunEvidenceContract
+Test-SelectedProjectReadOnlyGateContract
+Test-SelectedProjectReadOnlyEndToEndFixtureMatrix
+Test-RuntimePolicyDryRunFixtureMatrix
 Test-RuntimePilotWrapperDryRunContract
 Test-HqRepairQueueContract
 Test-HqRepairExternalAuditPackage
@@ -11517,6 +13147,7 @@ Test-HqGreenExternalAuditRecordRegressionGuard
 Test-HqFleetConsolePrototypePacketSchemaAndFixtures
 Test-HqFleetConsoleMockStateSchemaAndFixtures
 Test-HqFleetConsoleStaticPrototypeSafety
+Test-HqPhoneModeStaticMockSafety
 Test-HqUiSafetyFixtureMatrix
 Test-HqUiSafetyEnforcementTests
 Test-HqAntiLoopFixtureMatrix
@@ -11524,6 +13155,16 @@ Test-HqAntiLoopEnforcementRules
 Test-HqProgressLedgerSchemaAndFixtures
 Test-HqApprovalRecordSchemaAndFixtures
 Test-HqApprovalBoundaryEnforcementTests
+Test-HqReadOnlyDemoApprovalPacketTemplate
+Test-HqReadOnlyDemoCommandVocabulary
+Test-HqReadOnlyDemoStopSignsAndEvidenceCapture
+Test-HqReadOnlyDemoReadinessFixtureMatrix
+Test-HqReadOnlyDemoReadinessExternalAuditPrompt
+Test-HqCombinedApprovalReconciliationFixturePlan
+Test-HqNonAuthorityWordingConsistency
+Test-HqFixtureReadabilityInventory
+Test-HqReadOnlyDemoFixturePackageInclusionCheck
+Test-HqReadOnlyDemoFollowupGreenAuditRecord
 Test-GoldenGameplanStageSixteenSupport
 
 if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {

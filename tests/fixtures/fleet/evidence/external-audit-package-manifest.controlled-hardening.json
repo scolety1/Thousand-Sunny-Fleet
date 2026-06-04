@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "packageId": "external-audit-package-controlled-hardening-20260603",
+  "preparedAt": "2026-06-03T12:00:00Z",
+  "sourceRepo": "codex-fleet-harness",
+  "sourceCommit": "controlled-hardening-green-20260603",
+  "packagePurpose": "harness-docs-tests-external-audit",
+  "includedFiles": [
+    {
+      "path": "docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "GREEN audit milestone record for controlled local control-plane hardening."
+    },
+    {
+      "path": "docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Local control-plane hardening phase boundary."
+    },
+    {
+      "path": "docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manual allowlist and no-send package-scope runbook."
+    },
+    {
+      "path": "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+      "kind": "prompt",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Reviewer prompt evidence for controlled hardening audit scope."
+    },
+    {
+      "path": "templates/external-audit-package-manifest-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manifest shape used for local fixture validation."
+    },
+    {
+      "path": "tests/fixtures/fleet/evidence/external-audit-package-manifest.controlled-hardening.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Local controlled-hardening manifest fixture."
+    },
+    {
+      "path": "tests/run-fleet-tests.ps1",
+      "kind": "test",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Focused local harness validation for manifest fixture posture."
+    }
+  ],
+  "excludedPatterns": [
+    ".git",
+    ".env",
+    "product repositories",
+    "product source snapshots",
+    "node_modules",
+    "dist",
+    "build",
+    "raw locks",
+    "unknown zip files",
+    "live worker state",
+    "secrets",
+    "credentials",
+    "private keys",
+    "auth material",
+    "payment material",
+    "deploy material",
+    "migration material",
+    "package-install material",
+    "staging material",
+    "commit material",
+    "push material",
+    "merge material",
+    "runtime-execution material",
+    "remote access material",
+    "phone approval material",
+    "permission widening material"
+  ],
+  "validationSummaryRef": "docs/codex/test-summary.md",
+  "reviewerPromptRef": "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+  "externalAuditDigestSchemaRef": "templates/external-audit-intake-digest-schema.json",
+  "forbiddenScopeDenials": [
+    "deny_product_repo_access",
+    "deny_product_mutation",
+    "deny_package_sending",
+    "deny_runtime_command_binding",
+    "deny_remote_access",
+    "deny_phone_approval",
+    "deny_all_fleet_execution",
+    "deny_staging_commit_push_deploy",
+    "deny_installs_migrations_secrets",
+    "deny_lock_deletion_permission_widening",
+    "deny_evidence_as_authority"
+  ],
+  "evidenceOnlyNotice": "This controlled-hardening manifest fixture is local evidence only. It does not create, send, approve, execute, import, package, authorize product repository access, bind runtime commands, approve remote access, approve phone actions, launch ships, or grant future authority.",
+  "packageCreationStatus": "not_created",
+  "noSendStatus": true,
+  "noProductRepos": true,
+  "noAuthorityNotice": "This controlled-hardening manifest fixture cannot approve package creation, package sending, product repository access, execution, runtime command binding, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets, lock deletion, permission widening, demo trials, or future authority.",
+  "expectedValidity": "valid"
+}

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Selected-Project Read-Only Gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "gateId",
+    "selectedTarget",
+    "owner",
+    "repoFingerprintRef",
+    "readOnlyActions",
+    "expiresAt",
+    "stopConditions",
+    "evidenceRefs",
+    "nonAuthorityNotice",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "gateId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "selectedTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetId",
+        "targetType",
+        "singleTargetOnly"
+      ],
+      "properties": {
+        "targetId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetType": {
+          "type": "string",
+          "enum": [
+            "project",
+            "ship",
+            "fixture"
+          ]
+        },
+        "singleTargetOnly": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repoFingerprintRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "readOnlyActions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "READ_STATUS",
+          "READ_REPO_FINGERPRINT",
+          "READ_VALIDATION_SUMMARY",
+          "READ_AUDIT_EVIDENCE",
+          "READ_CONTROL_ROOM_SNAPSHOT",
+          "READ_DRY_RUN_EVIDENCE"
+        ]
+      }
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stopConditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "decision",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "allow_read_only",
+            "defer_missing_evidence",
+            "deny_blank_target",
+            "deny_all_target",
+            "deny_wildcard_target",
+            "deny_multi_target",
+            "deny_missing_owner",
+            "deny_missing_repo_fingerprint",
+            "deny_invalid_repo_fingerprint_ref",
+            "deny_stale_fingerprint",
+            "deny_write_capable_action",
+            "deny_phone_only_approval",
+            "deny_package_sending",
+            "deny_command_binding",
+            "deny_product_mutation",
+            "deny_remote_access",
+            "deny_evidence_as_authority"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "single-target-required",
+              "owner-required",
+              "repo-fingerprint-ref-required",
+              "read-only-actions-required",
+              "expiration-required",
+              "stop-conditions-required",
+              "evidence-refs-required",
+              "non-authority-notice-required",
+              "blank-target-denied",
+              "all-target-denied",
+              "wildcard-target-denied",
+              "multi-target-denied",
+              "missing-owner-denied",
+              "missing-repo-fingerprint-denied",
+              "invalid-repo-fingerprint-ref-denied",
+              "stale-fingerprint-denied",
+              "write-capable-action-denied",
+              "phone-only-approval-denied",
+              "package-sending-denied",
+              "command-binding-denied",
+              "product-mutation-denied",
+              "remote-access-denied",
+              "evidence-as-authority-denied"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

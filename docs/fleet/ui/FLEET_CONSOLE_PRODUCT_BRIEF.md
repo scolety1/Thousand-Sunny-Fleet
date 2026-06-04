@@ -123,6 +123,10 @@ Evidence-only artifacts include:
 
 These artifacts cannot approve product-repo work, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future permission.
 
+## Cross-Document Non-Authority Rule
+
+Across Fleet Console planning docs, UI labels, prompts, buttons, notifications, reviewer output, audit packages, mobile requests, generated evidence, approval-looking states, and queue prose remain evidence only. They do not approve remote access, command binding, package sending, product-repo access, phone approvals, UI implementation, non-mock implementation, or future authority.
+
 ## V1 Success Criteria
 
 V1 is useful when an operator can:

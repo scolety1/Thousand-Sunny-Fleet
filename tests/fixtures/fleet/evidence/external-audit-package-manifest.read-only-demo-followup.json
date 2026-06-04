@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "packageId": "external-audit-package-read-only-demo-followup-2026-06-04",
+  "preparedAt": "2026-06-04T00:00:00Z",
+  "sourceRepo": "codex-fleet-harness",
+  "sourceCommit": "pending-checkpoint-2026-06-04",
+  "packagePurpose": "harness-docs-tests-external-audit",
+  "includedFiles": [
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "GREEN follow-up audit record for HQ-173 through HQ-175."
+    },
+    {
+      "path": "docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manual allowlist guidance; does not create or send packages."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+      "kind": "prompt",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Reviewer prompt evidence only; not executable authority."
+    },
+    {
+      "path": "templates/external-audit-package-manifest-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manifest schema used for local validation."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-demo/read-only-demo.expired-approval-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Read-only demo denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-demo/read-only-demo.missing-owner-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Read-only demo denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-demo/read-only-demo.reused-approval-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Read-only demo denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-followup.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "This manifest fixture is local validation evidence only."
+    },
+    {
+      "path": "tests/run-fleet-tests.ps1",
+      "kind": "test",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Focused local validation checks for manifest discipline."
+    }
+  ],
+  "excludedPatterns": [
+    ".git",
+    ".env",
+    "product repositories",
+    "product source snapshots",
+    "node_modules",
+    "dist",
+    "build",
+    "raw logs",
+    "raw locks",
+    "unknown zip files",
+    "live worker state",
+    "secrets",
+    "credentials",
+    "private keys",
+    "auth material",
+    "payment material",
+    "deploy material",
+    "migration material",
+    "package-install material",
+    "staging material",
+    "commit material",
+    "push material",
+    "merge material",
+    "lock-deletion material",
+    "runtime-execution material",
+    "permission material",
+    "approval material for real product work"
+  ],
+  "validationSummaryRef": "docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+  "reviewerPromptRef": "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+  "externalAuditDigestSchemaRef": "templates/external-audit-intake-digest-schema.json",
+  "forbiddenScopeDenials": [
+    "deny_product_repo_access",
+    "deny_product_mutation",
+    "deny_package_sending",
+    "deny_runtime_command_binding",
+    "deny_remote_access",
+    "deny_phone_approval",
+    "deny_all_fleet_execution",
+    "deny_staging_commit_push_deploy",
+    "deny_installs_migrations_secrets",
+    "deny_lock_deletion_permission_widening",
+    "deny_evidence_as_authority"
+  ],
+  "evidenceOnlyNotice": "This read-only demo follow-up manifest fixture is local evidence only. It does not create, send, approve, execute, import, package, authorize product repository access, bind runtime commands, approve remote access, approve phone actions, launch ships, or grant future authority.",
+  "packageCreationStatus": "not_created",
+  "noSendStatus": true,
+  "noProductRepos": true,
+  "noAuthorityNotice": "This read-only demo follow-up manifest fixture cannot approve package creation, package sending, execution, demo approval, product repository access, runtime command binding, remote access, phone approvals, all-fleet execution, validation bypasses, or future authority.",
+  "expectedValidity": "valid"
+}

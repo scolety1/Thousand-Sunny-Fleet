@@ -529,3 +529,66 @@ Post-polish YELLOW:
 Post-polish RED:
 
 - Validation fails, package scope expands to forbidden material, UI or phone-mode evidence is treated as authority, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, remote access, package sending, phone approvals, or non-mock UI implementation.
+
+## Controlled Local Control-Plane Hardening Audit Checklist
+
+Use this checklist after the `Controlled Local Control-Plane Hardening Queue 2026-06-03` has local GREEN validation. This checklist is evidence-only planning. It does not create a package, send a package, approve product-repo access, approve product mutation, approve remote access, approve package sending, approve runtime command binding, approve phone approvals, approve all-fleet execution, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future authority.
+
+Reviewer ask:
+
+- Audit only the controlled local control-plane hardening artifacts completed in the queue.
+- Confirm runtime dry-run evidence records remain local, non-executing, fixture-backed evidence and cannot approve live execution, product-repo access, command binding, package sending, or future permission.
+- Confirm selected-project read-only gates deny wildcard/all-project targets, write-capable actions, missing owner, stale fingerprint, phone-only approval, package sending, command binding, and product mutation.
+- Confirm external audit manifest discipline remains allowlist-first, compact-summary-only, no-send, no-product-repo, and evidence-only until separate exact human package-scope approval exists.
+- Confirm control-room reconciliation keeps stale, missing, mismatched, contradictory, and ambiguous evidence as `UNKNOWN`, and that `UNKNOWN` blocks execution rather than becoming approval.
+- Confirm failure loop breaking pauses or repacketizes repeated deterministic failures rather than retrying blindly or broadening scope.
+- Confirm approval boundaries deny phone-only, approve-all/broad targets, wildcard targets, missing owner, stale or expired approvals, reused approvals, write-capable approvals, forbidden operations, and evidence-as-authority attempts.
+- Confirm reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose remain evidence only.
+
+Evidence to include only after human package-scope review:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+- `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+- `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+- `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+- `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+- `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- controlled-hardening schemas in `templates/`
+- relevant fixture directories under `tests/fixtures/fleet/`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Material not to export:
+
+- product repositories, product source snapshots, real project exports, unscoped project material, `.git`, `.env`, dependency folders, build outputs, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, real approval material, package creation output, or package sending output without a separate human-approved manifest and package action.
+
+Controlled-hardening GREEN:
+
+- `tests/run-fleet-tests.ps1` passes.
+- Dry-run evidence remains non-executing and non-authoritative.
+- Selected-project gates remain read-only and deny-by-default.
+- Manifest discipline prevents ambiguous package contents, package creation, package sending, product-repo access, or execution approval.
+- `UNKNOWN` reconciliation blocks execution and cannot become approval.
+- Failure loop breaking pauses or repacketizes repeated deterministic failures.
+- Approval boundaries deny phone-only, broad, stale, reused, write-capable, forbidden-operation, and evidence-as-authority attempts.
+- Package scope remains harness/docs/tests/schema/fixture/scrubbed compact evidence only.
+
+Controlled-hardening YELLOW:
+
+- Validation passes, but reviewer needs narrower evidence, clearer dry-run wording, clearer selected-project gate boundaries, or an explicit bounded follow-up task.
+- Package contents are safe but require human package-scope review before any package creation or sending.
+- A finding is an accepted limitation only if it does not require product-repo access, runtime command binding, remote access, package creation, package sending, phone approvals, automation, all-fleet execution, or sensitive-scope work.
+
+Controlled-hardening RED:
+
+- Validation fails, package scope expands to forbidden material, evidence is treated as authority, `UNKNOWN` is converted into approval, dry-run evidence is treated as runtime permission, or any step would require product-repo access, product mutation, product launch, all-fleet scope, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, remote access, package creation, package sending, phone approvals, or non-mock UI implementation.

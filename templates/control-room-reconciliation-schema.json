@@ -73,6 +73,8 @@
           "missing-db-state-ref",
           "missing-run-artifact-ref",
           "missing-repo-fingerprint-ref",
+          "missing-dry-run-evidence",
+          "ambiguous-approval-evidence",
           "status-snapshot-mismatch",
           "contradictory-lease",
           "dirty-state-conflict",
@@ -130,6 +132,8 @@
               "missing-db-state-ref",
               "missing-run-artifact-ref",
               "missing-repo-fingerprint-ref",
+              "missing-dry-run-evidence",
+              "ambiguous-approval-evidence",
               "status-snapshot-mismatch",
               "contradictory-lease",
               "ship-id-mismatch"

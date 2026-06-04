@@ -34,6 +34,12 @@
       "type": "string",
       "const": "codex-fleet-harness"
     },
+    "sourceCommit": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 80,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
     "packagePurpose": {
       "type": "string",
       "enum": [
@@ -118,13 +124,52 @@
         "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(product[-_ ]?repo|node_modules|dist|build|raw[-_ ]?locks?|unknown[-_ ]?zip|live[-_ ]?worker|secret|credential|private[-_ ]?key|auth|payments?|deploy|migration)"
       }
     },
+    "reviewerPromptRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "not": {
+        "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(product[-_ ]?repo|node_modules|dist|build|raw[-_ ]?locks?|unknown[-_ ]?zip|live[-_ ]?worker|secret|credential|private[-_ ]?key|auth|payments?|deploy|migration)"
+      }
+    },
     "externalAuditDigestSchemaRef": {
       "const": "templates/external-audit-intake-digest-schema.json"
+    },
+    "forbiddenScopeDenials": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "deny_product_repo_access",
+          "deny_product_mutation",
+          "deny_package_sending",
+          "deny_runtime_command_binding",
+          "deny_remote_access",
+          "deny_phone_approval",
+          "deny_all_fleet_execution",
+          "deny_staging_commit_push_deploy",
+          "deny_installs_migrations_secrets",
+          "deny_lock_deletion_permission_widening",
+          "deny_evidence_as_authority"
+        ]
+      }
     },
     "evidenceOnlyNotice": {
       "type": "string",
       "minLength": 80,
       "maxLength": 800
+    },
+    "packageCreationStatus": {
+      "type": "string",
+      "enum": [
+        "not_created",
+        "separate_human_approval_required"
+      ]
+    },
+    "noSendStatus": {
+      "type": "boolean",
+      "const": true
     },
     "noProductRepos": {
       "const": true

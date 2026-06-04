@@ -68,6 +68,8 @@ Local validation passing means the bounded harness/docs/tests/prototype task pas
 
 Use this checklist only for local static prototype review. It is evidence-only guidance and does not approve scripts, live state reads, package installs, browser automation, remote access, product-repo access, command binding, package sending, runtime control, implementation beyond static files, or future authority.
 
+Static lint contract: `docs/fleet/ui/prototype/STATIC_ACCESSIBILITY_LINT_CONTRACT.md`. The contract defines local static checks only. It does not add tooling, install packages, launch a browser, create screenshots, run a server, read live state, bind commands, send packages, touch product repos, or approve implementation beyond bounded static files.
+
 - Semantic structure: page sections use clear headings and local review regions that can be understood without visual styling.
 - Keyboard-readable order: review content has a sensible reading and tab order, including a skip path to the main local mock content.
 - Focus visibility: links or focusable mock controls have visible focus treatment when keyboard focus is present.

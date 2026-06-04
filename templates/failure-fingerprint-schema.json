@@ -108,6 +108,7 @@
         "repair-task",
         "safe-pause",
         "block",
+        "repacketize",
         "wait-for-rate-reset",
         "non-retriable-policy-denial"
       ]
@@ -151,6 +152,12 @@
               "policy-denial-non-retriable",
               "blind-retry-forbidden",
               "missing-evidence",
+              "missing-allowed-file",
+              "validation-requires-forbidden-action",
+              "ambiguous-external-evidence",
+              "scope-expansion",
+              "repacketize-required",
+              "deny-required",
               "failure-class-erased",
               "noisy-id-normalized"
             ]

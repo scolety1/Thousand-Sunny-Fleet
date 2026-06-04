@@ -10,6 +10,8 @@ The Audit Guidelines Review fix-up phase is complete when HQ-110 through HQ-121 
 
 Local-only control-plane preparation means adding decision records, schemas, fixtures, runbooks, and focused harness tests that make future prototype, audit-package, and external-review work safer before any runtime or UI implementation begins.
 
+The controlled hardening continuation is defined in `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`. That charter is evidence only: it frames local docs/tests/schema/fixture/dry-run hardening and does not approve product-repo access, product mutation, remote console implementation, package sending, runtime command binding, phone approvals, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, or future authority.
+
 ## Phase Boundaries
 
 ### Completed Fix-Up Boundary
@@ -128,3 +130,5 @@ Stop and mark the active task blocked if the work requires:
 Current next-phase result: local-only control-plane preparation is allowed through bounded docs/schema/fixture/test tasks only.
 
 Current implementation result: UI code, remote access, package sending, runtime command binding, and product-repo work are not approved.
+
+Current controlled-hardening result: the next bounded phase may prepare local control-plane evidence records, dry-run fixture coverage, manifest discipline, selected-project read-only gate readiness, UNKNOWN reconciliation evidence, and failure-loop breaker evidence under the charter. It remains local harness/docs/tests/schema/fixture work only.

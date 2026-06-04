@@ -6,6 +6,14 @@ Scope: decision record for future Fleet Console planning only. This document doe
 
 Plain invariant: remote UI, mobile UI, approval-looking states, notifications, buttons, prompts, audit output, generated evidence, queue prose, task packets, DOCX reports, and mobile requests are evidence only. They cannot approve or execute work.
 
+## Common Non-Authority Phrase Set
+
+Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.
+
+They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.
+
+GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority.
+
 ## Decision
 
 V1 remote-access recommendation: local-first, then LAN-only or private-tailnet-only if remote viewing is later approved by a separate security task.
@@ -237,3 +245,7 @@ This decision record only chooses the conservative planning posture.
 ## Final Recommendation
 
 Use local desktop by default. If mobility is needed later, start with LAN-only or private-tailnet read-mostly status views. Keep public exposure out of V1. Keep phone approvals denied by default unless a later task designs exact-action, expiring, locally validated approval records with no broad authority and no command execution from the phone.
+
+## Cross-Document Non-Authority Rule
+
+Across Fleet Console planning docs, UI labels, prompts, buttons, notifications, reviewer output, audit packages, mobile requests, generated evidence, approval-looking states, and queue prose remain evidence only. They do not approve remote access, command binding, package sending, product-repo access, phone approvals, UI implementation, non-mock implementation, or future authority. Remote and phone concepts stay future-only until a separate bounded security task approves exact allowed files, validation commands, stop conditions, and human-reviewed posture.

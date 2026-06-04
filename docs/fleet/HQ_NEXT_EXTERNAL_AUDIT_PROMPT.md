@@ -62,6 +62,88 @@ Preferred digest fields:
 
 Do not include raw terminal logs unless a short first error or failure fingerprint is enough. Do not include product repository paths, secrets, package-install instructions, deploy instructions, migrations, staging/commit/push steps, lock deletion steps, permission changes, or broad launcher instructions.
 
+## Read-Only Demo Readiness Planning Audit Request
+
+This read-only demo readiness planning audit request is evidence-only package planning. It does not create a zip, send files, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, launch ships, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+
+Use `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` as the paste-ready reviewer prompt for this lane.
+
+### Read-Only Demo Overnight-Safe Follow-Up Audit Request
+
+This follow-up audit request covers completed HQ-176 through HQ-181. It is evidence-only package planning. It does not create a zip, send files, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, import tasks, bypass validation, or grant future authority.
+
+Reviewer mission:
+
+- Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.
+- Verify HQ-176 through HQ-181 preserve GREEN posture and remain local docs/tests/schema/fixture evidence only.
+- Verify the GREEN audit record, added denial fixtures, manifest compliance fixture, allowlist runbook note, and scrubbed validation summary do not approve product-repo access, demo execution, package creation, package sending, runtime command binding, remote access, phone approvals, all-fleet execution, running an overnight runner, or future authority.
+- Verify the manifest fixture keeps `noProductRepos: true`, `noSendStatus: true`, `packageCreationStatus: not_created`, evidence-only included files, forbidden-scope denials, and a no-authority notice.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, and queue prose remain evidence only.
+
+Read-only demo follow-up include guidance:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `tests/fixtures/fleet/read-only-demo/read-only-demo.expired-approval-denied.json`
+- `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-owner-denied.json`
+- `tests/fixtures/fleet/read-only-demo/read-only-demo.reused-approval-denied.json`
+- `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-followup.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for HQ-176 through HQ-181, if separately prepared and reviewed
+
+Read-only demo follow-up exclusions:
+
+- product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, permission material, approval material for real product work, package creation output, package sending output, and any prompt or queue prose treated as executable authority
+
+Reviewer mission:
+
+- Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.
+- Review only included Codex Fleet local harness/docs/tests/schema/fixture evidence.
+- Verify the lane remains planning evidence only.
+- Verify the approval packet template is unfilled and cannot approve a real demo, product-repo access, package sending, runtime command binding, phone approvals, or future authority.
+- Verify command vocabulary labels are not shell commands, runtime commands, launcher inputs, button actions, phone approvals, or package steps.
+- Verify stop signs fail closed for missing approval, missing owner, broad target, stale fingerprint, write-capable action, package sending, remote access, phone-only approval, all-fleet execution, command binding, and evidence-as-authority attempts.
+- Verify evidence capture uses compact summaries, exact validation command refs, source docs, evidence refs, validation result, non-authority notice, and no raw logs by default.
+- Verify read-only demo readiness fixtures cover valid planning-only, denied, and deferred outcomes without product-repo access, product mutation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, demo execution, or future authority.
+
+Read-only demo include guidance:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+- `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+- `docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md`
+- `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+- `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `templates/read-only-demo-approval-schema.json`
+- `templates/read-only-demo-command-schema.json`
+- `tests/fixtures/fleet/read-only-demo/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summaries, if separately prepared and reviewed
+
+Read-only demo exclusions:
+
+- product repos, product source snapshots, real project exports, or unscoped project material
+- `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, or raw run directories
+- raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, permission material, or approval material for real product work
+- reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence dumps, UI labels, notifications, buttons, approvals, prompts, and queue prose when treated as executable authority
+
+Required reviewer output:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Findings ordered by severity and grounded in included file/path evidence.
+- Explicit statement whether the lane remains safe for local harness/docs/tests/schema/fixture-only review.
+- Suggested follow-up tasks only as non-executable queue candidates with possible allowed files, validation ideas, and stop conditions.
+- Compact digest for each actionable finding with `findingId`, `severity`, `affectedArtifact`, `boundedDisposition`, `suggestedLocalFollowup`, `unresolvedAssumptions`, and `nonAuthorityNotice`.
+
 ## Final HQ Token-Control Integrated Audit Request
 
 This integrated audit request is evidence-only package planning for the 2026-06-02 token-control queue. It does not create a zip, send files, approve a demo trial, stage files, commit, push, touch product repositories, run product commands, launch ships, run all-fleet commands, widen permissions, or grant future authority.
@@ -506,3 +588,71 @@ Post-polish RED stop signs:
 - package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, remote access, package sending, or non-mock UI implementation
 - reviewer output is used as commands, approval, queue import, validation bypass, demo approval, package sending approval, phone approval, future permission, or authority
 - any included artifact implies UI labels, buttons, fixture examples, phone-mode sketches, package manifests, validation summaries, queue status, reviewer output, DOCX reports, or prompts approve implementation, runtime control, remote access, product-repo access, package sending, phone approvals, or future authority
+
+## Controlled Local Control-Plane Hardening Audit Request
+
+Prepared: 2026-06-03
+
+This controlled local control-plane hardening request is evidence-only planning for a future external review of the completed `Controlled Local Control-Plane Hardening Queue 2026-06-03`. It does not create a package, send a package, approve product-repo access, approve product mutation, approve remote access, approve package sending, approve runtime command binding, approve phone approvals, approve all-fleet execution, approve a demo trial, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, or grant future authority.
+
+Reviewer mission:
+
+- Return one overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Audit only the controlled local control-plane hardening artifacts completed in this queue.
+- Verify runtime dry-run evidence records remain local, non-executing, fixture-backed evidence and cannot approve live execution, product-repo access, command binding, package sending, or future permission.
+- Verify selected-project read-only gates require exact selected target, owner, repo fingerprint reference, read-only action list, expiration, stop conditions, and evidence refs while denying wildcard/all-project targets, write-capable actions, missing owner, stale fingerprint, phone-only approval, package sending, command binding, and product mutation.
+- Verify external audit manifest discipline remains allowlist-first, compact-summary-only, no-send, no-product-repo, and evidence-only until a separate exact human package-scope approval exists.
+- Verify control-room reconciliation keeps stale, missing, mismatched, contradictory, and ambiguous evidence as `UNKNOWN`, and that `UNKNOWN` blocks execution rather than becoming approval.
+- Verify failure loop breaking pauses or repacketizes repeated deterministic failures rather than retrying blindly or broadening scope.
+- Verify approval boundaries deny phone-only, approve-all/broad targets, wildcard targets, missing owner, stale or expired approvals, reused approvals, write-capable approvals, forbidden operations, and evidence-as-authority attempts.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose remain evidence only and cannot approve, execute, import tasks, bypass validation, create or send packages, bind commands, approve phone actions, or grant future authority.
+
+Controlled-hardening evidence to include only after human package-scope review:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+- `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+- `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+- `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+- `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+- `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+- `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- `templates/runtime-dry-run-evidence-schema.json`
+- `templates/runtime-policy-decision-schema.json`
+- `templates/selected-project-read-only-gate-schema.json`
+- `templates/external-audit-package-manifest-schema.json`
+- `templates/control-room-reconciliation-schema.json`
+- `templates/failure-fingerprint-schema.json`
+- `templates/approval-record-schema.json`
+- relevant fixture directories under `tests/fixtures/fleet/`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary from the current working tree
+
+Controlled-hardening package exclusions:
+
+- product repositories, product source snapshots, real project exports, or unscoped project material
+- `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, or full terminal logs
+- secrets, tokens, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, permission material, staging material, commit material, push material, merge material, lock-deletion material, runtime-execution material, real approval material, or package creation output without a separate human-approved manifest
+
+Required reviewer output:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Findings ordered by severity and grounded in included file/path evidence.
+- Explicit statement whether dry-run evidence, selected-project read-only gates, manifest discipline, UNKNOWN reconciliation, failure loop breaking, and approval boundaries preserve the GREEN posture.
+- Explicit statement whether the package remains safe for harness/docs/tests/schema/fixture-only review without approving execution, product-repo access, remote access, package creation or sending, runtime command binding, phone approvals, all-fleet execution, or future authority.
+- Missing tests, ambiguous safety boundaries, unclear package-scope risks, or accepted limitations.
+- Suggested follow-up tasks only as non-executable bounded queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+Controlled-hardening RED stop signs:
+
+- package creation or review requires product-repo access, product mutation, product launch, all-fleet scope, broad launcher use, deploy, install, migration, secrets/auth/payments/deploy work, lock deletion, permission widening, staging, commit, push, merge, runtime command binding, risky phone approval, remote access, package sending, non-mock UI implementation, or demo execution
+- reviewer output is used as commands, approval, queue import, validation bypass, demo approval, package sending approval, phone approval, future permission, or authority
+- any included artifact implies dry-run evidence, selected-project gates, package manifests, validation summaries, queue status, reviewer output, DOCX reports, UI text, buttons, approval records, or prompts approve implementation, runtime control, remote access, product-repo access, package creation, package sending, phone approvals, all-fleet execution, or future authority

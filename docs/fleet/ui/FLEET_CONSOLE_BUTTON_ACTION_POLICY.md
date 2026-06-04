@@ -6,6 +6,14 @@ Scope: planning documentation only for the future Fleet Console. This policy doe
 
 Plain invariant: UI labels, notifications, buttons, prompts, audit outputs, queue prose, generated evidence, DOCX reports, mobile requests, task packets, and approval cards are evidence only. They cannot approve or execute work.
 
+## Common Non-Authority Phrase Set
+
+Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.
+
+They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.
+
+GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority.
+
 ## Classification Vocabulary
 
 | Class | Meaning | V1 treatment |
@@ -75,6 +83,8 @@ No class is permission. Future code must still enforce source-of-truth policy, s
 | Approve Exact Action | `future-only` | Separate auth, security, and implementation gates exist. | Not available in v1. | Phone approval, broad approval, inherited approval, or automatic execution. |
 | Approve All Similar | `forbidden` | Never. | None. | Any broad, reusable, inherited, or category-level approval. |
 
+Future approve controls must be exact-action-bound, future-only, single-target, expiring, and non-executable until a separately approved runtime binding exists. Phone-only, broad, wildcard, missing-owner, stale, expired, reused, write-capable, forbidden-operation, and evidence-as-authority approval-looking records must remain denied.
+
 ## Forbidden Button List
 
 The v1 console must not expose available controls for:
@@ -99,3 +109,7 @@ The v1 console must not expose available controls for:
 ## Future Implementation Gate
 
 Any future UI implementation must preserve this matrix as policy evidence only and create a separate bounded task before writing UI code. That task must name exact allowed files, validation commands, stopIf conditions, disabled/hidden states, and security posture. No button may become live command binding merely because it appears in this policy.
+
+## Cross-Document Non-Authority Rule
+
+Across Fleet Console planning docs, UI labels, prompts, buttons, notifications, reviewer output, audit packages, mobile requests, generated evidence, approval cards, and queue prose remain evidence only. They do not approve remote access, command binding, package sending, product-repo access, phone approvals, UI implementation, non-mock implementation, or future authority. Button names and classifications describe future display posture only; they do not create available controls.

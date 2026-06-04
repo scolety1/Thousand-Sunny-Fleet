@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Read-Only Demo Command Vocabulary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "vocabularyId",
+    "allowedLabels",
+    "deniedLabels",
+    "forbiddenCapabilities",
+    "nonAuthorityNotice",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "vocabularyId": {
+      "type": "string",
+      "const": "read-only-demo-command-vocabulary"
+    },
+    "allowedLabels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "READ_STATUS",
+          "READ_REPO_FINGERPRINT",
+          "READ_VALIDATION_SUMMARY",
+          "READ_AUDIT_EVIDENCE",
+          "READ_DRY_RUN_EVIDENCE",
+          "READ_CONTROL_ROOM_SNAPSHOT",
+          "READ_SCHEMA",
+          "READ_FIXTURE",
+          "NO_OP_READINESS_CHECK"
+        ]
+      }
+    },
+    "deniedLabels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "WRITE_PRODUCT_REPO",
+          "MUTATE_PRODUCT_REPO",
+          "CREATE_PACKAGE",
+          "SEND_PACKAGE",
+          "BIND_RUNTIME_COMMAND",
+          "REMOTE_ACCESS",
+          "APPROVE_BY_PHONE",
+          "RUN_ALL_FLEET",
+          "STAGE_COMMIT_PUSH_DEPLOY",
+          "INSTALL_OR_MIGRATE",
+          "TOUCH_SECRETS_AUTH_PAYMENTS_DEPLOY",
+          "DELETE_LOCKS_OR_WIDEN_PERMISSIONS",
+          "EXECUTE_DEMO",
+          "GRANT_FUTURE_AUTHORITY"
+        ]
+      }
+    },
+    "forbiddenCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writeCapableCommands",
+        "productMutation",
+        "packageSending",
+        "runtimeCommandBinding",
+        "remoteAccess",
+        "allFleetExecution",
+        "stagingCommitPushDeploy",
+        "installsOrMigrations",
+        "secretsAuthPaymentsDeployWork",
+        "lockDeletionOrPermissionWidening",
+        "phoneApprovals",
+        "demoExecution",
+        "futureAuthority"
+      ],
+      "properties": {
+        "writeCapableCommands": { "type": "boolean", "const": false },
+        "productMutation": { "type": "boolean", "const": false },
+        "packageSending": { "type": "boolean", "const": false },
+        "runtimeCommandBinding": { "type": "boolean", "const": false },
+        "remoteAccess": { "type": "boolean", "const": false },
+        "allFleetExecution": { "type": "boolean", "const": false },
+        "stagingCommitPushDeploy": { "type": "boolean", "const": false },
+        "installsOrMigrations": { "type": "boolean", "const": false },
+        "secretsAuthPaymentsDeployWork": { "type": "boolean", "const": false },
+        "lockDeletionOrPermissionWidening": { "type": "boolean", "const": false },
+        "phoneApprovals": { "type": "boolean", "const": false },
+        "demoExecution": { "type": "boolean", "const": false },
+        "futureAuthority": { "type": "boolean", "const": false }
+      }
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 12,
+      "maxLength": 600
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "decision",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "valid_planning_vocabulary_only",
+            "deny_write_capable_commands",
+            "deny_product_mutation",
+            "deny_package_sending",
+            "deny_runtime_command_binding",
+            "deny_remote_access",
+            "deny_all_fleet_execution",
+            "deny_staging_commit_push_deploy",
+            "deny_installs_or_migrations",
+            "deny_secrets_auth_payments_deploy_work",
+            "deny_lock_deletion_or_permission_widening",
+            "deny_phone_approvals",
+            "deny_demo_execution",
+            "deny_future_authority"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "planning-labels-only",
+              "not-command-input",
+              "not-runtime-binding",
+              "not-package-sending",
+              "not-product-repo-access",
+              "not-demo-execution",
+              "not-phone-approval",
+              "not-future-authority",
+              "write-capable-commands-denied",
+              "product-mutation-denied",
+              "package-sending-denied",
+              "runtime-command-binding-denied",
+              "remote-access-denied",
+              "all-fleet-execution-denied",
+              "staging-commit-push-deploy-denied",
+              "installs-or-migrations-denied",
+              "secrets-auth-payments-deploy-work-denied",
+              "lock-deletion-or-permission-widening-denied",
+              "phone-approvals-denied",
+              "demo-execution-denied",
+              "future-authority-denied"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

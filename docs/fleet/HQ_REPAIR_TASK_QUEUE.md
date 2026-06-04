@@ -4216,3 +4216,1230 @@ Source evidence: `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).doc
 - evidence:
   - Post-polish external audit prompt and package checklist refresh.
   - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Controlled Local Control-Plane Hardening Queue 2026-06-03
+
+Source evidence: `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md` records a GREEN post-polish audit for the static Fleet Console prototype package. This queue converts optional INFO follow-ups and the next local control-plane hardening phase into bounded one-task runs. It remains harness/docs/tests/schema/prototype only unless a later explicit human approval packet says otherwise. It does not approve product-repo access, product mutation, live runtime command binding, remote access, package sending, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, phone approvals, non-mock UI implementation, or future authority.
+
+### HQ-145 Static Prototype Accessibility Lint Contract
+
+- status: done
+- goal: Define a local static accessibility lint contract for the prototype without adding packages, browser automation, or live UI execution.
+- prerequisites:
+  - HQ-144 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/STATIC_ACCESSIBILITY_LINT_CONTRACT.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+  - `docs/fleet/ui/prototype/fleet-console.html`
+  - `docs/fleet/ui/prototype/fleet-console.css`
+- acceptance:
+  - Contract defines static checks for skip link, landmarks, heading order, labelled controls/tables, focus-visible CSS, narrow-screen readability, and evidence-only safety copy.
+  - Tests assert the contract exists and the static prototype keeps the required accessibility markers without launching a browser or installing tools.
+  - Contract states any future automated accessibility tooling must be local, dependency-approved, non-networked, and separately queued.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires package installs, browser automation, screenshots, dev server setup, JavaScript, network access, remote resources, product-repo access, command binding, package sending, or non-mock UI implementation.
+- evidence:
+  - Static accessibility lint contract and focused regression tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-146 Phone-Mode Markdown Safety Tests
+
+- status: done
+- goal: Add static tests that keep the phone-mode mock packet markdown-only and free of executable, remote, image, or command-like content.
+- prerequisites:
+  - HQ-145 done
+- allowedFiles:
+  - `docs/fleet/ui/prototype/PHONE_MODE_STATIC_MOCK_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/ui/prototype/PHONE_MODE_STATIC_MOCK_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+- acceptance:
+  - Tests reject HTML tags, markdown image syntax, remote URLs, command-like PowerShell snippets, approve/run/send/package language as available controls, and phone-only approval language in the phone-mode markdown packet.
+  - Tests require read-only, design-only, evidence-only, no phone approvals, no remote commands, no package sending, and no product-repo selection language.
+  - Packet remains markdown-only; no HTML, CSS, JavaScript, screenshots, images, or server setup are added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires phone UI implementation, browser automation, images, package installs, server setup, remote access, auth, live state reads, product-repo access, command binding, package sending, or risky phone approvals.
+- evidence:
+  - Phone-mode markdown-only safety tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-147 Fleet Console Non-Authority Wording Sweep
+
+- status: done
+- goal: Review selected Fleet Console planning docs for wording that could imply UI labels, prompts, buttons, notifications, reviewer output, or generated evidence have authority.
+- prerequisites:
+  - HQ-146 done
+- allowedFiles:
+  - `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`
+  - `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md`
+- acceptance:
+  - Selected docs consistently state UI labels, prompts, buttons, notifications, reviewer output, audit packages, mobile requests, and generated evidence are evidence only.
+  - Wording does not imply remote access, command binding, package sending, product-repo access, phone approvals, or future implementation is approved.
+  - No new UI files, runtime behavior, scripts, packages, server setup, or product-repo references are added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime behavior, implementing UI, adding scripts, remote access, product-repo access, command binding, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Selected non-authority wording sweep.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-148 Controlled Local Control-Plane Phase Charter
+
+- status: done
+- goal: Create the next-phase charter that defines controlled local control-plane hardening boundaries and exit criteria.
+- prerequisites:
+  - HQ-147 done
+- allowedFiles:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- acceptance:
+  - Charter defines in-scope work as local docs/tests/schema/fixture/dry-run hardening only.
+  - Charter defines out-of-scope work: product-repo mutation, all-fleet commands, remote console implementation, phone approvals, package sending, runtime command binding, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, and future authority.
+  - Charter lists exit criteria for a future audit: passing tests, evidence records, dry-run fixture coverage, manifest discipline, and selected-project read-only gate readiness.
+  - Handoff points future chats to the charter as evidence only.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing runtime behavior, touching product repos, launching ships, package sending, remote access, command binding, staging, committing, pushing, deploying, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Controlled local control-plane hardening charter and handoff pointer.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-149 Runtime Dry-Run Evidence Record Contract
+
+- status: done
+- goal: Define a compact evidence record for local runtime dry-run checks before any live runtime binding.
+- prerequisites:
+  - HQ-148 done
+- allowedFiles:
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `templates/runtime-dry-run-evidence-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `templates/runtime-policy-decision-schema.json`
+  - `docs/fleet/SELECTED_SHIP_LEDGER_CONTRACT.md`
+- acceptance:
+  - Schema captures dry-run id, selected project/ship reference, policy decision reference, fixture input refs, expected action, actual dry-run result, denial/defer reasons, validation command, generatedAt, and non-authority notice.
+  - Contract states dry-run evidence cannot approve live execution, command binding, product-repo access, package sending, or future permission.
+  - Tests parse the schema and verify required fields plus deny/defer vocabulary.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\runtime-dry-run-evidence-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires binding runtime commands, reading product repos, package sending, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Runtime dry-run evidence schema, contract, schema parse, and fleet tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\runtime-dry-run-evidence-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-150 Selected-Project Read-Only Gate Contract
+
+- status: done
+- goal: Define a selected-project read-only gate for future controlled demo checks without approving product mutation.
+- prerequisites:
+  - HQ-149 done
+- allowedFiles:
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `templates/selected-project-read-only-gate-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/REPO_FINGERPRINT_CONTRACT.md`
+  - `docs/fleet/WORKTREE_ISOLATION_CONTRACT.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- acceptance:
+  - Gate requires exact selected target, owner, repo fingerprint ref, read-only action list, expiration, stop conditions, and evidence refs.
+  - Gate denies wildcard/all-project targets, write-capable actions, missing owner, stale fingerprint, phone-only approval, package sending, command binding, and product mutation.
+  - Tests parse the schema and verify gate docs preserve read-only and deny-by-default vocabulary.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\selected-project-read-only-gate-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires touching product repos, live repo inspection, write actions, package sending, remote access, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Selected-project read-only gate contract and schema tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\selected-project-read-only-gate-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-151 External Audit Package Manifest Discipline
+
+- status: done
+- goal: Tighten external-audit package manifest discipline for future control-plane audits without creating or sending a package.
+- prerequisites:
+  - HQ-150 done
+- allowedFiles:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `templates/external-audit-package-manifest-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `templates/external-audit-package-manifest-schema.json`
+  - `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+- acceptance:
+  - Manifest schema/runbook distinguish included files, excluded sensitive paths, source commit, validation summary, reviewer prompt, package purpose, non-authority notice, and no-send status.
+  - Tests verify package manifests must include forbidden-scope denials and cannot imply package creation, sending, product-repo access, or execution approval.
+  - No package zip is created or sent in this task.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\external-audit-package-manifest-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, touching product repos, all-fleet execution, remote access, command binding, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Manifest schema/runbook discipline and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\external-audit-package-manifest-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-152 Runtime Policy Dry-Run Fixture Matrix
+
+- status: done
+- goal: Add a matrix of local fixture cases that demonstrates runtime policy dry-run allow/deny/defer behavior without live execution.
+- prerequisites:
+  - HQ-151 done
+- allowedFiles:
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `templates/runtime-dry-run-evidence-schema.json`
+  - `templates/runtime-policy-decision-schema.json`
+  - `tools/codex-fleet-autonomy.ps1`
+- acceptance:
+  - Fixture matrix covers allowed read-only fixture action, deny blank target, deny wildcard/all target, deny write-capable action, deny stale fingerprint, deny package sending, deny phone-only approval, and defer ambiguous evidence.
+  - Tests assert the matrix vocabulary exists and aligns with dry-run evidence and policy decision contracts.
+  - No runtime command binding, product-repo reads, package sending, or all-fleet execution are added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\runtime-dry-run-evidence-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing live runtime behavior, reading product repos, sending packages, all-fleet execution, remote access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Runtime policy dry-run fixture matrix and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\runtime-dry-run-evidence-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-153 Control-Room UNKNOWN Reconciliation Evidence
+
+- status: done
+- goal: Strengthen local control-room reconciliation evidence so mismatches remain UNKNOWN instead of appearing approved or executable.
+- prerequisites:
+  - HQ-152 done
+- allowedFiles:
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+  - `templates/control-room-reconciliation-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+  - `templates/control-room-reconciliation-schema.json`
+  - `tools/codex-fleet-control-room.ps1`
+- acceptance:
+  - Contract and tests cover UNKNOWN for stale run artifact, missing repo fingerprint, mismatched selected target, contradictory lease, missing dry-run evidence, and ambiguous approval evidence.
+  - Docs state UNKNOWN blocks execution and cannot be converted to approval by UI labels, generated evidence, reviewer output, mobile requests, or queue prose.
+  - No live dashboard integration, SQLite integration, product-repo access, or remote UI implementation is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\control-room-reconciliation-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires live dashboard changes, SQLite implementation, remote access, product-repo access, runtime command binding, package sending, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - UNKNOWN reconciliation evidence and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\control-room-reconciliation-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-154 Failure Loop Breaker Evidence Matrix
+
+- status: done
+- goal: Add local evidence rules for stopping repeated control-plane hardening failures instead of burning loops.
+- prerequisites:
+  - HQ-153 done
+- allowedFiles:
+  - `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+  - `templates/failure-fingerprint-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+  - `templates/failure-fingerprint-schema.json`
+  - `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md`
+- acceptance:
+  - Matrix defines stop outcomes for same fingerprint plus same hypothesis twice, policy denial, missing allowed file, validation requiring forbidden action, repeated ambiguous external evidence, and scope expansion.
+  - Tests verify the contract preserves safe-pause, repacketize, deny, and no-blind-retry vocabulary.
+  - No runtime retry behavior is changed in this task.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\failure-fingerprint-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing live retry loops, deleting locks, killing processes, touching product repos, all-fleet execution, package sending, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, or permission widening.
+- evidence:
+  - Failure loop breaker matrix and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\failure-fingerprint-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-155 Approval Boundary Dry-Run Refresh
+
+- status: done
+- goal: Refresh approval-boundary dry-run docs/tests so phone-only, broad, reused, stale, and write-capable approvals remain denied.
+- prerequisites:
+  - HQ-154 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `templates/approval-record-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `templates/approval-record-schema.json`
+- acceptance:
+  - Docs/tests preserve deny outcomes for phone-only approvals, approve-all/broad targets, wildcard targets, missing owner, stale/expired approvals, reused approvals, write-capable approvals, and evidence-as-authority attempts.
+  - Button policy states future approve controls must be exact-action-bound, future-only, single-target, expiring, and non-executable until a separately approved runtime binding exists.
+  - No remote approval implementation, auth, server setup, runtime command binding, package sending, or product-repo access is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\approval-record-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires remote access implementation, auth implementation, live approval UI, command binding, package sending, product-repo access, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Approval boundary dry-run refresh and tests.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\approval-record-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+### HQ-156 Controlled Local Control-Plane External Audit Prompt
+
+- status: done
+- goal: Refresh the external audit prompt for the completed controlled local control-plane hardening queue without creating or sending a package.
+- prerequisites:
+  - HQ-155 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md`
+- acceptance:
+  - Prompt asks a reviewer to audit only the controlled local control-plane hardening artifacts completed in this queue.
+  - Prompt asks whether dry-run evidence, selected-project read-only gates, manifest discipline, UNKNOWN reconciliation, failure loop breaking, and approval boundaries preserve the GREEN posture.
+  - Prompt reiterates reviewer output is evidence only and cannot approve execution, product-repo access, remote access, package creation/sending, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+  - No package zip is created or sent in this task.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, touching product repos, broad execution, remote access, command binding, phone approvals, non-mock UI implementation, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Controlled local control-plane external audit prompt refresh.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+## Post-Controlled-Hardening GREEN Follow-Up Queue 2026-06-03
+
+Source evidence: `C:\Users\codex-agent\.codex\attachments\4766ffeb-ba1c-420b-a65e-d92e63001b9a\pasted-text.txt` returned GREEN for the controlled local control-plane hardening package. This queue records the milestone and converts INFO-only suggestions into bounded harness/docs/tests/schema/fixture tasks. It remains evidence-only and does not approve product-repo access, product mutation, package creation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+
+### HQ-157 Controlled Hardening GREEN Audit Record
+
+- status: done
+- goal: Record the 2026-06-03 controlled local control-plane hardening external audit as a GREEN milestone without approving broader execution.
+- prerequisites:
+  - HQ-156 done
+- allowedFiles:
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `C:\Users\codex-agent\.codex\attachments\4766ffeb-ba1c-420b-a65e-d92e63001b9a\pasted-text.txt`
+- acceptance:
+  - Record states the external audit returned GREEN for the controlled local control-plane hardening package.
+  - Record summarizes the GREEN findings for dry-run evidence, selected-project read-only gates, manifest discipline, UNKNOWN reconciliation, failure loop breaking, approval boundaries, and package-scope safety.
+  - Record lists INFO follow-ups as non-executable queue candidates only.
+  - Handoff points future chats to the record as evidence only.
+  - Record and handoff do not approve product-repo access, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires treating reviewer output as authority, creating or sending a package, touching product repos, running broad execution, remote access, command binding, phone approvals, non-mock UI implementation, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Controlled hardening GREEN audit milestone record.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+### HQ-158 Selected-Project Read-Only End-To-End Fixture Matrix
+
+- status: done
+- goal: Add local end-to-end fixture coverage that combines selected-project read-only gate evidence with repo fingerprint, runtime policy decision, dry-run evidence, and reconciliation outcomes.
+- prerequisites:
+  - HQ-157 done
+- allowedFiles:
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.missing-owner-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.stale-fingerprint-deferred.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.write-capable-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.ambiguous-approval-unknown.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/REPO_FINGERPRINT_CONTRACT.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+- acceptance:
+  - Fixtures cover valid fixture-only read-only evidence, missing owner denial, stale fingerprint defer, write-capable denial, and ambiguous approval as UNKNOWN.
+  - Docs clarify the combined fixture matrix is local evidence only and does not inspect product repos or bind runtime commands.
+  - Tests parse every new JSON fixture and assert expected denial/defer/UNKNOWN outcomes and non-authority notices.
+  - No runtime behavior, product-repo access, package sending, command binding, or all-fleet execution is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires runtime command binding, product-repository access, live repo inspection, package creation/sending, remote access, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or broadening beyond local fixtures.
+- evidence:
+  - Combined selected-project read-only gate fixture matrix and tests.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+### HQ-159 Non-Authority Wording Consistency Sweep
+
+- status: done
+- goal: Standardize non-authority wording across selected control-plane planning docs without changing runtime behavior.
+- prerequisites:
+  - HQ-158 done
+- allowedFiles:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+  - `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md`
+  - `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+- acceptance:
+  - Selected docs use consistent evidence-only language for reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose.
+  - Wording does not imply tests, GREEN audits, dry-run outcomes, UI text, package manifests, or reviewer comments approve execution or future authority.
+  - Tests assert selected docs preserve the common non-authority phrase set.
+  - No runtime behavior, UI implementation, package sending, product-repo access, or command binding is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime behavior, adding scripts, implementing UI, creating/sending packages, remote access, product-repo access, command binding, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Non-authority wording consistency sweep and tests.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+### HQ-160 Fixture Readability Inventory
+
+- status: done
+- goal: Add local fixture-readability inventory coverage so future audits can verify committed test fixtures are readable without changing filesystem permissions.
+- prerequisites:
+  - HQ-159 done
+- allowedFiles:
+  - `docs/fleet/FIXTURE_READABILITY_INVENTORY.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+- acceptance:
+  - Inventory defines a local read-only fixture accessibility check for `tests/fixtures/fleet` JSON/Markdown evidence.
+  - Tests verify known fixture directories can be enumerated and JSON fixtures can be parsed where applicable.
+  - Inventory states the task does not change ACLs, chmod permissions, ownership, package-builder behavior, product repos, or generated package contents.
+  - Any unreadable fixture path is reported as validation failure evidence, not fixed by widening permissions.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing ACLs, widening permissions, deleting or moving fixtures, creating/sending packages, touching product repos, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Fixture readability inventory and local tests.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-161 Controlled-Hardening Manifest Fixture
+
+- status: done
+- goal: Add a local manifest fixture for the controlled hardening audit package scope without creating or sending a package.
+- prerequisites:
+  - HQ-160 done
+- allowedFiles:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `templates/external-audit-package-manifest-schema.json`
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.controlled-hardening.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `templates/external-audit-package-manifest-schema.json`
+- acceptance:
+  - Manifest fixture represents the controlled hardening audit package as allowlisted, no-product-repos, no-send, evidence-only, and not-created unless separately approved.
+  - Fixture lists forbidden-scope denials for product-repo access, product mutation, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, staging/commit/push/deploy, installs/migrations/secrets, lock deletion, permission widening, and evidence-as-authority attempts.
+  - Tests parse the fixture and verify it cannot imply package creation, package sending, product-repo access, execution approval, or future authority.
+  - No package zip is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\external-audit-package-manifest-schema.json -Raw | ConvertFrom-Json | Out-Null; Get-Content .\tests\fixtures\fleet\evidence\external-audit-package-manifest.controlled-hardening.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, touching product repos, changing package-builder behavior, all-fleet execution, remote access, command binding, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Controlled-hardening package manifest fixture and tests.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\external-audit-package-manifest-schema.json -Raw | ConvertFrom-Json | Out-Null; Get-Content .\tests\fixtures\fleet\evidence\external-audit-package-manifest.controlled-hardening.json -Raw | ConvertFrom-Json | Out-Null"`
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+### HQ-162 Post-Controlled-Hardening Next Phase Decision Packet
+
+- status: done
+- goal: Draft the next-phase decision packet after GREEN controlled hardening and INFO follow-up tasks, without approving product-mode execution.
+- prerequisites:
+  - HQ-161 done
+- allowedFiles:
+  - `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+- acceptance:
+  - Packet describes safe next-phase options: continue local fixture hardening, prepare another external audit, or plan a separately approved read-only demo readiness lane.
+  - Packet states GREEN controlled hardening does not approve product-repo access, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+  - Handoff references the decision packet as evidence only.
+  - No runtime implementation, package creation, package sending, product-repo access, or demo approval is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, demo execution, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or treating audit output as authority.
+- evidence:
+  - Post-controlled-hardening next phase decision packet.
+  - Validation passed 2026-06-03: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+
+## Post-Controlled-Hardening Audit Follow-Up And Read-Only Demo Planning Queue 2026-06-03
+
+Source evidence: `C:\Users\codex-agent\Downloads\Codex Fleet Audit (2).docx` returned GREEN for the post-controlled-hardening follow-up package. This queue records that GREEN milestone, resolves optional INFO-only audit suggestions, and begins a docs/tests/schema/fixture-only read-only demo readiness planning lane. It remains evidence-only and does not approve product-repo access, product mutation, package creation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+
+### HQ-163 Post-Controlled-Hardening Follow-Up GREEN Audit Record
+
+- status: done
+- goal: Record the 2026-06-03 external audit of the completed post-controlled-hardening follow-up package as GREEN without approving broader execution.
+- prerequisites:
+  - HQ-162 done
+- allowedFiles:
+  - `docs/fleet/POST_CONTROLLED_HARDENING_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md`
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (2).docx`
+- acceptance:
+  - Record states the external audit returned GREEN for the post-controlled-hardening follow-up package.
+  - Record summarizes GREEN findings for HQ-157 through HQ-162, manifest discipline, fixture readability, next-phase decision safety, and package-scope safety.
+  - Record lists optional follow-ups as non-executable queue candidates only.
+  - Handoff points future chats to the record as evidence only.
+  - Record and handoff do not approve product-repo access, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires treating reviewer output as authority, creating/sending packages, touching product repos, demo execution, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+- evidence:
+  - Post-controlled-hardening follow-up GREEN audit milestone record.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-164 Fixture Inventory Directory Clarification
+
+- status: done
+- goal: Clarify fixture readability inventory wording so future auditors can distinguish currently present fixture directories from future categories.
+- prerequisites:
+  - HQ-163 done
+- allowedFiles:
+  - `docs/fleet/FIXTURE_READABILITY_INVENTORY.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/FIXTURE_READABILITY_INVENTORY.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (2).docx`
+- acceptance:
+  - Inventory clearly identifies which `tests/fixtures/fleet` directories currently exist and which categories may be future-only if absent.
+  - Tests verify the inventory does not require missing future-only directories while still checking existing fixture directories and JSON parsing.
+  - Inventory continues to state unreadable fixtures are validation evidence only and must not be fixed by ACL/chmod/ownership/permission widening.
+  - No directories are created, deleted, moved, or permission-modified.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing ACLs, chmod permissions, ownership, deleting or moving fixtures, creating package output, touching product repos, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Fixture inventory clarification and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-165 Selected-Project Gate Expanded Denial Fixtures
+
+- status: done
+- goal: Add local selected-project read-only gate fixtures for multi-target denial, wildcard denial, and invalid repo fingerprint references.
+- prerequisites:
+  - HQ-164 done
+- allowedFiles:
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `templates/selected-project-read-only-gate-schema.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.multi-target-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.wildcard-target-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.invalid-fingerprint-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `templates/selected-project-read-only-gate-schema.json`
+  - `docs/fleet/REPO_FINGERPRINT_CONTRACT.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (2).docx`
+- acceptance:
+  - Fixtures cover multi-target denial, wildcard target denial, and invalid or missing repo fingerprint reference denial.
+  - Tests parse the new fixtures and assert deny/defer/UNKNOWN outcomes and non-authority notices.
+  - Docs clarify the expanded fixture matrix is local evidence only and does not inspect product repos or bind runtime commands.
+  - No runtime behavior, product-repo access, package sending, command binding, or all-fleet execution is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires runtime command binding, product-repository access, live repo inspection, package creation/sending, remote access, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or broadening beyond local fixtures.
+- evidence:
+  - Expanded selected-project read-only gate denial fixtures and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\selected-project-read-only-gate-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-166 Combined Approval-Reconciliation Fixture Plan
+
+- status: done
+- goal: Define local fixture coverage for approval records combined with runtime decisions, failure fingerprints, and reconciliation outcomes without implementing runtime execution.
+- prerequisites:
+  - HQ-165 done
+- allowedFiles:
+  - `docs/fleet/COMBINED_APPROVAL_RECONCILIATION_FIXTURE_PLAN.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+  - `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md`
+  - `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (2).docx`
+- acceptance:
+  - Plan defines local fixture cases for valid exact-action approval evidence, phone-only denied, broad target denied, reused approval denied, write-capable denied, failure fingerprint safe-pause, and reconciliation UNKNOWN.
+  - Plan states all combined fixtures are evidence only and cannot approve execution, package sending, runtime command binding, product-repo access, or future authority.
+  - Tests assert the plan exists and preserves required denial vocabulary and non-authority wording.
+  - No new runtime behavior, product-repo access, command binding, package sending, or schema widening is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing runtime behavior, touching product repos, live repo inspection, creating/sending packages, remote access, command binding, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Combined approval/reconciliation fixture plan and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-167 Read-Only Demo Readiness Planning Charter
+
+- status: done
+- goal: Create a docs/tests/schema/fixture-only charter for a future read-only demo readiness planning lane without approving demo execution.
+- prerequisites:
+  - HQ-166 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md`
+- acceptance:
+  - Charter defines the lane as planning only: docs, schemas, fixtures, approval templates, stop signs, no-op/read-only vocabulary, and external audit preparation.
+  - Charter states it does not approve product-repo access, live demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+  - Handoff references the charter as evidence only.
+  - No runtime implementation, package sending, product-repo access, or demo approval is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, demo execution, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or treating audit output as authority.
+- evidence:
+  - Read-only demo readiness planning charter and handoff pointer.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-168 Read-Only Demo Approval Packet Template
+
+- status: done
+- goal: Define an exact-action, single-target, expiring approval packet template for future read-only demo readiness review without approving a demo.
+- prerequisites:
+  - HQ-167 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `templates/read-only-demo-approval-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/REMOTE_APPROVAL_BOUNDARY.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `templates/approval-record-schema.json`
+- acceptance:
+  - Template requires exact human owner, exact selected target, exact read-only/no-op action list, repo fingerprint ref, expiration, stop signs, evidence refs, validation commands, and non-authority notice.
+  - Schema denies blank, all, wildcard, multi-target, missing owner, stale fingerprint, phone-only, reused, write-capable, package-sending, command-binding, remote-access, and evidence-as-authority approvals.
+  - Tests parse the schema and verify required fields plus denial vocabulary.
+  - Template states it is not filled approval and does not approve product-repo access, demo execution, package sending, runtime command binding, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\read-only-demo-approval-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires approving a real demo, filling approval for a real product, product-repo access, command binding, package sending, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Read-only demo approval packet template, schema, and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\read-only-demo-approval-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-169 Read-Only Demo Command Vocabulary Contract
+
+- status: done
+- goal: Define allowed read-only/no-op command vocabulary for future demo readiness planning without binding or running commands.
+- prerequisites:
+  - HQ-168 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md`
+  - `templates/read-only-demo-command-schema.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
+- acceptance:
+  - Contract defines labels for read-only/no-op actions only, such as status read, fixture parse, schema parse, validation summary read, audit evidence read, dry-run evidence read, and no-op readiness check.
+  - Contract denies write-capable commands, product mutation, package sending, runtime command binding, remote access, all-fleet execution, staging/commit/push/deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, and phone approvals.
+  - Schema and tests verify allowed/denied vocabulary without executing commands.
+  - Docs state the vocabulary is planning evidence only and cannot become a command input.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\read-only-demo-command-schema.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires running demo commands, binding commands, touching product repos, package creation/sending, remote access, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Read-only demo command vocabulary contract, schema, and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\templates\read-only-demo-command-schema.json -Raw | ConvertFrom-Json | Out-Null"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-170 Read-Only Demo Stop Signs And Evidence Capture
+
+- status: done
+- goal: Define stop signs and evidence capture requirements for future read-only demo readiness planning without approving demo execution.
+- prerequisites:
+  - HQ-169 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md`
+  - `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md`
+- acceptance:
+  - Stop signs deny missing approval packet, missing owner, broad target, stale fingerprint, write-capable action, package sending, remote access, phone-only approval, all-fleet execution, command binding, and evidence-as-authority attempts.
+  - Evidence capture doc requires compact summaries, exact validation command refs, source docs, non-authority notice, and no raw logs by default.
+  - Tests assert required stop signs and evidence fields are documented.
+  - Docs do not approve demo execution or product-repo access.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires demo execution, product-repo access, runtime command binding, package creation/sending, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or non-mock UI implementation.
+- evidence:
+  - Read-only demo stop signs, evidence capture docs, and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-171 Read-Only Demo Readiness Fixture Matrix
+
+- status: done
+- goal: Add local fixtures for future read-only demo readiness decisions without approving a demo or touching product repos.
+- prerequisites:
+  - HQ-170 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.valid-planning.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-approval-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.stale-fingerprint-deferred.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.write-capable-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.package-sending-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.phone-only-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+- acceptance:
+  - Fixtures cover valid planning-only readiness, missing approval denied, stale fingerprint deferred, write-capable denied, package sending denied, and phone-only approval denied.
+  - Tests parse every fixture and assert expected denial/defer/planning-only outcomes and non-authority notices.
+  - Fixtures keep product-repo access, product mutation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, demo execution, and future authority fields false.
+  - No runtime behavior, product-repo access, package sending, command binding, or all-fleet execution is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, demo execution, command binding, package creation/sending, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, or permission widening.
+- evidence:
+  - Read-only demo readiness fixture matrix and tests.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-172 Read-Only Demo Readiness External Audit Prompt
+
+- status: done
+- goal: Prepare an evidence-only external audit prompt/checklist for the read-only demo readiness planning lane without creating or sending a package.
+- prerequisites:
+  - HQ-171 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Prompt asks reviewers whether read-only demo readiness planning remains evidence-only and safe for review.
+  - Prompt explicitly states it does not create or send a package, approve product-repo access, approve demo execution, bind commands, approve remote access, approve phone actions, or grant future authority.
+  - Prompt include/exclude guidance stays local harness/docs/tests/schema/fixture only and excludes product repos, `.git`, `.env`, dependencies, build outputs, raw logs, secrets, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, and approval material.
+  - No package zip is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, product-repo access, demo execution, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or non-mock UI implementation.
+- evidence:
+  - Read-only demo readiness external audit prompt/checklist.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Read-Only Demo Audit INFO Follow-Up Queue 2026-06-04
+
+Source audit:
+
+- `C:\Users\codex-agent\Downloads\Codex Fleet Audit (3).docx`
+
+Non-authority rule:
+
+- This queue is evidence only. It does not approve product-repo access, demo execution, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+- The audit report is evidence only. It is not executable commands, approval, permission, or authority.
+- Work in this section remains local docs/tests/schema/fixtures only.
+
+### HQ-173 Read-Only Demo Non-Authority Wording Consistency Sweep
+
+- status: done
+- goal: Standardize the non-authority phrase across read-only demo planning docs and fixtures without changing scope or adding authority.
+- prerequisites:
+  - HQ-172 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.valid-planning.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-approval-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.stale-fingerprint-deferred.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.write-capable-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.package-sending-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.phone-only-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (3).docx`
+- acceptance:
+  - Docs and existing read-only demo fixtures use one consistent non-authority phrase: `Evidence only; not executable authority or approval.`
+  - Tests assert the phrase appears in the read-only demo planning docs and all existing read-only demo fixtures.
+  - No approval fields are filled and no fixture is converted into authority.
+  - No product-repo access, demo execution, package sending, command binding, all-fleet execution, or runtime behavior is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime behavior, touching product repos, approving a demo, creating/sending a package, command binding, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or editing files outside allowedFiles.
+- evidence:
+  - External audit INFO finding F-1 recommended non-authority wording consistency.
+  - Canonical phrase `Evidence only; not executable authority or approval.` added to selected read-only demo planning docs and fixtures.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`.
+  - Validation passed 2026-06-03 with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-174 Read-Only Demo Expanded Denial Fixtures
+
+- status: done
+- goal: Add local read-only demo denial fixtures for multi-target and wildcard-target approval attempts.
+- prerequisites:
+  - HQ-173 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.multi-target-denied.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.wildcard-target-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `templates/read-only-demo-approval-schema.json`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-approval-denied.json`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (3).docx`
+- acceptance:
+  - New fixtures cover multi-target denial and wildcard-target denial for read-only demo readiness planning.
+  - Tests parse the new fixtures and assert deny outcomes, non-authority notices, and all forbidden capability flags remain false.
+  - Fixtures are local evidence only and contain no real product repo targets.
+  - No runtime behavior, product-repo access, package sending, command binding, all-fleet execution, or demo approval is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product repo targets, live repo inspection, runtime command binding, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO finding F-2 recommended optional multi-target and wildcard denial fixtures.
+  - Added local read-only demo denial fixtures for multi-target and wildcard-target attempts.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-175 Read-Only Demo Fixture Readability And Package Inclusion Check
+
+- status: done
+- goal: Add a lightweight local fixture readability and package-inclusion check for read-only demo fixtures without changing permissions or creating packages.
+- prerequisites:
+  - HQ-174 done
+- allowedFiles:
+  - `docs/fleet/FIXTURE_READABILITY_INVENTORY.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/FIXTURE_READABILITY_INVENTORY.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (3).docx`
+- acceptance:
+  - Fixture readability inventory or runbook identifies the read-only demo fixture directory as local evidence only and lists the expected readability/package-inclusion checks.
+  - Tests verify read-only demo fixtures are present, readable, and JSON-parseable without changing ACLs, ownership, or file permissions.
+  - Allowlist guidance keeps fixtures local and excludes product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, package sending, runtime command binding, and approval material.
+  - No package zip is created or sent, and no permission changes are made.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires chmod, ACL/ownership changes, deleting or moving fixtures, creating/sending a package, product-repo access, demo execution, command binding, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO finding F-3 recommended monitoring fixture readability.
+  - Read-only demo fixture directory added to fixture readability inventory and allowlist package-inclusion guidance.
+  - Tests verify read-only demo fixtures are present, readable, JSON-parseable, local evidence only, and do not imply product-repo access, package sending, runtime command binding, permission changes, package creation, or approval authority.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Read-Only Demo Overnight-Safe Follow-Up Queue 2026-06-04
+
+Source audit:
+
+- `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+
+Audit disposition:
+
+- GREEN for completed HQ-173 through HQ-175 follow-ups.
+- Findings are INFO only.
+- Reviewer suggestions are evidence only and are not executable commands, approvals, or authority.
+
+Non-authority rule:
+
+- This queue is evidence only. It does not approve product-repo access, demo execution, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+- Work in this section remains local docs/tests/schema/fixtures only.
+- Do not run an overnight runner, all-fleet command, product command, package sender, or remote command from this queue.
+
+### HQ-176 Read-Only Demo Follow-Up GREEN Audit Record
+
+- status: done
+- goal: Record the GREEN external audit result for the completed HQ-173 through HQ-175 read-only demo follow-ups and update the compact handoff.
+- prerequisites:
+  - HQ-175 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - Audit record states `Codex Fleet Audit (5).docx` returned GREEN for HQ-173 through HQ-175.
+  - Audit record summarizes INFO findings without turning reviewer suggestions into commands or approvals.
+  - Handoff references the record as evidence only and preserves the read-only demo planning boundary.
+  - Tests assert the audit record exists, records GREEN, names HQ-173 through HQ-175, and denies product-repo access, demo execution, package sending, runtime command binding, all-fleet execution, and future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires treating audit output as approval, creating or sending a package, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit GREEN result from `Codex Fleet Audit (5).docx`.
+  - Added `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` and compact handoff pointer as evidence only.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-177 Read-Only Demo Canonical Phrase Coverage Guard
+
+- status: done
+- goal: Expand local tests so future read-only demo docs and fixtures preserve the canonical non-authority phrase.
+- prerequisites:
+  - HQ-176 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/FIXTURE_READABILITY_INVENTORY.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - Tests assert the canonical phrase `Evidence only; not executable authority or approval.` appears in the core read-only demo planning docs and all read-only demo fixtures.
+  - If any listed doc lacks the phrase, add only the phrase as non-authority clarification without changing scope.
+  - No approval packet is filled and no fixture becomes executable authority.
+  - No runtime behavior, product-repo access, package sending, command binding, all-fleet execution, permission changes, or package creation is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime behavior, touching product repos, approving a demo, creating/sending a package, command binding, remote access, phone approvals, all-fleet execution, permission changes, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO suggestion to periodically verify canonical phrase drift.
+  - Added canonical notice lines to the missing read-only demo planning docs without changing scope.
+  - Expanded the read-only demo non-authority wording test to cover all core read-only demo planning docs and fixtures.
+  - Validation passed with the read-only demo JSON parse check and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-178 Read-Only Demo Expired Approval Denial Fixture
+
+- status: done
+- goal: Add a local read-only demo denial fixture for an expired approval attempt.
+- prerequisites:
+  - HQ-177 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.expired-approval-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-approval-denied.json`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - New fixture covers expired approval denial for read-only demo readiness planning.
+  - Tests parse the fixture and assert denied outcome, expired/reused denial reason or stop sign, canonical non-authority notice, and forbidden capability flags remain false.
+  - Fixture is local evidence only and contains no real product repo target.
+  - No runtime behavior, product-repo access, package sending, command binding, all-fleet execution, or demo approval is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product repo targets, live repo inspection, runtime command binding, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO suggestion to expand denial fixture catalogue.
+  - Added `tests/fixtures/fleet/read-only-demo/read-only-demo.expired-approval-denied.json` as local evidence only.
+  - Expanded read-only demo fixture matrix and package-inclusion count tests for the ninth fixture.
+  - Validation passed with the read-only demo JSON parse check and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-179 Read-Only Demo Missing Owner Denial Fixture
+
+- status: done
+- goal: Add a local read-only demo denial fixture for a missing human owner.
+- prerequisites:
+  - HQ-178 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-owner-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-approval-denied.json`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - New fixture covers missing-owner denial for read-only demo readiness planning.
+  - Tests parse the fixture and assert denied outcome, missing-owner stop sign, canonical non-authority notice, and forbidden capability flags remain false.
+  - Fixture is local evidence only and contains no real product repo target.
+  - No runtime behavior, product-repo access, package sending, command binding, all-fleet execution, or demo approval is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product repo targets, live repo inspection, runtime command binding, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO suggestion to expand denial fixture catalogue.
+  - Added `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-owner-denied.json` as local evidence only.
+  - Expanded read-only demo fixture matrix and package-inclusion count tests for the tenth fixture.
+  - Validation passed with the read-only demo JSON parse check and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-180 Read-Only Demo Reused Approval Denial Fixture
+
+- status: done
+- goal: Add a local read-only demo denial fixture for a reused approval attempt.
+- prerequisites:
+  - HQ-179 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.reused-approval-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `tests/fixtures/fleet/read-only-demo/read-only-demo.missing-approval-denied.json`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - New fixture covers reused-approval denial for read-only demo readiness planning.
+  - Tests parse the fixture and assert denied outcome, reused approval denial reason, canonical non-authority notice, and forbidden capability flags remain false.
+  - Fixture is local evidence only and contains no real product repo target.
+  - No runtime behavior, product-repo access, package sending, command binding, all-fleet execution, or demo approval is added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-demo -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product repo targets, live repo inspection, runtime command binding, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO suggestion to expand denial fixture catalogue.
+  - Added `tests/fixtures/fleet/read-only-demo/read-only-demo.reused-approval-denied.json` as local evidence only.
+  - Expanded read-only demo fixture matrix and package-inclusion count tests for the eleventh fixture.
+  - Validation passed with the read-only demo JSON parse check and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-181 Read-Only Demo Follow-Up Manifest Compliance Fixture
+
+- status: done
+- goal: Add a local manifest fixture for the read-only demo follow-up audit package scope without creating or sending a package.
+- prerequisites:
+  - HQ-180 done
+- allowedFiles:
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-followup.json`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `templates/external-audit-package-manifest-schema.json`
+  - `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - Manifest fixture records the read-only demo follow-up package scope as local harness/docs/tests/schema/fixture evidence only.
+  - Tests parse the fixture and assert `noProductRepos`, `noSendStatus`, evidence-only included files, forbidden-scope denials, and no-authority notice.
+  - Runbook references the fixture as local validation evidence only.
+  - No package zip is created or sent, and no product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, runtime-execution material, or real approval material are added.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\evidence\external-audit-package-manifest.read-only-demo-followup.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, product-repo access, raw logs, command binding, remote access, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - External audit INFO suggestion to continue auditing manifest compliance.
+  - Added `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-followup.json` as local evidence only.
+  - Updated allowlist runbook and tests to verify read-only demo follow-up manifest scope, no-product-repos, no-send, not-created, forbidden-scope denials, and no-authority notice.
+  - Validation passed with the read-only demo follow-up manifest JSON parse check and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-182 Read-Only Demo Follow-Up External Audit Prompt Refresh
+
+- status: done
+- goal: Refresh the next external-audit prompt/checklist for the completed read-only demo overnight-safe follow-ups without creating or sending a package.
+- prerequisites:
+  - HQ-181 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx`
+- acceptance:
+  - Prompt asks reviewers whether HQ-176 through HQ-181 preserve GREEN posture and remain local docs/tests/schema/fixture evidence only.
+  - Prompt includes include/exclude guidance for the new audit record, added denial fixtures, manifest fixture, and scrubbed validation summary.
+  - Prompt explicitly states it does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, or grant future authority.
+  - No package zip is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or sending a package, product-repo access, demo execution, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or files outside allowedFiles.
+- evidence:
+  - External audit GREEN result and INFO-only follow-up suggestions from `Codex Fleet Audit (5).docx`.
+  - Refreshed `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`, `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`, and `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` for HQ-176 through HQ-181 follow-up review scope.
+  - Added include/exclude guidance for the GREEN audit record, added denial fixtures, manifest fixture, and scrubbed validation summary while preserving no package creation/sending and no product/demo/runtime authority.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.

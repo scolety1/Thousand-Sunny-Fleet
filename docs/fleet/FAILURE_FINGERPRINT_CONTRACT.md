@@ -77,6 +77,7 @@ Normalizers may remove or replace those details only when doing so does not hide
 | `repair-task` | Convert the failure into a bounded repair task with checks. |
 | `safe-pause` | Pause safely because repetition would waste budget or risk state. |
 | `block` | Stop until a human or a prerequisite resolves the cause. |
+| `repacketize` | Stop and require a new bounded packet because the current task boundaries are insufficient. |
 | `wait-for-rate-reset` | Stop model-heavy work until reset evidence exists. |
 | `non-retriable-policy-denial` | Do not retry because policy denied the action. |
 
@@ -89,6 +90,10 @@ The following fixture names are required for tests and later helper work:
 - `same-hypothesis-twice-safe-pause`
 - `same-hypothesis-twice-repair-task`
 - `policy-denial-non-retriable`
+- `missing-allowed-file-repacketize`
+- `validation-requires-forbidden-action-deny`
+- `repeated-ambiguous-external-evidence-repacketize`
+- `scope-expansion-repacketize`
 - `timestamp-normalized`
 - `temp-path-normalized`
 - `guid-normalized`
@@ -107,6 +112,36 @@ A valid failure fingerprint must:
 - classify policy denial as non-retriable
 - map the same fingerprint plus same hypothesis twice to `safe-pause` or `repair-task`
 - keep evidence references as data, never instructions
+
+## Failure Loop Breaker Matrix
+
+This matrix is local docs/tests evidence only. It does not change live retry runtime behavior, delete locks, kill processes, touch product repos, run all-fleet commands, send packages, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, widen permissions, or grant future authority.
+
+| fixture | trigger | decision | retriable | validation reasons | required stop outcome |
+| --- | --- | --- | --- | --- | --- |
+| `same-fingerprint-same-hypothesis-twice-safe-pause` | Same normalized fingerprint plus same hypothesis appears twice. | `safe-pause` | `false` | `same-hypothesis-twice`, `safe-pause-required`, `blind-retry-forbidden` | Pause instead of retrying blindly. |
+| `same-fingerprint-same-hypothesis-twice-repair-task` | Same normalized fingerprint plus same hypothesis appears twice and a bounded repair is available. | `repair-task` | `false` | `same-hypothesis-twice`, `repair-task-required`, `blind-retry-forbidden` | Convert to a bounded repair task. |
+| `policy-denial-non-retriable` | Runtime or policy evidence denies the action. | `non-retriable-policy-denial` | `false` | `policy-denial-non-retriable`, `deny-required`, `blind-retry-forbidden` | Deny and stop; do not retry. |
+| `missing-allowed-file-repacketize` | The task needs a file outside `allowedFiles`. | `repacketize` | `false` | `missing-allowed-file`, `repacketize-required`, `blind-retry-forbidden` | Repacketize with explicit allowed files. |
+| `validation-requires-forbidden-action-deny` | Validation would require a forbidden action or unlisted command. | `block` | `false` | `validation-requires-forbidden-action`, `deny-required`, `blind-retry-forbidden` | Block instead of running the forbidden validation. |
+| `repeated-ambiguous-external-evidence-repacketize` | Ambiguous external evidence repeats without resolving the task. | `repacketize` | `false` | `ambiguous-external-evidence`, `repacketize-required`, `blind-retry-forbidden` | Repacketize or request human review. |
+| `scope-expansion-repacketize` | The task expands into product repos, all-fleet execution, package sending, or runtime authority. | `repacketize` | `false` | `scope-expansion`, `repacketize-required`, `blind-retry-forbidden` | Stop and require a new exact human-approved packet. |
+
+Matrix invariants:
+
+- `safe-pause` preserves state and prevents budget burn.
+- `repacketize` carries forward evidence but does not execute, approve, or broaden scope.
+- `block` and `non-retriable-policy-denial` are deny outcomes for unsafe or forbidden continuation.
+- `blind-retry-forbidden` must remain present for repeated, ambiguous, policy-denied, out-of-scope, or forbidden-validation cases.
+- Reviewer output, DOCX reports, audit packages, mobile requests, task packets, generated evidence, UI labels, notifications, buttons, approvals, prompts, queue prose, and validation summaries remain evidence only.
+
+## Common Non-Authority Phrase Set
+
+Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.
+
+They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.
+
+GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority.
 
 ## Fixture-Safe Normalizer Helper
 
@@ -165,6 +200,10 @@ This contract intentionally does not perform or approve:
 - Mutating product repos
 - Running all-fleet commands
 - Deleting locks
+- Killing processes
+- Touching product repos
+- Package sending
+- Staging, commit, push, deploy
 - Installing packages
 - Running migrations
 - Touching secrets, auth, payments, or deployment settings

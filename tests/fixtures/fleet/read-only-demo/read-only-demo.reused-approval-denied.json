@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "hqTaskId": "HQ-180",
+  "fixtureId": "read-only-demo.reused-approval-denied",
+  "fixtureKind": "read_only_demo_readiness_planning",
+  "approvalState": "reused_approval",
+  "planningStatus": "denied",
+  "validationDecision": "deny_reused_approval",
+  "selectedTarget": {
+    "targetType": "fixture_project",
+    "targetId": "fixture-demo-one",
+    "singleTargetOnly": true
+  },
+  "readOnlyOrNoOpActions": [
+    "READ_STATUS",
+    "NO_OP_READINESS_CHECK"
+  ],
+  "repoFingerprintRef": "fixtures/repo-fingerprints/fixture-demo-one.current.json",
+  "stopSignsReviewed": [
+    "reused-approval",
+    "evidence-as-authority"
+  ],
+  "denialReasons": [
+    "reused-approval"
+  ],
+  "evidenceRefs": [
+    "docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md",
+    "docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md"
+  ],
+  "validationCommands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "forbiddenCapabilities": {
+    "productRepoAccess": false,
+    "productMutation": false,
+    "packageCreation": false,
+    "packageSending": false,
+    "remoteAccess": false,
+    "runtimeCommandBinding": false,
+    "phoneApprovals": false,
+    "allFleetExecution": false,
+    "demoExecution": false,
+    "futureAuthority": false
+  },
+  "nonAuthorityNotice": "Evidence only; not executable authority or approval. This denied read-only demo readiness fixture cannot approve or execute work, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, or grant future authority."
+}

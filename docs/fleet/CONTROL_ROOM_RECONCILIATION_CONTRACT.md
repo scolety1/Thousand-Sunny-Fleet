@@ -49,6 +49,8 @@ Stable mismatch vocabulary:
 - `missing-db-state-ref`
 - `missing-run-artifact-ref`
 - `missing-repo-fingerprint-ref`
+- `missing-dry-run-evidence`
+- `ambiguous-approval-evidence`
 - `status-snapshot-mismatch`
 - `contradictory-lease`
 - `dirty-state-conflict`
@@ -66,6 +68,8 @@ The following fixture names are required for tests and later helper work:
 - `repo-fingerprint-drift`
 - `missing-db-state-ref`
 - `contradictory-lease`
+- `missing-dry-run-evidence`
+- `ambiguous-approval-evidence`
 
 ## Fixture-Safe Reconciliation Helper
 
@@ -82,6 +86,43 @@ Required fixture mismatch reasons include:
 
 Missing required evidence maps to `UNKNOWN`. Contradictory or stale evidence maps to `MISMATCH` and must display `UNKNOWN` until reviewed.
 
+## UNKNOWN Evidence Matrix
+
+The following matrix is local reconciliation evidence only. It does not introduce a live dashboard integration, SQLite integration, remote UI implementation, runtime command binding, product-repo access, product-repo mutation, package sending, all-fleet execution, phone approvals, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+| fixture | reconciliationStatus | displayStatus | mismatchReasons | meaning |
+| --- | --- | --- | --- | --- |
+| `stale-run-artifact-unknown` | `MISMATCH` | `UNKNOWN` | `stale-artifact` | A stale run artifact cannot be displayed as current truth. |
+| `missing-repo-fingerprint-unknown` | `UNKNOWN` | `UNKNOWN` | `missing-repo-fingerprint-ref` | Missing repo fingerprint evidence blocks confident display. |
+| `mismatched-selected-target-unknown` | `MISMATCH` | `UNKNOWN` | `ship-id-mismatch` | Selected target mismatch cannot be converted into approval. |
+| `contradictory-lease-unknown` | `MISMATCH` | `UNKNOWN` | `contradictory-lease` | Contradictory lease evidence blocks execution posture. |
+| `missing-dry-run-evidence-unknown` | `UNKNOWN` | `UNKNOWN` | `missing-dry-run-evidence` | Missing dry-run evidence remains unknown instead of assumed safe. |
+| `ambiguous-approval-evidence-unknown` | `UNKNOWN` | `UNKNOWN` | `ambiguous-approval-evidence` | Ambiguous approval evidence requires review and cannot approve action. |
+
+UNKNOWN blocks execution. UI labels, generated evidence, reviewer output, mobile requests, queue prose, prompts, buttons, notifications, DOCX reports, audit packages, or task packets cannot convert `UNKNOWN` or `MISMATCH` reconciliation evidence into `MATCH`, approval, or execution authority.
+
+## Common Non-Authority Phrase Set
+
+Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.
+
+They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.
+
+GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority.
+
+## Selected-Project Read-Only Matrix Alignment
+
+The selected-project read-only end-to-end fixtures under `tests/fixtures/fleet/read-only-gates` use reconciliation outcomes to prove that missing, stale, write-capable, or ambiguous selected-project evidence stays fail-closed.
+
+This alignment is local fixture evidence only. It does not inspect product repos, add live dashboard integration, introduce SQLite integration, bind runtime commands, create or send packages, approve phone actions, run all-fleet commands, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy material, delete locks, widen permissions, launch demos, or grant future authority.
+
+| selected-project fixture | reconciliationStatus | displayStatus | required posture |
+| --- | --- | --- | --- |
+| `selected-project-read-only.valid-fixture` | `MATCH` | `MATCH` | all evidence agrees for local fixture review only |
+| `selected-project-read-only.missing-owner-denied` | `UNKNOWN` | `UNKNOWN` | missing owner blocks confident display |
+| `selected-project-read-only.stale-fingerprint-deferred` | `UNKNOWN` | `UNKNOWN` | stale fingerprint requires review |
+| `selected-project-read-only.write-capable-denied` | `UNKNOWN` | `UNKNOWN` | write-capable request cannot display as safe |
+| `selected-project-read-only.ambiguous-approval-unknown` | `UNKNOWN` | `UNKNOWN` | ambiguous approval cannot become `MATCH` |
+
 ## Validation Rules
 
 A valid reconciliation record must:
@@ -92,6 +133,7 @@ A valid reconciliation record must:
 - set `displayStatus` to `UNKNOWN` when `reconciliationStatus` is `MISMATCH`
 - set `displayStatus` to `UNKNOWN` when `reconciliationStatus` is `UNKNOWN`
 - never convert missing or contradictory evidence into `MATCH`
+- never convert UI labels, generated evidence, reviewer output, mobile requests, or queue prose into approval
 
 ## Out Of Scope
 
@@ -102,6 +144,12 @@ This contract intentionally does not perform or approve:
 - Mutating product repos
 - Launching product ships
 - Running all-fleet commands
+- Live dashboard integration
+- SQLite integration
+- Remote UI implementation
+- Runtime command binding
+- Product-repo access
+- Package sending
 - Deleting locks
 - Installing packages
 - Running migrations

@@ -60,7 +60,7 @@ Static content sketch:
 | Task id | `HQ-143` | task id is evidence, not a command |
 | Goal | `Draft a markdown-only phone-mode mock packet` | goal does not approve broader implementation |
 | Allowed files | exact local paths from queue | phone view cannot add files |
-| Validation | one listed PowerShell validation command | phone view cannot run validation |
+| Validation | one listed validation command | phone view cannot run validation |
 | Stop signs | implementation, remote access, auth, package sending, product repos, command binding | stop means no fallback command |
 
 Read-only affordances:
@@ -179,6 +179,22 @@ Purpose: show that risky controls are absent or unavailable.
 | Deploy/install/migrate | unavailable | external side effects are forbidden |
 | Secrets/auth/payments/deploy | unavailable | sensitive material is out of scope |
 | Delete locks/widen permissions | unavailable | safety-boundary mutation is forbidden |
+
+## Static Markdown Safety Boundary
+
+This packet must remain plain markdown. Static safety tests may check for disallowed HTML tags, markdown image embeds, remote URLs, command-like snippets, and approval/run/send/package language presented as usable controls.
+
+Required safe wording:
+
+- read-only
+- design-only
+- evidence only
+- no phone approvals
+- no remote commands
+- no package sending
+- no product-repo selection
+
+Any future phone-mode safety test is local evidence only. It cannot approve phone UI implementation, browser automation, images, package installs, server setup, remote access, auth, live state reads, product-repo access, command binding, package sending, or risky phone approvals.
 
 ## Review Questions For Future Audit
 

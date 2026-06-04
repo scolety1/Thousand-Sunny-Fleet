@@ -224,6 +224,30 @@ Runtime pilot audit follow-up negative fixtures also cover weird input and ambig
 
 Positive dry-run fixtures may return `ALLOW` only when the selected ship is singular, repo fingerprint and worktree boundary refs are present, required approval is present, policy version is known, evidence is recorded, and no forbidden scope is requested.
 
+## Runtime Dry-Run Fixture Matrix Alignment
+
+The runtime dry-run evidence fixture matrix in `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md` aligns policy decision vocabulary with evidence-only dry-run outcomes. It is not an evaluator expansion and does not change `New-FleetRuntimePolicyDecisionDryRun`.
+
+| fixture | policy decision vocabulary | dry-run result vocabulary | policy/evidence reason vocabulary |
+| --- | --- | --- | --- |
+| `read-only-fixture-allowed` | `ALLOW` | `ALLOW_DRY_RUN` | fixture-local read-only evidence only |
+| `blank-target-denied` | `DENY` | `DENY_UNSAFE` | `blank-ship` |
+| `wildcard-target-denied` | `DENY` | `DENY_UNSAFE` | `wildcard-ship` |
+| `all-target-denied` | `DENY` | `DENY_UNSAFE` | `all-ship` |
+| `write-capable-action-denied` | `DENY` | `DENY_UNSAFE` | `forbidden-scope`, evidence reason `command-binding-forbidden` |
+| `stale-fingerprint-denied` | `DENY` | `DENY_UNSAFE` | `stale-fingerprint` |
+| `package-sending-denied` | `DENY` | `DENY_UNSAFE` | evidence reason `package-sending-forbidden` |
+| `phone-only-approval-denied` | `DENY` | `DENY_UNSAFE` | `missing-approval` because phone-only evidence is not exact-action approval |
+| `ambiguous-evidence-deferred` | `DEFER` | `DEFER_NEEDS_HUMAN` | `missing-approval` or missing evidence requires human review |
+
+Matrix invariants:
+
+- No runtime command binding.
+- No product-repo reads.
+- No package sending.
+- No all-fleet execution.
+- The matrix does not add live runtime behavior, product-repo access, package sending, remote access, approval implementation, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
 ## Out Of Scope
 
 - Changing action mapping in `tools/codex-fleet-autonomy.ps1`

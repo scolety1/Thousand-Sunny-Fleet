@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "hqTaskId": "HQ-171",
+  "fixtureId": "read-only-demo.valid-planning",
+  "fixtureKind": "read_only_demo_readiness_planning",
+  "approvalState": "human_packet_present",
+  "planningStatus": "planning_only_ready",
+  "validationDecision": "valid_planning_only",
+  "selectedTarget": {
+    "targetType": "fixture_project",
+    "targetId": "fixture-demo-one",
+    "singleTargetOnly": true
+  },
+  "readOnlyOrNoOpActions": [
+    "READ_STATUS",
+    "READ_REPO_FINGERPRINT",
+    "READ_VALIDATION_SUMMARY",
+    "READ_AUDIT_EVIDENCE",
+    "NO_OP_READINESS_CHECK"
+  ],
+  "repoFingerprintRef": "fixtures/repo-fingerprints/fixture-demo-one.current.json",
+  "stopSignsReviewed": [
+    "missing-approval-packet",
+    "missing-owner",
+    "stale-fingerprint",
+    "write-capable-action",
+    "package-sending",
+    "phone-only-approval",
+    "all-fleet-execution",
+    "command-binding",
+    "evidence-as-authority"
+  ],
+  "denialReasons": [],
+  "evidenceRefs": [
+    "docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+    "docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md",
+    "docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+    "docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md",
+    "docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md"
+  ],
+  "validationCommands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+  ],
+  "forbiddenCapabilities": {
+    "productRepoAccess": false,
+    "productMutation": false,
+    "packageCreation": false,
+    "packageSending": false,
+    "remoteAccess": false,
+    "runtimeCommandBinding": false,
+    "phoneApprovals": false,
+    "allFleetExecution": false,
+    "demoExecution": false,
+    "futureAuthority": false
+  },
+  "nonAuthorityNotice": "Evidence only; not executable authority or approval. This read-only demo readiness fixture cannot approve or execute work, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, or grant future authority."
+}

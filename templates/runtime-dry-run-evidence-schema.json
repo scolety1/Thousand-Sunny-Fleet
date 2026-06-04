@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Fleet Runtime Dry-Run Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "dryRunId",
+    "selectedTargetRef",
+    "selectedShipRef",
+    "selectedProjectRef",
+    "policyDecisionRef",
+    "fixtureInputRefs",
+    "expectedAction",
+    "actualDryRunResult",
+    "decision",
+    "denialReasons",
+    "deferReasons",
+    "validationCommand",
+    "generatedAt",
+    "nonAuthorityNotice",
+    "safety",
+    "validation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "dryRunId": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "selectedTargetRef": {
+      "type": "string"
+    },
+    "selectedShipRef": {
+      "type": "string"
+    },
+    "selectedProjectRef": {
+      "type": "string"
+    },
+    "policyDecisionRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fixtureInputRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "expectedAction": {
+      "type": "string",
+      "enum": [
+        "WRITE_STATUS_REPORT",
+        "RUN_ONE_BATCH",
+        "MAKE_AUDIT_PACKAGE",
+        "IMPORT_APPROVED_PACKET",
+        "WRITE_REPAIR_TASK",
+        "PARK_SHIP",
+        "REQUEST_TASTE_GATE",
+        "BLOCK_WITH_REASON",
+        "READ_ONLY_RECONCILE"
+      ]
+    },
+    "actualDryRunResult": {
+      "type": "string",
+      "enum": [
+        "ALLOW_DRY_RUN",
+        "DEFER_NEEDS_HUMAN",
+        "DENY_UNSAFE"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "ALLOW",
+        "DEFER",
+        "DENY"
+      ]
+    },
+    "denialReasons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reason"
+      }
+    },
+    "deferReasons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reason"
+      }
+    },
+    "validationCommand": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 1
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executesProductActions",
+        "mutatesProductRepos",
+        "readsProductRepos",
+        "bindsRuntimeCommands",
+        "createsOrSendsPackages",
+        "canApproveFutureRuns",
+        "commandInput"
+      ],
+      "properties": {
+        "executesProductActions": {
+          "type": "boolean",
+          "const": false
+        },
+        "mutatesProductRepos": {
+          "type": "boolean",
+          "const": false
+        },
+        "readsProductRepos": {
+          "type": "boolean",
+          "const": false
+        },
+        "bindsRuntimeCommands": {
+          "type": "boolean",
+          "const": false
+        },
+        "createsOrSendsPackages": {
+          "type": "boolean",
+          "const": false
+        },
+        "canApproveFutureRuns": {
+          "type": "boolean",
+          "const": false
+        },
+        "commandInput": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "invalid"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "schema-parsed",
+              "required-fields-present",
+              "policy-decision-ref-recorded",
+              "fixture-input-refs-recorded",
+              "dry-run-result-recorded",
+              "deny-defer-vocabulary-recorded",
+              "non-authority-notice-recorded",
+              "non-execution-fields-false",
+              "external-evidence-non-executable",
+              "mobile-evidence-non-executable",
+              "task-packet-evidence-non-executable",
+              "audit-package-evidence-non-executable",
+              "docx-evidence-non-executable",
+              "queue-prose-evidence-non-executable",
+              "generated-evidence-non-executable",
+              "missing-evidence-denies-or-defers"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "reason": {
+      "type": "string",
+      "enum": [
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "forbidden-scope",
+        "missing-approval",
+        "stale-fingerprint",
+        "missing-repo-fingerprint",
+        "missing-worktree-boundary",
+        "legacy-broad-entrypoint",
+        "external-report-non-executable",
+        "mobile-request-non-executable",
+        "task-packet-not-validated",
+        "audit-package-non-executable",
+        "docx-report-non-executable",
+        "queue-prose-non-executable",
+        "generated-evidence-non-executable",
+        "package-sending-forbidden",
+        "command-binding-forbidden",
+        "product-repo-access-forbidden",
+        "unknown-policy-version"
+      ]
+    }
+  }
+}

@@ -27,6 +27,10 @@ Phone-mode designs, UI labels, notifications, buttons, prompts, approvals, revie
 
 A phone tap, phone notification, mobile free-text request, copied prompt, status label, approval card, or reviewer finding is not approval. At most, it may be represented as local evidence waiting for a bounded queue task and local validation.
 
+## Static Markdown Safety Tests
+
+Future phone-mode markdown safety tests may inspect only the markdown packet and local decision/boundary docs. They may reject disallowed HTML tags, markdown image embeds, remote URLs, command-like snippets, and approval/run/send/package language presented as available controls. These tests do not approve phone UI implementation, browser automation, images, package installs, server setup, remote access, auth, live state reads, product-repo access, command binding, package sending, or risky phone approvals.
+
 ## Allowed Future Phone-Mode Mock Files
 
 The next phone-mode mock task may use only:

@@ -264,3 +264,7 @@ Stop before implementation if the request needs:
 Current result: remote access not approved.
 
 Allowed next step: continue docs/tests/schema hardening or create a future bounded security/prototype task for human review. Do not implement remote access from this plan.
+
+## Cross-Document Non-Authority Rule
+
+Across Fleet Console planning docs, UI labels, prompts, buttons, notifications, reviewer output, audit packages, mobile requests, generated evidence, approval-looking states, and queue prose remain evidence only. They do not approve remote access, command binding, package sending, product-repo access, phone approvals, UI implementation, non-mock implementation, or future authority. Security planning language is a stop-sign and requirement record, not implementation permission.
