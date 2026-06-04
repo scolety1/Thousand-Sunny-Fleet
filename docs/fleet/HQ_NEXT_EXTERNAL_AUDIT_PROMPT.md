@@ -100,6 +100,90 @@ Read-only demo follow-up exclusions:
 
 - product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, permission material, approval material for real product work, package creation output, package sending output, and any prompt or queue prose treated as executable authority
 
+### Combined Read-Only Demo Gate Rehearsal Audit Request
+
+This combined audit request covers two completed safe phases together: the overnight-safe GREEN milestone and the controlled read-only demo gate rehearsal evidence. It is evidence-only package planning. It does not create a zip, send files, create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, import tasks, bypass validation, or grant future authority.
+
+Reviewer mission:
+
+- Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.
+- Audit both completed safe phases together: the overnight-safe GREEN milestone and the controlled read-only gate rehearsal.
+- Verify `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` remains a GREEN milestone record for HQ-176 through HQ-182 and does not approve product-repo access, demo execution, package creation/sending, runtime command binding, all-fleet execution, running an overnight runner, or future authority.
+- Verify `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md` defines the combined audit target without creating a package, sending a package, approving product-repo access, approving demo execution, binding runtime commands, approving remote/phone actions, running all-fleet commands, running an overnight runner, or granting future authority.
+- Verify `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` and `tests/fixtures/fleet/read-only-gates/*.json` remain controlled local fixture evidence only and do not select a real project, inspect product repositories, execute a demo, create or send packages, bind runtime commands, run all-fleet commands, run an overnight runner, approve phone actions, or grant future authority.
+- Verify `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json` lists only local docs, schemas, tests, and fixtures; keeps `noProductRepos: true`, `noSendStatus: true`, `packageCreationStatus: not_created`; and includes forbidden-scope denials plus a no-authority notice.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, package manifests, and queue prose remain evidence only.
+
+Combined read-only demo include guidance:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `templates/external-audit-package-manifest-schema.json`
+- `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json`
+- `tests/fixtures/fleet/read-only-gates/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for the combined scope, if separately prepared and reviewed
+
+Combined read-only demo exclusions:
+
+- product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, package sending output, and any prompt or queue prose treated as executable authority
+
+Required reviewer output for the combined request:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Explicit statement whether the overnight-safe GREEN milestone and controlled read-only demo gate rehearsal evidence preserve GREEN posture together.
+- Explicit statement whether the package remains safe for local harness/docs/tests/schema/fixture-only review without approving execution, product-repo access, remote access, package creation or sending, runtime command binding, phone approvals, all-fleet execution, an overnight runner, demo execution, or future authority.
+- Findings ordered by severity and grounded in included file/path evidence.
+- Suggested follow-up tasks only as non-executable queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+### Post-Combined GREEN Follow-Up Audit Request
+
+This post-follow-up audit request covers the combined GREEN audit record plus the completed INFO-only post-combined follow-up hardening: canonical non-authority phrase linting, additional read-only gate denial fixtures, and manifest status clarification. It is evidence-only package planning. It does not create a zip, send files, create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, import tasks, bypass validation, or grant future authority.
+
+Reviewer mission:
+
+- Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.
+- Audit the combined GREEN audit record plus completed INFO-only follow-up hardening.
+- Verify `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md` remains a non-authoritative GREEN milestone record.
+- Verify canonical non-authority phrase linting remains local test coverage only and does not convert evidence into approval.
+- Verify added denial fixtures for stale approval packet, missing fingerprint, and wrong audit package type remain local evidence only and keep forbidden capability flags false.
+- Verify manifest status clarification distinguishes `created_for_local_user_request_not_sent` from `not_created` while keeping both statuses evidence only, no-send, no-product, and non-authoritative.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, package manifests, and queue prose remain evidence only.
+
+Post-follow-up include guidance:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `tests/fixtures/fleet/read-only-gates/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for HQ-192 through HQ-196, if separately prepared and reviewed
+
+Post-follow-up exclusions:
+
+- product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, and package sending output
+- reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence dumps, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, and queue prose when they would be treated as executable authority or approval
+
+Required reviewer output for the post-follow-up request:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Explicit statement whether the combined GREEN audit record and completed INFO-only follow-up hardening preserve GREEN posture together.
+- Explicit statement whether the review scope remains safe for local harness/docs/tests/schema/fixture-only review without approving product-repo access, demo execution, package creation or sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, non-mock UI implementation, or future authority.
+- Findings grounded in included file/path evidence.
+- Suggested follow-up tasks only as non-executable queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
 Reviewer mission:
 
 - Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.

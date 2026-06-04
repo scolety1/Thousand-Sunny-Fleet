@@ -5443,3 +5443,468 @@ Non-authority rule:
   - Refreshed `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`, `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`, and `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` for HQ-176 through HQ-181 follow-up review scope.
   - Added include/exclude guidance for the GREEN audit record, added denial fixtures, manifest fixture, and scrubbed validation summary while preserving no package creation/sending and no product/demo/runtime authority.
   - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Controlled Read-Only Demo Gate Rehearsal And Combined Audit Queue 2026-06-04
+
+Purpose:
+
+- Complete two safe phases after the read-only demo overnight-safe GREEN milestone:
+  - Phase 1: controlled read-only demo gate rehearsal, using docs/tests/schema/fixtures only.
+  - Phase 2: combined external audit readiness for the milestone plus gate rehearsal evidence.
+
+Non-authority rule:
+
+- This queue is evidence only. It does not approve product-repo access, demo execution, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, overnight runner execution, or future authority.
+- Work in this section remains local docs/tests/schema/fixtures only.
+- Do not fill a real approval packet, select a real product repo, run a real demo, create/send an audit package, or bind runtime commands from this queue.
+
+### HQ-183 Manifest Status Clarification Note
+
+- status: done
+- phase: Phase 1 - controlled read-only demo gate rehearsal
+- goal: Clarify the difference between manifest fixtures with `packageCreationStatus: not_created` and local audit delivery manifests with `created_for_local_user_request_not_sent`.
+- prerequisites:
+  - HQ-182 done
+- allowedFiles:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Runbook explains that `not_created` applies to local manifest fixtures used for validation evidence.
+  - Runbook explains that `created_for_local_user_request_not_sent` applies only to a local package manifest after an explicitly requested audit zip is created, and still does not authorize sending.
+  - Tests assert both statuses are documented and remain evidence only.
+  - No package is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, changing package behavior, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added a manifest status clarification note to the allowlist runbook distinguishing validation fixtures with `packageCreationStatus: not_created` from local audit delivery manifests with `created_for_local_user_request_not_sent`.
+  - Tests now assert both statuses remain evidence only and do not authorize package sending, product-repo access, demo execution, runtime command binding, all-fleet execution, overnight runner execution, or future authority.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-184 Controlled Gate Rehearsal Scenario Plan
+
+- status: done
+- phase: Phase 1 - controlled read-only demo gate rehearsal
+- goal: Add a concise rehearsal plan that describes the selected-project read-only gate scenarios to prove with fixtures, without selecting a real project.
+- prerequisites:
+  - HQ-183 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+- acceptance:
+  - Rehearsal plan defines allowed local fixture scenarios for valid planning, stale fingerprint, invalid fingerprint, missing owner, ambiguous approval, multi-target, wildcard target, and write-capable action.
+  - Rehearsal plan states no real project selection, no product repo access, no demo execution, no command binding, and no package sending.
+  - Tests assert the plan exists and preserves the scenario list plus non-authority boundaries.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires a real project target, live repo inspection, product-repo access, demo execution, command binding, package creation/sending, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` as a local fixture-only rehearsal plan covering valid planning, stale fingerprint, invalid fingerprint, missing owner, ambiguous approval, multi-target, wildcard target, and write-capable action scenarios.
+  - Updated the selected-project read-only gate and read-only demo planning charter to reference the rehearsal plan as evidence only.
+  - Tests now assert the plan exists, names the required scenarios, and denies real project selection, product-repo access, demo execution, command binding, package sending, all-fleet execution, overnight runner execution, and future authority.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-185 Controlled Gate Rehearsal Fixture Matrix Expansion
+
+- status: done
+- phase: Phase 1 - controlled read-only demo gate rehearsal
+- goal: Expand selected-project read-only gate fixtures so the rehearsal plan has parseable local evidence.
+- prerequisites:
+  - HQ-184 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.expired-approval-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.reused-approval-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.package-sending-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.phone-only-denied.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `templates/selected-project-read-only-gate-schema.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json`
+- acceptance:
+  - New fixtures cover expired approval, reused approval, package sending request, and phone-only approval denial.
+  - Each fixture is local evidence only, contains no real product repo target, and keeps forbidden capability flags false.
+  - Tests parse all selected-project read-only gate fixtures and assert expected denial/defer/ready counts.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product repo targets, live repo inspection, runtime command binding, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added local selected-project read-only gate fixtures for expired approval, reused approval, package sending request, and phone-only approval denial.
+  - Updated the fixture matrix test to parse and assert all twelve selected-project read-only gate fixtures, including the expanded denial counts.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-186 Gate Rehearsal Evidence Capture Contract
+
+- status: done
+- phase: Phase 1 - controlled read-only demo gate rehearsal
+- goal: Align the gate rehearsal with runtime dry-run evidence expectations without adding runtime behavior.
+- prerequisites:
+  - HQ-185 done
+- allowedFiles:
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+- acceptance:
+  - Evidence docs identify the local fields a rehearsal must record: selected fixture id, gate decision, denial/defer reasons, validation commands, non-authority notice, and forbidden capability flags.
+  - Valid fixture includes evidence references for the rehearsal plan and dry-run evidence contract.
+  - Tests assert the evidence fields and deny runtime/product/demo authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\read-only-gates\selected-project-read-only.valid-fixture.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires runtime behavior changes, real dry-run command execution, product-repo access, demo execution, command binding, package creation/sending, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added gate rehearsal evidence field guidance to the runtime dry-run evidence contract and read-only demo evidence capture guide.
+  - Updated the valid selected-project read-only fixture with local evidence refs and validation command refs while explicitly denying product repo selection, demo authority, package sending, runtime command binding, and future authority.
+  - Tests now assert selected fixture id, gate decision, denial/defer reason fields, validation command refs, non-authority notice, and forbidden capability flags for the selected-project read-only matrix.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\read-only-gates\selected-project-read-only.valid-fixture.json -Raw | ConvertFrom-Json | Out-Null"` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-187 Gate Rehearsal Handoff Refresh
+
+- status: done
+- phase: Phase 1 - controlled read-only demo gate rehearsal
+- goal: Refresh the stable handoff so future runs know the gate rehearsal is complete evidence only and not approval for a real demo.
+- prerequisites:
+  - HQ-186 done
+- allowedFiles:
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- acceptance:
+  - Handoff references the gate rehearsal plan and fixture matrix as evidence only.
+  - Stable capsule or handoff states the next safe phase is combined external audit readiness, not a real demo.
+  - Tests assert the handoff/capsule deny product-repo access, demo execution, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, and future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires approving a real demo, selecting a real project, product-repo access, package creation/sending, command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Updated the compact handoff to reference `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` and `tests/fixtures/fleet/read-only-gates/*.json` as completed local fixture evidence only.
+  - Updated the stable capsule to state the next safe phase is combined external audit readiness for the overnight-safe GREEN milestone plus gate rehearsal evidence, not a real demo.
+  - Tests now assert the handoff and stable capsule deny product-repo access, demo execution, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, phone approvals, and future authority for gate rehearsal evidence.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-188 Combined Audit Scope Record
+
+- status: done
+- phase: Phase 2 - combined external audit readiness
+- goal: Record the combined audit scope for the milestone plus gate rehearsal without creating a package.
+- prerequisites:
+  - HQ-187 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- acceptance:
+  - Scope record names the completed milestone and Phase 1 gate rehearsal evidence as the combined audit target.
+  - Scope record explicitly states no package is created by the record and no send/demo/product/runtime authority is granted.
+  - Handoff references the combined audit scope as evidence only.
+  - Tests assert the scope record exists and preserves the non-authority boundaries.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, product-repo access, demo execution, command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md` as a local evidence-only scope record naming the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence as the combined audit target.
+  - Updated `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to reference the combined audit scope as evidence only, with no package creation/sending, product-repo access, demo execution, runtime command binding, all-fleet execution, overnight runner execution, remote/phone approval, or future authority.
+  - Updated `tests/run-fleet-tests.ps1` to assert the combined audit scope record exists, preserves required non-authority phrases, and does not grant forbidden authority.
+  - Initial validation found one task-caused exact-phrase mismatch; patched the new scope record to include `does not approve demo execution`.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-189 Combined Audit Manifest Fixture
+
+- status: done
+- phase: Phase 2 - combined external audit readiness
+- goal: Add a manifest fixture for the combined audit package scope without creating the actual package.
+- prerequisites:
+  - HQ-188 done
+- allowedFiles:
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `templates/external-audit-package-manifest-schema.json`
+- acceptance:
+  - Manifest fixture lists only local docs/tests/schema/fixtures needed for combined audit review.
+  - Manifest fixture sets no-product-repos and no-send posture, records `packageCreationStatus: not_created`, and includes a non-authority notice.
+  - Tests parse the fixture and assert included/excluded scope plus no package creation/sending authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\evidence\external-audit-package-manifest.read-only-demo-combined.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, product-repo access, demo execution, command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, raw logs, `.git`, `.env`, dependency folders, build outputs, or files outside allowedFiles.
+- evidence:
+  - Added `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json` as a local evidence-only manifest fixture for the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence.
+  - The fixture lists only local docs, schema, tests, and read-only gate fixtures, keeps `packageCreationStatus: not_created`, `noSendStatus: true`, `noProductRepos: true`, and includes forbidden-scope denials plus a no-authority notice.
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` to document the combined manifest fixture as local validation evidence only, with no package creation/sending, product-repo access, demo execution, runtime command binding, all-fleet execution, overnight runner execution, remote/phone approval, or future authority.
+  - Updated `tests/run-fleet-tests.ps1` to parse and assert the combined manifest fixture include/exclude scope, forbidden-scope denials, no-send/no-product-repos posture, and non-authority boundaries.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\evidence\external-audit-package-manifest.read-only-demo-combined.json -Raw | ConvertFrom-Json | Out-Null"` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-190 Combined External Audit Prompt Refresh
+
+- status: done
+- phase: Phase 2 - combined external audit readiness
+- goal: Refresh the external audit prompt for the combined milestone plus gate rehearsal review without creating or sending a package.
+- prerequisites:
+  - HQ-189 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md`
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- acceptance:
+  - Prompt asks reviewers to audit both completed safe phases together: the overnight-safe GREEN milestone and the controlled read-only gate rehearsal.
+  - Prompt includes include/exclude guidance for combined scope, gate fixtures, manifest fixture, scrubbed validation summary, and non-authority boundaries.
+  - Prompt explicitly states it does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote/phone actions, run an overnight runner, or grant future authority.
+  - No package zip is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, product-repo access, demo execution, remote access, runtime command binding, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or files outside allowedFiles.
+- evidence:
+  - Refreshed `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` with a combined read-only demo gate rehearsal audit section for the overnight-safe GREEN milestone plus controlled gate rehearsal evidence.
+  - Refreshed `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` with combined include/exclude guidance, reviewer mission, manifest fixture expectations, scrubbed validation summary guidance, and non-authority boundaries.
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` with the combined read-only demo gate rehearsal audit scope and allowlist rules.
+  - The refreshed docs explicitly state they do not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote/phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-191 Combined Audit Preflight Checklist
+
+- status: done
+- phase: Phase 2 - combined external audit readiness
+- goal: Add the final local preflight checklist for preparing an external audit package later, while still not creating it in this queue task.
+- prerequisites:
+  - HQ-190 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Preflight checklist names the files that may be packaged later only after an explicit package request.
+  - Preflight checklist excludes product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, approval secrets, runtime command bindings, and package send operations.
+  - Handoff states the next safe action after this queue is an explicitly requested external audit package, not a real demo.
+  - Tests assert the preflight checklist and handoff preserve the no-package/no-send/no-product/no-demo boundary.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package inside this task, product-repo access, demo execution, command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md` as an evidence-only preflight checklist for a future explicit combined external audit package request.
+  - The preflight checklist names candidate include files and excludes product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, approval secrets, runtime command bindings, and package send operations.
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` and `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to point to the preflight checklist as evidence only and state that the next safe action is an explicitly requested external audit package, not a real demo.
+  - Updated `tests/run-fleet-tests.ps1` to assert the preflight checklist and handoff preserve the no-package/no-send/no-product/no-demo boundary.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Post-Combined GREEN Audit Follow-Up Hardening Queue 2026-06-04
+
+Source audit: `C:\Users\codex-agent\Downloads\Codex Fleet Audit (6).docx`.
+
+Purpose: record the combined read-only demo gate rehearsal GREEN audit and resolve its INFO-only local follow-up candidates. This section is docs/tests/schema/fixture evidence only. It does not approve product-repo access, demo execution, package creation or sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+
+### HQ-192 Combined GREEN Audit Milestone Record
+
+- status: done
+- phase: Post-combined GREEN audit follow-up hardening
+- goal: Record the `Codex Fleet Audit (6).docx` GREEN verdict as local non-authoritative evidence.
+- prerequisites:
+  - HQ-191 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `C:\Users\codex-agent\Downloads\Codex Fleet Audit (6).docx`
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- acceptance:
+  - Audit record states the combined package returned GREEN for the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence.
+  - Audit record summarizes INFO-only findings and optional follow-up candidates without treating reviewer output as executable commands or approval.
+  - Handoff references the combined GREEN audit record as evidence only and identifies this queue as the next bounded local hardening phase, not a real demo.
+  - Tests assert the audit record and handoff preserve non-authority boundaries.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, future authority, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md` to record that `C:\Users\codex-agent\Downloads\Codex Fleet Audit (6).docx` returned GREEN for the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence.
+  - The audit record summarizes INFO-only findings and optional follow-up candidates while preserving evidence-only, no-product, no-demo, no-package-send, no-runtime, no-all-fleet, no-overnight-runner, and no-future-authority boundaries.
+  - Updated `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to reference the combined GREEN audit record and identify this queue as bounded local follow-up hardening, not a real demo.
+  - Updated `tests/run-fleet-tests.ps1` to assert the new record and handoff preserve non-authority phrases and do not grant forbidden authority.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-193 Canonical Non-Authority Phrase Lint
+
+- status: done
+- phase: Post-combined GREEN audit follow-up hardening
+- goal: Add focused lint coverage so read-only demo docs and fixtures retain the canonical non-authority phrase.
+- prerequisites:
+  - HQ-192 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Tests check newly introduced read-only demo docs and selected read-only gate fixtures for `Evidence only; not executable authority or approval`.
+  - Tests remain local and do not inspect product repositories, raw logs, package outputs, external reports, or runtime state.
+  - The lint is scoped to local harness/docs/tests/schema/fixture evidence and does not convert evidence into approval.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing the canonical phrase globally, product-repo access, runtime access, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added `Test-ReadOnlyDemoCanonicalNonAuthorityLint` in `tests/run-fleet-tests.ps1`.
+  - The lint asserts read-only demo docs preserve `Evidence only; not executable authority or approval`.
+  - The lint checks selected read-only gate fixtures parse locally, preserve `safety.evidenceOnly: true`, keep product-repo reads, product execution, runtime binding, package creation/sending, and future authority false, and retain evidence-only/non-authority notice text.
+  - Initial validation found one task-caused overbroad negative-regex check against reviewer prompt denial prose; narrowed the lint to canonical phrase and fixture safety fields while leaving existing dedicated forbidden-authority tests intact.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-194 Additional Read-Only Gate Denial Fixtures
+
+- status: done
+- phase: Post-combined GREEN audit follow-up hardening
+- goal: Add local denial fixtures for remaining read-only gate stop conditions suggested by the GREEN audit.
+- prerequisites:
+  - HQ-193 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.stale-approval-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.missing-fingerprint-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.wrong-audit-package-type-denied.json`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `templates/selected-project-read-only-gate-schema.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.expired-approval-denied.json`
+- acceptance:
+  - Fixtures cover stale approval packet, missing fingerprint, and wrong audit package type denial.
+  - Each fixture is local evidence only, contains no real product repo target, sets forbidden capability flags false, and includes a non-authority notice.
+  - Gate rehearsal plan reflects the added denial scenarios as fixture-only coverage.
+  - Tests parse all read-only gate fixtures and assert the expanded denial matrix.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real product targets, product-repo inspection, runtime command binding, package creation/sending, demo execution, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added local evidence-only denial fixtures for stale approval packet, missing repo fingerprint evidence, and wrong audit package type.
+  - Each fixture uses only a fixture project target, keeps product repo inspection false, sets forbidden capability flags false, blocks live execution, and includes a non-authority notice.
+  - Updated `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` to name the added fixture-only denial scenarios.
+  - Updated `tests/run-fleet-tests.ps1` to assert the expanded fifteen-fixture selected-project read-only matrix and include the new fixtures in canonical non-authority lint coverage.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -Command 'Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }'` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-195 Manifest Status Clarification Refresh
+
+- status: done
+- phase: Post-combined GREEN audit follow-up hardening
+- goal: Clarify manifest status wording after the GREEN audit without changing packaging behavior.
+- prerequisites:
+  - HQ-194 done
+- allowedFiles:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+- acceptance:
+  - Docs clearly distinguish `packageCreationStatus: created_for_local_user_request_not_sent` for local zipped review packages from `packageCreationStatus: not_created` for manifest fixtures.
+  - Docs state both statuses remain evidence only, no-send, no-product, and non-authoritative.
+  - Tests assert the clarification exists and does not alter packaging behavior or grant authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing package-builder behavior, creating/sending a package, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` to clarify that manifest status names document evidence provenance only, not package-builder behavior.
+  - Updated `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` to distinguish `packageCreationStatus: not_created` fixture evidence from `packageCreationStatus: created_for_local_user_request_not_sent` local audit zip manifest evidence.
+  - Updated `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md` with the same no-send, no-product, evidence-only, non-authoritative status distinction.
+  - Updated `tests/run-fleet-tests.ps1` to assert the clarification text appears in the runbook and GREEN audit records.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+### HQ-196 Post-Follow-Up External Audit Prompt Refresh
+
+- status: done
+- phase: Post-combined GREEN audit follow-up hardening
+- goal: Refresh the external audit prompt and handoff for a future post-follow-up audit package without creating or sending that package.
+- prerequisites:
+  - HQ-195 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Prompt asks reviewers to audit the combined GREEN audit record plus completed INFO-only follow-up hardening.
+  - Prompt includes include/exclude guidance for the milestone record, phrase lint, added denial fixtures, manifest status clarification, and non-authority boundaries.
+  - Handoff states the next safe action after this queue is an explicitly requested external audit package, not a real demo.
+  - No package zip is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or files outside allowedFiles.
+- evidence:
+  - Refreshed `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` and `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` with post-combined GREEN follow-up audit request guidance for the combined GREEN milestone plus INFO-only hardening.
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` and `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to keep the next safe action as an explicitly requested external audit package, not a real demo.
+  - Updated `tests/run-fleet-tests.ps1` coverage for the refreshed prompt/runbook/handoff boundaries.
+  - Validation passed: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.

@@ -61,6 +61,20 @@ Future evidence records should reference source docs by path instead of pasting 
 
 Validation command refs must be exact strings from the bounded task or queue entry. They cannot be broadened into all-fleet commands, demo commands, package-sending commands, remote access commands, staging/commit/push/deploy commands, install/migration commands, or command-binding instructions.
 
+## Gate Rehearsal Evidence Fields
+
+Controlled read-only demo gate rehearsal evidence must record only local fixture facts:
+
+- selected fixture id
+- gate decision
+- denial reasons
+- defer reasons
+- validation commands
+- non-authority notice
+- forbidden capability flags
+
+The rehearsal evidence may reference `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`, `docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md`, and local selected-project read-only gate fixtures. These references are evidence only. They do not select a real project, inspect product repos, run a demo, bind runtime commands, create or send packages, approve phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+
 ## Evidence-As-Authority Guard
 
 Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.

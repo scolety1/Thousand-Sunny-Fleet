@@ -141,6 +141,20 @@ The aligned outcomes are:
 - stale fingerprint and ambiguous approval evidence map to `DEFER_NEEDS_HUMAN`.
 - ambiguous or incomplete selected-project evidence must not be rewritten into `ALLOW_DRY_RUN`.
 
+## Gate Rehearsal Evidence Fields
+
+A controlled read-only demo gate rehearsal record must identify the local fixture and the local gate outcome without becoming runtime input. The selected-project read-only fixture matrix records:
+
+- selected fixture id
+- gate decision
+- denial reasons
+- defer reasons
+- validation commands
+- non-authority notice
+- forbidden capability flags
+
+These fields are compact local evidence for external review. They are not command inputs, product-repo selectors, approval packet contents, package-sending instructions, demo launch instructions, or runtime command bindings.
+
 ## Validation
 
 The `validation` object records local schema/test evidence. It must include a status and reasons. Allowed status values are:

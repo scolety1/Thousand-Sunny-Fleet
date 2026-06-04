@@ -72,6 +72,12 @@ The lane may define labels for planning-only actions such as:
 
 These are labels only. They do not execute commands, inspect product repositories, bind runtime behavior, send packages, approve phone actions, run all-fleet commands, or approve a demo.
 
+## Controlled Gate Rehearsal
+
+`docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` defines the local fixture-only rehearsal for this planning lane.
+
+The rehearsal covers valid planning, stale fingerprint, invalid fingerprint, missing owner, ambiguous approval, multi-target, wildcard target, and write-capable action scenarios. It does not select a real project, inspect product repositories, run a demo, bind commands, create packages, send packages, approve phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+
 ## Approval Boundary
 
 Any future approval packet must be exact-action-bound, single-target, current, expiring, and human-filled. A template, schema, audit report, validation summary, queue entry, generated evidence record, UI label, button, notification, mobile request, prompt, or DOCX report cannot fill or approve that packet.

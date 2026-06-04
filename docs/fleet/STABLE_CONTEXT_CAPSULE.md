@@ -12,11 +12,15 @@ The project is intentionally not cleared for broad autonomy, all-fleet execution
 
 ## Current Posture
 
-Local harness posture is YELLOW moving toward GREEN.
+Local harness posture is GREEN for the latest local evidence-only post-combined follow-up hardening milestone.
 
 GREEN local evidence means the bounded harness/docs/tests task passed its own validation. It does not approve real-project work.
 
-Real-project demo posture remains YELLOW until external audit disposition, commit-scope review, exact project selection, a human-filled approval packet, inactive stop-sign review, and an exact no-op/read-only command list are all satisfied.
+Real-project demo posture remains YELLOW until separate exact human approval, commit-scope review, exact project selection, a human-filled approval packet, inactive stop-sign review, and an exact no-op/read-only command list are all satisfied.
+
+Controlled read-only demo gate rehearsal evidence is complete only as local docs/tests/schema/fixture evidence. Use `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` and `tests/fixtures/fleet/read-only-gates/*.json` as evidence only; they do not select a real project, inspect product repos, execute demos, create or send packages, bind runtime commands, run all-fleet commands, run an overnight runner, approve phone actions, or grant future authority.
+
+The latest post-combined GREEN follow-up audit returned GREEN. Use `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md` as evidence only. The earlier gate rehearsal phase moved through combined external audit readiness; the next safe phase is optional local docs/tests/fixtures hardening from INFO-only findings, not a real demo.
 
 ## Safety Invariants
 
@@ -100,6 +104,7 @@ Human approval must be exact-action-bound, current, single-use where applicable,
 
 - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
 - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
 - `docs/fleet/HQ_IMPORT_RECON.md`
 - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
 - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`

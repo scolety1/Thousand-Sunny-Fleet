@@ -29,6 +29,8 @@ The audit noted that the local package `PACKAGE_MANIFEST.json` used `packageCrea
 
 This is accepted as a documentation clarity point only. The local zip was created for user-requested audit review and was not sent by Codex. The manifest fixture remains a local validation fixture and does not approve package creation or package sending.
 
+Status names document evidence provenance only, not package-builder behavior. `packageCreationStatus: not_created` describes committed manifest fixtures that validate expected shape and scope discipline; `packageCreationStatus: created_for_local_user_request_not_sent` describes a locally created audit zip manifest after an explicit user request for local review. Both statuses remain evidence only, no-send, no-product, and non-authoritative.
+
 ## Non-Authority Boundary
 
 Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, package manifests, and queue prose are evidence only.

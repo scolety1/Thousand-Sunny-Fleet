@@ -1,21 +1,12 @@
 {
   "schemaVersion": 1,
-  "hqTaskId": "HQ-158",
-  "fixtureId": "selected-project-read-only.valid-fixture",
-  "caseId": "valid-fixture-only-read-only",
+  "hqTaskId": "HQ-194",
+  "fixtureId": "selected-project-read-only.stale-approval-denied",
+  "caseId": "stale-approval-denied",
   "combinedMatrixKind": "selected_project_read_only_end_to_end",
-  "evidenceRefs": [
-    "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
-    "docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md",
-    "docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md"
-  ],
-  "validationCommands": [
-    "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-Content .\\tests\\fixtures\\fleet\\read-only-gates\\selected-project-read-only.valid-fixture.json -Raw | ConvertFrom-Json | Out-Null\"",
-    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
-  ],
   "selectedProjectGate": {
-    "validationStatus": "valid",
-    "validationDecision": "valid_read_only_gate",
+    "validationStatus": "denied",
+    "validationDecision": "deny_stale_approval_packet",
     "owner": "captain-fixture-owner",
     "selectedTarget": {
       "targetType": "fixture_project",
@@ -25,11 +16,9 @@
     "repoFingerprintRef": "repo-fingerprint.fixture-alpha.fresh",
     "readOnlyActions": [
       "READ_STATUS",
-      "READ_REPO_FINGERPRINT",
-      "READ_DRY_RUN_EVIDENCE",
-      "READ_CONTROL_ROOM_SNAPSHOT"
+      "READ_REPO_FINGERPRINT"
     ],
-    "approvalEvidence": "fixture-exact-read-only-review",
+    "approvalEvidence": "stale-fixture-approval-packet",
     "productRepoInspected": false
   },
   "repoFingerprint": {
@@ -38,16 +27,18 @@
     "productRepoInspected": false
   },
   "runtimePolicyDecision": {
-    "decision": "ALLOW",
-    "dryRunResult": "ALLOW_DRY_RUN",
-    "denialReason": null,
-    "approvalRequirement": "none"
+    "decision": "DENY",
+    "dryRunResult": "DENY_UNSAFE",
+    "denialReason": "stale-approval-packet",
+    "approvalRequirement": "captain_selected_project"
   },
   "dryRunEvidence": {
-    "actualDryRunResult": "ALLOW_DRY_RUN",
-    "decision": "ALLOW",
+    "actualDryRunResult": "DENY_UNSAFE",
+    "decision": "DENY",
     "expectedAction": "READ_ONLY_RECONCILE",
-    "denialReasons": [],
+    "denialReasons": [
+      "stale-approval-packet"
+    ],
     "deferReasons": [],
     "safety": {
       "executesProductActions": false,
@@ -60,14 +51,16 @@
     }
   },
   "reconciliation": {
-    "reconciliationStatus": "MATCH",
-    "displayStatus": "MATCH",
-    "mismatchReasons": []
+    "reconciliationStatus": "UNKNOWN",
+    "displayStatus": "UNKNOWN",
+    "mismatchReasons": [
+      "stale-approval-packet"
+    ]
   },
   "expectedOutcome": {
-    "category": "valid_fixture_only_read_only",
+    "category": "deny_stale_approval_packet",
     "blocksLiveExecution": true,
-    "requiresHumanReview": false
+    "requiresHumanReview": true
   },
   "safety": {
     "evidenceOnly": true,

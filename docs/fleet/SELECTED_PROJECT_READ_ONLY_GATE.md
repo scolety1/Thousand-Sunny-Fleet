@@ -118,6 +118,12 @@ Every fixture must carry a non-authority notice that says the record is evidence
 
 The expanded denial fixtures are local evidence only. They exercise target and fingerprint vocabulary without inspecting product repositories, binding runtime commands, creating or sending packages, running all-fleet commands, or approving future work.
 
+## Controlled Rehearsal Plan
+
+The controlled read-only demo gate rehearsal plan lives in `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`.
+
+That plan is evidence only. It uses local fixtures to exercise valid planning, stale fingerprint, invalid fingerprint, missing owner, ambiguous approval, multi-target, wildcard target, and write-capable action scenarios. It does not select a real project, inspect product repositories, run a demo, bind commands, create packages, send packages, approve phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+
 ## Out Of Scope
 
 - Touching product repos
