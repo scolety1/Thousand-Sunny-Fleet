@@ -12,6 +12,10 @@ Canonical notice: Evidence only; not executable authority or approval.
 
 This template defines the minimum shape of a future human-filled approval packet for read-only demo readiness review. It is not approval by itself. A schema, template, queue entry, audit report, validation summary, generated evidence record, UI label, button, notification, mobile request, prompt, or DOCX report cannot fill this packet or approve a demo.
 
+## Completeness Checklist
+
+Use `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md` to review whether a future human-filled packet is complete. The checklist verifies approval packet completeness without filling one or approving a demo. This approval packet remains an unfilled template and cannot approve real work.
+
 ## Required Fields
 
 Every future packet must be filled by a human and must include all of these fields:

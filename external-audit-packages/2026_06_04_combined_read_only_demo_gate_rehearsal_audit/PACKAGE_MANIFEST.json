@@ -1,0 +1,252 @@
+﻿{
+    "packageId":  "2026_06_04_combined_read_only_demo_gate_rehearsal_audit",
+    "preparedAt":  "2026-06-04",
+    "sourceRepo":  "codex-fleet-harness",
+    "sourceCommit":  "1c49044",
+    "packagePurpose":  "combined-read-only-demo-gate-rehearsal-audit",
+    "includedFiles":  [
+                          {
+                              "path":  "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/NEW_CHAT_HANDOFF_PACKET.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+                              "kind":  "doc",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "templates/external-audit-package-manifest-schema.json",
+                              "kind":  "schema",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/run-fleet-tests.ps1",
+                              "kind":  "test",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.ambiguous-approval-unknown.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.expired-approval-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.invalid-fingerprint-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.missing-owner-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.multi-target-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.package-sending-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.phone-only-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.reused-approval-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.stale-fingerprint-deferred.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.wildcard-target-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "tests/fixtures/fleet/read-only-gates/selected-project-read-only.write-capable-denied.json",
+                              "kind":  "fixture",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "docs/fleet/summaries/READ_ONLY_DEMO_COMBINED_AUDIT_VALIDATION_SUMMARY_2026_06_04.md",
+                              "kind":  "summary",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          },
+                          {
+                              "path":  "EXTERNAL_AUDIT_PROMPT.md",
+                              "kind":  "prompt",
+                              "evidenceOnly":  true,
+                              "containsRawLogs":  false,
+                              "containsReviewerCommands":  false
+                          }
+                      ],
+    "excludedPatterns":  [
+                             "product repositories",
+                             "product source snapshots",
+                             "real project exports",
+                             ".git",
+                             ".env",
+                             "dependency folders",
+                             "node_modules",
+                             "dist",
+                             "build",
+                             "raw logs",
+                             "raw locks",
+                             "live worker state",
+                             "unknown zips",
+                             "secrets",
+                             "credentials",
+                             "private keys",
+                             "auth/payments/deploy/migration material",
+                             "package-install material",
+                             "staging/commit/push/merge material",
+                             "lock-deletion material",
+                             "runtime-execution material",
+                             "remote-control material",
+                             "phone approval material",
+                             "all-fleet execution material",
+                             "overnight runner material",
+                             "permission material",
+                             "approval secrets",
+                             "package send operations"
+                         ],
+    "validationSummaryRef":  "docs/fleet/summaries/READ_ONLY_DEMO_COMBINED_AUDIT_VALIDATION_SUMMARY_2026_06_04.md",
+    "reviewerPromptRef":  "EXTERNAL_AUDIT_PROMPT.md",
+    "externalAuditDigestSchemaRef":  "templates/external-audit-intake-digest-schema.json",
+    "forbiddenScopeDenials":  [
+                                  "product-repo access",
+                                  "product mutation",
+                                  "demo execution",
+                                  "package sending",
+                                  "runtime command binding",
+                                  "remote access",
+                                  "phone approvals",
+                                  "all-fleet execution",
+                                  "overnight runner execution",
+                                  "staging/commit/push/deploy",
+                                  "installs/migrations/secrets",
+                                  "lock deletion",
+                                  "permission widening",
+                                  "evidence-as-authority attempts"
+                              ],
+    "evidenceOnlyNotice":  "Evidence only; not executable authority or approval.",
+    "packageCreationStatus":  "created_for_local_user_request_not_sent",
+    "noSendStatus":  true,
+    "noProductRepos":  true,
+    "noAuthorityNotice":  "This manifest and package cannot approve execution, import tasks, bypass validation, grant future permission, stage files, commit, push, deploy, install packages, run migrations, touch secrets, delete locks, widen permissions, create or send packages beyond this local user-requested zip, approve product-repo access, approve demo execution, bind runtime commands, approve phone actions, run all-fleet commands, run an overnight runner, or grant future authority."
+}

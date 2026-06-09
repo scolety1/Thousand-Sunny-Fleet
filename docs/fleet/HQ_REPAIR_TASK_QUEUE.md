@@ -5908,3 +5908,1237 @@ Purpose: record the combined read-only demo gate rehearsal GREEN audit and resol
   - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` and `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to keep the next safe action as an explicitly requested external audit package, not a real demo.
   - Updated `tests/run-fleet-tests.ps1` coverage for the refreshed prompt/runbook/handoff boundaries.
   - Validation passed: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Post-Combined GREEN Optional INFO Hardening Queue 2026-06-04
+
+Source audit: `C:\Users\codex-agent\Downloads\Codex Fleet Audit (7).docx`.
+
+Purpose: resolve optional INFO-only follow-up candidates after the post-combined GREEN follow-up audit. This section is local docs/tests/schema/fixture evidence only. It does not approve product-repo access, product mutation, real demo execution, package creation or sending, runtime command binding, remote access, phone approvals, all-fleet commands, overnight runner execution, non-mock UI implementation, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+### HQ-197 Rare-Edge Read-Only Gate Denial Fixtures
+
+- status: done
+- phase: Post-combined GREEN optional INFO hardening
+- goal: Add local denial fixtures for rare selected-project read-only gate edge cases suggested by the GREEN audit.
+- prerequisites:
+  - HQ-196 done
+- allowedFiles:
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.conflicting-approval-timestamps-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.mismatched-case-id-denied.json`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `templates/selected-project-read-only-gate-schema.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.stale-approval-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json`
+- acceptance:
+  - Adds fixture-only denial cases for conflicting approval timestamps and mismatched case IDs.
+  - New fixtures use only local fixture targets, include no real product repo data, set forbidden capability flags false, and include the canonical non-authority notice.
+  - Gate rehearsal plan names the new rare-edge scenarios as local evidence only.
+  - Tests parse the new fixtures and include them in the read-only gate matrix and canonical non-authority lint.
+- evidence:
+  - Added local evidence-only denial fixtures for conflicting approval timestamps and mismatched case IDs.
+  - Updated `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` to name both rare-edge scenarios as denied/no-execution-authority fixture coverage.
+  - Updated `tests/run-fleet-tests.ps1` to include both fixtures in the selected-project read-only matrix and canonical non-authority lint.
+  - Validation passed with the read-only-gate fixture JSON parse command and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo data, product-repo inspection, real project selection, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-198 Manifest Status Lint
+
+- status: done
+- phase: Post-combined GREEN optional INFO hardening
+- goal: Add static lint coverage for committed audit manifest fixtures and manifest status documentation without changing package-builder behavior.
+- prerequisites:
+  - HQ-197 done
+- allowedFiles:
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Tests assert committed external-audit manifest fixtures preserve `packageCreationStatus: not_created`, `noSendStatus: true`, `noProductRepos: true`, evidence-only included files, forbidden-scope denials, and no-authority notice text.
+  - Tests assert runbook text distinguishes `created_for_local_user_request_not_sent` from `not_created` and states both remain evidence only, no-send, no-product, and non-authoritative.
+  - No package builder, generated package directory, zip, or package send behavior is modified.
+- evidence:
+  - Added static manifest-status lint coverage for current committed package-scope manifest fixtures in `tests/run-fleet-tests.ps1`.
+  - Clarified in `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` that manifest-status lint is documentation and fixture-validation evidence only and does not change package-builder behavior.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires modifying package-builder behavior, creating/sending packages, reading generated package outputs as authority, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-199 Canonical Phrase Consistency Sweep
+
+- status: done
+- phase: Post-combined GREEN optional INFO hardening
+- goal: Tighten documentation/test coverage so relevant read-only demo and audit-planning docs retain the canonical non-authority phrase and manifest-status explanation.
+- prerequisites:
+  - HQ-198 done
+- allowedFiles:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Relevant read-only demo and post-combined audit-planning docs retain `Evidence only; not executable authority or approval`.
+  - Relevant docs preserve the manifest status distinction between `created_for_local_user_request_not_sent` and `not_created` where package status is discussed.
+  - Tests cover the expanded phrase set without treating wording checks as approval or runtime policy.
+  - No runtime scripts, product repos, package builders, or generated package outputs are modified.
+- evidence:
+  - Added the canonical non-authority phrase to the compact stable capsule, new-chat handoff, and HQ next external audit prompt.
+  - Added manifest-status distinction wording to the stable capsule and handoff for `created_for_local_user_request_not_sent` versus `not_created`.
+  - Expanded `tests/run-fleet-tests.ps1` canonical lint coverage for post-combined docs and manifest-status wording, including a guard that wording checks do not become approval or runtime policy.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires broad repo-wide rewriting, runtime behavior changes, package creation/sending, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-200 Optional INFO Hardening External Audit Prompt Refresh
+
+- status: done
+- phase: Post-combined GREEN optional INFO hardening
+- goal: Refresh the external audit prompt and handoff for the completed optional INFO hardening lane without creating or sending a package.
+- prerequisites:
+  - HQ-199 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- acceptance:
+  - Prompt asks reviewers to audit the post-combined GREEN follow-up audit record plus completed optional INFO hardening tasks.
+  - Prompt includes include/exclude guidance for rare-edge denial fixtures, manifest status linting, canonical phrase consistency, validation evidence, and non-authority boundaries.
+  - Handoff states the next safe action after this queue is an explicitly requested external audit package, not a real demo.
+  - No package zip is created or sent.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or files outside allowedFiles.
+- evidence:
+  - Refreshed `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` and `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` to ask reviewers to audit `POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md` plus completed optional INFO hardening through HQ-200.
+  - Added optional INFO hardening audit-scope guidance to `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` and handoff next-action guidance to `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`, with no package zip created or sent.
+  - Updated `tests/run-fleet-tests.ps1` to assert rare-edge denial fixtures, manifest status linting, canonical phrase consistency, validation evidence, and non-authority boundaries in the refreshed prompt, runbook, and handoff.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+
+## Five-Hour Read-Only Demo Evidence Polish Queue 2026-06-04
+
+Source posture: latest local evidence-only post-combined optional INFO hardening completed through HQ-200. This queue is useful polish for the next external audit while the user is away. It is local docs/tests/schema/fixture evidence only. It does not approve product-repo access, product mutation, real demo execution, package creation or sending, runtime command binding, remote access, phone approvals, all-fleet commands, overnight runner execution, non-mock UI implementation, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+### HQ-201 Read-Only Demo Go/No-Go Scorecard
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a local evidence-only scorecard that separates fixture readiness from real demo readiness.
+- prerequisites:
+  - HQ-200 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+- acceptance:
+  - Scorecard names GREEN local fixture readiness and YELLOW real demo readiness as separate states.
+  - Scorecard requires exact project identity, exact no-op/read-only command list, current approval packet, stop-sign review, and evidence-capture plan before any future real demo.
+  - Scorecard states it is evidence only and does not approve product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, or future authority.
+  - Tests assert the scorecard preserves the local-vs-real readiness distinction and non-authority boundaries.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md` to separate GREEN local fixture readiness from YELLOW real demo readiness.
+  - Scorecard requires exact project identity, exact no-op/read-only command list, current human-filled approval packet, inactive stop-sign review, and compact evidence-capture plan before any future real demo consideration.
+  - Updated `tests/run-fleet-tests.ps1` with focused scorecard assertions and canonical non-authority lint coverage.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires selecting a real project, approving or running a demo, creating/sending a package, touching product repos, binding runtime commands, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-202 Approval Packet Completeness Checklist
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a checklist that verifies read-only demo approval packets are complete without filling one or approving a demo.
+- prerequisites:
+  - HQ-201 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md`
+  - `templates/read-only-demo-approval-schema.json`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md`
+- acceptance:
+  - Checklist covers owner, exact target, expiration, single-use intent where applicable, no-op/read-only action list, evidence refs, forbidden operations, and stop signs.
+  - Checklist states blank, broad, expired, reused, phone-only, wildcard, multi-target, or write-capable approvals fail closed.
+  - Approval packet remains an unfilled template and cannot approve real work.
+  - Tests assert required checklist phrases and non-authority boundaries.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md` to verify approval packet completeness without filling one or approving a demo.
+  - Updated `docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md` to reference the checklist while preserving the unfilled template and non-authority boundary.
+  - Updated `tests/run-fleet-tests.ps1` with focused checklist phrase assertions and canonical non-authority lint coverage.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires filling a real approval packet, approving a demo, selecting product repos, executing commands, creating/sending packages, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-203 Stop-Sign Coverage Matrix
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a compact stop-sign coverage matrix that maps stop signs to fixtures, docs, and expected denial posture.
+- prerequisites:
+  - HQ-202 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.package-sending-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.write-capable-denied.json`
+- acceptance:
+  - Matrix covers missing approval, missing owner, broad target, wildcard/multi-target, stale/expired/reused approval, stale/missing/invalid fingerprint, package sending, write-capable action, remote access, phone-only approval, all-fleet execution, command binding, and evidence-as-authority.
+  - Matrix maps each stop sign to local denial/defer evidence or names it as documentation-only coverage.
+  - Tests assert matrix entries and that stop signs deny or defer rather than approve execution.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md` mapping stop signs to local fixture, doc, defer, UNKNOWN, or documentation-only evidence.
+  - Updated `docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md` to reference the coverage matrix while preserving evidence-only/non-authority boundaries.
+  - Updated `tests/run-fleet-tests.ps1` with focused matrix phrase, fixture-path, and non-authority assertions plus canonical non-authority lint coverage.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires adding real stop-sign enforcement outside docs/tests, product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-204 Evidence Capture Summary Template
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a scrubbed compact validation/evidence summary template for future read-only demo audit packages.
+- prerequisites:
+  - HQ-203 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md`
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md`
+  - `templates/validation-output-summary-schema.json`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+- acceptance:
+  - Template captures source docs, exact validation command refs, validation result, first failure fingerprint when needed, evidence refs, omissions, and non-authority notice.
+  - Template excludes raw logs by default, product repo paths, secrets, command-like remediation scripts, package directories, and reviewer prose dumps.
+  - Tests assert the template remains compact, scrubbed, and non-authoritative.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md` for scrubbed compact validation/evidence summaries.
+  - Updated `docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md` to reference the template and its raw-log/product-path/secret/remediation-script/package-directory/reviewer-prose exclusions.
+  - Updated `tests/run-fleet-tests.ps1` with focused template assertions and canonical non-authority lint coverage.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires collecting raw logs, creating packages, sending packages, inspecting product repos, running demos, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-205 Selected-Project Gate Fixture Index
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a human-readable index for selected-project read-only gate fixtures and their expected outcomes.
+- prerequisites:
+  - HQ-204 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Index lists each committed selected-project read-only gate fixture, expected allow/deny/defer posture, and whether it is fixture-only or documentation-only evidence.
+  - Index states no fixture selects a real project, reads product repos, executes a demo, creates/sends packages, binds commands, or grants future authority.
+  - Tests assert every listed fixture path exists and every committed fixture is either listed or intentionally excluded with a reason.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md` listing all 17 committed selected-project read-only gate fixtures with expected allow/deny/defer posture and fixture-only or documentation-only evidence posture.
+  - Updated `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` to reference the selected gate fixture index while preserving the local evidence-only boundary.
+  - Updated `tests/run-fleet-tests.ps1` with selected gate fixture index coverage, actual fixture-list assertions, and canonical non-authority lint coverage.
+  - Validation passed with the read-only-gate fixture JSON parse command and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires editing fixture semantics, product-repo data, real project selection, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-206 Next External Audit Preflight Checklist
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a preflight checklist for the next external audit package request without creating or sending the package.
+- prerequisites:
+  - HQ-205 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+  - `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- acceptance:
+  - Checklist names allowed evidence categories for the next external audit and excludes product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, secrets, approval material for real product work, package creation output, and package sending output.
+  - Checklist states the next safe action is an explicitly requested external audit package, not a real demo.
+  - Tests assert include/exclude guidance and non-authority boundaries.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md` as an evidence-only preflight checklist for a future explicit external audit package request.
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` to reference the five-hour read-only demo evidence polish preflight without creating or sending a package.
+  - Updated `tests/run-fleet-tests.ps1` with focused include/exclude, manifest-check, non-authority, runbook-reference, and canonical phrase coverage.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, approving a package, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-207 Post-Optional INFO Manifest Fixture
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a committed manifest fixture for the future post-optional INFO external audit scope.
+- prerequisites:
+  - HQ-206 done
+- allowedFiles:
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.post-combined-optional-info.json`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/external-audit-package-manifest-schema.json`
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json`
+  - `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Fixture uses `packageCreationStatus: not_created`, `noSendStatus: true`, `noProductRepos: true`, evidence-only included files, forbidden-scope denials, and no-authority notice.
+  - Fixture lists only local docs/tests/schema/fixture evidence for the post-optional INFO audit scope.
+  - Tests parse and validate the fixture and assert it does not include product repos, raw logs, package creation output, or package sending output.
+- evidence:
+  - Added `tests/fixtures/fleet/evidence/external-audit-package-manifest.post-combined-optional-info.json` as a local evidence-only manifest fixture for the post-combined optional INFO/five-hour polish audit scope.
+  - Fixture keeps `packageCreationStatus: not_created`, `noSendStatus: true`, `noProductRepos: true`, evidence-only included files, forbidden-scope denials, and no-authority notices.
+  - Updated `tests/run-fleet-tests.ps1` to parse and validate the fixture, include it in manifest status lint, and assert it excludes product repos, raw logs, package creation output, and package sending output.
+  - Validation passed with the fixture JSON parse command and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content .\tests\fixtures\fleet\evidence\external-audit-package-manifest.post-combined-optional-info.json -Raw | ConvertFrom-Json | Out-Null"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending an actual package, changing package-builder behavior, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-208 External Audit Prompt Include/Exclude Refresh
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Refresh the external audit prompts so reviewers can audit the full five-hour polish lane after completion.
+- prerequisites:
+  - HQ-207 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `tests/fixtures/fleet/evidence/external-audit-package-manifest.post-combined-optional-info.json`
+- acceptance:
+  - Prompts ask reviewers to audit HQ-201 through HQ-215 local evidence polish after the queue completes.
+  - Prompts include guidance for scorecard, approval checklist, stop-sign matrix, validation summary template, fixture index, preflight checklist, manifest fixture, and non-authority boundaries.
+  - Prompts state they do not create or send packages and do not approve a real demo.
+  - Tests assert the refreshed prompt scope and exclusions.
+- evidence:
+  - Refreshed `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` with a five-hour read-only demo evidence polish audit request for HQ-201 through HQ-215 after the queue completes.
+  - Refreshed `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` with matching five-hour polish review focus, include/exclude guidance, and no-package/no-real-demo boundaries.
+  - Updated `tests/run-fleet-tests.ps1` to assert the refreshed HQ-201 through HQ-215 prompt scope, scorecard/checklist/matrix/template/index/preflight/manifest/glossary/guard/intake/milestone guidance, exclusions, and non-authority wording.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, treating prompts as approval, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-209 Handoff And Capsule Phase Update
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Update compact handoff context for the new five-hour polish lane and next safe action.
+- prerequisites:
+  - HQ-208 done
+- allowedFiles:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- acceptance:
+  - Handoff and capsule identify the five-hour polish lane as local evidence-only work and state the next safe action is an explicitly requested external audit package.
+  - Handoff and capsule do not imply real demo readiness, package creation/sending, product-repo access, runtime command binding, or future authority.
+  - Tests assert the updated handoff/capsule phrases and non-authority boundaries.
+- evidence:
+  - Updated `docs/fleet/STABLE_CONTEXT_CAPSULE.md` to identify the five-hour read-only demo evidence polish lane as active local evidence-only work and state the next safe action is an explicitly requested external audit package, not a real demo.
+  - Updated `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` with five-hour polish lane orientation, source prompt/preflight references, and no-package/no-real-demo/no-future-authority boundaries.
+  - Updated `tests/run-fleet-tests.ps1` to assert the five-hour polish handoff/capsule phrases, next safe action, and forbidden authority exclusions.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires broad historical rewrite, package creation/sending, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-210 Fixture Naming And Case-ID Convention Note
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a small convention note for read-only demo fixture names, case IDs, and denial labels.
+- prerequisites:
+  - HQ-209 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_FIXTURE_NAMING_CONVENTIONS.md`
+  - `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.conflicting-approval-timestamps-denied.json`
+  - `tests/fixtures/fleet/read-only-gates/selected-project-read-only.mismatched-case-id-denied.json`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Convention note explains fixture filename shape, case ID expectations, denial/defer naming, and canonical non-authority notice expectations.
+  - Note states naming conventions are evidence-only lint guidance, not runtime routing, command binding, package creation, or demo approval.
+  - Tests assert convention wording and that selected gate fixtures keep case IDs distinct and local.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_FIXTURE_NAMING_CONVENTIONS.md` with evidence-only naming, stable local case ID, denial/defer label, and canonical non-authority notice expectations.
+  - Updated `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md` to reference the convention note while preserving the fixture-only/non-authority boundary.
+  - Updated `tests/run-fleet-tests.ps1` to assert convention wording, fixture filename and fixtureId alignment, stable distinct local case IDs, denied/deferred posture labels, and non-authority notices.
+  - Validation passed with the read-only gate fixture JSON parse command and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem .\tests\fixtures\fleet\read-only-gates -Filter *.json | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null }"`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime routing, editing product repos, selecting real projects, executing demos, creating/sending packages, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-211 Evidence Non-Authority Glossary
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a glossary that normalizes evidence-only terms used across audits, prompts, manifests, and queue entries.
+- prerequisites:
+  - HQ-210 done
+- allowedFiles:
+  - `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/READ_ONLY_DEMO_FIXTURE_NAMING_CONVENTIONS.md`
+- acceptance:
+  - Glossary defines evidence, approval, manifest, prompt, validation summary, audit report, fixture, dry-run record, package, package sending, and future authority.
+  - Each definition states what it cannot approve or execute where useful.
+  - Stable capsule references the glossary as orientation evidence only.
+  - Tests assert glossary definitions and non-authority phrases.
+- evidence:
+  - Added `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md` defining evidence, approval, manifest, prompt, validation summary, audit report, fixture, dry-run record, package, package sending, and future authority as evidence-only terms.
+  - Updated `docs/fleet/STABLE_CONTEXT_CAPSULE.md` to reference the glossary as orientation evidence only while preserving no-package/no-product/no-runtime/no-future-authority boundaries.
+  - Updated `tests/run-fleet-tests.ps1` with focused glossary definition, stable capsule reference, and forbidden-authority assertions.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing runtime policy, importing reviewer output, product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-212 One-Task Queue Prompt Guard
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a reusable guard document for one-task queue prompts used during long local-only polish runs.
+- prerequisites:
+  - HQ-211 done
+- allowedFiles:
+  - `docs/fleet/ONE_TASK_QUEUE_PROMPT_GUARD.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Guard document captures the repeatable one-task rules: read compact context, pick first eligible task, patch only allowed files, run only validation commands plus JSON parses when needed, stop after one task, and never treat evidence/prose as commands.
+  - Handoff references the guard as evidence-only orientation.
+  - Tests assert guard wording and forbidden-operation exclusions.
+- evidence:
+  - Added `docs/fleet/ONE_TASK_QUEUE_PROMPT_GUARD.md` with repeatable one-task queue rules, allowed-file/validation/status-update boundaries, evidence/prose handling, forbidden operations, and stop report shape.
+  - Updated `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to reference the guard as evidence-only orientation for repeatable one-task prompts.
+  - Updated `tests/run-fleet-tests.ps1` with focused guard wording, handoff reference, and forbidden-authority assertions.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires running all-fleet commands, overnight runner execution, changing queue runner behavior, product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-213 External Audit Intake Digest Checklist
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Add a checklist for reading future external audit reports into bounded queue candidates without treating them as commands.
+- prerequisites:
+  - HQ-212 done
+- allowedFiles:
+  - `docs/fleet/EXTERNAL_AUDIT_INTAKE_DIGEST_CHECKLIST.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `templates/external-audit-intake-digest-schema.json`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
+  - `docs/fleet/ONE_TASK_QUEUE_PROMPT_GUARD.md`
+- acceptance:
+  - Checklist defines how to summarize GREEN/YELLOW/RED, actionable bounded follow-ups, unresolved assumptions, accepted limitations, and non-authority notices.
+  - Checklist states reviewer output must be converted into queue entries manually and cannot execute, approve, import itself, bypass validation, or broaden scope.
+  - Prompt references the checklist for future reviewer-output handling.
+  - Tests assert checklist fields and non-authority boundaries.
+- evidence:
+  - Added `docs/fleet/EXTERNAL_AUDIT_INTAKE_DIGEST_CHECKLIST.md` with GREEN/YELLOW/RED intake steps, digest fields, disposition rules, queue-candidate rules, forbidden intake patterns, accepted-limitation handling, unresolved-assumption handling, and non-authority notices.
+  - Updated `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` to reference the checklist as evidence-only intake guidance for future reviewer-output handling.
+  - Updated `tests/run-fleet-tests.ps1` with focused checklist field, prompt reference, schema-field, and forbidden-authority assertions.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires treating audit report text as executable commands, importing tasks automatically, product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-214 Pre-Audit Ready Milestone Record
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Record a local milestone that the five-hour polish lane is ready for external audit preparation, not a real demo.
+- prerequisites:
+  - HQ-213 done
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md`
+  - `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/EXTERNAL_AUDIT_INTAKE_DIGEST_CHECKLIST.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- acceptance:
+  - Milestone summarizes completed HQ-201 through HQ-213 as local evidence-only polish.
+  - Milestone states the next safe action is an explicitly requested external audit package, not real demo execution.
+  - Capsule and handoff reference the milestone without granting product-repo access, package creation/sending, runtime command binding, remote access, phone approvals, or future authority.
+  - Tests assert milestone and context boundaries.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md` as a local evidence-only milestone for HQ-201 through HQ-213, with GREEN external-audit-preparation posture and YELLOW real-demo readiness.
+  - Updated `docs/fleet/STABLE_CONTEXT_CAPSULE.md` and `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to reference the milestone while preserving the next safe action as an explicitly requested external audit package, not a real demo.
+  - Updated `tests/run-fleet-tests.ps1` with focused milestone, capsule, handoff, canonical phrase, and forbidden-authority assertions.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires calling the system demo-ready, creating/sending packages, selecting product repos, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-215 Five-Hour Polish External Audit Prompt Refresh
+
+- status: done
+- phase: Five-hour read-only demo evidence polish
+- goal: Finalize the external audit prompt and runbook scope for the completed five-hour polish lane without creating or sending a package.
+- prerequisites:
+  - HQ-214 done
+- allowedFiles:
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md`
+  - `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+  - `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+  - `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- acceptance:
+  - Prompts and runbook ask reviewers to audit the completed five-hour polish lane and pre-audit milestone.
+  - Prompt includes include/exclude guidance for scorecard, approval checklist, stop-sign matrix, evidence template, fixture index, preflight checklist, manifest fixture, glossary, one-task prompt guard, intake digest checklist, milestone, validation evidence, and non-authority boundaries.
+  - Handoff states the next safe action after this queue is an explicitly requested external audit package, not a real demo.
+  - No package zip is created or sent.
+- evidence:
+  - Refreshed `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` and `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` to ask reviewers to audit HQ-201 through HQ-215, including the pre-audit ready milestone and final prompt/runbook refresh.
+  - Updated `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` with a completed-lane five-hour polish audit scope, include/exclude boundaries, manifest fixture expectations, and no-package/no-real-demo limits.
+  - Updated `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to state the final prompt/runbook refresh prepares external audit review without creating or sending a package, and that the next safe action remains an explicitly requested external audit package, not a real demo.
+  - Updated `tests/run-fleet-tests.ps1` with focused assertions for the HQ-214/HQ-215 milestone/prompt/runbook boundary, intake digest schema include, completed-lane runbook scope, and handoff wording.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating/sending a package, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or files outside allowedFiles.
+
+## Read-Only Sandbox Rehearsal Preflight Queue 2026-06-05
+
+Purpose: move from GREEN local evidence polish to the line immediately before a disposable local sandbox read-only rehearsal, without creating or running the sandbox in the preflight task.
+
+This queue section is evidence only. It does not create a sandbox, run a sandbox test, approve product-repo access, approve demo execution, create or send packages, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage files, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+
+### HQ-216 Read-Only Sandbox Rehearsal Preflight Packet
+
+- status: done
+- phase: Read-only sandbox rehearsal preflight
+- goal: Record the preflight boundary and handoff for a future disposable sandbox read-only rehearsal without creating or running the sandbox.
+- prerequisites:
+  - HQ-215 done
+  - external audit reports for HQ-201 through HQ-215 summarized as GREEN local evidence and YELLOW real demo readiness
+- allowedFiles:
+  - `docs/fleet/READ_ONLY_SANDBOX_REHEARSAL_PREFLIGHT_2026_06_05.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+  - `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+- acceptance:
+  - Preflight states external audit reports for HQ-201 through HQ-215 are GREEN for local evidence while real demo readiness remains YELLOW.
+  - Preflight defines the sandbox as disposable local evidence only and stops before sandbox creation or execution.
+  - Handoff and capsule reference the preflight without granting product-repo access, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, non-mock UI implementation, or future authority.
+  - Queue leaves the actual disposable sandbox rehearsal as a separate pending one-task run.
+- evidence:
+  - Added `docs/fleet/READ_ONLY_SANDBOX_REHEARSAL_PREFLIGHT_2026_06_05.md` to define the right-before-test boundary for a future disposable local sandbox read-only rehearsal.
+  - Updated `docs/fleet/STABLE_CONTEXT_CAPSULE.md` and `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to reference the sandbox preflight as evidence-only orientation without approving sandbox execution, product-repo access, demo execution, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, or future authority.
+  - Added `HQ-217 Disposable Sandbox Read-Only Rehearsal` as the separate pending one-task run for the actual sandbox rehearsal.
+  - Updated `tests/run-fleet-tests.ps1` with focused assertions for the preflight, handoff/capsule references, queue shape, stop conditions, and non-authority boundaries.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires creating or running the sandbox in this task, product-repo access, real project selection, demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or files outside allowedFiles.
+
+### HQ-217 Disposable Sandbox Read-Only Rehearsal
+
+- status: done
+- phase: Read-only sandbox rehearsal
+- goal: Create or use one disposable local sandbox target and run only read-only/no-op rehearsal evidence against that sandbox.
+- prerequisites:
+  - HQ-216 done
+  - explicit user request to run the sandbox rehearsal
+- allowedFiles:
+  - `.codex-local/sandbox-read-only-rehearsal/`
+  - `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/READ_ONLY_SANDBOX_REHEARSAL_PREFLIGHT_2026_06_05.md`
+  - `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`
+  - `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md`
+  - `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+- acceptance:
+  - Uses exactly one disposable local sandbox target and no product repo.
+  - Uses only no-op/read-only labels from `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`.
+  - Captures compact local evidence only.
+  - Does not create or send packages, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks outside the owned sandbox path, widen permissions, implement non-mock UI, or grant future authority.
+- evidence:
+  - Began from `status: pending` after the explicit user request to run the sandbox rehearsal, then moved to `status: done` after validation passed.
+  - Created the disposable local sandbox target at `.codex-local/sandbox-read-only-rehearsal/` with local evidence files only.
+  - Added `.codex-local/sandbox-read-only-rehearsal/README.md` to document the sandbox target, ownership, allowed read-only labels, and non-authority boundary.
+  - Added `.codex-local/sandbox-read-only-rehearsal/sandbox-target-fingerprint.json` as fixture fingerprint evidence with product repo inspection, product source inclusion, secrets, credentials, remotes, deployment material, and auth/payments/migration material all false.
+  - Added `.codex-local/sandbox-read-only-rehearsal/selected-project-read-only-gate.json` with one fixture target, one owner, only read-only labels from `docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md`, validation decision `allow_read_only`, and no execution authority.
+  - Added `.codex-local/sandbox-read-only-rehearsal/stop-sign-review.md` with no active stop signs for the disposable sandbox evidence packet.
+  - Added `.codex-local/sandbox-read-only-rehearsal/validation-summary.md` as compact local evidence for the passed validation command.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, real project selection, real demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, deleting anything outside the exact owned sandbox path, permission widening, non-mock UI implementation, or files outside allowedFiles.
+
+## Service Sync Studio Model And Spike Preparation Queue 2026-06-05
+
+Purpose: get Codex Fleet all the way to the line before a Service Sync Studio standalone sandbox spike, so the next explicit user request can run exactly that spike without touching HouseOS or any product repo.
+
+This queue section is evidence only. It does not approve HouseOS repo access, product-repo access, real restaurant/customer/staff/vendor data, real demo execution, package creation or package sending, runtime command binding, remote access, phone approvals, all-fleet execution, running an overnight runner, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+### HQ-218 Service Sync Studio Model Contract
+
+- status: done
+- phase: Service Sync Studio preparation
+- goal: Define the Service Sync Studio boundary model, output lanes, state language, allowed transformations, and forbidden data movement before any prototype work.
+- prerequisites:
+  - HQ-217 done
+  - explicit user request to prepare Service Sync Studio up to the spike boundary
+- allowedFiles:
+  - `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Contract identifies Service Sync Studio as a standalone local sandbox product spike concept, not HouseOS and not a product repo.
+  - Contract defines `manager_private`, `staff_ready`, `guest_safe`, `blocked`, and `needs_human_review` lanes.
+  - Contract defines draft/review/publishable/blocked/human-review state language without implying save, publish, staff visibility, guest visibility, live sync, or execution.
+  - Contract blocks unsafe movement of staff, guest, margin, vendor, incident, secret, auth, payment, deployment, prompt, manifest, queue, and generated evidence content.
+  - Capsule and handoff reference the contract as evidence-only orientation.
+- evidence:
+  - Added `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md` with the standalone spike purpose, input taxonomy, output lanes, state labels, allowed transformations, forbidden data movement, Boundary QA expectations, first spike scope, and non-authority boundary.
+  - Updated `docs/fleet/STABLE_CONTEXT_CAPSULE.md` and `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md` to reference Service Sync Studio preparation without granting HouseOS repo access, product-repo access, real data, execution, package sending, runtime binding, all-fleet execution, overnight runner execution, or future authority.
+  - Added focused Service Sync Studio prep assertions to `tests/run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires HouseOS repo access, product-repo access, real data, real demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-219 Service Sync Studio Eval Pack
+
+- status: done
+- phase: Service Sync Studio preparation
+- goal: Create synthetic fixture scenarios for the first standalone Service Sync Studio spike.
+- prerequisites:
+  - HQ-218 done
+- allowedFiles:
+  - `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Eval pack includes synthetic messy manager-update scenarios across menu, 86, VIP, staff coaching, vendor margin, service recovery, patio sequence, private party, allergy, staff conflict, training, and alcohol-service risk cases.
+  - Each scenario names expected lane split and Boundary QA expectations.
+  - Eval pack states fixtures are synthetic and cannot import HouseOS data, real data, product repo content, external reports, prompts, manifests, validation summaries, generated evidence, or queue prose as executable commands.
+- evidence:
+  - Added `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md` with 12 synthetic golden scenarios and a fixture-only rubric for the first spike.
+  - Added focused eval-pack assertions to `tests/run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires HouseOS repo access, product-repo access, real restaurant/customer/staff/vendor data, real demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-220 Service Sync Studio Spike Packet
+
+- status: done
+- phase: Service Sync Studio preparation
+- goal: Define the exact standalone sandbox spike packet and stop boundary for the next morning run.
+- prerequisites:
+  - HQ-219 done
+- allowedFiles:
+  - `docs/fleet/SERVICE_SYNC_STUDIO_SPIKE_PACKET.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Spike packet identifies the allowed implementation target as `.codex-local/service-sync-studio-spike/`.
+  - Spike packet defines first-screen surfaces for messy input, fixture selection, all output lanes, Boundary QA, boundary diff, and state language.
+  - Spike packet permits deterministic fixture-driven behavior and forbids HouseOS/product repo access, real data, network requirements, package installs, runtime command binding, package sending, all-fleet execution, overnight runner execution, staging, commit, push, deploy, secrets/auth/payments/deploy work, and future authority.
+  - Queue leaves HQ-221 as the separate pending one-task spike.
+- evidence:
+  - Added `docs/fleet/SERVICE_SYNC_STUDIO_SPIKE_PACKET.md` with required read-first files, allowed sandbox target, first-screen requirements, deterministic prototype behavior, acceptance criteria, stop conditions, and report shape.
+  - Updated capsule and handoff with the latest Service Sync Studio prep posture.
+  - Added `HQ-221 Service Sync Studio Standalone Sandbox Spike` as the next pending one-task run.
+  - Added focused spike-packet and queue assertions to `tests/run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires HouseOS repo access, product-repo access, real restaurant/customer/staff/vendor data, real demo execution, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+### HQ-221 Service Sync Studio Standalone Sandbox Spike
+
+- status: pending
+- phase: Service Sync Studio standalone sandbox spike
+- goal: Build a standalone local static prototype of Service Sync Studio using only synthetic fixture scenarios and the model contract.
+- prerequisites:
+  - HQ-220 done
+  - explicit user request to run the Service Sync Studio spike
+- allowedFiles:
+  - `.codex-local/service-sync-studio-spike/`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_HQ221_THIN_TASK_PACKET.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_SPIKE_PACKET.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_POST_SPIKE_REVIEW_GATE.md`
+  - the `HQ-221 Service Sync Studio Standalone Sandbox Spike` entry in `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Patch only allowedFiles from this HQ-221 entry.
+  - Standalone static prototype exists only under `.codex-local/service-sync-studio-spike/`.
+  - Prototype uses only synthetic scenarios from `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`.
+  - First screen is the tool itself and includes messy manager update input, selected fixture scenario control, all five output lanes, Boundary QA verdict, boundary diff, and clear non-live state language.
+  - Prototype does not imply saved, published, staff-visible, guest-visible, HouseOS-synced, website-posted, menu-posted, or deployed state.
+  - Sandbox README states the prototype is local, synthetic, fixture-only, non-authoritative, and not HouseOS.
+  - No HouseOS repo, product repo, real data, auth, payments, secrets, deployment files, migrations, package installs, all-fleet commands, overnight runner, staging, commit, push, deploy, package creation/sending, runtime command binding, remote access, phone approval actions, lock deletion outside the owned sandbox path, or permission widening are used.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires HouseOS repo access, product-repo access, real restaurant/customer/staff/vendor data, real demo execution, model calls requiring secrets or live credentials, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, merge, deploy, installs, migrations, secrets/auth/payments/deploy work, deleting anything outside the exact owned sandbox path, permission widening, or files outside allowedFiles.
+
+### HQ-222 Service Sync Studio Post-Spike Review Gate
+
+- status: pending
+- phase: Service Sync Studio standalone sandbox review
+- goal: Review the HQ-221 standalone sandbox spike and recommend the next phase without approving HouseOS or product-repo work.
+- prerequisites:
+  - HQ-221 done
+  - explicit user request to review the Service Sync Studio spike
+- allowedFiles:
+  - `.codex-local/service-sync-studio-spike/post-spike-review.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_SPIKE_PACKET.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_POST_SPIKE_REVIEW_GATE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Review only local HQ-221 sandbox evidence under `.codex-local/service-sync-studio-spike/`.
+  - Write a compact review to `.codex-local/service-sync-studio-spike/post-spike-review.md`.
+  - Choose exactly one outcome from `GREEN_CONTINUE_STANDALONE`, `YELLOW_POLISH_STANDALONE`, `YELLOW_EXPAND_EVALS`, `YELLOW_INTEGRATION_PLANNING_ONLY`, or `RED_STOP_BOUNDARY_RISK`.
+  - Score boundary safety, workflow clarity, trust language, manager usefulness, staff usefulness, guest-safe quality, Boundary QA usefulness, eval coverage, and standalone containment.
+  - If follow-ups are needed, recommend bounded one-task queue entries but do not implement them unless explicitly asked.
+  - Do not approve HouseOS repo access, product-repo access, real data, product mutation, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires HouseOS repo access, product-repo access, real restaurant/customer/staff/vendor data, real demo execution, product mutation, package creation/sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, staging, commit, push, merge, deploy, installs, migrations, secrets/auth/payments/deploy work, deleting anything outside the exact owned sandbox path, permission widening, or files outside allowedFiles.
+
+## Token Projection Tool Queue 2026-06-05
+
+Purpose: add a conservative local token pressure estimator for bounded Codex Fleet runs without changing execution authority or product-repo boundaries.
+
+This queue section is evidence only. It does not approve product-repo access, HouseOS repo access, real data, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, billing claims, model availability claims, or future authority.
+
+### HQ-223 Token Projection Tool
+
+- status: done
+- phase: Local token pressure planning
+- goal: Add a local conservative helper that estimates bounded-run token pressure before long prompts or read-heavy tasks.
+- prerequisites:
+  - explicit user request for a token projection tool
+- allowedFiles:
+  - `tools/codex-fleet-token-projection.ps1`
+  - `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/SERVICE_SYNC_STUDIO_HQ221_THIN_TASK_PACKET.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Helper estimates prompt text, explicit read files, validation command text, expected patch tokens, and output reserve.
+  - Helper returns `GREEN_PROCEED`, `YELLOW_COMPRESS`, or `RED_SPLIT_OR_STOP`.
+  - Helper marks output as `evidenceOnly: true` and `executes: false`.
+  - Helper refuses paths outside the fleet root and sensitive-looking paths.
+  - Spec and context state the helper does not call model APIs, prove billing, verify model availability, approve execution, touch product repos, run all-fleet commands, run overnight runners, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, create/send packages, bind runtime commands, weaken validation, skip required source files, or grant future authority.
+- evidence:
+  - Added `tools/codex-fleet-token-projection.ps1` with `New-FleetTokenProjection`, local file token estimation, pressure decisions, JSON output support, and sensitive/outside-root path refusal.
+  - Added `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md` with purpose, decision labels, CLI example, safety boundary, and intended use.
+  - Added `docs/fleet/SERVICE_SYNC_STUDIO_HQ221_THIN_TASK_PACKET.md` after the projection helper showed the full handoff plus whole queue would be over budget for HQ-221.
+  - Updated the HQ-221 readFirst list to prefer the thin packet and the exact HQ-221 queue entry instead of the full handoff packet and whole repair queue.
+  - Updated token operating model, capsule, and handoff to reference the helper as local evidence only.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, HouseOS repo access, real data, model API calls, billing lookup, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, staging, commit, push, merge, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+## Remote Travel Readiness Queue 2026-06-06
+
+Purpose: prepare a human-operated, secure remote access checklist for the captain's week-long trip beginning Wednesday, 2026-06-10, without approving remote command execution or product work.
+
+This queue section is evidence only. It does not configure remote access, expose ports, store credentials, approve phone actions, bind runtime commands, approve product-repo access, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, or grant future authority.
+
+### HQ-224 Remote Travel Readiness Checklist
+
+- status: done
+- phase: Remote travel readiness planning
+- goal: Add a before-travel checklist for secure human remote access to the PC and manual Codex operation while abroad.
+- prerequisites:
+  - explicit user request for a before-travel remote-control document
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Checklist names Wednesday, 2026-06-10 as the target departure.
+  - Checklist records the actual home PC setup as Windows 11 Home 25H2.
+  - Checklist makes Chrome Remote Desktop the primary remote-control path.
+  - Checklist treats Tailscale as support/visibility/private-network utility, not primary desktop control.
+  - Checklist separates Saturday install/inventory, Sunday primary path setup, Monday backup/recovery prep, Tuesday full test run day, and Wednesday departure go/no-go.
+  - Checklist separates human remote desktop access from Codex execution authority.
+  - Checklist recommends a primary path, support/visibility path, manual fallback, preflight checks, non-home-network rehearsal, stop signs, and GREEN/YELLOW/RED go/no-go criteria.
+  - Checklist forbids public RDP exposure, storing secrets in docs, phone approval, runtime command binding, all-fleet execution, overnight runner execution, product-repo access without exact approval, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, and future authority.
+  - Checklist includes a repeatable travel-mode prompt that preserves one-task boundaries.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md` with recommended primary/backup access stack, home PC and laptop preflight, reboot/non-home-network rehearsal, Codex travel operating mode, stop signs, Wednesday go/no-go criteria, and a repeatable remote session prompt.
+  - Added a daily readiness plan: Saturday install/inventory, Sunday primary path setup, Monday backup/recovery prep, Tuesday full test run day, and Wednesday departure go/no-go.
+  - Updated the plan for the actual Windows 11 Home 25H2 setup: Chrome Remote Desktop is primary, Tailscale is support/visibility, and Microsoft Remote Desktop/RDP is not the planned primary path.
+  - Added focused assertions to `tests/run-fleet-tests.ps1`.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires configuring remote access, exposing ports, storing credentials or MFA material, phone approvals, runtime command binding, product-repo access, product mutation, all-fleet execution, overnight runner execution, staging, commit, push, merge, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+
+## Remote Travel 30-Minute Hardening Queue 2026-06-06
+
+Purpose: provide roughly 30 minutes of safe Codex Fleet docs/tests work that improves the trip readiness lane while the captain handles downloads, installs, or another project.
+
+This queue section is evidence only. It does not configure remote access, install software, expose ports, store credentials, approve phone actions, bind runtime commands, approve product-repo access, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, or grant future authority.
+
+### HQ-225 Saturday Setup Evidence Checklist
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a checklist for recording Saturday install/inventory status without storing secrets.
+- prerequisites:
+  - HQ-224 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_SATURDAY_SETUP_CHECKLIST_2026_06_06.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Checklist lets the captain mark Chrome Remote Desktop, Tailscale, device naming, repo path, and sleep/update posture as `done`, `blocked`, or `needs Tuesday test`.
+  - Checklist has explicit fields for "do not record PIN/password/MFA/key".
+  - Checklist identifies Saturday as install/inventory only and not travel-ready proof.
+  - Tests assert the checklist exists and preserves no-secrets/no-authority boundaries.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_SATURDAY_SETUP_CHECKLIST_2026_06_06.md` with Saturday install/inventory status labels, Chrome Remote Desktop checks, Tailscale support/visibility checks, repo/Codex checks, power/update note, safety checks, GREEN/YELLOW/RED Saturday pass conditions, stop signs, and next-day guidance.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for checklist existence, status labels, no-secret rules, no-public-RDP boundary, no phone/runtime/all-fleet/overnight authority, and queue completion evidence.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires configuring remote access, installing software, storing credentials or MFA material, exposing ports, phone approvals, runtime command binding, product-repo access, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-225 Saturday Setup Evidence Checklist. Patch only HQ-225 allowedFiles. Do not configure remote access or store secrets. Run only HQ-225 validationCommands. Stop after HQ-225 and report GREEN/YELLOW/RED.`
+
+### HQ-226 Tuesday Off-Network Rehearsal Evidence Template
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a Tuesday test-run evidence template for the phone-hotspot/non-home-network rehearsal.
+- prerequisites:
+  - HQ-225 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/REMOTE_TRAVEL_SATURDAY_SETUP_CHECKLIST_2026_06_06.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Template records reboot recovery, Chrome Remote Desktop primary access, Tailscale support/visibility, Codex Desktop open, terminal open, safe token projection command, and GREEN/YELLOW/RED outcome.
+  - Template includes a "no screenshots with secrets" note.
+  - Template states Tuesday is the test-run day and does not approve remote command execution.
+  - Tests assert the template exists and preserves no-product/no-secret/no-authority boundaries.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md` with off-network rehearsal rows for phone-hotspot/non-home network, reboot recovery, Chrome Remote Desktop primary access, Tailscale support/visibility, Codex Desktop, terminal, safe token projection, reconnect, no-secret evidence, GREEN/YELLOW/RED outcomes, stop signs, and Wednesday go/no-go usage.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for template existence, Tuesday test-run language, Chrome Remote Desktop primary path, Tailscale support/visibility, token projection command, no-screenshots-with-secrets rules, no product/phone/runtime/all-fleet/overnight/future-authority grant, and queue boundary language.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires running the rehearsal, configuring remote access, storing credentials, capturing secrets, phone approvals, runtime command binding, product-repo access, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-226 Tuesday Off-Network Rehearsal Evidence Template. Patch only HQ-226 allowedFiles. Do not run or configure remote access. Run only HQ-226 validationCommands. Stop after HQ-226 and report GREEN/YELLOW/RED.`
+
+### HQ-227 Travel Mode Thin Prompt Packet
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a compact travel-mode Codex prompt packet for remote sessions.
+- prerequisites:
+  - HQ-226 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Packet provides a short copy/paste prompt for remote sessions that preserves one-task, allowedFiles, validationCommands, stopIf, and no-product boundaries.
+  - Travel readiness doc references the thin prompt packet without approving remote execution.
+  - Tests assert the packet exists and is concise enough to avoid full-handoff context bloat.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md` with a compact remote-session copy/paste prompt, one-task boundary, allowedFiles/validationCommands/stopIf preservation, no-product/no-secret/no-remote-configuration boundaries, optional token projection precheck, and explicit stop signs.
+  - Updated `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md` to reference the thin prompt packet for travel-mode Codex sessions without approving remote execution.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for packet existence, concision, source-of-truth boundaries, token projection precheck wording, travel readiness reference, queue boundary language, and no forbidden authority grant.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires approving remote command execution, adding live command hooks, configuring remote access, product-repo access, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-227 Travel Mode Thin Prompt Packet. Patch only HQ-227 allowedFiles. Do not approve remote execution or product work. Run only HQ-227 validationCommands. Stop after HQ-227 and report GREEN/YELLOW/RED.`
+
+### HQ-228 Chrome Remote Desktop Trouble Triage Card
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a non-secret trouble triage card for Chrome Remote Desktop failures during setup or Tuesday testing.
+- prerequisites:
+  - HQ-227 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_CHROME_REMOTE_DESKTOP_TRIAGE.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Triage card covers offline PC, sleeping PC, account mismatch, PIN issue, browser issue, Chrome Remote Desktop host issue, and network issue.
+  - Triage card never asks to paste PINs, passwords, codes, or secrets into docs or chat.
+  - Triage card preserves "do not use public RDP/port forwarding as fallback".
+  - Tests assert the triage card exists and preserves safety language.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_CHROME_REMOTE_DESKTOP_TRIAGE.md` with non-secret triage rows for offline PC, sleeping PC, account mismatch, PIN issue, browser issue, Chrome Remote Desktop host issue, network issue, remote session instability, Tailscale support/visibility comparison, safe fallback order, GREEN/YELLOW/RED outcomes, and public-RDP/port-forwarding/secret stop signs.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for triage card existence, required symptoms, no-secret rules, no public RDP/router-port-forwarding fallback, queue boundary language, and no forbidden authority grant.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires configuring remote access, handling secrets, weakening passwords, public RDP exposure, router port forwarding, phone approvals, runtime command binding, product-repo access, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-228 Chrome Remote Desktop Trouble Triage Card. Patch only HQ-228 allowedFiles. Do not configure remote access or request secrets. Run only HQ-228 validationCommands. Stop after HQ-228 and report GREEN/YELLOW/RED.`
+
+### HQ-229 Travel Power And Update Safety Card
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a power/update safety card for keeping the home PC reachable during the trip.
+- prerequisites:
+  - HQ-228 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_POWER_UPDATE_SAFETY.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Card covers sleep, reboot, Windows Update timing, power loss, monitor/lock expectations, and what to verify before departure.
+  - Card avoids suggesting registry hacks, permission widening, or insecure remote workarounds.
+  - Tests assert the card exists and preserves stop signs.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_POWER_UPDATE_SAFETY.md` with manual review rows for sleep, reboot recovery, Windows Update timing, power loss, monitor/lock expectations, Chrome Remote Desktop, Tailscale support/visibility, Codex Desktop, `C:\Dev\codex-fleet`, GREEN/YELLOW/RED departure posture, insecure workaround avoidance, and stop signs.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for card existence, required power/update topics, no registry hacks, no permission widening, no public RDP/router port forwarding/firewall/password weakening, no secrets, queue boundary language, and no forbidden authority grant.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires changing OS settings directly, configuring remote access, storing credentials, weakening security, phone approvals, runtime command binding, product-repo access, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-229 Travel Power And Update Safety Card. Patch only HQ-229 allowedFiles. Do not change OS settings or configure remote access. Run only HQ-229 validationCommands. Stop after HQ-229 and report GREEN/YELLOW/RED.`
+
+### HQ-230 Remote Travel Go/No-Go Pocket Summary
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a one-page pocket summary for Wednesday departure decision-making.
+- prerequisites:
+  - HQ-229 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Pocket summary fits the Wednesday decision into GREEN/YELLOW/RED with exact implications.
+  - Summary names Chrome Remote Desktop primary, Tailscale support/visibility, Windows 11 Home, Tuesday test evidence, and no public RDP.
+  - Summary gives the next recommended prompt for travel-mode Codex runs.
+  - Tests assert the summary exists and preserves non-authority boundaries.
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md` with Wednesday GREEN/YELLOW/RED decision rules, Windows 11 Home 25H2, Chrome Remote Desktop primary path, Tailscale support/visibility, Tuesday test evidence, no-public-RDP boundary, no-secret evidence rule, travel-mode Codex prompt, and departure-day stop signs.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for summary existence, required evidence, GREEN/YELLOW/RED implications, travel-mode prompt, no-secret/no-public-RDP/no-product/no-phone/no-runtime/all-fleet/overnight boundaries, queue boundary language, and no forbidden authority grant.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires configuring remote access, approving remote command execution, product-repo access, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-230 Remote Travel Go/No-Go Pocket Summary. Patch only HQ-230 allowedFiles. Do not configure remote access or approve execution. Run only HQ-230 validationCommands. Stop after HQ-230 and report GREEN/YELLOW/RED.`
+
+## Remote Travel Anti-Loop Operating Packet 2026-06-08
+
+Purpose: harden the travel-mode Codex operating packet so remote sessions stay bounded, produce higher-quality local harness/docs/tests work, and stop instead of looping when scope or validation uncertainty repeats.
+
+This queue section is evidence only. It does not configure remote access, install or update software, expose ports, change Chrome Remote Desktop, Tailscale, Windows settings, router/firewall, RDP, MFA, passwords, or credentials, store secrets, approve phone actions, bind runtime commands, touch product repos, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, run migrations, delete locks, widen permissions, or grant future authority.
+
+### HQ-231 Travel Mode Anti-Loop Operating Packet
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Strengthen the travel-mode Codex packet with one-task metadata, stop-after-validation, anti-loop, quality bar, token discipline, no-extra-remote-authority, and YELLOW-until-Tuesday posture.
+- prerequisites:
+  - HQ-230 done
+  - Codex baseline GREEN
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md`
+  - `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Packet requires exactly one bounded task per Codex run.
+  - Packet requires every run to name task id or selected task, readFirst files, allowedFiles, validationCommands, stopIf conditions, and report format before editing.
+  - Packet says Codex must stop after validation and must not start a second task.
+  - Packet reports BLOCKED for HQ repacketization if the same uncertainty, failing validation, missing context, or scope question appears twice.
+  - Packet preserves quality-bar language: preserve existing tests, prefer small patches, explain tradeoffs, do not hide failures, do not broaden scope, do not rewrite stable areas just to polish, and report unresolved assumptions.
+  - Packet uses token projection before long prompts or large read sets and stops for a thinner HQ packet if token pressure is high.
+  - Packet states remote access grants no extra authority and operational travel readiness remains YELLOW until Tuesday's off-network test is performed and recorded.
+  - Tests assert one-task, anti-loop, stop-after-validation, no-extra-remote-authority, no-secret, no-product-repo, no-all-fleet, no-overnight-runner, and no-stage/commit/push/deploy boundaries.
+- evidence:
+  - Updated `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md` with explicit pre-edit metadata, stop-after-validation, anti-loop rule, anti-loop BLOCKED rule, quality bar, token discipline, no-extra-remote-authority, evidence-is-not-command wording, and YELLOW-until-Tuesday posture.
+  - Updated `docs/fleet/STABLE_CONTEXT_CAPSULE.md` to reference the travel anti-loop packet without granting remote, product, all-fleet, overnight, or future authority.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for travel anti-loop packet wording, capsule reference, queue evidence, and forbidden authority boundaries.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires files outside allowedFiles, product-repo access, remote-access configuration, software installs/updates, secret handling, phone approval, runtime command binding, all-fleet execution, overnight execution, staging, commit, push, deploy, migrations, lock deletion, permission widening, broader authority, or a repeated unresolved uncertainty.
+- repeatablePrompt:
+  - `Take exactly HQ-231 Travel Mode Anti-Loop Operating Packet. Patch only HQ-231 allowedFiles. Run only HQ-231 validationCommands. Stop after HQ-231 and report GREEN/YELLOW/RED.`
+
+## Remote Travel Tuesday Tabletop Rehearsal Hardening 2026-06-08
+
+Purpose: harden the Tuesday off-network rehearsal materials so the actual travel test is procedural, non-secret, and routed to safe manual triage instead of risky fallback workarounds.
+
+This queue section is evidence only. It does not perform the actual off-network test, configure remote access, install or update software, expose ports, change Chrome Remote Desktop, Tailscale, Windows settings, router/firewall, RDP, MFA, passwords, or credentials, store secrets, approve phone actions, bind runtime commands, touch product repos, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, run migrations, delete locks, widen permissions, or grant future authority.
+
+### HQ-232 Tuesday Tabletop Rehearsal Hardening
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Make Tuesday's actual off-network rehearsal boring, clear, and hard to mess up without running or configuring remote access.
+- prerequisites:
+  - HQ-231 done
+  - Codex baseline GREEN
+  - Codex Fleet local tests GREEN
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md`
+  - `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md`
+  - `docs/fleet/REMOTE_TRAVEL_CHROME_REMOTE_DESKTOP_TRIAGE.md`
+  - `docs/fleet/REMOTE_TRAVEL_POWER_UPDATE_SAFETY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/REMOTE_TRAVEL_READINESS_2026_06_10.md`
+  - `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md`
+  - `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md`
+  - `docs/fleet/REMOTE_TRAVEL_CHROME_REMOTE_DESKTOP_TRIAGE.md`
+  - `docs/fleet/REMOTE_TRAVEL_POWER_UPDATE_SAFETY.md`
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- acceptance:
+  - Tuesday template separates before starting, non-home network setup, reboot recovery, Chrome Remote Desktop primary path, Tailscale support/visibility path, Windows unlock, Codex Desktop open, terminal in `C:\Dev\codex-fleet`, safe token projection command, disconnect/reconnect, evidence collection, and final GREEN/YELLOW/RED classification.
+  - Tuesday template routes blocked steps to the Chrome Remote Desktop triage card and power/update safety card instead of unsafe workarounds.
+  - Tuesday template preserves do-not-record reminders for PINs, passwords, MFA, recovery codes, keys, tokens, private screenshots, private device identifiers, and customer/product data.
+  - Go/no-go summary states GREEN requires the Tuesday off-network test to actually pass, YELLOW means use the travel laptop first and remote PC only for careful low-risk/manual work, and RED means do not rely on home PC access during the trip.
+  - Triage card states public RDP, router port forwarding, weakened security, secret sharing, phone approval, runtime command binding, all-fleet, overnight runner, product-repo work, staging, commit, push, deploy, migrations, lock deletion, or permission widening are never valid fallback paths.
+  - Power/update card remains manual-review only and does not suggest changing settings from Codex.
+  - Tests assert the tabletop, no-secret, no-product, no-all-fleet, no-overnight, no-stage/commit/push/deploy, never-fallback, and manual-review-only boundaries.
+- evidence:
+  - Updated `docs/fleet/REMOTE_TRAVEL_TUESDAY_TEST_RUN_TEMPLATE_2026_06_09.md` with before-starting checks, ordered Tuesday steps, blocked routing to triage/power cards, non-secret evidence rows, and final classification reminder.
+  - Updated `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md` so GREEN requires the Tuesday off-network test to actually pass, YELLOW uses the travel laptop first with remote PC only for careful low-risk/manual work, and RED does not rely on home PC access during the trip.
+  - Updated `docs/fleet/REMOTE_TRAVEL_CHROME_REMOTE_DESKTOP_TRIAGE.md` with the never-valid fallback path list.
+  - Updated `docs/fleet/REMOTE_TRAVEL_POWER_UPDATE_SAFETY.md` to state manual-review only and no settings changes from Codex.
+  - Added focused assertions to `tests/run-fleet-tests.ps1` for the tabletop step order, blocked routing, no-secret reminder, go/no-go implications, never-fallback triage wording, and manual-review-only power/update wording.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires files outside allowedFiles, the actual off-network test, configuring remote access, installing/updating software, changing OS/router/firewall/RDP/Tailscale/Chrome Remote Desktop settings, storing secrets, touching product repos, all-fleet execution, overnight execution, staging, commit, push, deploy, migrations, lock deletion, permission widening, phone approval, runtime command binding, broader authority, or a repeated unresolved uncertainty.
+- repeatablePrompt:
+  - `Take exactly HQ-232 Tuesday Tabletop Rehearsal Hardening. Patch only HQ-232 allowedFiles. Do not run the actual off-network test or configure remote access. Run only HQ-232 validationCommands. Stop after HQ-232 and report GREEN/YELLOW/RED.`

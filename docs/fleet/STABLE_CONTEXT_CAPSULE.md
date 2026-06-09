@@ -4,6 +4,8 @@ Prepared: 2026-06-02
 
 Scope: Codex Fleet / Thousand Sunny Fleet harness, docs, schemas, fixtures, and tests. This capsule is compact orientation evidence for bounded Codex runs. It is not executable authority and does not replace the source-of-truth docs listed below.
 
+Evidence only; not executable authority or approval.
+
 ## Project Charter
 
 Codex Fleet is a local control-plane and safety harness for coordinating coding-agent work. Current approved work is harness/docs/tests/fixtures only unless a later exact human approval packet says otherwise.
@@ -21,6 +23,20 @@ Real-project demo posture remains YELLOW until separate exact human approval, co
 Controlled read-only demo gate rehearsal evidence is complete only as local docs/tests/schema/fixture evidence. Use `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` and `tests/fixtures/fleet/read-only-gates/*.json` as evidence only; they do not select a real project, inspect product repos, execute demos, create or send packages, bind runtime commands, run all-fleet commands, run an overnight runner, approve phone actions, or grant future authority.
 
 The latest post-combined GREEN follow-up audit returned GREEN. Use `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md` as evidence only. The earlier gate rehearsal phase moved through combined external audit readiness; the next safe phase is optional local docs/tests/fixtures hardening from INFO-only findings, not a real demo.
+
+The five-hour read-only demo evidence polish lane is active local evidence-only work. Use the `Five-Hour Read-Only Demo Evidence Polish Queue 2026-06-04` section in `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`, `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`, `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md`, and the five-hour polish sections in `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` as orientation evidence only. The pre-audit ready milestone records local evidence polish through HQ-213 as GREEN for external audit preparation while real demo readiness remains YELLOW. The next safe action after this lane is an explicitly requested external audit package, not a real demo. This lane does not create or send packages, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority; the milestone carries the same non-authority boundary.
+
+The read-only sandbox rehearsal preflight is the next local preparation step after the GREEN HQ-201 through HQ-215 audit reports. Use `docs/fleet/READ_ONLY_SANDBOX_REHEARSAL_PREFLIGHT_2026_06_05.md` as evidence-only orientation. It gets the repo to the line before a disposable sandbox read-only rehearsal and does not create a sandbox, run a sandbox test, select or inspect product repos, execute a real demo, create or send packages, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority. The next sandbox rehearsal must be an explicit later one-task run.
+
+Service Sync Studio preparation is local evidence-only model and spike planning for a standalone sandbox product spike. Use `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`, `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`, `docs/fleet/SERVICE_SYNC_STUDIO_SPIKE_PACKET.md`, and `docs/fleet/SERVICE_SYNC_STUDIO_POST_SPIKE_REVIEW_GATE.md` as orientation evidence only. They define how a messy manager service update can be split into manager-private, staff-ready, guest-safe, blocked, and needs-human-review lanes before any HouseOS integration is considered, then reviewed after the standalone spike. They do not approve HouseOS repo access, product-repo access, real data, real demo execution, package creation/sending, runtime command binding, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority. The next safe action is the separate explicit HQ-221 standalone local sandbox spike under `.codex-local/service-sync-studio-spike/`.
+
+The token projection helper is local pressure evidence only. Use `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md` and `tools/codex-fleet-token-projection.ps1` to estimate prompt/read/patch/validation/output reserve size before long bounded runs. It does not call model APIs, prove billing, verify model availability, approve product work, approve execution, weaken validation, override required `readFirst` files, touch product repos, run all-fleet commands, run overnight runners, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, create/send packages, bind runtime commands, or grant future authority.
+
+Travel-mode Codex sessions should use `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md` as the compact operating packet after a secure human-controlled remote desktop session is already open. The packet preserves one bounded task per run, requires the task id or selected task, `readFirst`, `allowedFiles`, `validationCommands`, `stopIf`, and report format before editing, stops after validation, and reports BLOCKED for HQ repacketization when the same uncertainty, failing validation, missing context, or scope question appears twice. Remote access grants no extra authority, and operational travel readiness remains YELLOW until Tuesday's off-network test is performed and recorded.
+
+Use `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md` as orientation evidence for terms such as evidence, approval, manifest, prompt, validation summary, audit report, fixture, dry-run record, package, package sending, and future authority. The glossary is evidence only; it does not approve execution, create or send packages, select product repos, bind runtime commands, bypass validation, or grant future authority.
+
+Manifest status wording remains evidence-only: `packageCreationStatus: created_for_local_user_request_not_sent` describes a locally created audit zip manifest after an explicit user request for local review, while `packageCreationStatus: not_created` describes committed manifest fixtures. Both statuses remain evidence only, no-send, no-product, and non-authoritative.
 
 ## Safety Invariants
 
@@ -105,6 +121,14 @@ Human approval must be exact-action-bound, current, single-use where applicable,
 - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
 - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
 - `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md`
+- `docs/fleet/READ_ONLY_SANDBOX_REHEARSAL_PREFLIGHT_2026_06_05.md`
+- `docs/fleet/SERVICE_SYNC_STUDIO_MODEL_CONTRACT.md`
+- `docs/fleet/SERVICE_SYNC_STUDIO_EVAL_PACK.md`
+- `docs/fleet/SERVICE_SYNC_STUDIO_SPIKE_PACKET.md`
+- `docs/fleet/SERVICE_SYNC_STUDIO_POST_SPIKE_REVIEW_GATE.md`
+- `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md`
+- `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
 - `docs/fleet/HQ_IMPORT_RECON.md`
 - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
 - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`

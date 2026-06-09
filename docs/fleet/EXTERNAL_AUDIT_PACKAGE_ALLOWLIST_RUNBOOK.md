@@ -99,6 +99,8 @@ Both statuses remain evidence only. Neither status can execute work, approve wor
 
 Status names document evidence provenance only, not package-builder behavior. `packageCreationStatus: not_created` describes committed manifest fixtures that validate expected shape and scope discipline; `packageCreationStatus: created_for_local_user_request_not_sent` describes a locally created audit zip manifest after an explicit user request for local review. Both statuses remain evidence only, no-send, no-product, and non-authoritative.
 
+Static lint for these manifest statuses is documentation and fixture-validation evidence only. It must not modify package-builder behavior, create packages, send packages, approve product-repo access, approve demo execution, bind runtime commands, or grant future authority.
+
 ## Local Manifest Fixtures
 
 Committed manifest fixtures under `tests/fixtures/fleet/evidence` are local validation evidence only. The controlled-hardening fixture `tests/fixtures/fleet/evidence/external-audit-package-manifest.controlled-hardening.json` represents the controlled local control-plane hardening audit package scope as allowlisted, no-product-repos, no-send, evidence-only, and `not_created` unless a separate exact human package-creation approval exists.
@@ -156,6 +158,8 @@ Package creation and package sending remain separate exact human-approved action
 The read-only demo follow-up audit scope asks whether HQ-176 through HQ-181 preserve GREEN posture and remain local docs/tests/schema/fixture evidence only.
 
 This scope is evidence only. It does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+
+No package zip was created or sent by this scope.
 
 Allowed follow-up evidence for this scope is limited to local harness/docs/tests/schema/fixture files, including:
 
@@ -229,6 +233,84 @@ Allowed post-follow-up evidence for this scope is limited to local harness/docs/
 The post-follow-up include list must exclude product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, build outputs, raw logs, secrets, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, package sending output, and any prompt, manifest, validation summary, reviewer output, or queue prose treated as executable authority.
 
 The post-follow-up prompt refresh does not create a package, send a package, change package-builder behavior, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, bypass validation, or grant future authority.
+
+## Post-Combined GREEN Optional INFO Hardening Audit Scope
+
+The post-combined optional INFO hardening audit scope asks reviewers to audit `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md` plus completed optional INFO hardening through HQ-200.
+
+This scope is evidence only. It does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+
+Allowed optional INFO evidence for this scope is limited to local harness/docs/tests/schema/fixture files, including:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `tests/fixtures/fleet/read-only-gates/selected-project-read-only.conflicting-approval-timestamps-denied.json`
+- `tests/fixtures/fleet/read-only-gates/selected-project-read-only.mismatched-case-id-denied.json`
+- `tests/fixtures/fleet/read-only-gates/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for HQ-197 through HQ-200, if separately prepared and reviewed
+
+The optional INFO include list must exclude product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, build outputs, raw logs, secrets, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, package sending output, and any prompt, manifest, validation summary, reviewer output, or queue prose treated as executable authority.
+
+This optional INFO prompt refresh does not create a package, send a package, change package-builder behavior, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, bypass validation, or grant future authority.
+
+The next safe action after this optional INFO queue is an explicitly requested external audit package, not a real demo.
+
+## Five-Hour Read-Only Demo Evidence Polish Preflight
+
+The local preflight checklist for the next five-hour read-only demo evidence polish audit scope is `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`.
+
+This preflight checklist names allowed local evidence categories for a later explicit external audit package request: Codex Fleet harness docs, schemas, tests, fixtures, evidence-only reviewer prompts, scrubbed compact validation summaries, and manifest fixtures with `packageCreationStatus: not_created`.
+
+The checklist excludes product repos, product source snapshots, real project exports, raw logs, `.git`, `.env`, dependency folders, build outputs, secrets, approval material for real product work, package creation output, package sending output, runtime command bindings, remote-control material, phone approval material, all-fleet execution material, overnight runner material, reviewer prose dumps, command-like remediation scripts, and any evidence treated as executable authority.
+
+The next safe action is an explicitly requested external audit package, not a real demo. The checklist does not create a package, send a package, approve a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, bypass validation, or grant future authority.
+
+## Five-Hour Read-Only Demo Evidence Polish Completed-Lane Audit Scope
+
+The completed five-hour read-only demo evidence polish audit scope asks reviewers to audit HQ-201 through HQ-215 after the queue completes, including the scorecard, approval checklist, stop-sign matrix, evidence template, selected gate fixture index, preflight checklist, manifest fixture, fixture naming convention, evidence non-authority glossary, one-task queue prompt guard, external audit intake digest checklist, pre-audit ready milestone, validation evidence, and final prompt/runbook refresh.
+
+This scope is evidence only. It does not create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, import tasks, bypass validation, or grant future authority.
+
+No package zip is created or sent by this completed-lane prompt refresh. The next safe action after this five-hour polish queue is an explicitly requested external audit package, not a real demo.
+
+Allowed completed-lane evidence for this scope is limited to local harness/docs/tests/schema/fixture files, including:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md`
+- `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md`
+- `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+- `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md`
+- `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+- `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+- `tests/fixtures/fleet/evidence/external-audit-package-manifest.post-combined-optional-info.json`
+- `docs/fleet/READ_ONLY_DEMO_FIXTURE_NAMING_CONVENTIONS.md`
+- `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
+- `docs/fleet/ONE_TASK_QUEUE_PROMPT_GUARD.md`
+- `docs/fleet/EXTERNAL_AUDIT_INTAKE_DIGEST_CHECKLIST.md`
+- `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `templates/external-audit-package-manifest-schema.json`
+- `templates/validation-output-summary-schema.json`
+- `templates/external-audit-intake-digest-schema.json`
+- `tests/fixtures/fleet/read-only-gates/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for HQ-201 through HQ-215, if separately prepared and reviewed
+
+The completed-lane include list must exclude product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, build outputs, raw logs, raw locks, unknown zips, live worker state, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, package sending output, and any prompt, manifest, validation summary, reviewer output, DOCX report, mobile request, task packet, generated evidence, UI label, notification, button, approval, or queue prose treated as executable authority.
+
+Manifest fixtures for this scope must keep `packageCreationStatus: not_created`, `noSendStatus: true`, `noProductRepos: true`, evidence-only included files, forbidden-scope denials, and a no-authority notice until a separate exact human package-creation request exists. Package creation and package sending remain separate exact human-approved actions.
 
 ## Reviewer Output Handling
 

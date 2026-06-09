@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "packageId": "external-audit-package-post-combined-optional-info-2026-06-04",
+  "preparedAt": "2026-06-04T00:00:00Z",
+  "sourceRepo": "codex-fleet-harness",
+  "sourceCommit": "pending-checkpoint-2026-06-04",
+  "packagePurpose": "harness-docs-tests-external-audit",
+  "includedFiles": [
+    {
+      "path": "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Compact local context capsule for bounded evidence-only runs."
+    },
+    {
+      "path": "docs/fleet/NEW_CHAT_HANDOFF_PACKET.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Evidence-only compact handoff guidance."
+    },
+    {
+      "path": "docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "GREEN audit record for post-combined follow-up hardening."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Local-vs-real demo readiness separation."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Unfilled approval packet completeness checklist."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Stop-sign coverage matrix for local denial and defer evidence."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md",
+      "kind": "template",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Scrubbed compact validation summary template."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate fixture index."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Preflight checklist for a future explicit package request."
+    },
+    {
+      "path": "docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manual allowlist discipline for future audit packages."
+    },
+    {
+      "path": "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+      "kind": "prompt",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Reviewer prompt evidence only."
+    },
+    {
+      "path": "templates/external-audit-package-manifest-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manifest schema used for local validation."
+    },
+    {
+      "path": "templates/validation-output-summary-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Compact validation summary schema."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Valid selected-project gate fixture evidence."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.conflicting-approval-timestamps-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rare-edge denial fixture evidence."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.mismatched-case-id-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Rare-edge denial fixture evidence."
+    },
+    {
+      "path": "tests/fixtures/fleet/evidence/external-audit-package-manifest.post-combined-optional-info.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "This manifest fixture is local validation evidence only."
+    },
+    {
+      "path": "tests/run-fleet-tests.ps1",
+      "kind": "test",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Focused local validation checks for manifest discipline."
+    }
+  ],
+  "excludedPatterns": [
+    ".git",
+    ".env",
+    "product repositories",
+    "product source snapshots",
+    "real project exports",
+    "unscoped project material",
+    "node_modules",
+    "dist",
+    "build",
+    "build outputs",
+    "raw logs",
+    "raw locks",
+    "unknown zip files",
+    "live worker state",
+    "secrets",
+    "credentials",
+    "private keys",
+    "local machine identity",
+    "private user files",
+    "auth material",
+    "payment material",
+    "deploy material",
+    "migration material",
+    "package-install material",
+    "staging material",
+    "commit material",
+    "push material",
+    "merge material",
+    "lock-deletion material",
+    "runtime-execution material",
+    "remote-control material",
+    "phone approval material",
+    "all-fleet execution material",
+    "overnight runner material",
+    "permission material",
+    "approval material for real product work",
+    "package creation output",
+    "package sending output",
+    "reviewer prose dumps",
+    "command-like remediation scripts",
+    "evidence treated as executable authority"
+  ],
+  "validationSummaryRef": "docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md",
+  "reviewerPromptRef": "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+  "externalAuditDigestSchemaRef": "templates/external-audit-intake-digest-schema.json",
+  "forbiddenScopeDenials": [
+    "deny_product_repo_access",
+    "deny_product_mutation",
+    "deny_package_sending",
+    "deny_runtime_command_binding",
+    "deny_remote_access",
+    "deny_phone_approval",
+    "deny_all_fleet_execution",
+    "deny_staging_commit_push_deploy",
+    "deny_installs_migrations_secrets",
+    "deny_lock_deletion_permission_widening",
+    "deny_evidence_as_authority"
+  ],
+  "evidenceOnlyNotice": "This post-combined optional INFO manifest fixture is local evidence only. It does not create, send, approve, execute, import, package, authorize product repository access, bind runtime commands, approve remote access, approve phone actions, run all-fleet commands, run an overnight runner, launch ships, or grant future authority.",
+  "packageCreationStatus": "not_created",
+  "noSendStatus": true,
+  "noProductRepos": true,
+  "noAuthorityNotice": "This post-combined optional INFO manifest fixture cannot approve package creation, package sending, execution, demo approval, product repository access, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, validation bypasses, or future authority.",
+  "expectedValidity": "valid"
+}

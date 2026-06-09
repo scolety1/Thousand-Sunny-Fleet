@@ -1,0 +1,13486 @@
+[CmdletBinding(PositionalBinding = $false)]
+param(
+    [switch]$KeepFixtures
+)
+
+$ErrorActionPreference = "Stop"
+
+$fleetRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+$fixtureRoot = Join-Path $fleetRoot ".codex-local\fixtures"
+$fixtureConfig = Join-Path $fixtureRoot "projects.fixture.json"
+$runtimePath = Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1"
+
+. $runtimePath
+. (Join-Path $fleetRoot "tools\codex-fleet-state.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-decision.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-autonomy.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-external-agent.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-overnight.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-lanes.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-control-room.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-mobile.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-final-readiness.ps1")
+
+$script:Failures = [System.Collections.Generic.List[string]]::new()
+
+function Add-Failure {
+    param([string]$Message)
+    $script:Failures.Add($Message) | Out-Null
+    Write-Host "FAIL: $Message" -ForegroundColor Red
+}
+
+function Assert-True {
+    param(
+        [bool]$Condition,
+        [string]$Message
+    )
+
+    if ($Condition) {
+        Write-Host "PASS: $Message" -ForegroundColor Green
+    } else {
+        Add-Failure $Message
+    }
+}
+
+function Assert-False {
+    param(
+        [bool]$Condition,
+        [string]$Message
+    )
+
+    Assert-True -Condition (!$Condition) -Message $Message
+}
+
+function Assert-Equal {
+    param(
+        [object]$Actual,
+        [object]$Expected,
+        [string]$Message
+    )
+
+    if ([string]$Actual -eq [string]$Expected) {
+        Write-Host "PASS: $Message" -ForegroundColor Green
+    } else {
+        Add-Failure "$Message (expected '$Expected', got '$Actual')"
+    }
+}
+
+function Invoke-Checked {
+    param(
+        [string]$FilePath,
+        [string[]]$Arguments,
+        [string]$WorkingDirectory = $fleetRoot,
+        [int]$TimeoutSeconds = 60
+    )
+
+    return Invoke-FleetProcess -FilePath $FilePath -Arguments $Arguments -WorkingDirectory $WorkingDirectory -TimeoutSeconds $TimeoutSeconds
+}
+
+function Get-Project {
+    param([string]$Name)
+
+    $parsedProjects = Get-Content $fixtureConfig -Raw | ConvertFrom-Json
+    $projects = @($parsedProjects | ForEach-Object { $_ })
+    return @($projects | Where-Object { [string]$_.name -eq $Name })[0]
+}
+
+function Test-PowerShellParsing {
+    $files = @()
+    $files += @(Get-ChildItem $fleetRoot -Filter "*.ps1" -File)
+    $files += @(Get-ChildItem (Join-Path $fleetRoot "tools") -Filter "*.ps1" -File)
+    $files += @(Get-ChildItem (Join-Path $fleetRoot "tests") -Filter "*.ps1" -File)
+
+    foreach ($file in $files) {
+        $tokens = $null
+        $parseErrors = $null
+        $null = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors)
+        Assert-Equal -Actual $parseErrors.Count -Expected 0 -Message "PowerShell parses $($file.Name)"
+    }
+}
+
+function Test-TaskParsing {
+    $lines = @(
+        "- [ ] Top task",
+        "  - [ ] Indented task",
+        "`t- [ ] Tabbed task",
+        "- [x] Completed task",
+        "   text - [ ] not a task"
+    )
+    $unchecked = @($lines | Where-Object { $_ -match "^\s*-\s+\[ \]\s+(.+)$" })
+    Assert-Equal -Actual $unchecked.Count -Expected 3 -Message "Unchecked markdown task regex allows zero or more leading whitespace"
+
+    $updated = $false
+    $completed = foreach ($line in $lines) {
+        if (-not $updated -and $line -match "^(\s*-\s+)\[ \](\s+.+)$") {
+            $updated = $true
+            "$($Matches[1])[x]$($Matches[2])"
+        } else {
+            $line
+        }
+    }
+    Assert-Equal -Actual $completed[0] -Expected "- [x] Top task" -Message "Task completion regex marks the first unchecked task only"
+    Assert-Equal -Actual $completed[1] -Expected "  - [ ] Indented task" -Message "Task completion regex leaves later unchecked tasks alone"
+
+    $quarantined = $false
+    $quarantinedLines = foreach ($line in $lines) {
+        if (-not $quarantined -and $line -match "^(\s*-\s+)\[ \](\s+.+)$") {
+            $quarantined = $true
+            "$($Matches[1])[!]$($Matches[2])"
+        } else {
+            $line
+        }
+    }
+    Assert-Equal -Actual $quarantinedLines[0] -Expected "- [!] Top task" -Message "Task quarantine syntax removes failed task from unchecked queue"
+    $remainingUnchecked = @($quarantinedLines | Where-Object { $_ -match "^\s*-\s+\[ \]\s+(.+)$" })
+    Assert-Equal -Actual $remainingUnchecked.Count -Expected 2 -Message "Quarantined tasks are skipped by unchecked-task regex"
+}
+
+function Test-RuntimeHelpers {
+    Assert-True -Condition (Test-FleetRateLimitOutput -Output @("usage limit reached, try again in 12 minutes")) -Message "Rate-limit detector catches usage limit text"
+    Assert-False -Condition (Test-FleetRateLimitOutput -Output @("regular build failed")) -Message "Rate-limit detector ignores normal failures"
+    Assert-Equal -Actual (Get-FleetRateLimitDelaySeconds -Output @("try again in 12 minutes") -DefaultSeconds 3600) -Expected 780 -Message "Rate-limit delay parser adds a small buffer"
+
+    Assert-True -Condition (Test-FleetBlockingReviewOutput -Text "REVIEW_FINDING: P1: bad thing") -Message "Review parser blocks P1 findings"
+    Assert-True -Condition (Test-FleetBlockingReviewOutput -Text "::code-comment{priority=2 file='x'}") -Message "Review parser blocks priority 2 inline comments"
+    Assert-False -Condition (Test-FleetBlockingReviewOutput -Text "REVIEW_STATUS: PASS") -Message "Review parser allows clean pass"
+
+    $splitModels = @(ConvertTo-FleetStringArray -Value "gpt-5.5,gpt-5.4")
+    Assert-Equal -Actual $splitModels.Count -Expected 2 -Message "Runtime splits delimited model chains"
+    Assert-Equal -Actual $splitModels[1] -Expected "gpt-5.4" -Message "Runtime preserves model chain order"
+
+    $splitArrayModels = @(ConvertTo-FleetStringArray -Value @("gpt-5.5,gpt-5.4"))
+    Assert-Equal -Actual $splitArrayModels.Count -Expected 2 -Message "Runtime recursively splits delimited array items"
+
+    $modelArgs = @(Add-FleetArrayArgument -Arguments @("-File", "planner.ps1") -Name "-Models" -Values @("gpt-5.5", "gpt-5.4"))
+    Assert-Equal -Actual ($modelArgs -join "|") -Expected "-File|planner.ps1|-Models|gpt-5.5,gpt-5.4" -Message "Runtime passes array arguments as one CLI value"
+
+    $pathArgs = @(Add-FleetArrayArgument -Arguments @("-File", "visual-inspect.ps1") -Name "-Paths" -Values @("/", "/wine.html"))
+    Assert-Equal -Actual ($pathArgs -join "|") -Expected "-File|visual-inspect.ps1|-Paths|/,/wine.html" -Message "Runtime packs slash-prefixed visual paths into one CLI value"
+
+    $normalizedVisualPaths = @(@("/,/wine.html") | ForEach-Object { ([string]$_) -split "," } | ForEach-Object { $_.Trim() } | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    Assert-Equal -Actual ($normalizedVisualPaths -join "|") -Expected "/|/wine.html" -Message "Visual path normalization restores packed slash-prefixed routes"
+
+    $singleChangedFile = @(@("src/app.txt") | Sort-Object -Unique)
+    $combinedStageList = @($singleChangedFile + @("docs/codex/TASK_QUEUE.md", "docs/codex/NIGHTLY_REPORT.md"))
+    Assert-Equal -Actual $combinedStageList.Count -Expected 3 -Message "Single-file change lists stay arrays before staging"
+
+    $shimRoot = Join-Path $env:TEMP ("fleet shim test " + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+    $ps1Shim = Join-Path $shimRoot "sample-tool.ps1"
+    $cmdShim = Join-Path $shimRoot "sample-tool.cmd"
+    Set-Content -Path $ps1Shim -Value "Write-Output 'ps1-shim'"
+    Set-Content -Path $cmdShim -Value @("@echo off", "echo cmd-shim %1")
+    try {
+        $resolvedShim = Resolve-FleetProcessFilePath -FilePath $ps1Shim
+        Assert-Equal -Actual $resolvedShim -Expected $cmdShim -Message "Runtime prefers adjacent cmd shim for ps1 tools"
+
+        $shimResult = Invoke-FleetProcess -FilePath $ps1Shim -Arguments @("ok") -TimeoutSeconds 10
+        Assert-Equal -Actual $shimResult.exitCode -Expected 0 -Message "Invoke-FleetProcess executes cmd shims"
+        Assert-True -Condition (($shimResult.output -join "`n") -match "cmd-shim ok") -Message "Invoke-FleetProcess passes arguments to cmd shims"
+
+        $nodeCommand = Get-Command "node" -ErrorAction SilentlyContinue
+        if ($nodeCommand) {
+            $nodeScript = Join-Path $shimRoot "read-utf8.js"
+            Set-Content -Path $nodeScript -Encoding UTF8 -Value "const chunks=[];process.stdin.on('data', b=>chunks.push(b));process.stdin.on('end',()=>{const b=Buffer.concat(chunks);if(!b.includes(Buffer.from([0xc3,0xa9]))){process.exit(2);}console.log(b.toString('utf8'));});"
+            $accentedText = "caf" + [char]0x00E9
+            $utf8Result = Invoke-FleetProcess -FilePath "node" -Arguments @($nodeScript) -InputText $accentedText -TimeoutSeconds 10
+            Assert-Equal -Actual $utf8Result.exitCode -Expected 0 -Message "Invoke-FleetProcess writes stdin as UTF-8"
+            Assert-True -Condition (($utf8Result.output -join "`n") -match $accentedText) -Message "Invoke-FleetProcess preserves UTF-8 stdin text"
+        }
+    } finally {
+        Remove-Item -LiteralPath $shimRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $codexCommand = Get-Command "codex.cmd" -ErrorAction SilentlyContinue
+    if ($codexCommand) {
+        $resolvedCodex = Resolve-FleetProcessFilePath -FilePath "codex"
+        Assert-True -Condition ($resolvedCodex -like "*.cmd") -Message "Runtime resolves codex to executable cmd shim on Windows"
+    }
+
+    $normal = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-Command", "Write-Output fixture-ok") -TimeoutSeconds 10
+    Assert-Equal -Actual $normal.exitCode -Expected 0 -Message "Invoke-FleetProcess captures successful exit code"
+    Assert-True -Condition (($normal.output -join "`n") -match "fixture-ok") -Message "Invoke-FleetProcess captures output"
+
+    $timeout = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-Command", "Start-Sleep -Seconds 5") -TimeoutSeconds 1
+    Assert-Equal -Actual $timeout.exitCode -Expected 124 -Message "Invoke-FleetProcess returns 124 on timeout"
+    Assert-True -Condition $timeout.timedOut -Message "Invoke-FleetProcess marks timed-out process"
+
+    $noOutputRoot = Join-Path $env:TEMP ("fleet no output test " + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $noOutputRoot | Out-Null
+    $noOutputScript = Join-Path $noOutputRoot "codex-no-output.ps1"
+    $counterPath = Join-Path $noOutputRoot "count.txt"
+    $noOutputPath = Join-Path $noOutputRoot "answer.md"
+    Set-Content -Path $noOutputScript -Encoding UTF8 -Value @"
+param([string]`$Command = "", [string]`$o = "", [Parameter(ValueFromRemainingArguments = `$true)][string[]]`$Rest)
+Add-Content -LiteralPath '$counterPath' -Value 'run'
+exit 0
+"@
+    try {
+        $noOutputResult = Invoke-FleetCodexReadOnly -Prompt "fixture" -OutputPath $noOutputPath -CodexExecutable "powershell" -CodexBaseArguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $noOutputScript) -SkipOutputArgument -MaxNoOutputRetries 2 -TimeoutSeconds 10 -RateLimitMaxCooldowns 0
+        $attempts = @(Get-Content -Path $counterPath -ErrorAction SilentlyContinue).Count
+        Assert-Equal -Actual $attempts -Expected 2 -Message "Read-only Codex helper exits after configured no-output retries"
+        Assert-False -Condition (Test-Path $noOutputPath) -Message "No-output Codex helper does not fake a successful output file"
+        Assert-Equal -Actual $noOutputResult.exitCode -Expected 0 -Message "No-output Codex helper returns the last process result"
+    } finally {
+        Remove-Item -LiteralPath $noOutputRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-FixtureGeneration {
+    $generator = Join-Path $fleetRoot "tests\new-fixture-ships.ps1"
+    $generatorText = Get-Content $generator -Raw
+    $result = Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $generator, "-Force")
+    Assert-Equal -Actual $result.exitCode -Expected 0 -Message "Fixture ship generator exits successfully"
+    Assert-True -Condition (Test-Path $fixtureConfig) -Message "Fixture project config exists"
+
+    $parsedProjects = Get-Content $fixtureConfig -Raw | ConvertFrom-Json
+    $projects = @($parsedProjects | ForEach-Object { $_ })
+    Assert-Equal -Actual $projects.Count -Expected 3 -Message "Fixture config contains three ships"
+    Assert-True -Condition ($generatorText -match 'PresentationWorkloads') -Message "Fixture generator supports presentation-specific workload tasks"
+    Assert-True -Condition ($generatorText -match 'impact:\$taskImpact' -and $generatorText -match '\$DocsOnly.+standard') -Message "Presentation docs-only fixtures use standard impact instead of visible-impact"
+    Assert-True -Condition ($generatorText -match 'UseRealModels' -and $generatorText -match 'gpt-5\.4-mini') -Message "Fixture generator can use supported low-cost real models for live smoke runs"
+}
+
+function Test-PhaseZeroIntakeSupport {
+    $allowedProjectTypes = @("marketing-site", "full-stack-web", "desktop-app", "cli-tool", "library", "data-pipeline", "ai-workflow", "mobile-app", "game", "documentation", "sandbox-prototype")
+    $allowedRiskTiers = @("sandbox", "local-only", "staging", "production-adjacent", "production")
+    $capabilityNames = @("canEditPackageFiles", "canAddDependencies", "canEditBackendCode", "canEditMigrations", "canEditAuthPolicy", "canEditDeploymentConfig", "canUseNetworkApis", "canOpenPullRequests", "canDeploy")
+
+    foreach ($profilePath in @(Get-ChildItem (Join-Path $fleetRoot "profiles") -Filter "*.json")) {
+        $profile = Get-Content $profilePath.FullName -Raw | ConvertFrom-Json
+        Assert-True -Condition ($allowedProjectTypes -contains [string]$profile.projectType) -Message "$($profile.name) profile has a valid projectType"
+        Assert-True -Condition ($allowedRiskTiers -contains [string]$profile.riskTier) -Message "$($profile.name) profile has a valid riskTier"
+        foreach ($capabilityName in $capabilityNames) {
+            Assert-True -Condition ($null -ne $profile.capabilities.PSObject.Properties[$capabilityName]) -Message "$($profile.name) profile declares $capabilityName"
+        }
+    }
+
+    $addProjectText = Get-Content (Join-Path $fleetRoot "add-project.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition ($addProjectText -match '\[string\]\$ProjectType') -Message "add-project accepts project type intake metadata"
+    Assert-True -Condition ($addProjectText -match '\[string\]\$RiskTier') -Message "add-project accepts risk tier intake metadata"
+    Assert-True -Condition ($addProjectText -match '\[string\[\]\]\$Capability') -Message "add-project accepts capability intake metadata"
+    Assert-True -Condition ($doctorText -match 'Resolve-IntakeMetadata') -Message "Fleet doctor resolves Phase 0 intake metadata"
+    Assert-True -Condition ($doctorText -match 'Unknown projectType') -Message "Fleet doctor blocks unknown project types"
+    Assert-True -Condition ($doctorText -match 'Unknown riskTier') -Message "Fleet doctor blocks unknown risk tiers"
+    Assert-True -Condition ($doctorText -match '-split ","') -Message "Fleet doctor accepts comma-packed project exclusions"
+    Assert-True -Condition ($readmeText -match 'Phase 0 intake metadata') -Message "README documents Phase 0 intake metadata"
+}
+
+function Test-PhaseOneArchitectureSupport {
+    $planText = Get-Content (Join-Path $fleetRoot "fleet-plan.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-plan.ps1")) -Message "Fleet exposes Phase 1 architecture planning script"
+    Assert-True -Condition ($planText -match '\[switch\]\$Template') -Message "fleet-plan can write architecture templates"
+    Assert-True -Condition ($planText -match '\[switch\]\$ValidateOnly') -Message "fleet-plan can validate architecture approval"
+    Assert-True -Condition ($planText -match 'ARCHITECTURE\.md') -Message "fleet-plan manages ARCHITECTURE.md"
+    Assert-True -Condition ($planText -match 'ENGINEERING_PLAN\.md') -Message "fleet-plan manages ENGINEERING_PLAN.md"
+    Assert-True -Condition ($planText -match 'RISK_REGISTER\.md') -Message "fleet-plan manages RISK_REGISTER.md"
+    Assert-True -Condition ($planText -match 'ARCHITECTURE_APPROVAL\.md') -Message "fleet-plan manages ARCHITECTURE_APPROVAL.md"
+    Assert-True -Condition ($planText -match 'Status:\s*APPROVED') -Message "fleet-plan validates human approval status"
+    Assert-True -Condition ($doctorText -match 'Get-ArchitecturePlanStatus') -Message "Fleet doctor reports architecture planning status"
+    Assert-True -Condition ($doctorText -match 'Phase 1 architecture planning pack') -Message "Fleet doctor warns when serious ships lack architecture planning"
+    Assert-True -Condition ($readmeText -match 'Phase 1 Architect gate') -Message "README documents the Phase 1 Architect gate"
+}
+
+function Test-PhaseTwoScaffoldSupport {
+    $scaffoldText = Get-Content (Join-Path $fleetRoot "scaffold-project.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "scaffold-project.ps1")) -Message "Fleet exposes Phase 2 scaffold script"
+    foreach ($scaffoldType in @("vite-react", "next-js", "express-api", "electron-desktop", "python-cli", "library-js", "test-harness")) {
+        Assert-True -Condition ($scaffoldText -match [regex]::Escape($scaffoldType)) -Message "scaffold-project supports $scaffoldType"
+    }
+    Assert-True -Condition ($scaffoldText -match 'Test-ArchitectureApproved') -Message "scaffold-project gates scaffolding on architecture approval"
+    Assert-True -Condition ($scaffoldText -match 'DEPENDENCY_PROPOSAL\.md') -Message "scaffold-project writes dependency proposals"
+    Assert-True -Condition ($scaffoldText -match 'DEPENDENCY_APPROVAL\.md') -Message "scaffold-project writes dependency approvals"
+    Assert-True -Condition ($scaffoldText -match 'Status:\s*DRAFT') -Message "dependency approval starts as draft"
+    Assert-True -Condition ($doctorText -match 'Get-DependencyApprovalStatus') -Message "Fleet doctor reports dependency approval status"
+    Assert-True -Condition ($doctorText -match 'Phase 2 dependency proposal') -Message "Fleet doctor warns for missing or draft dependency gates"
+    Assert-True -Condition ($readmeText -match 'Phase 2 scaffold and dependency gate') -Message "README documents the Phase 2 scaffold gate"
+}
+
+function Test-PhaseThreeTaskContractSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition ($loopText -match 'Resolve-TaskContract') -Message "Checkpoint loop parses Phase 3 task contracts"
+    Assert-True -Condition ($loopText -match 'class:') -Message "Task contract parser recognizes class metadata"
+    Assert-True -Condition ($loopText -match 'risk:') -Message "Task contract parser recognizes risk metadata"
+    Assert-True -Condition ($loopText -match 'impact:') -Message "Task contract parser recognizes impact metadata"
+    Assert-True -Condition ($loopText -match 'scope:') -Message "Task contract parser recognizes scope metadata"
+    Assert-True -Condition ($loopText -match 'accept:\(\.\+\?') -Message "Task contract parser recognizes acceptance commands"
+    Assert-True -Condition ($loopText -match 'Test-TaskScope') -Message "Checkpoint loop enforces declared task scopes"
+    Assert-True -Condition ($loopText -match 'RUNTIME_VERIFICATION\.md') -Message "Task scope allows Fleet-generated runtime reports"
+    Assert-True -Condition ($loopText -match 'SENSITIVE_SYSTEMS_REVIEW\.md') -Message "Task scope allows Fleet-generated sensitive systems reports"
+    Assert-True -Condition ($loopText -match 'Invoke-TaskAcceptanceChecks') -Message "Checkpoint loop runs task-specific acceptance checks"
+    Assert-True -Condition ($loopText -match 'Get-AutomaticAcceptanceChecks') -Message "Checkpoint loop infers automatic acceptance checks"
+    Assert-True -Condition ($loopText -match 'Get-PackageScriptCommand') -Message "Automatic acceptance reads package scripts"
+    Assert-True -Condition ($loopText -match 'Get-PythonCheckCommand') -Message "Automatic acceptance reads Python project checks"
+    Assert-True -Condition ($loopText -match 'Repair-FleetMojibake') -Message "Checkpoint loop repairs mojibake in planner task text"
+    Assert-True -Condition ($loopText -match 'Encoding UTF8') -Message "Checkpoint loop writes task/report markdown as UTF-8"
+    Assert-True -Condition ($loopText -match 'Get-TaskImplementationScale') -Message "Checkpoint loop classifies implementation scale"
+    Assert-True -Condition ($loopText -match 'Test-LargerChangePlanForLoop') -Message "Checkpoint loop gates larger changes on a slice plan"
+    Assert-True -Condition ($loopText -match 'Large Phase 3 task requires') -Message "Large implementation work is blocked until planned"
+    Assert-True -Condition ($loopText -match 'User pain: the previous task was quarantined before implementation') -Message "Auto recovery rewrites broad blocked tasks as product-shaped slices"
+    Assert-True -Condition ($loopText -match 'First screen: keep the current primary screen job dominant') -Message "Auto recovery replacement tasks preserve first-screen dominance"
+    Assert-True -Condition ($loopText -match 'productSafeScope\.Count -eq 0' -and $loopText -match 'app-vNext/src' -and $loopText -match 'fallbackScopes') -Message "Auto recovery replaces docs-only visible repair scope with product surfaces"
+    foreach ($label in @("Target:", "Change:", "First screen:", "Remove/simplify:", "Guardrails:", "Acceptance:", "Check:")) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($label)) -Message "Auto recovery replacement tasks include $label"
+    }
+    Assert-True -Condition ($loopText -match 'make exactly one narrow safe slice') -Message "Auto recovery replacement task is explicitly narrow"
+    Assert-True -Condition ($loopText -match 'scaleSummary\s*=\s*\$summary\s*-replace' -and $loopText -match 'Guardrails') -Message "Implementation scale ignores forbidden-scope guardrail prose"
+    Assert-True -Condition ($loopText -match 'full\|new\|entire\|whole\|end-to-end' -and $loopText -match 'workflow\\b') -Message "Implementation scale does not treat every workflow mention as large"
+    Assert-True -Condition ($loopText -match 'Implementation guardrail warning ignored: docs/codex/TASK_QUEUE\.md') -Message "Implementation guardrails allow task queue tracking dirt"
+    Assert-True -Condition ($loopText -match 'MinLastWriteTime') -Message "Batch QA visual evidence can require fresh screenshots"
+    Assert-True -Condition ($loopText -match 'High/gated task requires approved architecture plan') -Message "Checkpoint loop blocks high/gated tasks without architecture approval"
+    Assert-True -Condition ($loopText -match 'Task class:') -Message "Nightly report includes task class metadata"
+    Assert-True -Condition ($plannerText -match 'Supported classes') -Message "Nami planner is taught task classes"
+    Assert-True -Condition ($plannerText -match 'Supported risks') -Message "Nami planner is taught task risks"
+    Assert-True -Condition ($plannerText -match 'Supported impacts') -Message "Nami planner is taught task impacts"
+    Assert-True -Condition ($plannerText -match 'Test-FleetTaskRequiresSurface' -and $plannerText -match 'Get-FleetTaskSurfaceCount' -and $plannerText -match 'exactly one surface metadata') -Message "Nami planner enforces exactly one surface metadata value"
+    Assert-True -Condition ($plannerText -match 'Test-FleetTaskHasFirstScreenField' -and $plannerText -match 'First screen:') -Message "Nami planner enforces first-screen task metadata"
+    Assert-True -Condition ($plannerText -match 'insert "First screen: \.\.\." between Change and Remove/simplify') -Message "Nami planner gives first-screen metadata a clear task order"
+    Assert-True -Condition ($plannerText -match 'If accept: is omitted') -Message "Nami planner understands inferred acceptance checks"
+    Assert-True -Condition ($plannerText -match 'plan-first and slice-based') -Message "Nami planner plans larger changes in slices"
+    Assert-True -Condition ($readmeText -match 'Phase 3 task contracts') -Message "README documents Phase 3 task contracts"
+    Assert-True -Condition ($readmeText -match 'inferred acceptance') -Message "README documents inferred Phase 3 checks"
+}
+
+function Test-PhaseFourMigrationSupport {
+    $migrationText = Get-Content (Join-Path $fleetRoot "migration-review.ps1") -Raw
+    $apiContractText = Get-Content (Join-Path $fleetRoot "api-contract-review.ps1") -Raw
+    $seedFixtureText = Get-Content (Join-Path $fleetRoot "seed-fixture-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $addProjectText = Get-Content (Join-Path $fleetRoot "add-project.ps1") -Raw
+    $installText = Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "profiles\backend-local.json")) -Message "Fleet includes local-only backend profile"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "profiles\backend-staging.json")) -Message "Fleet includes staging backend profile"
+    Assert-True -Condition ($addProjectText -match 'backend-local' -and $addProjectText -match 'backend-staging') -Message "add-project accepts backend Phase 4 profiles"
+    Assert-True -Condition ($installText -match 'backend-local' -and $installText -match 'backend-staging') -Message "install-harness accepts backend Phase 4 profiles"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "migration-review.ps1")) -Message "Fleet exposes Phase 4 migration review script"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "api-contract-review.ps1")) -Message "Fleet exposes Phase 4 API contract review script"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "seed-fixture-review.ps1")) -Message "Fleet exposes Phase 4 seed fixture review script"
+    Assert-True -Condition ($migrationText -match 'MIGRATION_PROPOSAL\.md') -Message "Migration review requires migration proposal"
+    Assert-True -Condition ($migrationText -match 'MIGRATION_APPROVAL\.md') -Message "Migration review requires migration approval"
+    foreach ($heading in @("Environment", "Reversibility", "Forward Only Justification", "Data Impact", "Data Loss Detection", "Affected Tables Or Collections", "Local Run Evidence", "Rollback Plan")) {
+        Assert-True -Condition ($migrationText -match [regex]::Escape($heading)) -Message "Migration review checks $heading"
+    }
+    Assert-True -Condition ($migrationText -match 'Data Loss Accepted') -Message "Migration review detects destructive data-loss operations"
+    Assert-True -Condition ($migrationText -match 'Human Approval') -Message "Migration review requires human approval for production migrations"
+    Assert-True -Condition ($apiContractText -match 'API_CONTRACT\.md' -and $apiContractText -match 'API_CONTRACT_TESTS\.md') -Message "API contract review requires contract and test evidence"
+    foreach ($heading in @("Endpoints", "Request Shapes", "Response Shapes", "Error Cases", "Auth And Permissions", "Data Access", "Local Test Evidence")) {
+        Assert-True -Condition ($apiContractText -match [regex]::Escape($heading)) -Message "API contract review checks $heading"
+    }
+    Assert-True -Condition ($seedFixtureText -match 'SEED_FIXTURE_PLAN\.md' -and $seedFixtureText -match 'SEED_FIXTURE_EVIDENCE\.md') -Message "Seed fixture review requires plan and evidence"
+    Assert-True -Condition ($seedFixtureText -match 'Test-UnsafeRealDataLine') -Message "Seed fixture review allows negative real-data guardrail language"
+    foreach ($heading in @("Seed Data Scope", "Fixture Files", "Synthetic Data Rules", "Reset Command", "Expected Records")) {
+        Assert-True -Condition ($seedFixtureText -match [regex]::Escape($heading)) -Message "Seed fixture review checks $heading"
+    }
+    Assert-True -Condition ($loopText -match 'Invoke-MigrationReviewGate') -Message "Checkpoint loop runs migration review gate"
+    Assert-True -Condition ($loopText -match 'Invoke-ApiContractReviewGate') -Message "Checkpoint loop runs API contract review gate"
+    Assert-True -Condition ($loopText -match 'Invoke-SeedFixtureReviewGate') -Message "Checkpoint loop runs seed fixture review gate"
+    Assert-True -Condition ($loopText -match 'class -in @\("backend", "migration"\)') -Message "Checkpoint loop gates backend and migration classes on architecture approval"
+    Assert-True -Condition ($loopText -match 'canEditBackendCode') -Message "Checkpoint loop gates backend work on backend capability"
+    Assert-True -Condition ($loopText -match 'canEditMigrations') -Message "Checkpoint loop gates migration work on migration capability"
+    Assert-True -Condition ($loopText -match 'Get-MigrationApprovalStatusForLoop') -Message "Checkpoint loop checks migration approval status"
+    Assert-True -Condition ($loopText -match 'Get-ApiContractApprovalStatusForLoop') -Message "Checkpoint loop checks API contract approval status"
+    Assert-True -Condition ($loopText -match 'Get-SeedFixtureApprovalStatusForLoop') -Message "Checkpoint loop checks seed fixture approval status"
+    Assert-True -Condition ($doctorText -match 'Get-MigrationApprovalStatus') -Message "Fleet doctor reports migration approval status"
+    Assert-True -Condition ($doctorText -match 'Get-ApiContractStatus') -Message "Fleet doctor reports API contract status"
+    Assert-True -Condition ($doctorText -match 'Get-SeedFixtureStatus') -Message "Fleet doctor reports seed fixture status"
+    Assert-True -Condition ($doctorText -match 'Phase 4 migration proposal') -Message "Fleet doctor warns for missing or draft migration gates"
+    Assert-True -Condition ($doctorText -match 'Phase 4 API contract') -Message "Fleet doctor warns for missing or draft API contracts"
+    Assert-True -Condition ($doctorText -match 'Phase 4 seed fixture') -Message "Fleet doctor warns for missing or draft seed fixtures"
+    Assert-True -Condition ($readmeText -match 'Phase 4 migration safety gate') -Message "README documents Phase 4 migration safety"
+    Assert-True -Condition ($readmeText -match 'api-contract-review\.ps1') -Message "README documents Phase 4 API contract safety"
+    Assert-True -Condition ($readmeText -match 'seed-fixture-review\.ps1') -Message "README documents Phase 4 seed fixture safety"
+}
+
+function Test-PhaseFiveSensitiveSystemsSupport {
+    $sensitiveText = Get-Content (Join-Path $fleetRoot "sensitive-systems-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "sensitive-systems-review.ps1")) -Message "Fleet exposes Phase 5 sensitive systems review script"
+    Assert-True -Condition ($sensitiveText -match 'EXTERNAL_SERVICES\.md') -Message "Sensitive systems review validates external service registry"
+    Assert-True -Condition ($sensitiveText -match 'AUTH_POLICY\.md') -Message "Sensitive systems review recognizes auth policy"
+    Assert-True -Condition ($sensitiveText -match 'PAYMENT_RISK\.md') -Message "Sensitive systems review recognizes payment risk"
+    Assert-True -Condition ($sensitiveText -match 'DEPLOYMENT_RISK\.md') -Message "Sensitive systems review recognizes deployment risk"
+    Assert-True -Condition ($sensitiveText -match '\[switch\]\$Template') -Message "Sensitive systems review can scaffold approval templates"
+    Assert-True -Condition ($sensitiveText -match 'Approval Status:\s*APPROVED') -Message "Sensitive systems review requires approved external service registry for staged external/env work"
+    Assert-True -Condition ($sensitiveText -match 'process' -and $sensitiveText -match 'import' -and $sensitiveText -match 'VITE_') -Message "Sensitive systems review treats env-var additions as external-service risk"
+    Assert-True -Condition ($sensitiveText -match 'firebase' -and $sensitiveText -match 'vercel' -and $sensitiveText -match 'netlify') -Message "Sensitive systems review detects deployment config changes"
+    Assert-True -Condition ($sensitiveText -match 'sk-\[A-Za-z0-9_-\]') -Message "Sensitive systems review scans staged diffs for secret-like tokens"
+    Assert-True -Condition ($sensitiveText -match 'Test-GeneratedSensitiveReportPath') -Message "Sensitive systems review ignores generated report prose for registry detection"
+    Assert-True -Condition ($sensitiveText -match '\[-\*\+\]') -Message "Sensitive systems review strips markdown-bullet negative sensitive clauses"
+    Assert-True -Condition ($loopText -match 'Invoke-SensitiveSystemsReviewGate') -Message "Checkpoint loop runs sensitive systems review gate"
+    Assert-True -Condition ($loopText -match 'Invoke-FleetCommit') -Message "Checkpoint loop centralizes commits behind sensitive systems gate"
+    Assert-True -Condition ($loopText -match 'Test-SensitiveTaskApproval') -Message "Checkpoint loop checks auth/payment/integration task approvals"
+    Assert-True -Condition ($loopText -match 'Get-SensitiveIntentText') -Message "Checkpoint loop strips forbidden-scope text before sensitive task detection"
+    Assert-True -Condition ($loopText -match 'forbidden\\s\+scope') -Message "Sensitive task detection ignores forbidden scope guardrail text"
+    Assert-True -Condition ($loopText -match 'forbid\|forbids\|forbidden') -Message "Sensitive task detection ignores forbid/forbidden guardrail language"
+    Assert-True -Condition ($loopText -match 'preserv\(\?:e\|ing\)') -Message "Sensitive task detection ignores preserve-boundary guardrail language"
+    Assert-True -Condition ($doctorText -match 'Get-SensitiveSystemsStatus') -Message "Fleet doctor reports sensitive systems status"
+    Assert-True -Condition ($doctorText -match 'Phase 5 sensitive systems') -Message "Fleet doctor warns for missing or draft sensitive systems gates"
+    Assert-True -Condition ($readmeText -match 'Phase 5 auth, payment, secrets') -Message "README documents Phase 5 sensitive systems safety"
+}
+
+function Test-PhaseSixRuntimeVerificationSupport {
+    $runtimeText = Get-Content (Join-Path $fleetRoot "runtime-verify.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "runtime-verify.ps1")) -Message "Fleet exposes Phase 6 runtime verification script"
+    Assert-True -Condition ($runtimeText -match 'RUNTIME_CHECKS\.md') -Message "Runtime verifier reads runtime checks"
+    Assert-True -Condition ($runtimeText -match 'RUNTIME_VERIFICATION\.md') -Message "Runtime verifier writes runtime report"
+    Assert-True -Condition ($runtimeText -match 'command\|url\|url-text\|text\|file') -Message "Runtime verifier supports command, url, url-text, text, and file checks"
+    Assert-True -Condition ($runtimeText -match 'Start-Job' -and $runtimeText -match 'Wait-Job' -and $runtimeText -match 'TimeoutSeconds') -Message "Runtime command checks are bounded by timeout"
+    Assert-True -Condition ($runtimeText -match 'Set-Location -LiteralPath \$WorkingDirectory') -Message "Runtime command checks execute from the target repo"
+    Assert-True -Condition ($runtimeText -match 'StatusCode -ge 200' -and $runtimeText -match 'StatusCode -lt 400') -Message "Runtime URL checks reject 4xx pages"
+    Assert-True -Condition ($runtimeText -match '\.Contains\(\$needle\)') -Message "Runtime text checks use literal contains matching"
+    Assert-True -Condition ($runtimeText -match 'Invoke-UrlTextCheck') -Message "Runtime verifier can assert page content over HTTP"
+    Assert-True -Condition ($runtimeText -match 'DurationMs') -Message "Runtime report records check duration"
+    Assert-True -Condition ($runtimeText -match 'Detail:') -Message "Runtime report records check details"
+    Assert-True -Condition ($loopText -match 'Invoke-RuntimeVerificationGate') -Message "Checkpoint loop runs runtime verification gate"
+    Assert-True -Condition ($loopText -match 'integration", "performance"') -Message "Runtime gate is triggered for integration and performance tasks"
+    Assert-True -Condition ($doctorText -match 'Get-RuntimeVerificationStatus') -Message "Fleet doctor reports runtime verification status"
+    Assert-True -Condition ($doctorText -match 'Phase 6 runtime verification') -Message "Fleet doctor warns on failed runtime verification"
+    Assert-True -Condition ($readmeText -match 'Phase 6 runtime verification gate') -Message "README documents Phase 6 runtime verification"
+    Assert-True -Condition ($readmeText -match 'url-text: URL => expected text' -and $readmeText -match 'file: path/to/file') -Message "README documents all Phase 6 runtime check types"
+}
+
+function Test-PhaseSevenReleaseSupport {
+    $releaseText = Get-Content (Join-Path $fleetRoot "release-readiness.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "release-readiness.ps1")) -Message "Fleet exposes Phase 7 release readiness script"
+    Assert-True -Condition ($releaseText -match 'DEPLOYMENT_PLAN\.md') -Message "Release readiness checks deployment plan"
+    Assert-True -Condition ($releaseText -match 'POST_DEPLOY_SMOKE\.md') -Message "Release readiness checks post-deploy smoke plan"
+    Assert-True -Condition ($releaseText -match 'ROLLBACK_PLAN\.md') -Message "Release readiness checks rollback plan"
+    Assert-True -Condition ($releaseText -match 'RELEASE_APPROVAL\.md') -Message "Release readiness checks human release approval"
+    Assert-True -Condition ($releaseText -match 'RUNTIME_VERIFICATION\.md') -Message "Release readiness includes runtime evidence"
+    Assert-True -Condition ($releaseText -match 'VISUAL_BUGS\.md') -Message "Release readiness includes visual evidence"
+    Assert-True -Condition ($releaseText -match 'Get-VisualEvidenceStatus' -and $releaseText -match 'No Blocking Visual Bugs') -Message "Release readiness understands visual status reports"
+    Assert-True -Condition ($releaseText -match 'MIGRATION_REVIEW\.md') -Message "Release readiness includes migration evidence"
+    Assert-True -Condition ($releaseText -match 'SENSITIVE_SYSTEMS_REVIEW\.md') -Message "Release readiness includes sensitive systems evidence"
+    Assert-True -Condition ($releaseText -match 'Test-BackendEvidenceRelevant' -and $releaseText -match 'full-stack-web') -Message "Release readiness scopes backend-only evidence warnings"
+    Assert-True -Condition ($releaseText -match '\[string\]\$JsonOutFile' -and $releaseText -match 'ConvertTo-Json') -Message "Release readiness writes machine-readable JSON"
+    Assert-True -Condition ($releaseText -match '\[switch\]\$Template' -and $releaseText -match 'Ensure-ReleaseTemplates') -Message "Release readiness can scaffold release templates"
+    Assert-True -Condition ($releaseText -match 'Test-RequiredSections' -and $releaseText -match 'Deployment Target' -and $releaseText -match 'Smoke Checklist' -and $releaseText -match 'Rollback Steps') -Message "Release readiness validates release plan sections"
+    Assert-True -Condition ($releaseText -match '\[switch\]\$TreatWarningsAsBlockers') -Message "Release readiness can fail closed on warnings"
+    Assert-True -Condition ($releaseText -match 'This report never deploys') -Message "Release readiness explicitly does not deploy"
+    Assert-True -Condition ($readmeText -match 'Phase 7 release and operations gate') -Message "README documents Phase 7 release readiness"
+    Assert-True -Condition ($readmeText -match 'release templates' -and $readmeText -match 'machine-readable JSON') -Message "README documents Phase 7 templates and JSON output"
+}
+
+function Test-PhaseEightMaintenanceSupport {
+    $maintenanceText = Get-Content (Join-Path $fleetRoot "fleet-maintenance.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-maintenance.ps1")) -Message "Fleet exposes Phase 8 maintenance script"
+    Assert-True -Condition ($maintenanceText -match 'MAINTENANCE_QUEUE\.md') -Message "Maintenance lane manages a maintenance queue"
+    Assert-True -Condition ($maintenanceText -match 'MAINTENANCE_WINDOWS\.md') -Message "Maintenance lane manages maintenance windows"
+    Assert-True -Condition ($maintenanceText -match 'TECH_DEBT\.md') -Message "Maintenance lane tracks technical debt"
+    Assert-True -Condition ($maintenanceText -match '\[switch\]\$IncludeDirty') -Message "Maintenance lane requires an explicit opt-in to scan dirty ships"
+    Assert-True -Condition ($maintenanceText -match 'SKIPPED DIRTY') -Message "Maintenance lane skips dirty ships by default"
+    Assert-True -Condition ($maintenanceText -match 'Get-MaintenanceSignalPriority') -Message "Maintenance lane centralizes signal priority"
+    Assert-True -Condition ($maintenanceText -match '\\bRED\\b') -Message "Maintenance lane avoids substring matches for RED"
+    Assert-True -Condition ($maintenanceText -match 'Test-InformationalMaintenanceLine') -Message "Maintenance lane skips informational review boilerplate"
+    Assert-True -Condition ($maintenanceText -match 'Task\\s\+attempted') -Message "Maintenance lane skips task-attempted prose"
+    Assert-True -Condition ($maintenanceText -match 'GREEN\|YELLOW\|RED') -Message "Maintenance lane skips bare verdict lines"
+    Assert-True -Condition ($maintenanceText -match 'Technical Debt\|Findings\|Verdict') -Message "Maintenance lane skips report/template headings"
+    Assert-True -Condition ($maintenanceText -match '\[string\]\$JsonOutFile' -and $maintenanceText -match 'ConvertTo-Json') -Message "Maintenance lane writes machine-readable JSON"
+    Assert-True -Condition ($maintenanceText -match '\[int\]\$TailLines' -and $maintenanceText -match 'Get-Content[\s\S]+-Tail') -Message "Maintenance lane can tail long reports"
+    Assert-True -Condition ($maintenanceText -match 'HashSet\[string\]' -or $maintenanceText -match 'System\.Collections\.Generic\.HashSet') -Message "Maintenance lane de-duplicates repeated signals"
+    Assert-True -Condition ($maintenanceText -match '\[switch\]\$QueueTasks') -Message "Maintenance lane can opt into writing queue tasks"
+    Assert-True -Condition ($maintenanceText -match '\[int\]\$MaxQueueItems') -Message "Maintenance lane caps queued maintenance tasks"
+    Assert-True -Condition ($maintenanceText -match 'Write-MaintenanceQueueTasks') -Message "Maintenance lane has a bounded queue writer"
+    Assert-True -Condition ($maintenanceText -match 'Simon' -and $maintenanceText -match 'return "design"' -and $maintenanceText -match 'Robin' -and $maintenanceText -match 'return "copy"') -Message "Maintenance queue maps reviewer findings to design/copy task classes"
+    foreach ($signal in @("dependency-review", "performance-regression", "flaky", "bug-triage", "issue-intake")) {
+        Assert-True -Condition ($maintenanceText -match [regex]::Escape($signal)) -Message "Maintenance lane handles $signal signals"
+    }
+    Assert-True -Condition ($maintenanceText -match 'This report does not edit ships') -Message "Maintenance report is read-only by default"
+    Assert-True -Condition ($doctorText -match 'Get-MaintenanceStatus') -Message "Fleet doctor reports maintenance status"
+    Assert-True -Condition ($doctorText -match 'Phase 8 maintenance') -Message "Fleet doctor warns for missing maintenance lane"
+    Assert-True -Condition ($readmeText -match 'Phase 8 autonomous maintenance intake lane') -Message "README documents Phase 8 maintenance"
+    Assert-True -Condition ($roadmapText -match 'Status: started') -Message "Roadmap marks Phase 8 as started"
+}
+
+function Test-PhaseNineAutopilotSupport {
+    $autopilotText = Get-Content (Join-Path $fleetRoot "fleet-autopilot-policy.ps1") -Raw
+    $overnightAutopilotText = Get-Content (Join-Path $fleetRoot "start-overnight-autopilot.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-autopilot-policy.ps1")) -Message "Fleet exposes Phase 9 autopilot policy script"
+    Assert-True -Condition ($autopilotText -match '\[string\[\]\]\$ExcludeProject' -and $autopilotText -match 'excludedProjects') -Message "Autopilot gate supports excluded docked ships"
+    Assert-True -Condition ($autopilotText -match 'No projects selected for autopilot policy review') -Message "Autopilot gate fails closed when exclusions remove every selected ship"
+    Assert-True -Condition ($autopilotText -match 'AUTOPILOT_POLICY\.md') -Message "Autopilot gate validates policy artifact"
+    Assert-True -Condition ($autopilotText -match 'AUTOPILOT_APPROVAL\.md') -Message "Autopilot gate validates approval artifact"
+    Assert-True -Condition ($autopilotText -match '\[string\]\$JsonOutFile' -and $autopilotText -match 'ConvertTo-Json') -Message "Autopilot gate writes machine-readable JSON"
+    Assert-True -Condition ($autopilotText -match '\[switch\]\$IncludeDirty' -and $autopilotText -match 'Working tree is dirty') -Message "Autopilot gate fails closed on dirty ships"
+    Assert-True -Condition ($autopilotText -match 'Ensure-OutputParent') -Message "Autopilot gate handles output files with no parent directory"
+    Assert-True -Condition ($autopilotText -match 'requiredSafeLanes' -and $autopilotText -match 'content typo fixes' -and $autopilotText -match 'test-backed bug fixes') -Message "Autopilot gate requires concrete safe lanes"
+    Assert-True -Condition ($autopilotText -match 'Get-MarkdownListSection' -and $autopilotText -match 'Safe Automatic Lanes') -Message "Autopilot gate parses safe lane sections"
+    Assert-True -Condition ($autopilotText -match 'Approved Lanes' -and $autopilotText -match 'not listed as a safe automatic lane') -Message "Autopilot gate validates approved lanes against safe lanes"
+    Assert-True -Condition ($autopilotText -match 'humanApprovalTerms' -and $autopilotText -match 'human-approval-only action') -Message "Autopilot gate blocks sensitive actions inside safe lanes"
+    Assert-True -Condition ($autopilotText -match 'Spending Limit') -Message "Autopilot gate requires spending limits"
+    Assert-True -Condition ($autopilotText -match 'Customer Data') -Message "Autopilot gate requires customer-data rules"
+    Assert-True -Condition ($autopilotText -match 'Escalation') -Message "Autopilot gate requires escalation rules"
+    foreach ($blocked in @("pricing", "production deploy", "payment", "auth", "mass email", "data deletion", "legal")) {
+        Assert-True -Condition ($autopilotText -match [regex]::Escape($blocked)) -Message "Autopilot gate checks human approval for $blocked"
+    }
+    Assert-True -Condition ($autopilotText -match '\.codex-local\\audit') -Message "Autopilot gate writes an audit log"
+    Assert-True -Condition ($autopilotText -match 'does not spend money, deploy, email customers') -Message "Autopilot report states sensitive actions are not performed"
+    Assert-True -Condition ($overnightAutopilotText -match '\[switch\]\$RequireAutopilotPolicy' -and $overnightAutopilotText -match 'fleet-autopilot-policy\.ps1') -Message "Overnight autopilot can require Phase 9 policy before launch"
+    Assert-True -Condition ($overnightAutopilotText -match 'Phase 9 Autopilot Policy Gate' -and $overnightAutopilotText -match 'autopilot policy blocked') -Message "Overnight autopilot fails closed when policy is blocked"
+    Assert-True -Condition ($doctorText -match 'Get-AutopilotStatus') -Message "Fleet doctor reports autopilot status"
+    Assert-True -Condition ($doctorText -match 'Phase 9 limited autopilot') -Message "Fleet doctor warns for missing autopilot policy"
+    Assert-True -Condition ($readmeText -match 'Phase 9 limited business autopilot gate') -Message "README documents Phase 9 autopilot gate"
+    Assert-True -Condition ($roadmapText -match 'fleet-autopilot-policy\.ps1') -Message "Roadmap marks Phase 9 as started"
+}
+
+function Test-PhaseTenSpecialistReviewers {
+    $frankyText = Get-Content (Join-Path $fleetRoot "franky-formula-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "franky-formula-review.ps1")) -Message "Fleet exposes Phase 10 Franky formula reviewer"
+    Assert-True -Condition ($frankyText -match 'FRANKY_FORMULA_REVIEW\.md') -Message "Franky writes formula review reports"
+    Assert-True -Condition ($frankyText -match 'FORMULA_SPEC\.md' -and $frankyText -match 'FIXTURE_TEST_PLAN\.md') -Message "Franky checks formula spec and fixture plan"
+    Assert-True -Condition ($frankyText -match 'Expected Outputs' -and $frankyText -match 'Formula Tests') -Message "Franky requires expected outputs and formula tests"
+    Assert-True -Condition ($frankyText -match 'fake-confidence soup') -Message "Franky names fake-confidence risk"
+    Assert-True -Condition ($frankyText -match '\[switch\]\$Template' -and $frankyText -match 'New-TemplateFileIfMissing') -Message "Franky can scaffold analytical evidence templates"
+    Assert-True -Condition ($frankyText -match 'JsonOutFile' -and $frankyText -match 'ConvertTo-Json') -Message "Franky writes machine-readable formula verdict JSON"
+    Assert-True -Condition ($frankyText -match 'Required Actions' -and $frankyText -match 'Repair Task Draft') -Message "Franky reports concrete repair actions"
+    Assert-True -Condition ($frankyText -match 'action = \$Action' -and $frankyText -match 'unsupported numeric claims') -Message "Franky JSON/issues include actionable formula repair guidance"
+    Assert-True -Condition ($loopText -match '\[int\]\$FrankyEvery' -and $loopText -match 'franky-formula-review\.ps1') -Message "Checkpoint loop can run Franky"
+    Assert-True -Condition ($loopText -match 'frankyAutoPhases' -and $loopText -match 'engine-build') -Message "Checkpoint loop auto-runs Franky in analytical phases"
+    Assert-True -Condition ($loopText -match 'FRANKY_FORMULA_REVIEW') -Message "Task materiality treats Franky report as Fleet-generated report"
+    Assert-True -Condition ($loopText -match 'FRANKY_FORMULA_REVIEW\.json') -Message "Checkpoint loop stages Franky's structured JSON evidence"
+    Assert-True -Condition ($checkpointText -match 'Franky formula review' -and $checkpointText -match 'Franky verdict') -Message "Checkpoint review reads Franky status"
+    Assert-True -Condition ($frankyText -match 'baseExists' -and $checkpointText -match 'baseExists') -Message "Franky and checkpoint review tolerate missing local base branches"
+    Assert-True -Condition ($frankyText -match 'taskFormulaIntent' -and $frankyText -match 'analyticalPhaseIntent') -Message "Franky does not treat generic website task wording as formula work"
+    Assert-True -Condition ($checkpointText -match 'IGNORED_NON_ANALYTICAL') -Message "Checkpoint review ignores stale Franky RED reports outside analytical phases"
+    Assert-True -Condition ($doctorText -match 'FRANKY_FORMULA_REVIEW\.md' -and $doctorText -match 'Franky') -Message "Fleet doctor reports Franky status"
+    Assert-True -Condition ($doctorText -match 'frankyRelevant') -Message "Fleet doctor only blocks on Franky when formula review is relevant"
+    Assert-True -Condition ($doctorText -match 'checkpointRedIsStale') -Message "Fleet doctor can downgrade stale checkpoint REDs from cleared reviewer gates"
+    Assert-True -Condition ($readmeText -match 'Phase 10 specialist reviewer') -Message "README documents Phase 10 specialist reviewer layer"
+    Assert-True -Condition ($roadmapText -match 'Phase 10 - Specialist Reviewer Layer') -Message "Roadmap documents Phase 10"
+
+    $frankyFixture = Join-Path $fixtureRoot "phase10-website-franky"
+    if (Test-Path $frankyFixture) {
+        Remove-Item -LiteralPath $frankyFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $frankyFixture "docs\codex") | Out-Null
+    Push-Location $frankyFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "# Website fixture" | Set-Content README.md
+        @(
+            "# Phase State",
+            "",
+            "Current Phase: simplicity"
+        ) | Set-Content "docs\codex\PHASE_STATE.md"
+        @(
+            "# Task Queue",
+            "",
+            "- [ ] User pain: recommendation copy is too vague. Target: src. Change: simplify the help text. Remove/simplify: remove one label. Guardrails: no backend. Acceptance: build."
+        ) | Set-Content "docs\codex\TASK_QUEUE.md"
+        git add README.md docs/codex/PHASE_STATE.md docs/codex/TASK_QUEUE.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $frankyWebsite = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "franky-formula-review.ps1"),
+        "-Repo", $frankyFixture,
+        "-OutFile", "docs/codex/FRANKY_FORMULA_REVIEW.md"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $frankyWebsite.ExitCode -Expected 0 -Message "Franky allows non-analytical website tasks with recommendation wording"
+    $frankyWebsiteReport = Get-Content (Join-Path $frankyFixture "docs\codex\FRANKY_FORMULA_REVIEW.md") -Raw
+    Assert-True -Condition ($frankyWebsiteReport -match 'Formula intent detected: False') -Message "Franky reports no formula intent for website simplicity phase"
+    Assert-True -Condition (Test-Path (Join-Path $frankyFixture "docs\codex\FRANKY_FORMULA_REVIEW.json")) -Message "Franky writes JSON evidence for website fixture"
+
+    $frankyTemplateFixture = Join-Path $fixtureRoot "phase10-franky-template"
+    if (Test-Path $frankyTemplateFixture) {
+        Remove-Item -LiteralPath $frankyTemplateFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $frankyTemplateFixture | Out-Null
+    Push-Location $frankyTemplateFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "# Formula fixture" | Set-Content README.md
+        git add README.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $frankyTemplateRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "franky-formula-review.ps1"),
+        "-Repo", $frankyTemplateFixture,
+        "-Template"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $frankyTemplateRun.ExitCode -Expected 0 -Message "Franky template mode exits cleanly"
+    Assert-True -Condition ((Test-Path (Join-Path $frankyTemplateFixture "docs\codex\FORMULA_SPEC.md")) -and (Test-Path (Join-Path $frankyTemplateFixture "docs\codex\FIXTURE_TEST_PLAN.md"))) -Message "Franky template mode creates formula spec and fixture plan"
+}
+
+function Test-PhaseElevenAccessibilityReview {
+    $accessibilityText = Get-Content (Join-Path $fleetRoot "accessibility-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "accessibility-review.ps1")) -Message "Fleet exposes Phase 11 accessibility reviewer"
+    Assert-True -Condition ($accessibilityText -match 'ACCESSIBILITY_REVIEW\.md') -Message "Accessibility reviewer writes accessibility reports"
+    Assert-True -Condition ($accessibilityText -match 'missing an alt attribute' -and $accessibilityText -match 'programmatic label') -Message "Accessibility reviewer checks alt text and input labels"
+    Assert-True -Condition ($accessibilityText -match 'Focus outline is removed' -and $accessibilityText -match 'Hash-only link') -Message "Accessibility reviewer checks focus and dead links"
+    Assert-True -Condition ($loopText -match '\[int\]\$AccessibilityEvery' -and $loopText -match 'accessibility-review\.ps1') -Message "Checkpoint loop can run accessibility review"
+    Assert-True -Condition ($loopText -match 'ACCESSIBILITY_REVIEW') -Message "Task materiality treats accessibility report as Fleet-generated report"
+    Assert-True -Condition ($checkpointText -match 'Accessibility verdict' -and $checkpointText -match 'accessibility review') -Message "Checkpoint review reads accessibility status"
+    Assert-True -Condition ($doctorText -match 'ACCESSIBILITY_REVIEW\.md|accessibility') -Message "Fleet doctor reports accessibility status"
+    Assert-True -Condition ($proofText -match 'AccessibilityEvery' -and $schoolText -match 'AccessibilityEvery' -and $overnightText -match 'AccessibilityEvery') -Message "Launchers forward accessibility cadence"
+    Assert-True -Condition ($readmeText -match 'Phase 11 accessibility review') -Message "README documents Phase 11 accessibility review"
+    Assert-True -Condition ($roadmapText -match 'Phase 11 - Accessibility Reviewer Layer') -Message "Roadmap documents Phase 11"
+
+    $accessibilityFixture = Join-Path $fixtureRoot "phase11-accessibility"
+    if (Test-Path $accessibilityFixture) {
+        Remove-Item -LiteralPath $accessibilityFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $accessibilityFixture "src") | Out-Null
+    Push-Location $accessibilityFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "<main><img src='hero.png'><button></button><a href='#'>learn more</a></main>" | Set-Content "src\App.html"
+        "button:focus { outline: none; }" | Set-Content "src\styles.css"
+        git add src/App.html src/styles.css
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $accessibilityRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "accessibility-review.ps1"),
+        "-Repo", $accessibilityFixture,
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $accessibilityRun.ExitCode -Expected 1 -Message "Accessibility reviewer fails on deterministic RED findings"
+    $accessibilityReport = Get-Content (Join-Path $accessibilityFixture "docs\codex\ACCESSIBILITY_REVIEW.md") -Raw
+    Assert-True -Condition ($accessibilityReport -match '## Verdict\s+RED' -and $accessibilityReport -match 'Image is missing an alt attribute') -Message "Accessibility report records RED alt-text finding"
+
+    $accessibleFixture = Join-Path $fixtureRoot "phase11-accessible"
+    if (Test-Path $accessibleFixture) {
+        Remove-Item -LiteralPath $accessibleFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $accessibleFixture "src") | Out-Null
+    Push-Location $accessibleFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        @"
+<main>
+  <img src='hero.png' alt='Kitchen team preparing service'>
+  <label>
+    <span>Guest count</span>
+    <input value='24' />
+  </label>
+  <button type='button'>Send brief</button>
+</main>
+"@ | Set-Content "src\App.html"
+        @"
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #f0b45b;
+}
+"@ | Set-Content "src\styles.css"
+        git add src/App.html src/styles.css
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $accessibleRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "accessibility-review.ps1"),
+        "-Repo", $accessibleFixture,
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $accessibleRun.ExitCode -Expected 0 -Message "Accessibility reviewer allows wrapped labels and focus-visible replacements"
+    $accessibleReport = Get-Content (Join-Path $accessibleFixture "docs\codex\ACCESSIBILITY_REVIEW.md") -Raw
+    Assert-True -Condition ($accessibleReport -match '## Verdict\s+GREEN') -Message "Accessibility report stays GREEN for accessible fixture"
+}
+
+function Test-PhaseTwelvePerformanceReview {
+    $performanceText = Get-Content (Join-Path $fleetRoot "performance-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "performance-review.ps1")) -Message "Fleet exposes Phase 12 performance reviewer"
+    Assert-True -Condition ($performanceText -match 'PERFORMANCE_REVIEW\.md') -Message "Performance reviewer writes performance reports"
+    Assert-True -Condition ($performanceText -match 'MaxBundleKb' -and $performanceText -match 'MaxCssKb' -and $performanceText -match 'Largest Artifacts') -Message "Performance reviewer checks build artifact budgets"
+    Assert-True -Condition ($performanceText -match 'transition-all|Transitioning all properties' -and $performanceText -match 'setInterval') -Message "Performance reviewer checks source-level runtime footguns"
+    Assert-True -Condition ($loopText -match '\[int\]\$PerformanceEvery' -and $loopText -match 'performance-review\.ps1') -Message "Checkpoint loop can run performance review"
+    Assert-True -Condition ($loopText -match 'PERFORMANCE_REVIEW') -Message "Task materiality treats performance report as Fleet-generated report"
+    Assert-True -Condition ($checkpointText -match 'Performance verdict' -and $checkpointText -match 'performance review') -Message "Checkpoint review reads performance status"
+    Assert-True -Condition ($doctorText -match 'PERFORMANCE_REVIEW\.md|performance') -Message "Fleet doctor reports performance status"
+    Assert-True -Condition ($plannerText -match 'PERFORMANCE_REVIEW\.md' -and $plannerText -match 'Performance review') -Message "Nami planner reads performance repair signals"
+    Assert-True -Condition ($proofText -match 'PerformanceEvery' -and $schoolText -match 'PerformanceEvery' -and $overnightText -match 'PerformanceEvery') -Message "Launchers forward performance cadence"
+    Assert-True -Condition ($readmeText -match 'Phase 12 performance review') -Message "README documents Phase 12 performance review"
+    Assert-True -Condition ($roadmapText -match 'Phase 12 - Performance Reviewer Layer') -Message "Roadmap documents Phase 12"
+
+    $performanceFixture = Join-Path $fixtureRoot "phase12-performance-red"
+    if (Test-Path $performanceFixture) {
+        Remove-Item -LiteralPath $performanceFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $performanceFixture "dist\assets") | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $performanceFixture "src") | Out-Null
+    Push-Location $performanceFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "x" * 2200 | Set-Content "dist\assets\app.js"
+        ".card { transition: all 300ms ease; }" | Set-Content "src\App.css"
+        $inline = ".hero { background-image: url(data:image/png;base64,$(('A' * 360))); }"
+        $inline | Add-Content "src\App.css"
+        git add . | Out-Null
+        git commit -m "fixture" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $performanceRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "performance-review.ps1"),
+        "-Repo", $performanceFixture,
+        "-MaxBundleKb", "1",
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $performanceRun.ExitCode -Expected 1 -Message "Performance reviewer fails on deterministic RED findings"
+    $performanceReport = Get-Content (Join-Path $performanceFixture "docs\codex\PERFORMANCE_REVIEW.md") -Raw
+    Assert-True -Condition ($performanceReport -match '## Verdict\s+RED' -and $performanceReport -match 'JavaScript bundle exceeds') -Message "Performance report records RED bundle finding"
+    Assert-True -Condition ($performanceReport -match 'Transitioning all properties' -and $performanceReport -match 'Large inline base64') -Message "Performance report records source warnings"
+
+    $performantFixture = Join-Path $fixtureRoot "phase12-performance-green"
+    if (Test-Path $performantFixture) {
+        Remove-Item -LiteralPath $performantFixture -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $performantFixture "dist\assets") | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $performantFixture "src") | Out-Null
+    Push-Location $performantFixture
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "console.log('ok')" | Set-Content "dist\assets\app.js"
+        ".card { transition: opacity 160ms ease; }" | Set-Content "src\App.css"
+        git add . | Out-Null
+        git commit -m "fixture" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $performantRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "performance-review.ps1"),
+        "-Repo", $performantFixture,
+        "-FailOnRed"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $performantRun.ExitCode -Expected 0 -Message "Performance reviewer allows small artifacts and targeted transitions"
+    $performantReport = Get-Content (Join-Path $performantFixture "docs\codex\PERFORMANCE_REVIEW.md") -Raw
+    Assert-True -Condition ($performantReport -match '## Verdict\s+GREEN') -Message "Performance report stays GREEN for performant fixture"
+}
+
+function Test-PhaseThirteenExperimentRunner {
+    $experimentText = Get-Content (Join-Path $fleetRoot "fleet-experiment.ps1") -Raw
+    $harnessText = Get-Content (Join-Path $fleetRoot "test-fleet-harness.ps1") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-experiment.ps1")) -Message "Fleet exposes Phase 13 experiment runner"
+    Assert-True -Condition ($experimentText -match 'experimentName' -and $experimentText -match 'selectedShips' -and $experimentText -match 'workloadClass') -Message "Experiment runner reads experiment manifests"
+    Assert-True -Condition ($experimentText -match 'speedup' -and $experimentText -match 'efficiency' -and $experimentText -match 'loadImbalance') -Message "Experiment runner writes HPC metrics"
+    Assert-True -Condition ($experimentText -match 'AllowDirty' -and $experimentText -match 'Experiment refused because selected ship\(s\) are dirty') -Message "Experiment runner protects dirty selected ships"
+    Assert-True -Condition ($experimentText -match 'RefreshStatus' -and $experimentText -match 'IDLE_SHELL' -and $experimentText -match 'STOPPED_CLEAN') -Message "Experiment runner can refresh post-launch ship status"
+    Assert-True -Condition ($experimentText -match 'dirtyFiles' -and $experimentText -match 'STOPPED_DIRTY_NEEDS_INSPECTION') -Message "Experiment refresh records dirty files for inspection"
+    Assert-True -Condition ($experimentText -notmatch 'latest-launch\.md') -Message "Experiment runner does not overwrite normal latest-launch report"
+    Assert-True -Condition ($experimentText -match 'Metric basis:' -and $experimentText -match 'planned runtime estimates') -Message "Experiment report labels planned HPC metrics clearly"
+    Assert-True -Condition ($harnessText -match 'fleet-experiment\.ps1') -Message "Harness parses experiment runner"
+    Assert-True -Condition ($roadmapText -match 'Phase 13 - Experiment Runner And Parallel Metrics') -Message "Roadmap documents Phase 13"
+
+    $experimentRoot = Join-Path $fixtureRoot "phase13-experiment"
+    if (Test-Path $experimentRoot) {
+        Remove-Item -LiteralPath $experimentRoot -Recurse -Force
+    }
+    $shipA = Join-Path $experimentRoot "ShipA"
+    $shipB = Join-Path $experimentRoot "ShipB"
+    New-Item -ItemType Directory -Force -Path $shipA | Out-Null
+    New-Item -ItemType Directory -Force -Path $shipB | Out-Null
+    foreach ($repo in @($shipA, $shipB)) {
+        Push-Location $repo
+        try {
+            git init | Out-Null
+            git config user.email "codex@example.local"
+            git config user.name "Codex Fleet Test"
+            "ok" | Set-Content "README.md"
+            git add README.md | Out-Null
+            git commit -m "fixture" | Out-Null
+        } finally {
+            Pop-Location
+        }
+    }
+
+    $experimentConfig = Join-Path $experimentRoot "projects.json"
+    @(
+        [pscustomobject]@{ name = "ExperimentA"; repo = $shipA },
+        [pscustomobject]@{ name = "ExperimentB"; repo = $shipB }
+    ) | ConvertTo-Json -Depth 4 | Set-Content -Path $experimentConfig -Encoding UTF8
+
+    $manifest = Join-Path $experimentRoot "experiment.json"
+    [pscustomobject]@{
+        experimentName = "phase13-smoke"
+        selectedShips = @("ExperimentA", "ExperimentB")
+        workloadClass = "test-workload"
+        sharedTaskParameters = "same bounded task"
+        loopPhase = "simplicity"
+        modelBudget = "cheap"
+        batchSize = 1
+        maxBatches = 1
+        maxRuntimeMinutes = 30
+        baselineSerialMinutes = 60
+        reviewerCadence = [pscustomobject]@{
+            visualInspectEvery = 1
+            simonEvery = 1
+            robinEvery = 1
+            accessibilityEvery = 1
+            performanceEvery = 1
+            joeyEvery = 0
+        }
+        successCriteria = @("report metrics", "do not touch dirty ships")
+        perShipRuntimeMinutes = [pscustomobject]@{
+            ExperimentA = 20
+            ExperimentB = 30
+        }
+    } | ConvertTo-Json -Depth 8 | Set-Content -Path $manifest -Encoding UTF8
+
+    $outPath = Join-Path $experimentRoot "experiment.md"
+    $jsonOut = Join-Path $experimentRoot "experiment-output.json"
+    $experimentRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $manifest,
+        "-ConfigPath", $experimentConfig,
+        "-OutPath", $outPath,
+        "-JsonOutPath", $jsonOut,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $experimentRun.ExitCode -Expected 0 -Message "Experiment runner accepts a valid dry-run manifest"
+    Assert-True -Condition (Test-Path $outPath) -Message "Experiment runner writes Markdown evidence"
+    Assert-True -Condition (Test-Path $jsonOut) -Message "Experiment runner writes JSON evidence"
+    $experimentReport = Get-Content $outPath -Raw
+    Assert-True -Condition ($experimentReport -match '## HPC Metrics' -and $experimentReport -match 'Speedup' -and $experimentReport -match 'Load imbalance') -Message "Experiment report includes HPC metrics"
+    Assert-True -Condition ($experimentReport -match 'Metric basis:') -Message "Experiment Markdown explains planned versus live evidence"
+    $experimentJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $experimentJson.metrics.speedup -Expected 2 -Message "Experiment metrics compute speedup"
+    Assert-Equal -Actual $experimentJson.metrics.efficiency -Expected 1 -Message "Experiment metrics compute efficiency"
+    Assert-True -Condition ($experimentJson.entries.Count -eq 2 -and $experimentJson.entries[0].status -eq "DRY_RUN") -Message "Experiment JSON records launched dry-run entries"
+    Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'run-checkpoint-loop\.ps1') -Message "Experiment entries include checkpoint commands"
+    Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match [regex]::Escape("-ConfigPath '$experimentConfig'")) -Message "Experiment entries pass the selected fixture config to checkpoint loops"
+    Assert-True -Condition (($experimentJson.entries | ForEach-Object { $_.command }) -join "`n" -match 'QuarantineFailedTasks') -Message "Experiment entries restore and quarantine failed task changes"
+
+    $blockedManifest = Join-Path $experimentRoot "blocked-experiment.json"
+    [pscustomobject]@{
+        experimentName = "phase13-blocked"
+        selectedShips = @("MissingExperimentShip")
+        workloadClass = "test-workload"
+        loopPhase = "simplicity"
+        modelBudget = "cheap"
+        batchSize = 1
+        maxBatches = 1
+        maxRuntimeMinutes = 30
+    } | ConvertTo-Json -Depth 8 | Set-Content -Path $blockedManifest -Encoding UTF8
+    $blockedOutPath = Join-Path $experimentRoot "blocked-experiment.md"
+    $blockedJsonOut = Join-Path $experimentRoot "blocked-experiment-output.json"
+    $blockedRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $blockedManifest,
+        "-ConfigPath", $experimentConfig,
+        "-OutPath", $blockedOutPath,
+        "-JsonOutPath", $blockedJsonOut,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $blockedRun.ExitCode -Expected 1 -Message "Experiment runner exits nonzero for blocked dry-run manifest"
+    Assert-True -Condition (Test-Path $blockedOutPath) -Message "Blocked experiment writes Markdown failure evidence"
+    Assert-True -Condition (Test-Path $blockedJsonOut) -Message "Blocked experiment writes JSON failure evidence"
+    $blockedJson = Get-Content $blockedJsonOut -Raw | ConvertFrom-Json
+    Assert-True -Condition ($blockedJson.failed -and $blockedJson.status -eq "FAILED_BEFORE_LAUNCH") -Message "Blocked experiment JSON records failure status"
+
+    $refreshRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-OutPath", $outPath,
+        "-JsonOutPath", $jsonOut,
+        "-RefreshStatus"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $refreshRun.ExitCode -Expected 0 -Message "Experiment runner refreshes existing JSON evidence"
+    $refreshedReport = Get-Content $outPath -Raw
+    $refreshedJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
+    Assert-True -Condition ($refreshedReport -match 'STATUS REFRESH' -and $refreshedReport -match 'Dirty Files') -Message "Experiment refresh rewrites Markdown status evidence"
+    Assert-True -Condition ($refreshedJson.statusRefreshed -eq $true -and $refreshedJson.entries[0].PSObject.Properties['dirtyFiles']) -Message "Experiment refresh writes refreshed JSON fields"
+
+    $invalidManifest = Join-Path $experimentRoot "experiment-invalid.json"
+    [pscustomobject]@{
+        experimentName = "phase13-invalid"
+        selectedShips = @("ExperimentA", "MissingShip")
+        loopPhase = "simplicity"
+        modelBudget = "cheap"
+    } | ConvertTo-Json -Depth 4 | Set-Content -Path $invalidManifest -Encoding UTF8
+    $invalidRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $invalidManifest,
+        "-ConfigPath", $experimentConfig,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $invalidRun.ExitCode -Expected 1 -Message "Experiment runner rejects unknown ships"
+
+    "dirty" | Set-Content (Join-Path $shipA "dirty.txt")
+    $dirtyRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-experiment.ps1"),
+        "-ManifestPath", $manifest,
+        "-ConfigPath", $experimentConfig,
+        "-DryRun",
+        "-SkipDoctor"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $dirtyRun.ExitCode -Expected 1 -Message "Experiment runner refuses dirty selected ships"
+}
+
+function Test-PhaseFourteenStagingDeploySupport {
+    $stagingText = Get-Content (Join-Path $fleetRoot "staging-deploy.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $harnessText = Get-Content (Join-Path $fleetRoot "test-fleet-harness.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\AUTONOMOUS_SOFTWARE_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "staging-deploy.ps1")) -Message "Fleet exposes Phase 14 staging deploy gate"
+    Assert-True -Condition ($stagingText -match 'STAGING_DEPLOY_PLAN\.md' -and $stagingText -match 'STAGING_DEPLOY_APPROVAL\.md') -Message "Staging gate checks staging plan and approval"
+    Assert-True -Condition ($stagingText -match 'STAGING_POST_DEPLOY_SMOKE\.md' -and $stagingText -match 'STAGING_ROLLBACK_PLAN\.md') -Message "Staging gate checks smoke and rollback plans"
+    Assert-True -Condition ($stagingText -match 'productionDeployAllowed\s*=\s*\$false' -and $stagingText -match 'This report does not deploy') -Message "Staging gate explicitly separates production deploy"
+    Assert-True -Condition ($stagingText -match 'firebase deploy' -and $stagingText -match 'vercel --prod' -and $stagingText -match 'netlify deploy --prod') -Message "Staging gate rejects common production deploy commands"
+    Assert-True -Condition ($stagingText -match '\[switch\]\$PrintCommand' -and $stagingText -match 'Staging command for human execution') -Message "Staging gate can print command evidence without executing it"
+    Assert-True -Condition ($loopText -match 'staging-deploy' -and $loopText -match 'Invoke-StagingDeployGate') -Message "Checkpoint loop knows staging-deploy task class"
+    Assert-True -Condition ($harnessText -match 'staging-deploy\.ps1') -Message "Harness parses staging deploy gate"
+    Assert-True -Condition ($readmeText -match 'Phase 14 staging deploy gate') -Message "README documents Phase 14"
+    Assert-True -Condition ($roadmapText -match 'Phase 14 - Staging Deploy Gate') -Message "Roadmap documents Phase 14"
+
+    $stagingRoot = Join-Path $fixtureRoot "phase14-staging"
+    if (Test-Path $stagingRoot) {
+        Remove-Item -LiteralPath $stagingRoot -Recurse -Force
+    }
+    $shipRepo = Join-Path $stagingRoot "Ship"
+    New-Item -ItemType Directory -Force -Path $shipRepo | Out-Null
+    Push-Location $shipRepo
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "fixture" | Set-Content -Path "README.md"
+        git add README.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $stagingConfig = Join-Path $stagingRoot "projects.json"
+    @(
+        [pscustomobject]@{
+            name = "StagingFixture"
+            repo = $shipRepo
+            riskTier = "staging"
+            capabilities = [pscustomobject]@{
+                canDeploy = $false
+            }
+        }
+    ) | ConvertTo-Json -Depth 6 | Set-Content -Path $stagingConfig -Encoding UTF8
+
+    $templateRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "staging-deploy.ps1"),
+        "-ConfigPath", $stagingConfig,
+        "-Project", "StagingFixture",
+        "-Template"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $templateRun.ExitCode -Expected 0 -Message "Staging gate scaffolds templates"
+
+    Push-Location $shipRepo
+    try {
+        @"
+# Staging Deploy Plan
+
+Status: APPROVED
+
+## Staging Target
+Cloudflare Pages preview branch for staging only.
+
+## Staging URL
+https://staging.example.test
+
+## Build Command
+npm.cmd run build
+
+## Deploy Command
+npx wrangler pages deploy dist --branch staging
+
+## Environment Variables
+None.
+
+## Data Safety
+Synthetic fixture data only.
+
+## Owner
+Codex Fleet Test
+"@ | Set-Content -Path "docs/codex/STAGING_DEPLOY_PLAN.md" -Encoding UTF8
+        @"
+# Staging Deploy Approval
+
+Status: APPROVED
+
+## Approval
+Approved for staging command print only.
+
+## Notes
+No production deploy approval.
+"@ | Set-Content -Path "docs/codex/STAGING_DEPLOY_APPROVAL.md" -Encoding UTF8
+        git add docs/codex/STAGING_DEPLOY_PLAN.md docs/codex/STAGING_DEPLOY_APPROVAL.md docs/codex/STAGING_POST_DEPLOY_SMOKE.md docs/codex/STAGING_ROLLBACK_PLAN.md
+        git commit -m "approve staging docs" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $outPath = Join-Path $stagingRoot "staging.md"
+    $jsonOut = Join-Path $stagingRoot "staging.json"
+    $validRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "staging-deploy.ps1"),
+        "-ConfigPath", $stagingConfig,
+        "-Project", "StagingFixture",
+        "-OutFile", $outPath,
+        "-JsonOutFile", $jsonOut,
+        "-PrintCommand"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $validRun.ExitCode -Expected 0 -Message "Staging gate accepts approved staging fixture"
+    $stagingReport = Get-Content $outPath -Raw
+    $stagingJson = Get-Content $jsonOut -Raw | ConvertFrom-Json
+    Assert-True -Condition ($stagingReport -match 'READY FOR HUMAN STAGING REVIEW' -and $stagingReport -match 'npx wrangler pages deploy dist --branch staging') -Message "Staging report prints human-run staging command"
+    Assert-True -Condition ($stagingJson.neverDeploys -eq $true -and $stagingJson.productionDeployAllowed -eq $false) -Message "Staging JSON records non-deploy safety"
+
+    Push-Location $shipRepo
+    try {
+        (Get-Content "docs/codex/STAGING_DEPLOY_PLAN.md" -Raw).Replace("npx wrangler pages deploy dist --branch staging", "firebase deploy") | Set-Content -Path "docs/codex/STAGING_DEPLOY_PLAN.md" -Encoding UTF8
+    } finally {
+        Pop-Location
+    }
+    $prodCommandRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "staging-deploy.ps1"),
+        "-ConfigPath", $stagingConfig,
+        "-Project", "StagingFixture",
+        "-OutFile", $outPath,
+        "-JsonOutFile", $jsonOut,
+        "-AllowDirty"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $prodCommandRun.ExitCode -Expected 1 -Message "Staging gate rejects production deploy command"
+}
+
+function Test-ConfigResolution {
+    foreach ($name in @("FixtureStaticDemo", "FixtureDocsOnly", "FixtureRealProduct")) {
+        $result = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "run-checkpoint-loop.ps1"),
+            "-ConfigPath", $fixtureConfig,
+            "-Project", $name,
+            "-ValidateOnly"
+        )
+        $output = $result.output -join "`n"
+        Assert-Equal -Actual $result.exitCode -Expected 0 -Message "Checkpoint loop validates $name"
+        Assert-True -Condition ($output -match "Implement models: gpt-fixture-primary, gpt-fixture-fallback") -Message "Model chain resolves for $name"
+        Assert-True -Condition ($output -match "Rate-limit cooldown: 60s, max cooldowns 1") -Message "Rate-limit config resolves for $name"
+        Assert-True -Condition ($output -match "Visual paths:") -Message "Visual path config is reported for $name"
+    }
+}
+
+function Test-DoctorAndReadiness {
+    $doctor = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-doctor.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Quiet"
+    )
+    Assert-Equal -Actual $doctor.exitCode -Expected 0 -Message "Fleet doctor passes fixture ships"
+
+    $fixtureProjects = @(Get-Content $fixtureConfig -Raw | ConvertFrom-Json | ForEach-Object { $_ })
+    foreach ($fixtureProject in $fixtureProjects) {
+        Push-Location $fixtureProject.repo
+        try {
+            New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+            Set-Content -Path "docs/codex/MAGIC_SCORECARD.md" -Value @"
+# Magic Scorecard
+
+## Batch 1 QA - 2026-01-01 00:00:00
+
+- Active work pack: Fixture Pack
+- Batch impact mode: standard
+- Fresh QA evidence:
+- Fixture visual evidence.
+- Checkpoint verdict: GREEN
+- Simon verdict: GREEN
+- Robin verdict: GREEN
+- Joey verdict: GREEN
+- Simon improvement score: SCORE: 4; DIRECTION: improved; ACTIVE_PACK: Fixture Pack; REASON: fixture.
+- Debug checkpoint result: PASS (passed)
+"@
+            & git add -- docs/codex/MAGIC_SCORECARD.md
+            & git commit -m "fixture batch QA memory" | Out-Null
+        } finally {
+            Pop-Location
+        }
+    }
+
+    $readiness = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "merge-readiness.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-SkipBuild"
+    )
+    Assert-Equal -Actual $readiness.exitCode -Expected 0 -Message "Merge readiness passes fixture ships in skip-build mode"
+    Assert-True -Condition (($readiness.output -join "`n") -match "SAFE TO MERGE AFTER HUMAN REVIEW") -Message "Merge readiness can produce a green overall result"
+    $mergeText = Get-Content (Join-Path $fleetRoot "merge-readiness.ps1") -Raw
+    Assert-True -Condition ($mergeText -match 'Get-LatestBatchQaSummary') -Message "Merge readiness reads latest batch QA scorecard"
+    Assert-True -Condition ($mergeText -match 'Batch QA') -Message "Merge readiness reports batch QA status"
+    Assert-True -Condition ($mergeText -match 'No fresh batch QA scorecard entry found') -Message "Merge readiness warns when batch QA memory is missing"
+    Assert-True -Condition ($mergeText -match 'Batch QA scorecard is stale') -Message "Merge readiness warns when commits land after batch QA"
+
+    $staleProject = Get-Project -Name "FixtureStaticDemo"
+    Push-Location $staleProject.repo
+    try {
+        Set-Content -Path "post-qa-change.txt" -Value "change after QA"
+        & git add -- post-qa-change.txt
+        & git commit -m "fixture post QA change" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    $staleReadiness = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "merge-readiness.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Project", "FixtureStaticDemo",
+        "-SkipBuild"
+    )
+    $staleOutput = $staleReadiness.output -join "`n"
+    Assert-Equal -Actual $staleReadiness.exitCode -Expected 0 -Message "Merge readiness allows stale QA as inspect-only"
+    Assert-True -Condition ($staleOutput -match "SAFE TO INSPECT") -Message "Stale batch QA downgrades merge readiness to inspect-only"
+    Assert-True -Condition ($staleOutput -match "batch QA present/PASS") -Message "Stale batch QA still reports the latest QA result"
+    $staleReport = Get-Content (Join-Path $fleetRoot "out\merge-readiness.md") -Raw
+    Assert-True -Condition ($staleReport -match "Batch QA scorecard is stale: 1 commit") -Message "Stale batch QA reports commits after latest scorecard"
+}
+
+function Test-MaintenanceDirtySkip {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    $outFile = Join-Path $fixtureRoot "maintenance-dirty-skip.md"
+
+    Push-Location $project.repo
+    try {
+        Set-Content -Path "dirty-maintenance-fixture.txt" -Value "active work"
+    } finally {
+        Pop-Location
+    }
+
+    try {
+        $maintenance = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "fleet-maintenance.ps1"),
+            "-ConfigPath", $fixtureConfig,
+            "-Project", "FixtureStaticDemo",
+            "-OutFile", $outFile
+        )
+        Assert-Equal -Actual $maintenance.exitCode -Expected 0 -Message "Maintenance report succeeds when fixture ship is dirty"
+        $report = Get-Content $outFile -Raw
+        Assert-True -Condition ($report -match "SKIPPED DIRTY") -Message "Maintenance report skips dirty ships by default"
+        Assert-True -Condition ($report -match "Use -IncludeDirty") -Message "Maintenance report explains dirty-scan opt-in"
+    } finally {
+        Remove-Item -LiteralPath (Join-Path $project.repo "dirty-maintenance-fixture.txt") -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-MaintenanceQueueWriter {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    $outFile = Join-Path $fixtureRoot "maintenance-queue-writer.md"
+    $jsonFile = Join-Path $fixtureRoot "maintenance-queue-writer.json"
+
+    $template = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-maintenance.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Project", "FixtureStaticDemo",
+        "-Template"
+    )
+    Assert-Equal -Actual $template.exitCode -Expected 0 -Message "Maintenance templates can be installed for fixture ship"
+
+    Push-Location $project.repo
+    try {
+        Set-Content -Path "docs\codex\RUNTIME_VERIFICATION.md" -Value @(
+            "# Runtime Verification",
+            "",
+            "## Verdict",
+            "YELLOW",
+            "",
+            "## Findings",
+            "- timeout regression detected in fixture route"
+        )
+        & git add -- docs/codex/MAINTENANCE_QUEUE.md docs/codex/MAINTENANCE_WINDOWS.md docs/codex/TECH_DEBT.md docs/codex/RUNTIME_VERIFICATION.md
+        & git commit -m "fixture maintenance setup" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits maintenance setup"
+    } finally {
+        Pop-Location
+    }
+
+    $maintenance = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-maintenance.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-Project", "FixtureStaticDemo",
+        "-OutFile", $outFile,
+        "-JsonOutFile", $jsonFile,
+        "-QueueTasks",
+        "-MaxQueueItems", "1"
+    )
+    Assert-Equal -Actual $maintenance.exitCode -Expected 0 -Message "Maintenance queue writer succeeds"
+    $queue = Get-Content (Join-Path $project.repo "docs\codex\MAINTENANCE_QUEUE.md") -Raw
+    Assert-True -Condition ($queue -match "Fleet Maintenance Intake") -Message "Maintenance queue writer appends an intake section"
+    Assert-True -Condition ($queue -match "timeout regression detected") -Message "Maintenance queue writer includes report evidence"
+    Assert-True -Condition ($queue -match "class:performance") -Message "Maintenance queue writer maps performance signals to performance tasks"
+    $json = Get-Content $jsonFile -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $json.readOnly -Expected $false -Message "Maintenance JSON reports queue mode as not read-only"
+    Assert-Equal -Actual $json.maxQueueItems -Expected 1 -Message "Maintenance JSON records queue cap"
+
+    Push-Location $project.repo
+    try {
+        & git add -- docs/codex/MAINTENANCE_QUEUE.md
+        & git commit -m "fixture queued maintenance item" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits queued maintenance item"
+    } finally {
+        Pop-Location
+    }
+}
+
+function Test-DebugCheckpoint {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    $debug = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "debug-checkpoint.ps1"),
+        "-Repo", $project.repo,
+        "-BaseBranch", "main",
+        "-Json"
+    )
+    Assert-Equal -Actual $debug.exitCode -Expected 0 -Message "Checkpoint debugger passes clean fixture branch"
+    Assert-True -Condition (($debug.output -join "`n") -match '"result"\s*:\s*"PASS"') -Message "Checkpoint debugger JSON reports PASS"
+
+    Push-Location $project.repo
+    try {
+        foreach ($index in 1..5) {
+            Set-Content -Path "preexisting-$index.txt" -Value "older branch work $index"
+        }
+        & git add -- preexisting-*.txt
+        & git commit -m "fixture accumulated branch work" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits accumulated branch work"
+
+        $batchBase = (git rev-parse HEAD).Trim()
+        Set-Content -Path "current-batch.txt" -Value "current batch"
+        & git add -- current-batch.txt
+        & git commit -m "fixture current batch work" | Out-Null
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Fixture commits current batch work"
+    } finally {
+        Pop-Location
+    }
+
+    $batchDebug = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "debug-checkpoint.ps1"),
+        "-Repo", $project.repo,
+        "-BaseBranch", "main",
+        "-BatchBase", $batchBase,
+        "-MaxChangedFiles", "2",
+        "-MaxBatchChangedFiles", "2",
+        "-Json"
+    )
+    $batchOutput = $batchDebug.output -join "`n"
+    Assert-Equal -Actual $batchDebug.exitCode -Expected 0 -Message "Checkpoint debugger allows small current batch on accumulated branch"
+    Assert-True -Condition ($batchOutput -match '"result"\s*:\s*"WARN"') -Message "Checkpoint debugger warns for oversized whole branch"
+    Assert-True -Condition ($batchOutput -match '"batchChangedFileCount"\s*:\s*1') -Message "Checkpoint debugger reports current batch file count"
+}
+
+function Test-SafeStaging {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    Push-Location $project.repo
+    try {
+        Set-Content -Path "file with spaces.txt" -Value "stage me"
+        Set-Content -Path "do-not-stage.txt" -Value "leave me"
+        $paths = @("file with spaces.txt")
+        & git add -- @paths
+        $staged = @(git diff --cached --name-only)
+        $unstaged = @(git ls-files --others --exclude-standard)
+        Assert-True -Condition ($staged -contains "file with spaces.txt") -Message "Safe staging handles paths with spaces"
+        Assert-True -Condition ($unstaged -contains "do-not-stage.txt") -Message "Safe staging leaves unrelated untracked files unstaged"
+        & git reset -- "file with spaces.txt" | Out-Null
+        Remove-Item -LiteralPath "file with spaces.txt", "do-not-stage.txt" -Force
+    } finally {
+        Pop-Location
+    }
+}
+
+function Test-ReadOnlyDirtyGuard {
+    $project = Get-Project -Name "FixtureStaticDemo"
+    Push-Location $project.repo
+    try {
+        Set-Content -Path "dirty-before-planner.txt" -Value "dirty"
+        $planner = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "generate-next-five.ps1"),
+            "-Repo", $project.repo,
+            "-BaseBranch", "main",
+            "-Count", "1",
+            "-TimeoutSeconds", "5"
+        )
+        Assert-True -Condition ($planner.exitCode -ne 0) -Message "Nami planner refuses dirty working tree before Codex"
+        Assert-True -Condition (($planner.output -join "`n") -match "requires a clean working tree") -Message "Nami planner reports dirty tree reason"
+        Remove-Item -LiteralPath "dirty-before-planner.txt" -Force
+    } finally {
+        Pop-Location
+    }
+}
+
+function Test-RecoveryIncludesStagedFiles {
+    $recoveryText = Get-Content (Join-Path $fleetRoot "recover-interrupted-task.ps1") -Raw
+    Assert-True -Condition ($recoveryText -match 'git diff --cached --name-only') -Message "Interrupted-task recovery includes staged files"
+    Assert-True -Condition ($recoveryText -match 'foreach \(\$path in \$cleanPaths\)') -Message "Interrupted-task recovery stages paths one at a time"
+}
+
+function Test-CheckpointGateOrder {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $visualIndex = $loopText.IndexOf('if ($VisualInspectEvery -gt 0')
+    $simonIndex = $loopText.IndexOf('if ($SimonEvery -gt 0')
+    $robinIndex = $loopText.IndexOf('if ($RobinEvery -gt 0')
+    $accessibilityIndex = $loopText.IndexOf('if ($AccessibilityEvery -gt 0')
+    $performanceIndex = $loopText.IndexOf('if ($PerformanceEvery -gt 0')
+    $joeyIndex = $loopText.IndexOf('if ($JoeyEvery -gt 0')
+    $frankyIndex = $loopText.IndexOf('$frankyShouldRun')
+    $checkpointIndex = $loopText.IndexOf('$checkpointText = Invoke-CheckpointReviewGate -Batch $batch')
+    $debugIndex = $loopText.IndexOf('if (!$SkipDebug)')
+
+    Assert-True -Condition ($visualIndex -ge 0) -Message "Checkpoint loop contains visual inspect gate"
+    Assert-True -Condition ($simonIndex -gt $visualIndex) -Message "Simon runs after visual inspect"
+    Assert-True -Condition ($robinIndex -gt $simonIndex) -Message "Robin runs after Simon"
+    Assert-True -Condition ($accessibilityIndex -gt $robinIndex) -Message "Accessibility review runs after Robin"
+    Assert-True -Condition ($performanceIndex -gt $accessibilityIndex) -Message "Performance review runs after accessibility review"
+    Assert-True -Condition ($joeyIndex -gt $performanceIndex) -Message "Joey runs after performance review"
+    Assert-True -Condition ($frankyIndex -gt $joeyIndex) -Message "Franky runs after Joey when enabled"
+    Assert-True -Condition ($checkpointIndex -gt $frankyIndex) -Message "Final checkpoint runs after visual, Simon, Robin, accessibility, performance, Joey, and Franky"
+    Assert-True -Condition ($debugIndex -gt $checkpointIndex) -Message "Debugger runs after final checkpoint"
+}
+
+function Test-TaskQuarantineSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    Assert-True -Condition ($loopText -match '\[switch\]\$QuarantineFailedTasks') -Message "Checkpoint loop exposes task quarantine switch"
+    Assert-True -Condition ($loopText -match '\[int\]\$MaxTaskQuarantines') -Message "Checkpoint loop exposes task quarantine limit"
+    Assert-True -Condition ($loopText -match 'docs/codex/QUARANTINED_TASKS.md') -Message "Checkpoint loop writes a quarantine report"
+    Assert-True -Condition ($loopText -match 'Restore-TaskChanges') -Message "Checkpoint loop restores failed task changes before continuing"
+    Assert-True -Condition ($loopText -match 'Invoke-GitRestorePaths') -Message "Checkpoint loop uses bounded restore helper for quarantine cleanup"
+    Assert-True -Condition ($loopText -match 'Refusing to restore unsafe path') -Message "Checkpoint loop rejects unsafe restore paths"
+    Assert-True -Condition ($loopText -match 'Mode "--staged"') -Message "Checkpoint loop unstages files before quarantine cleanup"
+    Assert-True -Condition ($loopText -match 'Mode "--worktree"') -Message "Checkpoint loop restores tracked worktree edits during quarantine cleanup"
+    Assert-True -Condition ($loopText -match 'Codex changed HEAD during implementation') -Message "Checkpoint loop stops if Codex commits during implementation"
+    Assert-True -Condition ($loopText -match 'Codex quarantine failed task batch') -Message "Checkpoint loop commits quarantine notes separately"
+    Assert-True -Condition ($loopText -match 'make exactly one narrow safe slice') -Message "Auto recovery retries are rewritten as small safe slices"
+    Assert-True -Condition ($loopText -match 'impact:visible') -Message "Auto recovery retry metadata includes visible impact"
+    Assert-True -Condition ($loopText -match 'surface:mixed') -Message "Auto recovery retry metadata includes surface"
+    Assert-True -Condition ($loopText -notmatch 'quarantined task .\$summary') -Message "Auto recovery retries do not quote the original large task summary"
+
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    Assert-True -Condition ($schoolText -match '-QuarantineFailedTasks') -Message "School launcher can pass quarantine mode to ships"
+    Assert-True -Condition ($schoolText -match '-MaxTaskQuarantines') -Message "School launcher can pass quarantine limit to ships"
+
+    $proofText = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    Assert-True -Condition ($proofText -match '-QuarantineFailedTasks') -Message "Proof launcher can pass quarantine mode to ships"
+    Assert-True -Condition ($proofText -match '-MaxTaskQuarantines') -Message "Proof launcher can pass quarantine limit to ships"
+
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    Assert-True -Condition ($overnightText -match '-QuarantineFailedTasks') -Message "Overnight launcher can pass quarantine mode to ships"
+    Assert-True -Condition ($overnightText -match '-MaxTaskQuarantines') -Message "Overnight launcher can pass quarantine limit to ships"
+    Assert-True -Condition ($overnightText -match '\[int\]\$SimonEvery') -Message "Overnight launcher can override Simon cadence"
+    Assert-True -Condition ($overnightText -match '\[int\]\$VisualInspectEvery') -Message "Overnight launcher can override visual inspection cadence"
+
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    Assert-True -Condition ($plannerText -match 'QUARANTINED_TASKS.md') -Message "Nami planner reads quarantined task report"
+    Assert-True -Condition ($plannerText -match 'Do not repeat quarantined tasks') -Message "Nami planner is told not to repeat quarantined tasks"
+    Assert-True -Condition ($plannerText -match 'ROBIN_COPY_REVIEW.md') -Message "Nami planner reads Robin copy review"
+    Assert-True -Condition ($plannerText -match 'Priority Rewrite') -Message "Nami planner is told to prioritize Robin rewrite orders"
+}
+
+function Test-DuplicateRunGuard {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    Assert-True -Condition ($loopText -match '\[switch\]\$AllowDuplicateRun') -Message "Checkpoint loop exposes explicit duplicate-run override"
+    Assert-True -Condition ($loopText -match 'Assert-NoDuplicateFleetRun') -Message "Checkpoint loop checks for active duplicate processes"
+    Assert-True -Condition ($loopText -match 'Acquire-FleetRunLock') -Message "Checkpoint loop acquires a per-ship run lock"
+    Assert-True -Condition ($loopText -match '\.codex-local\\locks') -Message "Checkpoint loop stores locks under .codex-local locks"
+    Assert-True -Condition ($loopText -match 'Get-CimInstance Win32_Process') -Message "Checkpoint loop scans existing PowerShell command lines for older runs"
+    Assert-True -Condition ($loopText -match 'CreateNew') -Message "Checkpoint loop creates locks atomically"
+    Assert-True -Condition ($loopText -match 'Duplicate fleet run refused') -Message "Checkpoint loop reports duplicate run refusal clearly"
+    Assert-True -Condition ($loopText -match 'Ignoring stale run-checkpoint-loop shells') -Message "Checkpoint loop ignores stale launch shells without active locks"
+}
+
+function Test-SafeStopSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $stopText = Get-Content (Join-Path $fleetRoot "request-safe-stop.ps1") -Raw
+    $launcherPath = Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1"
+    $launcherText = Get-Content $launcherPath -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "request-safe-stop.ps1")) -Message "Fleet exposes a safe stop request script"
+    Assert-True -Condition ($loopText -match 'Invoke-FleetSafeStopCheck') -Message "Checkpoint loop checks safe stop requests"
+    Assert-True -Condition ($loopText -match '\.codex-local\\stop-requests') -Message "Safe stop requests live under local runtime state"
+    Assert-True -Condition ($loopText -match 'before task \$i in batch \$batch') -Message "Checkpoint loop checks safe stop before starting each task"
+    Assert-True -Condition ($loopText -match 'before Nami task planning') -Message "Checkpoint loop checks safe stop before planning new tasks"
+    Assert-True -Condition ($stopText -match '\[switch\]\$All') -Message "Safe stop script can target all ships"
+    Assert-True -Condition ($stopText -match '\[switch\]\$Clear') -Message "Safe stop script can clear requests"
+    Assert-True -Condition ($stopText -match '\[switch\]\$List') -Message "Safe stop script can list active requests"
+    Assert-True -Condition ($launcherText -match 'ProjectScope') -Message "Shared launcher helper supports selected-project safe-stop scope"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "fleet-experiment.ps1") -Raw) -match '-ProjectScope \$selectedShips') -Message "Experiment runner scopes safe stops to selected ships"
+
+    $stopScopeRoot = Join-Path $fixtureRoot ("safe-stop-scope-" + [guid]::NewGuid().ToString("N"))
+    $stopRequestRoot = Join-Path $stopScopeRoot ".codex-local\stop-requests"
+    New-Item -ItemType Directory -Force -Path $stopRequestRoot | Out-Null
+    try {
+        . $launcherPath
+
+        [pscustomobject]@{ target = "UnrelatedShip" } |
+            ConvertTo-Json -Depth 4 |
+            Set-Content -Path (Join-Path $stopRequestRoot "UnrelatedShip.stop.json") -Encoding UTF8
+
+        $unrelated = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-Command",
+            ". '$launcherPath'; Assert-NoFleetSafeStopRequests -FleetRoot '$stopScopeRoot' -ProjectScope @('SelectedShip'); Write-Output 'allowed'"
+        ) -TimeoutSeconds 20
+        Assert-Equal -Actual $unrelated.ExitCode -Expected 0 -Message "Unrelated safe-stop does not block selected scope"
+        Assert-True -Condition (($unrelated.Output -join "`n") -match "allowed") -Message "Unrelated safe-stop selected-scope check reaches success"
+
+        [pscustomobject]@{ target = "SelectedShip" } |
+            ConvertTo-Json -Depth 4 |
+            Set-Content -Path (Join-Path $stopRequestRoot "SelectedShip.stop.json") -Encoding UTF8
+
+        $selected = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-Command",
+            ". '$launcherPath'; Assert-NoFleetSafeStopRequests -FleetRoot '$stopScopeRoot' -ProjectScope @('SelectedShip'); Write-Output 'allowed'"
+        ) -TimeoutSeconds 20
+        Assert-Equal -Actual $selected.ExitCode -Expected 1 -Message "Selected safe-stop blocks selected scope"
+        Assert-True -Condition (($selected.Output -join "`n") -match "SelectedShip") -Message "Selected safe-stop block reports selected ship"
+
+        Remove-Item -LiteralPath (Join-Path $stopRequestRoot "SelectedShip.stop.json") -Force
+        [pscustomobject]@{ target = "ALL" } |
+            ConvertTo-Json -Depth 4 |
+            Set-Content -Path (Join-Path $stopRequestRoot "ALL.stop.json") -Encoding UTF8
+
+        $global = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-Command",
+            ". '$launcherPath'; Assert-NoFleetSafeStopRequests -FleetRoot '$stopScopeRoot' -ProjectScope @('SelectedShip'); Write-Output 'allowed'"
+        ) -TimeoutSeconds 20
+        Assert-Equal -Actual $global.ExitCode -Expected 1 -Message "Global safe-stop blocks selected scope"
+        Assert-True -Condition (($global.Output -join "`n") -match "ALL") -Message "Global safe-stop block reports all-ships stop"
+    } finally {
+        if (Test-Path $stopScopeRoot) {
+            Remove-Item -LiteralPath $stopScopeRoot -Recurse -Force
+        }
+    }
+}
+
+function Test-LaunchControlSupport {
+    $launcherText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-launcher.ps1") -Raw
+    Assert-True -Condition ($launcherText -match 'Assert-NoFleetSafeStopRequests') -Message "Shared launcher helper blocks stale safe stop requests"
+    Assert-True -Condition ($launcherText -match 'ExcludeProject') -Message "Shared launcher helper ignores safe stops for excluded ships"
+    Assert-True -Condition ($launcherText -match 'New-FleetLaunchManifest') -Message "Shared launcher helper creates launch manifests"
+    Assert-True -Condition ($launcherText -match 'NewGuid') -Message "Launch manifest IDs include a uniqueness suffix for parallel launches"
+    Assert-True -Condition ($launcherText -match 'LatestFileName = "latest-launch\.md"' -and $launcherText -match 'markdownPath') -Message "Launch manifests update the latest-launch report"
+    Assert-True -Condition ($launcherText -match '\.codex-local\\launches') -Message "Launch manifests write raw local launch records"
+
+    foreach ($launcherName in @("launch-proof-run.ps1", "launch-school-run.ps1", "launch-overnight-run.ps1", "run-fleet.ps1")) {
+        $launcher = Get-Content (Join-Path $fleetRoot $launcherName) -Raw
+        Assert-True -Condition ($launcher -match 'codex-fleet-launcher\.ps1') -Message "$launcherName uses shared launcher helpers"
+        Assert-True -Condition ($launcher -match 'AllowSafeStopRequests') -Message "$launcherName exposes a safe-stop override"
+        Assert-True -Condition ($launcher -match 'Assert-NoFleetSafeStopRequests') -Message "$launcherName refuses accidental safe-stop launches"
+        Assert-True -Condition ($launcher -match 'Write-FleetLaunchManifest') -Message "$launcherName writes a launch manifest"
+        Assert-True -Condition ($launcher -match '-PassThru') -Message "$launcherName records launched PowerShell PIDs"
+    }
+
+    foreach ($launcherName in @("launch-school-run.ps1", "launch-overnight-run.ps1")) {
+        $launcher = Get-Content (Join-Path $fleetRoot $launcherName) -Raw
+        Assert-True -Condition ($launcher -match 'ExcludeProject') -Message "$launcherName can exclude docked ships"
+        Assert-True -Condition ($launcher -match 'Assert-NoFleetSafeStopRequests[^\r\n]+-ExcludeProject') -Message "$launcherName ignores safe stops for excluded ships"
+        Assert-True -Condition ($launcher -match 'doctorExclusions') -Message "$launcherName forwards multiple doctor exclusions together"
+        Assert-True -Condition ($launcher -match '-join ","') -Message "$launcherName comma-packs doctor exclusions for child PowerShell"
+    }
+
+    $proofLauncher = Get-Content (Join-Path $fleetRoot "launch-proof-run.ps1") -Raw
+    Assert-True -Condition ($proofLauncher -match 'Assert-NoFleetSafeStopRequests[^\r\n]+-ExcludeProject') -Message "launch-proof-run.ps1 ignores safe stops for excluded ships"
+    Assert-True -Condition ($proofLauncher -match '\[int\]\$RobinEvery = 1') -Message "launch-proof-run.ps1 runs Robin by default"
+    Assert-True -Condition ($proofLauncher -match '-RobinEvery \$RobinEvery') -Message "launch-proof-run.ps1 forwards Robin cadence into checkpoint loop"
+    Assert-True -Condition ($proofLauncher -match '-RobinEvery must be 0 or greater') -Message "launch-proof-run.ps1 validates Robin cadence"
+
+    $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
+    Assert-True -Condition ($statusText -match 'Safe stop requests') -Message "Fleet status reports active safe stop requests"
+    Assert-True -Condition ($statusText -match 'Run lock:') -Message "Fleet status reports run locks"
+    Assert-True -Condition ($statusText -match 'Get-FleetStatusChildSummary') -Message "Fleet status reports active child work for run locks"
+    Assert-True -Condition ($statusText -match 'codex') -Message "Fleet status labels Codex child work clearly"
+    Assert-True -Condition ($statusText -match 'git status --short 2>\$null') -Message "Fleet status suppresses noisy inaccessible temp-directory warnings"
+
+    $noisyGitStatus = @()
+    foreach ($scriptPath in Get-ChildItem -Path $fleetRoot -Filter "*.ps1" -File) {
+        $matches = @(Select-String -LiteralPath $scriptPath.FullName -Pattern 'git status --(?:short|porcelain)(?!\s+2>\$null)')
+        foreach ($match in $matches) {
+            $noisyGitStatus += "$($scriptPath.Name):$($match.LineNumber)"
+        }
+    }
+    Assert-True -Condition ($noisyGitStatus.Count -eq 0) -Message "All root fleet git status checks suppress noisy inaccessible temp-directory warnings"
+
+    $visualRunner = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
+    Assert-True -Condition ($visualRunner -match 'routeUrl\.search') -Message "Visual inspect route URLs preserve query strings"
+}
+
+function Test-FleetVisualQaLaneSupport {
+    $visualInspectText = Get-Content (Join-Path $fleetRoot "visual-inspect.ps1") -Raw
+    $visualRunnerText = Get-Content (Join-Path $fleetRoot "tools\visual-inspect-runner.mjs") -Raw
+    $fleetVisualText = Get-Content (Join-Path $fleetRoot "fleet-visual-check.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-visual-check.ps1")) -Message "Fleet exposes a direct visual QA lane"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "templates\visual-routes.json")) -Message "Fleet includes a starter visual route map"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "templates\docs\codex\SITE_MAP.md")) -Message "Fleet includes a starter site map"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "set-ship-pages.ps1")) -Message "Fleet exposes reusable ship page configuration"
+    Assert-True -Condition ($visualInspectText -match '\$RouteConfig') -Message "Visual inspect accepts an explicit route config"
+    Assert-True -Condition ($visualInspectText -match 'docs\\codex\\visual-routes\.json') -Message "Visual inspect auto-discovers ship route maps"
+    Assert-True -Condition ($visualInspectText -match 'Get-InformationStagingContract') -Message "Visual inspect reads information staging contracts"
+    Assert-True -Condition ($visualInspectText -match 'Information Staging Review') -Message "Visual inspect writes staging review section"
+    Assert-True -Condition ($visualInspectText -match 'information-staging-\*') -Message "Visual inspect creates staging repair task wording"
+    Assert-True -Condition ($visualInspectText -match 'User pain: the first screen is exposing too much information' -and $visualInspectText -match 'Target:' -and $visualInspectText -match 'Acceptance: visual inspect reports no') -Message "Visual inspect staging repair tasks are product-shaped"
+    Assert-True -Condition ($visualRunnerText -match 'requiredText') -Message "Visual runner supports route-specific required text"
+    Assert-True -Condition ($visualRunnerText -match 'configuredViewports') -Message "Visual runner supports configured viewports"
+    Assert-True -Condition ($visualRunnerText -match 'firstScreenMetrics') -Message "Visual runner captures first-screen metrics"
+    Assert-True -Condition ($visualRunnerText -match 'Array\.isArray\(audit\.findings\)') -Message "Visual runner normalizes missing findings before staging checks"
+    Assert-True -Condition ($visualRunnerText -match 'information-staging-overload') -Message "Visual runner flags overloaded first screens"
+    Assert-True -Condition ($visualRunnerText -match 'information-staging-detail-visible') -Message "Visual runner flags detail/internal content visible too early"
+    Assert-True -Condition ($fleetVisualText -match 'out\\fleet-visual-check\.md') -Message "Fleet visual check writes a fleet summary"
+    Assert-True -Condition ($fleetVisualText -match 'visual-inspect\.ps1') -Message "Fleet visual check delegates to visual inspect"
+    Assert-True -Condition ($fleetVisualText -match 'visualServeDirectory') -Message "Fleet visual check supports visual-only serve directories"
+    Assert-True -Condition ($fleetVisualText -match 'INFRA_FAIL') -Message "Fleet visual check distinguishes harness failures from visual findings"
+    Assert-True -Condition ($fleetVisualText -match 'NoFailOnFindings' -and $fleetVisualText -match 'did not produce a fresh summary') -Message "NoFailOnFindings does not hide missing visual summaries"
+    Assert-True -Condition ($fleetVisualText -match 'No projects selected') -Message "Fleet visual check rejects empty project selections"
+    Assert-True -Condition ($fleetVisualText -match 'WriteShipReports' -and $visualInspectText -match 'SkipShipReport') -Message "Direct visual checks can avoid dirtying ship report files"
+    Assert-True -Condition ($fleetVisualText -match 'VerboseRunner' -and $visualInspectText -match '\$Quiet') -Message "Direct visual checks quiet noisy runner output by default"
+    Assert-True -Condition ($fleetVisualText -match 'WARN' -and $fleetVisualText -match 'topFindings') -Message "Fleet visual check reports non-blocking warning summaries"
+    Assert-True -Condition ($fleetVisualText -match 'QueueStagingRepairs') -Message "Fleet visual check can queue staging repair tasks on request"
+    Assert-True -Condition ($fleetVisualText -match 'ValidateQueuedStagingRepairs') -Message "Fleet visual check can validate queued staging repairs on request"
+    Assert-True -Condition ($fleetVisualText -match 'Test-RepoDirty' -and $fleetVisualText -match 'initiallyDirty') -Message "Fleet visual check protects dirty repos before queueing staging repairs"
+    Assert-True -Condition ($fleetVisualText -match 'Get-VisualStagingRepairTasks' -and $fleetVisualText -match 'Add-VisualStagingRepairTasksToQueue') -Message "Fleet visual check extracts and queues staging repair tasks"
+    Assert-True -Condition ($fleetVisualText -match 'Invoke-StagingRepairLaunchGate' -and $fleetVisualText -match 'fleet-launch-gate\.ps1') -Message "Fleet visual check validates queued staging repairs with launch gate"
+    Assert-True -Condition ($fleetVisualText -match 'Resolve-Path -LiteralPath \$ConfigPath' -and $fleetVisualText -match 'Push-Location \$fleetRoot') -Message "Queued staging repair launch-gate validation runs from fleet root with a resolved config path"
+    Assert-True -Condition ($fleetVisualText -match 'Launch gate\\s\+' -and $fleetVisualText -match 'READY\|WARN\|BLOCK') -Message "Queued staging repair launch-gate validation parses anchored gate status"
+    Assert-True -Condition ($fleetVisualText -match 'stagingRepairLaunchGateStatus' -and $fleetVisualText -match 'stagingRepairLaunchGateReportDir') -Message "Fleet visual check records queued staging repair launch-gate status and report path"
+    Assert-True -Condition ($fleetVisualText -match 'out\\launch-gates\\visual-staging') -Message "Queued staging repair validation writes isolated launch-gate reports"
+    Assert-True -Condition ($fleetVisualText -match 'TASK_QUEUE\.md' -and $fleetVisualText -match 'Visual staging repair tasks') -Message "Fleet visual check writes staged visual repair tasks into the task queue"
+    Assert-True -Condition ($fleetVisualText -match '\.Contains\(\$task\)') -Message "Fleet visual check de-duplicates staging repair tasks with literal matching"
+    Assert-True -Condition ($fleetVisualText -match 'information staging\|information-staging') -Message "Fleet visual check queues only information-staging repair tasks"
+    Assert-True -Condition ($fleetVisualText -match 'Staging repair queue skipped: repo was dirty before visual QA') -Message "Fleet visual check reports skipped dirty staging queues"
+    Assert-True -Condition ($fleetVisualText -match 'Queued staging repair tasks') -Message "Fleet visual check reports queued staging repairs"
+    Assert-True -Condition ($fleetVisualText -match 'Staging repair launch gate') -Message "Fleet visual check reports queued staging repair launch-gate status"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "tools\visual-smoke-runner.mjs") -Raw) -match 'filteredConsoleIssues') -Message "Visual smoke filters ignored console noise from recorded results"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'visualServeDirectory') -Message "Checkpoint visual gates support visual-only serve directories"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-smoke.ps1") -Raw) -match 'static-preview-server\.ps1') -Message "Visual smoke supports static preview ships"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-smoke.ps1") -Raw) -match '\[string\]\$Path') -Message "Visual smoke supports non-root smoke paths"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'visualSmokePath') -Message "Checkpoint visual smoke uses configured visual paths"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw) -match 'SITE_MAP\.md' -and (Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw) -match 'visual-routes\.json') -Message "Planner and implementation prompts include route/page context"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw) -match 'SITE_MAP\.md' -and (Get-Content (Join-Path $fleetRoot "install-harness.ps1") -Raw) -match 'visual-routes\.json') -Message "Harness install provides route planning docs"
+    Assert-True -Condition ($readmeText -match 'fleet-visual-check\.ps1') -Message "README documents the direct visual QA lane"
+    Assert-True -Condition ($readmeText -match 'QueueStagingRepairs' -and $readmeText -match 'Visual staging repair tasks' -and $readmeText -match 'repo was already dirty' -and $readmeText -match 'ValidateQueuedStagingRepairs') -Message "README documents staged visual repair queueing"
+    Assert-True -Condition ($readmeText -match 'set-ship-pages\.ps1') -Message "README documents reusable ship page configuration"
+}
+
+function Test-JoeyStorageRules {
+    $joeyText = Get-Content (Join-Path $fleetRoot "joey-security-review.ps1") -Raw
+    Assert-True -Condition ($joeyText -match 'Test-SensitiveAddedLine') -Message "Joey centralizes sensitive added-line detection"
+    Assert-True -Condition ($joeyText -match 'storageSensitivePattern') -Message "Joey treats local storage as sensitive only for risky data names"
+    Assert-False -Condition ($joeyText -match 'process\\.env\|import\\.meta\\.env\|localStorage\\.setItem') -Message "Joey does not blanket-block harmless localStorage writes"
+}
+
+function Test-RobinCopySmokeSupport {
+    $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
+    Assert-True -Condition ($robinText -match 'copySmokeTerms') -Message "Robin wrapper defines deterministic copy-smoke terms"
+    Assert-True -Condition ($robinText -match 'Static public-copy smoke hits') -Message "Robin prompt includes copy-smoke evidence"
+    Assert-True -Condition ($robinText -match 'Ignore harmless component names') -Message "Robin copy smoke distinguishes visible copy from internal identifiers"
+    Assert-True -Condition ($robinText -match 'service notes') -Message "Robin copy smoke catches vague restaurant-service wording"
+}
+
+function Test-DebuggerReportFileAllowance {
+    $debugText = Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw
+    Assert-True -Condition ($debugText -match 'expectedReportFilePattern') -Message "Debugger identifies expected Codex report files"
+    Assert-True -Condition ($debugText -match 'batchChangedForLimit') -Message "Debugger uses a non-report file count for hard batch limits"
+    Assert-True -Condition ($debugText -match 'Too many non-report files changed') -Message "Debugger batch limit message distinguishes report-file overhead"
+    Assert-True -Condition ($debugText -match '\$verdict\s+-eq\s+"YELLOW"\s+-and\s+\$AllowYellowCheckpoint' -and $debugText -match 'YELLOW continuation is allowed') -Message "Debugger downgrades explicit yellow human-review stops to warnings"
+}
+
+function Test-ShipPreviewRefreshSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition ($loopText -match '\[switch\]\$SkipShipPreviewRefresh') -Message "Checkpoint loop exposes ship preview refresh override"
+    Assert-True -Condition ($loopText -match 'Update-ShipPreviewDashboard') -Message "Checkpoint loop refreshes ship preview dashboard on completion"
+    Assert-True -Condition ($loopText -match 'open-ship-previews\.ps1') -Message "Checkpoint loop uses the ship preview script for refreshes"
+    Assert-True -Condition ($loopText -match '-NoOpen') -Message "Checkpoint loop refreshes previews without opening browser windows"
+    Assert-True -Condition ($readmeText -match 'SkipShipPreviewRefresh') -Message "README documents the ship preview refresh behavior"
+}
+
+function Test-MagicRunSupport {
+    $preflightPath = Join-Path $fleetRoot "prepare-magic-run.ps1"
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path $preflightPath) -Message "Fleet exposes magic-run preflight"
+    Assert-True -Condition ($plannerText -match 'MAGIC_MISSION\.md') -Message "Nami planner reads magic mission"
+    Assert-True -Condition ($plannerText -match 'WORK_PACKS\.md') -Message "Nami planner reads work packs"
+    Assert-True -Condition ($plannerText -match 'WORK_PACK_STATUS\.md') -Message "Nami planner reads work pack status"
+    Assert-True -Condition ($plannerText -match 'MAGIC_SCORECARD\.md') -Message "Nami planner reads magic scorecard"
+    Assert-True -Condition ($plannerText -match 'QUALITY_QUARANTINE\.md') -Message "Nami planner reads quality quarantine"
+    Assert-True -Condition ($plannerText -match 'coherent work-pack progress') -Message "Nami planner prioritizes coherent work-pack progress"
+    Assert-True -Condition ($plannerText -match 'do not mention the active work pack') -Message "Nami rejects tasks that ignore active work pack"
+    Assert-True -Condition ($loopText -match 'Append-MagicScorecard') -Message "Checkpoint loop appends magic scorecard entries"
+    Assert-True -Condition ($loopText -match 'Append-BatchQualityScorecard') -Message "Checkpoint loop appends fresh batch QA scorecard entries"
+    Assert-True -Condition ($loopText -match 'Save-BatchQualityScorecardForLoop') -Message "Checkpoint loop centralizes batch QA scorecard commits"
+    Assert-True -Condition ($loopText -match 'Active work pack') -Message "Checkpoint loop records active work pack in scorecard"
+    Assert-True -Condition ($loopText -match 'Before visual evidence') -Message "Checkpoint loop records before visual evidence"
+    Assert-True -Condition ($loopText -match 'After visual evidence') -Message "Checkpoint loop records after visual evidence"
+    Assert-True -Condition ($loopText -match 'QUALITY_QUARANTINE\.md') -Message "Checkpoint loop writes quality quarantine"
+    Assert-True -Condition ($loopText -match 'Magic Improvement Score') -Message "Checkpoint loop reads Simon magic improvement score"
+    Assert-True -Condition ($loopText -match 'Get-TaskMaterialityFailureForLoop') -Message "Checkpoint loop blocks visible-impact tasks that lack material product changes"
+    Assert-True -Condition ($loopText -match 'VISIBLE_IMPACT') -Message "Implementation prompt asks Codex to state visible user impact"
+    Assert-True -Condition ($plannerText -match 'do not create a docs-only stop task during shape/simplicity/polish/proof runs') -Message "Nami planner turns yellow human-review stops into product-surface repairs"
+    Assert-True -Condition ($loopText -match 'Materiality signal') -Message "Magic scorecard records visible-impact materiality"
+    Assert-True -Condition ($loopText -match 'Fresh QA evidence') -Message "Batch scorecard records fresh post-gate visual evidence"
+    Assert-True -Condition ($loopText -match 'Debug checkpoint result') -Message "Batch scorecard records checkpoint debugger result"
+    Assert-True -Condition ($loopText -match 'Codex batch QA scorecard') -Message "Checkpoint loop commits batch QA scorecard updates"
+    Assert-True -Condition ($loopText -match 'human stop' -and $loopText -match 'DebugExit -1') -Message "Checkpoint loop records batch QA when human-stop gates fire before debug"
+    Assert-True -Condition ($loopText -match 'checkpointRequestsHumanReview\s+-and\s+-not\s+\$ContinueOnYellowCheckpoint') -Message "Checkpoint loop honors ContinueOnYellowCheckpoint for yellow human-review wording"
+    Assert-True -Condition ($loopText -match 'debug stop') -Message "Checkpoint loop records batch QA when debug gate fails"
+    Assert-True -Condition ($loopText -match 'Release-FleetRunLock\s*\r?\n\s*exit 1') -Message "Checkpoint loop releases run lock before debug failure exit"
+    Assert-True -Condition ($loopText -match '\$checkpointExit\s+-ne\s+0[\s\S]{0,120}Release-FleetRunLock[\s\S]{0,40}exit 1') -Message "Checkpoint loop releases run lock before checkpoint review failure exit"
+    Assert-True -Condition ($loopText -match '\$plannerExit\s+-ne\s+0[\s\S]{0,120}Release-FleetRunLock[\s\S]{0,40}exit 1') -Message "Checkpoint loop releases run lock before planner failure exit"
+    Assert-True -Condition ($plannerText -match 'changedPackLabels' -and $plannerText -match 'User pain: \$activeWorkPack') -Message "Planner normalizes tasks to mention the active work pack before rejection"
+    Assert-True -Condition ($plannerText -match 'ignore stale or irrelevant Franky/formula-review RED signals outside analytical phases') -Message "Planner ignores stale Franky blockers for non-analytical website runs"
+    Assert-True -Condition ($loopText -match 'Task impact:') -Message "Nightly report records task impact metadata"
+    Assert-True -Condition ($loopText -match 'Append-MagicScorecard.+-TaskBase') -Message "Magic scorecard receives task base for materiality line counts"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw) -match 'ImpactMode') -Message "Checkpoint debugger can enforce visible-impact batches"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "debug-checkpoint.ps1") -Raw) -match '\(GREEN\|YELLOW\|RED\)\\b\[\\s\\\.') -Message "Checkpoint debugger accepts verdict punctuation"
+    Assert-True -Condition ($plannerText -match 'impact:showpiece') -Message "Nami planner can mark high-expectation creative tasks as showpiece impact"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw) -match 'Magic Improvement Score') -Message "Simon is asked for magic improvement score"
+    Assert-True -Condition ($loopText -match 'docs/codex/MAGIC_SCORECARD\.md') -Message "Checkpoint loop stages magic scorecard"
+    Assert-True -Condition ($readmeText -match 'WORK_PACK_STATUS\.md') -Message "README documents active work-pack status"
+    Assert-True -Condition ($overnightText -match '\[switch\]\$RequireMagicPreflight') -Message "Overnight launcher exposes magic preflight gate"
+    Assert-True -Condition ($overnightText -match 'prepare-magic-run\.ps1') -Message "Overnight launcher can run magic preflight"
+    Assert-True -Condition ($overnightText -match '-Strict') -Message "Overnight magic preflight treats warnings as blockers"
+    Assert-True -Condition ($readmeText -match 'prepare-magic-run\.ps1') -Message "README documents magic-run preflight"
+    Assert-True -Condition ($readmeText -match 'visible-impact guard') -Message "README documents the visible-impact guard"
+}
+
+function Test-PhaseLoopSupport {
+    $phasePath = Join-Path $fleetRoot "fleet-phase.ps1"
+    $phaseAuditPath = Join-Path $fleetRoot "fleet-phase-audit.ps1"
+    $websiteStagePath = Join-Path $fleetRoot "fleet-website-stages.ps1"
+    $completionContractPath = Join-Path $fleetRoot "fleet-completion-contract.ps1"
+    $phaseText = Get-Content $phasePath -Raw
+    $phaseAuditText = Get-Content $phaseAuditPath -Raw
+    $websiteStageText = Get-Content $websiteStagePath -Raw
+    $completionContractText = Get-Content $completionContractPath -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $analysisText = Get-Content (Join-Path $fleetRoot "fleet-analysis.ps1") -Raw
+    $numberText = Get-Content (Join-Path $fleetRoot "analytical-number-provenance.ps1") -Raw
+    $fixtureText = Get-Content (Join-Path $fleetRoot "analytical-fixture-readiness.ps1") -Raw
+    $calibrationText = Get-Content (Join-Path $fleetRoot "fleet-calibration.ps1") -Raw
+    $dashboardText = Get-Content (Join-Path $fleetRoot "analytical-dashboard-readiness.ps1") -Raw
+    $scenarioText = Get-Content (Join-Path $fleetRoot "analytical-scenario-approval.ps1") -Raw
+    $doctorText = Get-Content (Join-Path $fleetRoot "fleet-doctor.ps1") -Raw
+    $simonText = Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw
+    $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
+    $schoolText = Get-Content (Join-Path $fleetRoot "launch-school-run.ps1") -Raw
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    $cellarText = Get-Content (Join-Path $fleetRoot "launch-cellar-fleet.ps1") -Raw
+    $docsText = Get-Content (Join-Path $fleetRoot "docs\CODEX_FLEET_CONTROL_ROOM.md") -Raw
+
+    Assert-True -Condition (Test-Path $phasePath) -Message "Fleet exposes phase state manager"
+    Assert-True -Condition (Test-Path $phaseAuditPath) -Message "Fleet exposes phase readiness audit"
+    Assert-True -Condition (Test-Path $websiteStagePath) -Message "Fleet exposes website stage contract manager"
+    Assert-True -Condition (Test-Path $completionContractPath) -Message "Fleet exposes ship completion contract manager"
+    Assert-True -Condition ($websiteStageText -match 'Get-WebsiteStageContracts') -Message "Website stage manager defines explicit stage contracts"
+    Assert-True -Condition ($websiteStageText -match 'allowedWork' -and $websiteStageText -match 'forbiddenWork') -Message "Website stages define allowed and forbidden work"
+    Assert-True -Condition ($websiteStageText -match 'exitCriteria' -and $websiteStageText -match 'autoAdvance') -Message "Website stages define exit criteria and auto-advance rules"
+    Assert-True -Condition ($websiteStageText -match 'reviewers' -and $websiteStageText -match 'stopRules') -Message "Website stages define reviewer gates and stop rules"
+    Assert-True -Condition ($websiteStageText -match 'WEBSITE_STAGE_RULES\.md') -Message "Website stage manager writes ship-local stage rules"
+    Assert-True -Condition ($websiteStageText -match '\[switch\]\$Validate') -Message "Website stage manager validates ship stage state"
+    Assert-True -Condition ($completionContractText -match 'DONE_CONTRACT\.md') -Message "Completion contract manager writes ship-local done contracts"
+    Assert-True -Condition ($completionContractText -match 'Done Enough' -and $completionContractText -match 'Evidence Required') -Message "Completion contracts define done evidence"
+    Assert-True -Condition ($completionContractText -match 'Advance Or Park Rule') -Message "Completion contracts define advance or park rules"
+    Assert-True -Condition ($completionContractText -match '\[switch\]\$Validate') -Message "Completion contract manager validates ship done contracts"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-analysis.ps1")) -Message "Fleet exposes analytical planning pack script"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-number-provenance.ps1")) -Message "Fleet exposes analytical number provenance gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-fixture-readiness.ps1")) -Message "Fleet exposes analytical fixture readiness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-calibration.ps1")) -Message "Fleet exposes analytical calibration readiness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-dashboard-readiness.ps1")) -Message "Fleet exposes analytical dashboard readiness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "analytical-scenario-approval.ps1")) -Message "Fleet exposes analytical scenario approval gate"
+    Assert-True -Condition ($phaseText -match 'Audience') -Message "Phase state stores audience"
+    Assert-True -Condition ($phaseText -match 'Primary Action') -Message "Phase state stores primary action"
+    Assert-True -Condition ($phaseText -match 'Showable Moment') -Message "Phase state stores showable moment"
+    Assert-True -Condition ($phaseText -match 'No More Features Lock') -Message "Phase state stores feature lock"
+    Assert-True -Condition ($phaseText -match 'Complexity Budget') -Message "Phase state stores complexity budget"
+    Assert-True -Condition ($phaseText -match 'Before/After Judgment') -Message "Phase state stores before-after judgment"
+    Assert-True -Condition ($phaseText -match 'Parking State') -Message "Phase state stores parking state"
+    Assert-True -Condition ($phaseText -match '\$ParkingState') -Message "Phase state accepts parking state updates"
+    Assert-True -Condition ($phaseText -match 'Phase Model Policy') -Message "Phase state stores phase model policy"
+    Assert-True -Condition ($phaseText -match 'Evidence Required') -Message "Phase state stores required evidence"
+    Assert-True -Condition ($phaseText -match 'Done Signal') -Message "Phase state stores done signal"
+    Assert-True -Condition ($phaseText -match 'Next Phase Criteria') -Message "Phase state stores next phase criteria"
+    Assert-True -Condition ($phaseText -match 'repair') -Message "Phase state supports repair as an interrupt lane"
+    Assert-True -Condition ($phaseText -match 'problem-brief' -and $phaseText -match 'analysis-proof') -Message "Phase state supports analytical software phases"
+    Assert-True -Condition ($phaseText -match 'Repair Trigger') -Message "Phase state stores repair trigger"
+    Assert-True -Condition ($phaseText -match 'Repair Return Phase') -Message "Phase state stores repair return phase"
+    Assert-True -Condition ($phaseText -match 'WEBSITE_STAGE_RULES\.md is required for website phase') -Message "Phase validation requires website stage rules for website phases"
+    Assert-True -Condition ($phaseText -match 'Allowed work:' -and $phaseText -match 'Forbidden work:' -and $phaseText -match 'Exit criteria:') -Message "Phase validation checks website stage contract fields"
+    Assert-True -Condition ($phaseText -match 'DONE_CONTRACT\.md is required for website phase') -Message "Phase validation requires done contracts for website phases"
+    Assert-True -Condition ($phaseText -match 'Advance Or Park Rule') -Message "Phase validation checks done contract sections"
+    Assert-True -Condition ($phaseText -match '\$Validate') -Message "Phase state can be validated"
+    Assert-True -Condition ($phaseAuditText -match 'PHASE_STATE\.md') -Message "Phase audit checks phase files"
+    Assert-True -Condition ($phaseAuditText -match 'validPhases') -Message "Phase audit rejects unknown phases"
+    Assert-True -Condition ($phaseAuditText -match 'Done Signal') -Message "Phase audit checks done signal"
+    Assert-True -Condition ($phaseAuditText -match 'Repair Trigger') -Message "Phase audit checks repair trigger"
+    Assert-True -Condition ($phaseAuditText -match 'Repair Return Phase') -Message "Phase audit checks repair return phase"
+    Assert-True -Condition ($phaseAuditText -match 'WEBSITE_STAGE_RULES\.md missing for website phase') -Message "Phase audit reports missing website stage rules"
+    Assert-True -Condition ($phaseAuditText -match 'Auto-advance rule:' -and $phaseAuditText -match 'Stop rules:') -Message "Phase audit checks website stage contract completeness"
+    Assert-True -Condition ($phaseAuditText -match 'DONE_CONTRACT\.md missing for website phase') -Message "Phase audit reports missing done contracts"
+    Assert-True -Condition ($phaseAuditText -match 'Product Target' -and $phaseAuditText -match 'Must Not Do') -Message "Phase audit checks done contract completeness"
+    Assert-True -Condition ($phaseAuditText -match '\$Strict') -Message "Phase audit can fail strict runs"
+    Assert-True -Condition ($plannerText -match 'PHASE_STATE\.md') -Message "Planner reads phase state"
+    Assert-True -Condition ($plannerText -match 'WEBSITE_STAGE_RULES\.md') -Message "Planner reads website stage rules"
+    Assert-True -Condition ($plannerText -match 'DONE_CONTRACT\.md') -Message "Planner reads done contracts"
+    Assert-True -Condition ($plannerText -match 'authoritative website stage contract') -Message "Planner treats website stage rules as authoritative"
+    Assert-True -Condition ($plannerText -match 'allowed work, forbidden work, exit criteria') -Message "Planner receives website stage contract fields"
+    Assert-True -Condition ($plannerText -match 'ship-specific completion contract') -Message "Planner treats done contracts as ship-specific completion targets"
+    Assert-True -Condition ($plannerText -match 'Done Enough, Evidence Required, Must Not Do') -Message "Planner plans from done contract blockers"
+    Assert-True -Condition ($plannerText -match 'Current loop phase') -Message "Planner receives current loop phase"
+    Assert-True -Condition ($plannerText -match 'Audience') -Message "Planner treats audience as first-class"
+    Assert-True -Condition ($plannerText -match 'No More Features Lock') -Message "Planner treats feature lock as first-class"
+    Assert-True -Condition ($plannerText -match 'Product Promise') -Message "Planner treats product promise as first-class"
+    Assert-True -Condition ($plannerText -match 'Complexity Budget') -Message "Planner treats complexity budget as first-class"
+    Assert-True -Condition ($plannerText -match 'Done Signal') -Message "Planner treats done signal as first-class"
+    Assert-True -Condition ($plannerText -match 'Repair Trigger') -Message "Planner treats repair trigger as first-class"
+    Assert-True -Condition ($plannerText -match 'interrupt lane') -Message "Planner understands repair as an interrupt lane"
+    Assert-True -Condition ($plannerText -match 'Analytical software doctrine') -Message "Planner understands analytical software doctrine"
+    Assert-True -Condition ($plannerText -match 'fixture-tests' -and $plannerText -match 'engine-build') -Message "Planner exposes analytical engine phases"
+    Assert-True -Condition ($analysisText -match 'ANALYSIS_BRIEF\.md') -Message "Analytical pack writes analysis brief"
+    Assert-True -Condition ($analysisText -match 'DATA_CONTRACT\.md') -Message "Analytical pack writes data contract"
+    Assert-True -Condition ($analysisText -match 'FORMULA_SPEC\.md') -Message "Analytical pack writes formula spec"
+    Assert-True -Condition ($analysisText -match 'FIXTURE_TEST_PLAN\.md') -Message "Analytical pack writes fixture test plan"
+    Assert-True -Condition ($analysisText -match 'CALIBRATION_PLAN\.md') -Message "Analytical pack writes calibration plan"
+    Assert-True -Condition ($analysisText -match 'ANALYSIS_APPROVAL\.md') -Message "Analytical pack writes approval gate"
+    Assert-True -Condition ($analysisText -match '\[switch\]\$ValidateOnly') -Message "Analytical pack supports validation-only mode"
+    Assert-True -Condition ($analysisText -match 'Status:\s*APPROVED') -Message "Analytical pack validates human approval"
+    Assert-True -Condition ($doctorText -match 'Get-AnalysisPlanStatus') -Message "Fleet doctor reports analytical planning status"
+    Assert-True -Condition ($doctorText -match 'Analytical planning pack is missing') -Message "Fleet doctor warns for missing analysis gates"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalApprovalGate') -Message "Checkpoint loop gates analytical engine phases"
+    Assert-True -Condition ($loopText -match 'engine-build", "calibration", "dashboard", "scenario-tools", "analysis-proof"') -Message "Analytical approval gate covers implementation and UI phases"
+    Assert-True -Condition ($loopText -match [regex]::Escape('Status:\s*APPROVED')) -Message "Analytical gate requires approved analysis status"
+    Assert-True -Condition ($loopText -match 'fleet-analysis\.ps1 -Project') -Message "Analytical gate reports the repair command"
+    Assert-True -Condition ($numberText -match 'Analytical Number Provenance') -Message "Number provenance gate writes a report"
+    Assert-True -Condition ($numberText -match 'probabilities, scores, ranks, dollar values') -Message "Number provenance gate targets analytical numeric claims"
+    Assert-True -Condition ($numberText -match 'Test-AllowedEvidencePath') -Message "Number provenance gate allows fixtures, data, tests, and analysis docs"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalNumberProvenanceGate') -Message "Checkpoint loop runs analytical number provenance before commit"
+    Assert-True -Condition ($loopText -match 'ANALYTICAL_NUMBER_PROVENANCE\.md') -Message "Task scope allows analytical number provenance report"
+    Assert-True -Condition ($fixtureText -match 'Analytical Fixture Readiness') -Message "Fixture readiness gate writes a report"
+    Assert-True -Condition ($fixtureText -match 'FIXTURE_TEST_PLAN\.md') -Message "Fixture readiness gate checks fixture test plan"
+    Assert-True -Condition ($fixtureText -match 'Expected Outputs') -Message "Fixture readiness gate requires expected outputs"
+    Assert-True -Condition ($fixtureText -match 'No fixture/sample data files') -Message "Fixture readiness gate requires fixture files"
+    Assert-True -Condition ($fixtureText -match 'No test files') -Message "Fixture readiness gate requires test files"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalFixtureReadinessGate') -Message "Checkpoint loop gates engine-build on fixture readiness"
+    Assert-True -Condition ($loopText -match 'analysis-fixture-readiness') -Message "Checkpoint loop writes fixture readiness report outside ship repo"
+    Assert-True -Condition ($plannerText -match 'Engine-build is blocked until these exist') -Message "Planner knows fixture-first blocks engine-build"
+    Assert-True -Condition ($calibrationText -match 'Calibration Readiness') -Message "Calibration gate writes a readiness report"
+    foreach ($heading in @("Historical Checks", "Sanity Checks", "Calibration Metrics", "Failure Modes", "Tuning Rules")) {
+        Assert-True -Condition ($calibrationText -match [regex]::Escape($heading)) -Message "Calibration gate checks $heading"
+    }
+    Assert-True -Condition ($calibrationText -match 'history unavailable') -Message "Calibration gate distinguishes unavailable history"
+    Assert-True -Condition ($calibrationText -match 'KNOWN_CASES' -and $calibrationText -match 'BACKTEST_REPORT') -Message "Calibration gate looks for calibration evidence artifacts"
+    Assert-True -Condition ($doctorText -match 'Get-CalibrationStatus') -Message "Fleet doctor reports calibration readiness status"
+    Assert-True -Condition ($doctorText -match 'Calibration readiness') -Message "Fleet doctor warns about calibration readiness"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalCalibrationReadinessGate') -Message "Checkpoint loop gates calibration and dashboard phases"
+    Assert-True -Condition ($loopText -match 'calibration-readiness') -Message "Checkpoint loop writes calibration readiness report outside ship repo"
+    Assert-True -Condition ($loopText -match 'CALIBRATION_READINESS') -Message "Task scope allows calibration readiness reports"
+    Assert-True -Condition ($plannerText -match 'CALIBRATION_READINESS\.md') -Message "Planner knows calibration readiness evidence"
+    Assert-True -Condition ($docsText -match 'fleet-calibration\.ps1') -Message "Control room docs explain calibration readiness"
+    Assert-True -Condition ($dashboardText -match 'Analytical Dashboard Readiness') -Message "Dashboard readiness gate writes a report"
+    Assert-True -Condition ($dashboardText -match 'formula/model tests') -Message "Dashboard readiness requires formula/model tests"
+    Assert-True -Condition ($dashboardText -match 'import/validation tests') -Message "Dashboard readiness requires import validation tests"
+    Assert-True -Condition ($dashboardText -match 'fixture expected outputs') -Message "Dashboard readiness requires fixture expected outputs"
+    Assert-True -Condition ($dashboardText -match 'deterministic report/table') -Message "Dashboard readiness requires deterministic report or table artifacts"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalDashboardReadinessGate') -Message "Checkpoint loop gates analytical dashboard phases"
+    Assert-True -Condition ($loopText -match 'dashboardRequiredPhases = @\("dashboard", "scenario-tools"\)') -Message "Dashboard readiness gate covers dashboard and scenario-tools"
+    Assert-True -Condition ($loopText -match 'ANALYTICAL_DASHBOARD_READINESS') -Message "Task scope allows dashboard readiness reports"
+    Assert-True -Condition ($plannerText -match 'ANALYTICAL_DASHBOARD_READINESS\.md') -Message "Planner knows dashboard readiness evidence"
+    Assert-True -Condition ($plannerText -match 'downgrade UI ideas into evidence tasks') -Message "Planner downgrades premature dashboard work"
+    Assert-True -Condition ($simonText -match 'fake insight') -Message "Simon is restrained from encouraging fake analytical insight"
+    Assert-True -Condition ($robinText -match 'prediction theater') -Message "Robin is restrained from encouraging overconfident analytical copy"
+    Assert-True -Condition ($docsText -match 'analytical-dashboard-readiness\.ps1') -Message "Control room docs explain dashboard readiness"
+    Assert-True -Condition ($scenarioText -match 'SCENARIO_SPEC\.md') -Message "Scenario gate manages scenario spec"
+    Assert-True -Condition ($scenarioText -match 'SCENARIO_APPROVAL\.md') -Message "Scenario gate manages scenario approval"
+    Assert-True -Condition ($scenarioText -match 'Status:\s*APPROVED') -Message "Scenario gate requires approved status"
+    foreach ($heading in @("Scenario Inventory", "Inputs That May Change", "Formulas Affected", "Expected Output Changes", "Outputs That Must Remain Fixed", "Scenario Tests", "UI Label Assumptions")) {
+        Assert-True -Condition ($scenarioText -match [regex]::Escape($heading)) -Message "Scenario gate checks $heading"
+    }
+    Assert-True -Condition ($scenarioText -match 'one input change affects expected outputs and preserves fixed outputs') -Message "Scenario gate requires scenario test evidence"
+    Assert-True -Condition ($loopText -match 'Invoke-AnalyticalScenarioApprovalGate') -Message "Checkpoint loop gates scenario-tools on scenario approval"
+    Assert-True -Condition ($loopText -match 'scenario-tools') -Message "Scenario approval gate targets scenario-tools"
+    Assert-True -Condition ($loopText -match 'SCENARIO_READINESS') -Message "Task scope allows scenario readiness reports"
+    Assert-True -Condition ($plannerText -match 'SCENARIO_SPEC\.md' -and $plannerText -match 'SCENARIO_APPROVAL\.md') -Message "Planner knows scenario approval artifacts"
+    Assert-True -Condition ($plannerText -match 'generate scenario-spec/test tasks') -Message "Planner downgrades unapproved scenario tools"
+    Assert-True -Condition ($simonText -match 'affected formulas' -and $simonText -match 'fixed outputs') -Message "Simon checks scenario assumptions visually"
+    Assert-True -Condition ($robinText -match 'what-if control' -and $robinText -match 'recalculating an approved assumption') -Message "Robin checks scenario assumption copy"
+    Assert-True -Condition ($docsText -match 'analytical-scenario-approval\.ps1') -Message "Control room docs explain scenario approval"
+    Assert-True -Condition ($loopText -match 'judgment-heavy' -or $loopText -match 'shape.*simplicity.*polish') -Message "Loop has phase-aware model policy"
+    Assert-True -Condition ($loopText -match 'Phase Model Policy') -Message "Loop reads phase model policy"
+    Assert-True -Condition ($plannerText -match 'foundation.*shape.*simplicity.*polish.*proof') -Message "Planner prompt includes phase doctrine"
+    Assert-True -Condition ($loopText -match 'repair') -Message "Checkpoint loop accepts repair loop phase"
+    Assert-True -Condition ($loopText -match 'problem-brief' -and $loopText -match 'analysis-proof') -Message "Checkpoint loop accepts analytical phases"
+    Assert-True -Condition ($loopText -match '\$LoopPhase') -Message "Checkpoint loop exposes LoopPhase"
+    Assert-True -Condition ($loopText -match '-LoopPhase') -Message "Checkpoint loop passes LoopPhase to planner"
+    Assert-True -Condition ($schoolText -match '\$LoopPhase') -Message "School launcher exposes LoopPhase"
+    Assert-True -Condition ($overnightText -match '\$LoopPhase') -Message "Overnight launcher exposes LoopPhase"
+    Assert-True -Condition ($cellarText -match '\$LoopPhase') -Message "Cellar launcher exposes LoopPhase"
+    Assert-True -Condition ($schoolText -match 'UseGlobalRunShape') -Message "School launcher can force global run shape for tiny tests"
+    Assert-True -Condition ($schoolText -match 'repair' -and $overnightText -match 'repair' -and $cellarText -match 'repair') -Message "Launchers expose repair loop phase"
+    Assert-True -Condition ($schoolText -match 'problem-brief' -and $overnightText -match 'formula-spec' -and $cellarText -match 'analysis-proof') -Message "Launchers expose analytical loop phases"
+    Assert-True -Condition ($schoolText -match 'RequirePhaseValidation') -Message "School launcher can require phase validation"
+    Assert-True -Condition ($overnightText -match 'RequirePhaseValidation') -Message "Overnight launcher can require phase validation"
+    Assert-True -Condition ($cellarText -match 'RequirePhaseValidation') -Message "Cellar launcher can require phase validation"
+    Assert-True -Condition ($cellarText -match '\$FleetGroup') -Message "Cellar launcher can target a named fleet group"
+    Assert-True -Condition ($cellarText -match 'SkipDoctor') -Message "Cellar launcher forwards SkipDoctor"
+    Assert-True -Condition ($docsText -match 'Phase loops') -Message "Control room docs explain phase loops"
+    Assert-True -Condition ($docsText -match 'Phase 1 website stage system') -Message "Control room docs explain the website stage system"
+    Assert-True -Condition ($docsText -match 'fleet-website-stages\.ps1') -Message "Control room docs document website stage contract commands"
+    Assert-True -Condition ($docsText -match 'Phase 2 ship completion contracts') -Message "Control room docs explain ship completion contracts"
+    Assert-True -Condition ($docsText -match 'fleet-completion-contract\.ps1') -Message "Control room docs document completion contract commands"
+    Assert-True -Condition ($docsText -match 'Repair Trigger') -Message "Control room docs explain repair lane fields"
+    Assert-True -Condition ($docsText -match 'Analytical software phase order') -Message "Control room docs explain analytical loop"
+    Assert-True -Condition ($docsText -match 'fleet-analysis\.ps1') -Message "Control room docs explain analytical planning pack"
+}
+
+function Test-LongRunSupervisorSupport {
+    $supervisorText = Get-Content (Join-Path $fleetRoot "fleet-supervisor.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\TWELVE_HOUR_MAGIC_ROADMAP.md") -Raw
+
+    Assert-True -Condition ($supervisorText -match 'Resolve-SupervisorState') -Message "Supervisor classifies ship state"
+    Assert-True -Condition ($supervisorText -match 'Alias\("Projects"\)') -Message "Supervisor accepts Projects alias for smoke checks"
+    Assert-True -Condition ($supervisorText -match '\$selectedProjects') -Message "Supervisor supports multiple selected projects"
+    Assert-True -Condition ($supervisorText -match 'Project not found') -Message "Supervisor rejects unknown selected projects"
+    Assert-True -Condition ($supervisorText -match 'ExcludeProject') -Message "Supervisor can exclude docked ships"
+    Assert-True -Condition ($supervisorText -match 'PROGRESSING') -Message "Supervisor reports progressing ships"
+    Assert-True -Condition ($supervisorText -match 'IDLE_RUNNING') -Message "Supervisor reports idle running ships"
+    Assert-True -Condition ($supervisorText -match 'BLOCKED_REVIEW') -Message "Supervisor reports blocked ships"
+    Assert-True -Condition ($supervisorText -match 'LOOPING_QUALITY') -Message "Supervisor reports looping quality ships"
+    Assert-True -Condition ($supervisorText -match 'MaxTaskCommits') -Message "Supervisor has task progress budgets"
+    Assert-True -Condition ($supervisorText -match 'MaxQuarantines') -Message "Supervisor has quarantine budgets"
+    Assert-True -Condition ($supervisorText -match 'MaxQualityStops') -Message "Supervisor has quality-stop budgets"
+    Assert-True -Condition ($supervisorText -match 'Write-OvernightDigest') -Message "Supervisor writes overnight digest"
+    Assert-True -Condition ($supervisorText -match 'request-safe-stop\.ps1') -Message "Supervisor recommends safe stop path"
+    Assert-True -Condition ($supervisorText -match 'AutoSafeStop') -Message "Supervisor can auto-request safe stops"
+    Assert-True -Condition ($supervisorText -match 'Request-FleetSafeStop') -Message "Supervisor writes safe-stop requests"
+    Assert-True -Condition ($supervisorText -match 'Safe Stops Requested') -Message "Supervisor reports auto safe-stop actions"
+    Assert-True -Condition ($supervisorText -match '\$Row\.budget -match "\^OVER"') -Message "Supervisor prioritizes budget stops even while active work is dirty"
+    Assert-True -Condition ($supervisorText -match 'AutoRepair') -Message "Supervisor exposes auto-repair mode"
+    Assert-True -Condition ($supervisorText -match 'AutoRepairStates = @\("BUDGET_STOP", "LOOPING_QUALITY", "BLOCKED_REVIEW", "BLOCKED_STAGING"\)') -Message "Supervisor auto-repair defaults to blocker states"
+    Assert-True -Condition ($supervisorText -match 'Add-SupervisorAutoRepairTask') -Message "Supervisor can queue repair tasks"
+    Assert-True -Condition ($supervisorText -match 'Set-SupervisorRepairPhase') -Message "Supervisor enters repair phase before repair tasks"
+    Assert-True -Condition ($supervisorText -match 'Complete-SupervisorRepairPhaseIfClear') -Message "Supervisor exits repair phase after blockers clear"
+    Assert-True -Condition ($supervisorText -match 'MaxRepairAttempts') -Message "Supervisor caps repair attempts"
+    Assert-True -Condition ($supervisorText -match 'repairAttempts') -Message "Supervisor reports repair attempt counts"
+    Assert-True -Condition ($supervisorText -match 'Repair Skipped') -Message "Supervisor reports skipped repair attempts"
+    Assert-True -Condition ($supervisorText -match 'Repair Return Phase') -Message "Supervisor records repair return phase"
+    Assert-True -Condition ($supervisorText -match 'Supervisor Auto Repair') -Message "Supervisor creates high-priority repair queue sections"
+    Assert-True -Condition ($supervisorText -match 'AUTO_REPAIR\.md') -Message "Supervisor records auto-repair actions"
+    Assert-True -Condition ($supervisorText -match 'ClearSafeStopAfterRepair') -Message "Supervisor can clear a ship safe-stop after repair task creation"
+    Assert-True -Condition ($supervisorText -match 'AutoRelaunchRepair') -Message "Supervisor exposes auto-relaunch repair mode"
+    Assert-True -Condition ($supervisorText -match 'Start-SupervisorRepairRun') -Message "Supervisor can relaunch one repair batch"
+    Assert-True -Condition ($supervisorText -match '-LoopPhase", "repair"') -Message "Supervisor relaunches repair batches in repair phase"
+    Assert-True -Condition ($supervisorText -match 'Repair lane') -Message "Supervisor queues explicit repair-lane tasks"
+    Assert-True -Condition ($supervisorText -match 'BLOCKED_STAGING') -Message "Supervisor classifies information-staging blockers"
+    Assert-True -Condition ($supervisorText -match 'Get-InformationStagingStatus' -and $supervisorText -match 'Get-TaskStagingMetadataStatus' -and $supervisorText -match 'Test-StagingNeedsAttention') -Message "Supervisor evaluates information-staging contracts"
+    Assert-True -Condition ($supervisorText -match '\$hasQueuedWork -and \(Test-StagingNeedsAttention') -Message "Supervisor only treats staging as repair blocker when queued work exists"
+    Assert-True -Condition ($supervisorText -match 'fix staging contract before launch') -Message "Supervisor recommends staging repair before launch"
+    Assert-True -Condition ($supervisorText -match '\| Ship \| State \| Phase \| Repair Attempts \| Branch \| HEAD \| Dirty \| Tasks \| Staging \|') -Message "Supervisor report includes staging column"
+    Assert-True -Condition ($supervisorText -match 'First screen:' -and $supervisorText -match 'surface:mixed' -and $supervisorText -match 'scope:docs/codex/') -Message "Supervisor staging repair tasks are launch-gate shaped"
+    Assert-True -Condition ($supervisorText -match 'Repair Runs Launched') -Message "Supervisor reports repair relaunches"
+    Assert-True -Condition ($supervisorText -match 'Child Work') -Message "Supervisor report separates active child work from idle shells"
+    Assert-True -Condition ($supervisorText -match 'childSummary') -Message "Supervisor tracks active child process names"
+    Assert-True -Condition ($supervisorText -match 'codex') -Message "Supervisor labels Codex child work clearly"
+    Assert-True -Condition ($supervisorText -match 'no child work') -Message "Supervisor digest explains missing active child work"
+    Assert-True -Condition ($supervisorText -match 'RepairBatchSize') -Message "Supervisor keeps repair relaunch batches small"
+    Assert-True -Condition ($supervisorText -match 'MaxIterations') -Message "Supervisor exposes bounded iteration mode"
+    Assert-True -Condition ($supervisorText -match 'Supervisor reached MaxIterations') -Message "Supervisor reports bounded iteration exit"
+    Assert-True -Condition ($supervisorText -match 'IsOutputRedirected') -Message "Supervisor skips console clear under redirected autopilot logs"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "start-overnight-autopilot.ps1")) -Message "Fleet exposes overnight autopilot wrapper"
+    $autopilotText = Get-Content (Join-Path $fleetRoot "start-overnight-autopilot.ps1") -Raw
+    Assert-True -Condition ($autopilotText -match 'AutoSafeStop') -Message "Overnight autopilot enables auto safe-stop"
+    Assert-True -Condition ($autopilotText -match 'AutoRepair') -Message "Overnight autopilot enables auto repair queueing"
+    Assert-True -Condition ($autopilotText -match 'AutoRelaunchRepair') -Message "Overnight autopilot enables repair relaunches"
+    Assert-True -Condition ($autopilotText -match 'MaxRepairAttempts') -Message "Overnight autopilot forwards repair attempt cap"
+    Assert-True -Condition ($autopilotText -match 'BudgetMode') -Message "Overnight autopilot forwards budget mode"
+    Assert-True -Condition ($autopilotText -match 'LoopPhase') -Message "Overnight autopilot forwards loop phase"
+    Assert-True -Condition ($autopilotText -match 'ExpectedProject') -Message "Overnight autopilot forwards expected ship validation"
+    Assert-True -Condition ($autopilotText -match 'LaunchGateMode') -Message "Overnight autopilot forwards launch gate mode"
+    Assert-True -Condition ($autopilotText -match 'KillSwitchMode') -Message "Overnight autopilot forwards kill switch mode"
+    Assert-True -Condition ($autopilotText -match 'RequirePhaseValidation') -Message "Overnight autopilot forwards phase validation"
+    Assert-True -Condition ($autopilotText -match 'NinersDynastyWarRoom') -Message "Overnight autopilot excludes docked Niners by default"
+    Assert-True -Condition ($autopilotText -match 'overnight-autopilot\.md') -Message "Overnight autopilot writes a report"
+    Assert-True -Condition ($autopilotText -match 'StepTimeoutSeconds') -Message "Overnight autopilot bounds supervisor step hangs"
+    Assert-True -Condition ($autopilotText -match 'autopilot-runs') -Message "Overnight autopilot writes step logs"
+    Assert-True -Condition ($autopilotText -match '\$null -eq \$process\.ExitCode') -Message "Overnight autopilot handles blank completed process exit codes"
+    $overnightText = Get-Content (Join-Path $fleetRoot "launch-overnight-run.ps1") -Raw
+    Assert-True -Condition ($overnightText -match 'maxPlannerBatches\s*=\s*Get-MinPositive\s+-Value\s+\$ShipMaxPlannerBatches\s+-Cap\s+4') -Message "Cheap overnight runs allow follow-up planner batches"
+    Assert-True -Condition ($overnightText -match 'run-checkpoint-loop\.ps1 -ConfigPath') -Message "Overnight launcher forwards config path to checkpoint loops"
+    Assert-True -Condition ($supervisorText -match 'planner will need to generate tasks') -Message "Supervisor distinguishes idle ready ships"
+    Assert-True -Condition ($readmeText -match 'all-day watchdog') -Message "README documents supervisor watchdog"
+    Assert-True -Condition ($readmeText -match 'start-overnight-autopilot\.ps1') -Message "README documents overnight autopilot wrapper"
+    $selectedOvernightText = Get-Content (Join-Path $fleetRoot "scheduled-selected-overnight-run.ps1") -Raw
+    Assert-True -Condition ($selectedOvernightText -match 'BudgetMode') -Message "Selected overnight wrapper forwards budget mode"
+    Assert-True -Condition ($selectedOvernightText -match 'ConfigPath') -Message "Selected overnight wrapper supports trial configs"
+    Assert-True -Condition ($selectedOvernightText -match 'LoopPhase') -Message "Selected overnight wrapper forwards loop phase"
+    Assert-True -Condition ($selectedOvernightText -match '\$exclude\.Count -gt 0') -Message "Selected overnight wrapper omits empty exclusions"
+    Assert-True -Condition ($selectedOvernightText -match 'MaxCompletedTasks') -Message "Selected overnight wrapper forwards task budget"
+    Assert-True -Condition ($selectedOvernightText -match 'LaunchGateMode') -Message "Selected overnight wrapper forwards launch gate mode"
+    Assert-True -Condition ($selectedOvernightText -match 'KillSwitchMode') -Message "Selected overnight wrapper forwards kill switch mode"
+    Assert-True -Condition ($roadmapText -match '\[x\] Upgrade `fleet-supervisor\.ps1`') -Message "Roadmap marks supervisor phase complete"
+
+    $harborText = Get-Content (Join-Path $fleetRoot "harbor-master.ps1") -Raw
+    Assert-True -Condition ($harborText -match 'childSummary') -Message "Harbor Master tracks active child process names"
+    Assert-True -Condition ($harborText -match 'codex') -Message "Harbor Master labels Codex child work clearly"
+}
+
+function Test-SophisticatedSoftwareModeSupport {
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $featureText = Get-Content (Join-Path $fleetRoot "software-feature-mode.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+    $roadmapText = Get-Content (Join-Path $fleetRoot "docs\TWELVE_HOUR_MAGIC_ROADMAP.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "software-feature-mode.ps1")) -Message "Fleet exposes software feature mode gate"
+    Assert-True -Condition ($loopText -match 'mode:') -Message "Task contract parser recognizes mode metadata"
+    Assert-True -Condition ($loopText -match 'feature-pack') -Message "Checkpoint loop supports feature-pack mode"
+    Assert-True -Condition ($loopText -match 'Test-SoftwareFeatureModeApproval') -Message "Feature-pack mode has approval gate"
+    Assert-True -Condition ($loopText -match 'SOFTWARE_FEATURE_PLAN\.md') -Message "Feature-pack mode requires feature plan"
+    Assert-True -Condition ($loopText -match 'SOFTWARE_FEATURE_APPROVAL\.md') -Message "Feature-pack mode requires feature approval"
+    Assert-True -Condition ($loopText -match 'RUNTIME_CHECKS\.md') -Message "Feature-pack mode requires runtime checks"
+    Assert-True -Condition ($loopText -match 'Test-PackageAndDependencyChanges') -Message "Checkpoint loop gates package/dependency changes"
+    Assert-True -Condition ($loopText -match 'canEditPackageFiles') -Message "Package edits require ship capability"
+    Assert-True -Condition ($loopText -match 'canAddDependencies') -Message "Dependency edits require ship capability"
+    Assert-True -Condition ($plannerText -match 'mode:feature-pack') -Message "Planner is taught feature-pack metadata"
+    Assert-True -Condition ($featureText -match 'IncludeDependencyChange') -Message "Software feature mode supports dependency lane"
+    Assert-True -Condition ($featureText -match 'DEPENDENCY_APPROVAL\.md') -Message "Software feature mode validates dependency approval"
+    Assert-True -Condition ($readmeText -match 'Devil Fruit Phase 5') -Message "README documents sophisticated software mode"
+    Assert-True -Condition ($roadmapText -match '\[x\] Add approved "bigger-change mode"') -Message "Roadmap marks sophisticated software mode complete"
+}
+
+function Test-ProductAdmissionGateSupport {
+    $dashboardText = Get-Content (Join-Path $fleetRoot "fleet-product-dashboard.ps1") -Raw
+    $admissionText = Get-Content (Join-Path $fleetRoot "ship-admission.ps1") -Raw
+    $usefulnessText = Get-Content (Join-Path $fleetRoot "product-usefulness.ps1") -Raw
+    $launchGateText = Get-Content (Join-Path $fleetRoot "fleet-launch-gate.ps1") -Raw
+    $killSwitchText = Get-Content (Join-Path $fleetRoot "fleet-kill-switch.ps1") -Raw
+    $backfillText = Get-Content (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1") -Raw
+    $operatingModeText = Get-Content (Join-Path $fleetRoot "fleet-operating-mode.ps1") -Raw
+    $referenceText = Get-Content (Join-Path $fleetRoot "fleet-reference-brief.ps1") -Raw
+    $resetCellarText = Get-Content (Join-Path $fleetRoot "reset-cellar-hospitality-fleet.ps1") -Raw
+    $plannerText = Get-Content (Join-Path $fleetRoot "generate-next-five.ps1") -Raw
+    $simonText = Get-Content (Join-Path $fleetRoot "simon-design-review.ps1") -Raw
+    $robinText = Get-Content (Join-Path $fleetRoot "robin-copy-review.ps1") -Raw
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $readmeText = Get-Content (Join-Path $fleetRoot "README.md") -Raw
+
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "ship-admission.ps1")) -Message "Fleet exposes ship admission gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "product-usefulness.ps1")) -Message "Fleet exposes product usefulness gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-launch-gate.ps1")) -Message "Fleet exposes launch gate"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-product-dashboard.ps1")) -Message "Fleet exposes product dashboard"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-kill-switch.ps1")) -Message "Fleet exposes kill switch"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1")) -Message "Fleet exposes product docs backfill tool"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-operating-mode.ps1")) -Message "Fleet exposes operating mode writer"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet-reference-brief.ps1")) -Message "Fleet exposes hospitality reference brief gate"
+    Assert-True -Condition ($dashboardText -match 'Alias\("OutFile"\)') -Message "Product dashboard accepts OutFile alias for smoke checks"
+
+    Assert-True -Condition ($admissionText -match 'SHIP_SCORECARD\.md') -Message "Admission gate reads scorecard"
+    Assert-True -Condition ($admissionText -match 'USER_JOB\.md') -Message "Admission gate requires user job"
+    Assert-True -Condition ($usefulnessText -match 'Gate result') -Message "Usefulness gate reads explicit gate result"
+    Assert-True -Condition ($usefulnessText -match 'NEEDS HUMAN DIRECTION') -Message "Usefulness gate can stop unclear ships"
+    Assert-True -Condition ($launchGateText -match 'Test-TaskHasProductShape') -Message "Launch gate requires product-shaped tasks"
+    Assert-True -Condition ($launchGateText -match 'Test-HasLocalEvaluator') -Message "Launch gate requires local evaluator"
+    Assert-True -Condition ($launchGateText -match 'Test-IsUiOrProductShip') -Message "Launch gate detects UI/product ships"
+    Assert-True -Condition ($launchGateText -match 'Test-HasInformationStaging') -Message "Launch gate requires information staging"
+    Assert-True -Condition ($launchGateText -match 'Test-HasOperatingMode') -Message "Launch gate checks operating mode presence"
+    Assert-True -Condition ($launchGateText -match 'Test-HasReferenceBrief' -and $launchGateText -match 'REFERENCE_BRIEF\.md') -Message "Launch gate checks hospitality reference brief presence"
+    Assert-True -Condition ($launchGateText -match 'Test-TaskRequiresSurface' -and $launchGateText -match 'Get-TaskSurfaceCount' -and $launchGateText -match 'choose exactly one') -Message "Launch gate requires exactly one surface metadata value"
+    Assert-True -Condition ($launchGateText -match 'Get-InformationStagingMissingFields' -and $launchGateText -match 'Test-TaskHasFirstScreenField') -Message "Launch gate requires first-screen contract fields"
+    Assert-True -Condition ($launchGateText -match 'Test-IsPlaceholderText') -Message "Launch gate rejects placeholder first-screen text"
+    Assert-True -Condition ($launchGateText -match 'surface:public' -and $launchGateText -match 'surface:mixed') -Message "Launch gate recognizes allowed surfaces"
+    Assert-True -Condition ($launchGateText -match 'INFORMATION_STAGING\.md' -and $launchGateText -match 'first-screen contract') -Message "Launch gate blocks missing staging doctrine"
+    Assert-True -Condition ($dashboardText -match 'fleet-launch-gate\.ps1') -Message "Product dashboard includes launch gate state"
+    Assert-True -Condition ($dashboardText -match 'product-usefulness\.ps1') -Message "Product dashboard includes usefulness state"
+    Assert-True -Condition ($dashboardText -match 'Get-InformationStagingStatus' -and $dashboardText -match 'Get-TaskStagingMetadataStatus') -Message "Product dashboard reports information staging status"
+    Assert-True -Condition ($dashboardText -match 'task missing surface' -and $dashboardText -match 'task missing first screen') -Message "Product dashboard diagnoses staging task metadata problems"
+    Assert-True -Condition ($dashboardText -match 'fix staging contract') -Message "Product dashboard recommends staging contract repair before launch"
+    Assert-True -Condition ($dashboardText -match 'Test-StagingNeedsAttention' -and $dashboardText -match 'Get-StagingAction' -and $dashboardText -match 'Staging Attention') -Message "Product dashboard summarizes staging blockers for captain review"
+    Assert-True -Condition ($dashboardText -match 'Resolve-FleetOutputPath' -and $dashboardText -match 'IsPathRooted') -Message "Product dashboard supports absolute report paths"
+    Assert-True -Condition ($killSwitchText -match 'FlatRunThreshold') -Message "Kill switch tracks repeated weak loops"
+    Assert-True -Condition ($killSwitchText -match 'WriteParkingReason') -Message "Kill switch can write parking reason when asked"
+    Assert-True -Condition ($loopText -match 'KillSwitchMode') -Message "Checkpoint loop supports kill-switch mode"
+    Assert-True -Condition ($plannerText -match 'User pain:') -Message "Planner requires product-shaped task user pain"
+    Assert-True -Condition ($plannerText -match 'Remove/simplify:') -Message "Planner requires simplification field"
+    Assert-True -Condition ($plannerText -match 'INFORMATION_STAGING\.md') -Message "Planner reads information staging doctrine"
+    Assert-True -Condition ($plannerText -match 'OPERATING_MODE\.md' -and $plannerText -match 'hospitality-studio' -and $plannerText -match 'formula-lab') -Message "Planner reads operating mode doctrine"
+    Assert-True -Condition ($plannerText -match 'REFERENCE_BRIEF\.md' -and $plannerText -match 'reference qualities' -and $plannerText -match 'forbidden patterns') -Message "Planner reads hospitality reference brief doctrine"
+    Assert-True -Condition ($plannerText -match 'first-screen job' -and $plannerText -match 'secondary/detail/internal information') -Message "Planner enforces progressive disclosure"
+    Assert-True -Condition ($plannerText -match 'surface:public' -and $plannerText -match 'surface:app' -and $plannerText -match 'surface:internal') -Message "Planner supports surface split metadata"
+    Assert-True -Condition ($plannerText -match 'customer-facing restaurant example' -and $plannerText -match 'working operations tool') -Message "Planner separates restaurant public demos from internal tools"
+    Assert-True -Condition ($backfillText -match 'PRODUCT_USEFULNESS\.md') -Message "Backfill creates usefulness docs"
+    Assert-True -Condition ($backfillText -match 'INFORMATION_STAGING\.md') -Message "Backfill creates information staging docs"
+    Assert-True -Condition ($backfillText -match 'Public/customer-facing surface' -and $backfillText -match 'Working app/internal tool surface') -Message "Backfill records public/app surface split"
+    Assert-True -Condition ($backfillText -match 'Required task metadata' -and $backfillText -match 'First screen:') -Message "Backfill documents required first-screen task metadata"
+    Assert-True -Condition ($backfillText -match 'Restaurant Demo Rule' -and $backfillText -match 'Product Demo Rule') -Message "Backfill includes restaurant and product demo staging rules"
+    Assert-True -Condition ($backfillText -match 'IsPathRooted') -Message "Backfill supports absolute report paths"
+    Assert-True -Condition ($simonText -match 'progressive disclosure' -and $simonText -match 'INFORMATION_STAGING\.md') -Message "Simon enforces information staging"
+    Assert-True -Condition ($simonText -match 'OPERATING_MODE\.md' -and $simonText -match 'hospitality-studio' -and $simonText -match 'formula-lab') -Message "Simon respects operating modes"
+    Assert-True -Condition ($simonText -match 'REFERENCE_BRIEF\.md' -and $simonText -match 'reference qualities') -Message "Simon judges against the reference brief"
+    Assert-True -Condition ($simonText -match 'customer-facing restaurant website' -and $simonText -match 'internal operations tool') -Message "Simon separates restaurant website and internal tool surfaces"
+    Assert-True -Condition ((Get-Content (Join-Path $fleetRoot "visual-inspect.ps1") -Raw) -match 'Information Staging Review') -Message "Visual inspection surfaces staging review output"
+    Assert-True -Condition ($robinText -match 'information staging' -and $robinText -match 'guest-facing language from staff/internal language') -Message "Robin enforces staged customer/internal copy"
+    Assert-True -Condition ($robinText -match 'OPERATING_MODE\.md' -and $robinText -match 'AI-brochure' -and $robinText -match 'mathematical humility') -Message "Robin respects operating modes"
+    Assert-True -Condition ($robinText -match 'REFERENCE_BRIEF\.md' -and $robinText -match 'staging failure') -Message "Robin enforces the reference brief"
+    Assert-True -Condition ($operatingModeText -match 'hospitality-studio' -and $operatingModeText -match 'formula-lab' -and $operatingModeText -match 'software-engineering' -and $operatingModeText -match 'demo-forge') -Message "Operating mode writer supports all four fleet brains"
+    Assert-True -Condition ($referenceText -match 'Reference Brief Gate' -and $referenceText -match 'hospitality-studio' -and $referenceText -match 'Do not copy') -Message "Reference brief gate writes hospitality creative doctrine"
+    Assert-True -Condition ($resetCellarText -match 'REFERENCE_BRIEF\.md' -and $resetCellarText -match 'New-ReferenceBrief') -Message "Cellar reset seeds reference briefs"
+    Assert-True -Condition ($readmeText -match 'INFORMATION_STAGING\.md' -and $readmeText -match 'progressive-disclosure contract') -Message "README documents information staging"
+    Assert-True -Condition ($readmeText -match 'fleet-backfill-product-docs\.ps1') -Message "README documents backfill tool"
+
+    $fixtureBackfillReport = Join-Path $fixtureRoot "product-gate-backfill.md"
+    $backfill = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-backfill-product-docs.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Apply",
+        "-OutPath", $fixtureBackfillReport
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $backfill.ExitCode -Expected 0 -Message "Backfill applies to fixture ship"
+    Assert-True -Condition (Test-Path $fixtureBackfillReport) -Message "Backfill writes requested report path"
+
+    foreach ($doc in @("USER_JOB.md", "EVALUATORS.md", "SHIP_SCORECARD.md", "SHIP_ADMISSION.md", "PRODUCT_USEFULNESS.md", "INFORMATION_STAGING.md")) {
+        Assert-True -Condition (Test-Path (Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\$doc")) -Message "Backfill created $doc"
+    }
+
+    $admission = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "ship-admission.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-Config", $fixtureConfig,
+        "-NoWrite"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $admission.ExitCode -Expected 0 -Message "Admission review runs on backfilled fixture"
+    Assert-True -Condition (($admission.Output -join "`n") -match 'FixtureStaticDemo: ADMIT') -Message "Backfilled fixture admits with no red flags"
+
+    $usefulness = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "product-usefulness.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-Config", $fixtureConfig,
+        "-NoWrite"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $usefulness.ExitCode -Expected 0 -Message "Usefulness review runs on backfilled fixture"
+    Assert-True -Condition (($usefulness.Output -join "`n") -match 'FixtureStaticDemo: SIMPLIFY') -Message "Backfilled fixture starts in simplify lane"
+
+    $launch = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launch.ExitCode -Expected 0 -Message "Launch gate runs on backfilled fixture"
+    Assert-True -Condition (($launch.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate still blocks old non-product-shaped fixture task"
+
+    $kill = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-kill-switch.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $kill.ExitCode -Expected 0 -Message "Kill switch runs on backfilled fixture"
+    Assert-True -Condition (($kill.Output -join "`n") -match 'Kill switch FixtureStaticDemo: KILL') -Message "Kill switch catches blocked launch gate in warn mode"
+
+    $taskPath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\TASK_QUEUE.md"
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single scope:src/]"
+    )
+
+    $launchMissingSurface = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMissingSurface.ExitCode -Expected 0 -Message "Launch gate runs when surface metadata is missing"
+    Assert-True -Condition (($launchMissingSurface.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks missing surface metadata"
+    Assert-True -Condition (($launchMissingSurface.Output -join "`n") -match 'surface:public') -Message "Launch gate reports required surface metadata"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. First screen: show the homepage promise and one primary action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public surface:app scope:src/]"
+    )
+
+    $launchMultipleSurface = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMultipleSurface.ExitCode -Expected 0 -Message "Launch gate runs when surface metadata is duplicated"
+    Assert-True -Condition (($launchMultipleSurface.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks multiple surface metadata values"
+    Assert-True -Condition (($launchMultipleSurface.Output -join "`n") -match 'exactly one') -Message "Launch gate tells planner to choose exactly one surface"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public scope:src/]"
+    )
+
+    $launchMissingFirstScreen = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMissingFirstScreen.ExitCode -Expected 0 -Message "Launch gate runs when first-screen task metadata is missing"
+    Assert-True -Condition (($launchMissingFirstScreen.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks missing first-screen task metadata"
+    Assert-True -Condition (($launchMissingFirstScreen.Output -join "`n") -match 'First screen') -Message "Launch gate reports required first-screen metadata"
+
+    $dashboardMissingFirstScreenReport = Join-Path $fixtureRoot "product-dashboard-missing-first-screen.md"
+    $dashboardMissingFirstScreen = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-product-dashboard.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-OutMarkdown", $dashboardMissingFirstScreenReport,
+        "-NoHtml"
+    ) -TimeoutSeconds 90
+    Assert-Equal -Actual $dashboardMissingFirstScreen.ExitCode -Expected 0 -Message "Product dashboard runs when task staging metadata is incomplete"
+    $dashboardMissingFirstScreenText = Get-Content -LiteralPath $dashboardMissingFirstScreenReport -Raw
+    Assert-True -Condition ($dashboardMissingFirstScreenText -match 'Staging Attention') -Message "Product dashboard writes staging attention section"
+    Assert-True -Condition ($dashboardMissingFirstScreenText -match 'FixtureStaticDemo: task missing first screen -> fix staging contract') -Message "Product dashboard calls out missing first-screen task metadata"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Target: homepage. Change: replace vague intro with one clear action. First screen: TODO. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public scope:src/]"
+    )
+
+    $launchPlaceholderFirstScreen = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchPlaceholderFirstScreen.ExitCode -Expected 0 -Message "Launch gate runs when first-screen task metadata is placeholder"
+    Assert-True -Condition (($launchPlaceholderFirstScreen.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks placeholder first-screen task metadata"
+    Assert-True -Condition (($launchPlaceholderFirstScreen.Output -join "`n") -match 'First screen') -Message "Launch gate reports placeholder first-screen task metadata"
+
+    Set-Content -LiteralPath $taskPath -Value @(
+        "# Fixture Task Queue",
+        "",
+        "- [ ] User pain: Fixture user needs one obvious demo path. Skill: frontend-ui-engineering. Target: homepage. Change: replace vague intro with one clear action. First screen: show the homepage promise and one primary action. Remove/simplify: remove one secondary panel. Guardrails: no auth, no backend, no payments, no package changes. Acceptance: preview shows one primary action. Proof: launch gate reports READY for the fixture. Stop if: the change needs backend, auth, payments, package changes, or deployment config. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-ok.ps1 [class:copy risk:low mode:single surface:public scope:src/]"
+    )
+
+    $stagingPath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\INFORMATION_STAGING.md"
+    $stagingText = Get-Content -LiteralPath $stagingPath -Raw
+    Remove-Item -LiteralPath $stagingPath -Force
+    $launchMissingStaging = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchMissingStaging.ExitCode -Expected 0 -Message "Launch gate runs when information staging is missing"
+    Assert-True -Condition (($launchMissingStaging.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks missing information staging"
+    Assert-True -Condition (($launchMissingStaging.Output -join "`n") -match 'INFORMATION_STAGING\.md') -Message "Launch gate reports missing information staging"
+    Set-Content -LiteralPath $stagingPath -Value $stagingText
+
+    $incompleteStagingText = $stagingText -replace '(?im)^First screen job:\s*.+$', 'First screen job: TODO'
+    Set-Content -LiteralPath $stagingPath -Value $incompleteStagingText
+    $launchIncompleteStaging = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchIncompleteStaging.ExitCode -Expected 0 -Message "Launch gate runs when first-screen contract fields are incomplete"
+    Assert-True -Condition (($launchIncompleteStaging.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate blocks incomplete first-screen contract fields"
+    Assert-True -Condition (($launchIncompleteStaging.Output -join "`n") -match 'First screen job') -Message "Launch gate reports incomplete first-screen field names"
+    Set-Content -LiteralPath $stagingPath -Value $stagingText
+
+    $operatingModePath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\OPERATING_MODE.md"
+    Set-Content -LiteralPath $operatingModePath -Value @(
+        "# Operating Mode",
+        "",
+        "Project: FixtureStaticDemo",
+        "",
+        "Mode: hospitality-studio",
+        "",
+        "## Planning Rules",
+        "",
+        "Plan the first useful public demo surface before coding.",
+        "",
+        "## First Screen Contract",
+        "",
+        "Show one promise and one primary action before secondary details.",
+        "",
+        "## Required Gates",
+        "",
+        "Build check, visual check, product truth, and information staging."
+    )
+    $referenceBriefPath = Join-Path $fixtureRoot "FixtureStaticDemo\docs\codex\REFERENCE_BRIEF.md"
+    Set-Content -LiteralPath $referenceBriefPath -Value @(
+        "# Creative Reference Brief",
+        "",
+        "Project: FixtureStaticDemo",
+        "",
+        "Mode: hospitality-studio",
+        "",
+        "## Surface Type",
+        "",
+        "Customer-facing public demo.",
+        "",
+        "## Reference Qualities",
+        "",
+        "- Calm, editorial, restrained, and not dumped all at once.",
+        "- Borrow quality only. Do not copy any source layout, wording, brand, or trade dress.",
+        "",
+        "## Emotional Target",
+        "",
+        "Clear and useful.",
+        "",
+        "## First Screen Rules",
+        "",
+        "- One promise, one primary action, one preview.",
+        "",
+        "## Forbidden Patterns",
+        "",
+        "- Dashboard dump.",
+        "- Everything visible at once.",
+        "",
+        "## Acceptance Lens",
+        "",
+        "A stranger should understand the job in under 30 seconds."
+    )
+
+    $launchReady = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-launch-gate.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $launchReady.ExitCode -Expected 0 -Message "Launch gate runs after product-shaped task"
+    Assert-True -Condition (($launchReady.Output -join "`n") -match 'Launch gate FixtureStaticDemo: READY') -Message "Product-shaped task with matching simplicity phase is launch-ready"
+
+    $killWatch = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-kill-switch.ps1"),
+        "-Project", "FixtureStaticDemo",
+        "-ConfigPath", $fixtureConfig,
+        "-Mode", "warn"
+    ) -TimeoutSeconds 60
+    Assert-Equal -Actual $killWatch.ExitCode -Expected 0 -Message "Kill switch reruns after product-shaped task"
+    Assert-True -Condition (($killWatch.Output -join "`n") -match 'Kill switch FixtureStaticDemo: WATCH') -Message "Kill switch watches simplify lane instead of killing ready product-shaped task"
+
+    $dashboardReport = Join-Path $fixtureRoot "product-dashboard-staging.md"
+    $dashboard = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $fleetRoot "fleet-product-dashboard.ps1"),
+        "-ConfigPath", $fixtureConfig,
+        "-OutMarkdown", $dashboardReport,
+        "-NoHtml"
+    ) -TimeoutSeconds 90
+    Assert-Equal -Actual $dashboard.ExitCode -Expected 0 -Message "Product dashboard runs after staging metadata is ready"
+    $dashboardReportText = Get-Content -LiteralPath $dashboardReport -Raw
+    Assert-True -Condition ($dashboardReportText -match '\| Ship \| Group \| Launch \| Admission \| Score \| Usefulness \| Staging \|') -Message "Product dashboard includes staging column"
+    Assert-True -Condition ($dashboardReportText -match '\| FixtureStaticDemo \| .* \| ready \|') -Message "Product dashboard marks backfilled product-shaped fixture staging as ready"
+}
+
+function Test-ProductTruthGateSupport {
+    $truthScript = Join-Path $fleetRoot "product-truth-gate.ps1"
+    $loopText = Get-Content (Join-Path $fleetRoot "run-checkpoint-loop.ps1") -Raw
+    $checkpointText = Get-Content (Join-Path $fleetRoot "checkpoint-review.ps1") -Raw
+
+    Assert-True -Condition (Test-Path $truthScript) -Message "Fleet exposes product truth gate script"
+    Assert-True -Condition ($loopText -match 'Invoke-ProductTruthGate') -Message "Checkpoint loop runs product truth gate before marking tasks complete"
+    Assert-True -Condition ($loopText -match 'PRODUCT_TRUTH_REVIEW') -Message "Checkpoint loop allows product truth review report files"
+    Assert-True -Condition ($checkpointText -match 'Product truth status') -Message "Checkpoint review includes product truth status"
+
+    $truthRepo = Join-Path $fixtureRoot "ProductTruthFixture"
+    if (Test-Path -LiteralPath $truthRepo) {
+        Remove-Item -LiteralPath $truthRepo -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $truthRepo "src"), (Join-Path $truthRepo "docs\codex") | Out-Null
+    Set-Content -LiteralPath (Join-Path $truthRepo "src\App.tsx") -Value "export const label = 'Cellar & Table';"
+    Set-Content -LiteralPath (Join-Path $truthRepo "docs\codex\PRODUCT_TRUTH.md") -Value @(
+        "# Product Truth",
+        "",
+        "## Required Visible Text",
+        "",
+        "- Urban Kitchen",
+        "",
+        "## Forbidden Visible Text",
+        "",
+        "- Cellar & Table"
+    )
+
+    $failed = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", $truthRepo,
+        "-Write"
+    ) -TimeoutSeconds 30
+    Assert-Equal -Actual $failed.ExitCode -Expected 1 -Message "Product truth gate fails missing required and present forbidden text"
+    Assert-True -Condition (($failed.Output -join "`n") -match 'Required visible text missing: Urban Kitchen') -Message "Product truth gate reports missing required text"
+    Assert-True -Condition (($failed.Output -join "`n") -match 'Forbidden visible text still present: Cellar & Table') -Message "Product truth gate reports forbidden text"
+    Assert-True -Condition (Test-Path (Join-Path $truthRepo "docs\codex\PRODUCT_TRUTH_REVIEW.md")) -Message "Product truth gate writes review report"
+
+    Set-Content -LiteralPath (Join-Path $truthRepo "src\App.tsx") -Value "export const label = 'Urban Kitchen';"
+    $passed = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", $truthRepo,
+        "-Write"
+    ) -TimeoutSeconds 30
+    Assert-Equal -Actual $passed.ExitCode -Expected 0 -Message "Product truth gate passes when required/forbidden text matches"
+    Assert-True -Condition (($passed.Output -join "`n") -match 'Status: GREEN') -Message "Product truth gate reports GREEN"
+
+    Set-Content -LiteralPath (Join-Path $truthRepo "src\App.tsx") -Value "export const label = 'Urban Kitchen View menu';"
+    Set-Content -LiteralPath (Join-Path $truthRepo "docs\codex\PRODUCT_TRUTH.md") -Value @(
+        "# Product Truth",
+        "",
+        "## Required Visible Text",
+        "",
+        "- Urban Kitchen",
+        "- View menus",
+        "",
+        "## Forbidden Visible Text",
+        "",
+        "- Cellar & Table"
+    )
+
+    $synonymPassed = Invoke-Checked -FilePath "powershell" -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $truthScript,
+        "-Repo", $truthRepo,
+        "-Write"
+    ) -TimeoutSeconds 30
+    Assert-Equal -Actual $synonymPassed.ExitCode -Expected 0 -Message "Product truth gate passes approved hospitality synonyms"
+    Assert-True -Condition (($synonymPassed.Output -join "`n") -match 'View menus => View menu') -Message "Product truth gate reports approved synonym match"
+}
+
+function Test-GoldenGameplanStageOneToFourSupport {
+    $stateToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-state.ps1") -Raw
+    $statusText = Get-Content (Join-Path $fleetRoot "fleet-status.ps1") -Raw
+    $experimentText = Get-Content (Join-Path $fleetRoot "fleet-experiment.ps1") -Raw
+
+    Assert-True -Condition ($stateToolText -match 'function Get-FleetRepoState') -Message "Golden Stage 1 exposes shared repo state helper"
+    Assert-True -Condition ($statusText -match 'Repo state: missing' -and $statusText -match 'Repo state: git-error') -Message "Fleet status distinguishes missing and git-error repos"
+    Assert-True -Condition ($experimentText -match 'Get-FleetRepoState' -and $experimentText -match 'dirty, missing, or git-error') -Message "Experiment runner blocks dirty/missing/git-error states distinctly"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "templates\audit-manifest-schema.json")) -Message "Stage 3 provides audit manifest schema template"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "templates\task-packet-schema.json")) -Message "Stage 4 provides task packet schema template"
+
+    $goldenRoot = Join-Path $fixtureRoot ("golden-gameplan-" + [guid]::NewGuid().ToString("N"))
+    $repo = Join-Path $goldenRoot "Ship"
+    $missingRepo = Join-Path $goldenRoot "MissingShip"
+    $gitErrorRepo = Join-Path $goldenRoot "NotGit"
+    New-Item -ItemType Directory -Force -Path $repo, $gitErrorRepo | Out-Null
+    Push-Location $repo
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        New-Item -ItemType Directory -Force -Path "docs/codex" | Out-Null
+        Set-Content -Path "README.md" -Value "fixture"
+        Set-Content -Path "docs/codex/TASK_QUEUE.md" -Value "# Task Queue"
+        git add README.md docs/codex/TASK_QUEUE.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    try {
+        $cleanState = Get-FleetRepoState -Repo $repo
+        Assert-Equal -Actual $cleanState.state -Expected "clean" -Message "Repo state helper classifies clean repo"
+        Set-Content -Path (Join-Path $repo "dirty.txt") -Value "dirty"
+        $dirtyState = Get-FleetRepoState -Repo $repo
+        Assert-Equal -Actual $dirtyState.state -Expected "dirty" -Message "Repo state helper classifies dirty repo"
+        Assert-True -Condition (@($dirtyState.changedFiles).Count -gt 0) -Message "Repo state helper includes changed files for dirty repo"
+        Remove-Item -LiteralPath (Join-Path $repo "dirty.txt") -Force
+        $missingState = Get-FleetRepoState -Repo $missingRepo
+        Assert-Equal -Actual $missingState.state -Expected "missing" -Message "Repo state helper classifies missing repo"
+        $gitErrorState = Get-FleetRepoState -Repo $gitErrorRepo
+        Assert-Equal -Actual $gitErrorState.state -Expected "git-error" -Message "Repo state helper classifies non-git directory as git-error"
+
+        $proofPath = Join-Path $repo "docs/codex/test-proof.txt"
+        Set-Content -Path $proofPath -Encoding UTF8 -Value "stage 4.5 proof"
+        $testStdoutPath = Join-Path $repo "docs/codex/run-fleet-tests.stdout.txt"
+        $testStderrPath = Join-Path $repo "docs/codex/run-fleet-tests.stderr.txt"
+        @(
+            "PASS: Stage 1 stability first parses fixtures",
+            "PASS: Stage 8 autonomy wrapper requires explicit ship selection",
+            "PASS: Stage 14 final readiness returns controlled-use verdict"
+        ) | Set-Content -Path $testStdoutPath -Encoding UTF8
+        Set-Content -Path $testStderrPath -Encoding UTF8 -Value ""
+        $checkJsonPath = Join-Path $goldenRoot "checks.json"
+        @([pscustomobject]@{
+            name = "fixture-run-fleet-tests"
+            status = "passed"
+            command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1"
+            exitCode = 0
+            startedAt = (Get-Date).ToUniversalTime().ToString("o")
+            endedAt = (Get-Date).ToUniversalTime().ToString("o")
+            durationSeconds = 0
+            evidence = @("docs/codex/test-proof.txt", "docs/codex/run-fleet-tests.stdout.txt", "docs/codex/run-fleet-tests.stderr.txt")
+        }) | ConvertTo-Json -Depth 8 | Set-Content -Path $checkJsonPath -Encoding UTF8
+        $evidenceRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "write-run-evidence.ps1"),
+            "-Repo", $repo,
+            "-Ship", "GoldenFixture",
+            "-RunId", "stage2-fixture",
+            "-Status", "PASSED",
+            "-Phase", "stage2",
+            "-DecisionHint", "RUN_AGAIN",
+            "-Notes", "fixture evidence",
+            "-EvidencePath", "docs/codex/test-proof.txt",
+            "-CheckJson", $checkJsonPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $evidenceRun.ExitCode -Expected 0 -Message "Stage 2 evidence writer exits successfully"
+        Assert-True -Condition (Test-Path (Join-Path $repo "docs/codex/RUN_RESULT.json")) -Message "Stage 2 writes RUN_RESULT.json"
+        Assert-True -Condition (Test-Path (Join-Path $repo "docs/codex/RUN_SUMMARY.md")) -Message "Stage 2 writes RUN_SUMMARY.md"
+        Assert-True -Condition (Test-Path (Join-Path $repo "docs/codex/EVIDENCE_INDEX.md")) -Message "Stage 2 writes EVIDENCE_INDEX.md"
+        $runResult = Get-Content (Join-Path $repo "docs/codex/RUN_RESULT.json") -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $runResult.runId -Expected "stage2-fixture" -Message "RUN_RESULT stores current run ID"
+        Assert-Equal -Actual $runResult.decision_hint -Expected "RUN_AGAIN" -Message "RUN_RESULT stores decision hint"
+        Assert-True -Condition (@($runResult.checks).Count -gt 0) -Message "Stage 4.5 RUN_RESULT records non-empty checks"
+        Assert-True -Condition (@($runResult.evidence).Count -gt 0) -Message "Stage 4.5 RUN_RESULT records non-empty evidence"
+        Assert-True -Condition (Test-Path (Join-Path $repo "docs/codex/test-summary.md")) -Message "Post-Golden evidence writes summarized test report"
+        $testSummaryText = Get-Content (Join-Path $repo "docs/codex/test-summary.md") -Raw
+        Assert-True -Condition ($testSummaryText -match "Stage 1" -and $testSummaryText -match "Stage 8" -and $testSummaryText -match "Stage 14") -Message "Post-Golden test summary lists Golden Gameplan stages"
+        Assert-True -Condition ($testSummaryText -match "docs/codex/run-fleet-tests.stdout.txt" -and $testSummaryText -match "docs/codex/run-fleet-tests.stderr.txt") -Message "Post-Golden test summary references full logs"
+        $evidenceIndexText = Get-Content (Join-Path $repo "docs/codex/EVIDENCE_INDEX.md") -Raw
+        Assert-True -Condition ($evidenceIndexText -match "docs/codex/test-proof.txt" -and $evidenceIndexText -match "fixture-run-fleet-tests") -Message "Stage 4.5 evidence index lists artifacts and checks"
+        Set-Content -Path (Join-Path $repo "README.md") -Encoding UTF8 -Value "fixture changed for audit diff"
+
+        $configPath = Join-Path $goldenRoot "projects.json"
+        @([pscustomobject]@{ name = "GoldenFixture"; repo = $repo }) | ConvertTo-Json -Depth 4 | Set-Content -Path $configPath -Encoding UTF8
+        $auditRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "new-audit-package.ps1"),
+            "-ConfigPath", $configPath,
+            "-Project", "GoldenFixture",
+            "-OutRoot", (Join-Path $goldenRoot "audit"),
+            "-AuditId", "stage3-fixture"
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $auditRun.ExitCode -Expected 0 -Message "Stage 3 audit package builder exits successfully"
+        $auditRoot = Join-Path $goldenRoot "audit\stage3-fixture"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "manifest.json")) -Message "Stage 3 writes audit manifest"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "README_AUDIT_PACKAGE.md")) -Message "Stage 3 writes audit package README"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "prompts\external-audit-prompt.md")) -Message "Stage 3 writes external audit prompt"
+        Assert-True -Condition (Test-Path (Join-Path $goldenRoot "audit\stage3-fixture.zip")) -Message "Stage 3 writes audit zip"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "ships\GoldenFixture\changed-source\README.md")) -Message "Stage 4.5 audit package includes changed source snapshots"
+        Assert-True -Condition ((Get-ChildItem (Join-Path $auditRoot "ships\GoldenFixture\diffs") -Filter "*.diff" -ErrorAction SilentlyContinue).Count -gt 0) -Message "Stage 4.5 audit package includes sanitized diffs"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "ships\GoldenFixture\docs\codex\test-summary.md")) -Message "Post-Golden audit package includes summarized test report"
+        $packagedTestSummary = Get-Content (Join-Path $auditRoot "ships\GoldenFixture\docs\codex\test-summary.md") -Raw
+        Assert-True -Condition ($packagedTestSummary -match "Full Logs" -and $packagedTestSummary -match "run-fleet-tests.stdout.txt") -Message "Post-Golden packaged test summary links back to full logs"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "ships\GoldenFixture\referenced-evidence\docs\codex\test-proof.txt")) -Message "Stage 4.5 audit package includes referenced evidence"
+        Assert-True -Condition (Test-Path (Join-Path $auditRoot "validation\manifest-validation.json")) -Message "Stage 4.5 audit package includes manifest validation evidence"
+        $manifest = Get-Content (Join-Path $auditRoot "manifest.json") -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($manifest.files).Count -gt 0) -Message "Audit manifest lists included files"
+
+        $head = [string](git -C $repo rev-parse --short HEAD)
+        $validTask = "- [ ] User pain: reviewer found one safe missing proof task. Skill: fleet-evidence. Target: docs/codex/RUN_SUMMARY.md. Change: add one concise proof note from the latest run. Guardrails: docs/codex only and no sensitive systems. Acceptance: RUN_SUMMARY.md includes the proof note. Proof: ingest report accepts this task. Stop if: repo state is not clean or the packet is stale. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\write-run-evidence.ps1 -Repo . [class:proof risk:low mode:single scope:docs/codex/]"
+        $packetId = "packet-valid-" + [guid]::NewGuid().ToString("N")
+        $packetPath = Join-Path $goldenRoot "valid-packet.json"
+        [pscustomobject]@{
+            packetId = $packetId
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            project = "GoldenFixture"
+            baseCommit = $head
+            tasks = @([pscustomobject]@{ id = "task-1"; title = "Add proof note"; checklistLine = $validTask })
+        } | ConvertTo-Json -Depth 8 | Set-Content -Path $packetPath -Encoding UTF8
+        $ingestRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "ingest-task-packet.ps1"),
+            "-PacketPath", $packetPath,
+            "-ConfigPath", $configPath,
+            "-Apply"
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $ingestRun.ExitCode -Expected 0 -Message "Stage 4 ingests valid packet"
+        $queueText = Get-Content (Join-Path $repo "docs/codex/TASK_QUEUE.md") -Raw
+        Assert-True -Condition ($queueText -match [regex]::Escape("External audit tasks - $packetId") -and $queueText -match "task") -Message "Stage 4 appends accepted tasks to external audit queue section"
+        $duplicateRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "ingest-task-packet.ps1"),
+            "-PacketPath", $packetPath,
+            "-ConfigPath", $configPath,
+            "-Apply"
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $duplicateRun.ExitCode -Expected 1 -Message "Stage 4 rejects duplicate packet ID in apply mode"
+
+        $badPacketId = "packet-bad-" + [guid]::NewGuid().ToString("N")
+        $badPacketPath = Join-Path $goldenRoot "bad-packet.json"
+        [pscustomobject]@{
+            packetId = $badPacketId
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            project = "GoldenFixture"
+            baseCommit = "stale"
+            tasks = @([pscustomobject]@{ id = "bad-1"; title = "Bad"; checklistLine = "- [ ] vague task" })
+        } | ConvertTo-Json -Depth 8 | Set-Content -Path $badPacketPath -Encoding UTF8
+        $queueBeforeBad = Get-Content (Join-Path $repo "docs/codex/TASK_QUEUE.md") -Raw
+        $badRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "ingest-task-packet.ps1"),
+            "-PacketPath", $badPacketPath,
+            "-ConfigPath", $configPath,
+            "-Apply"
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $badRun.ExitCode -Expected 1 -Message "Stage 4 rejects stale malformed packet"
+        $queueAfterBad = Get-Content (Join-Path $repo "docs/codex/TASK_QUEUE.md") -Raw
+        Assert-Equal -Actual $queueAfterBad -Expected $queueBeforeBad -Message "Rejected packet does not mutate task queue"
+
+        $stage45Run = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "new-stage45-evidence.ps1"),
+            "-OutRoot", (Join-Path $goldenRoot "stage45-evidence"),
+            "-AuditId", "stage45-fixture"
+        ) -TimeoutSeconds 120
+        Assert-Equal -Actual $stage45Run.ExitCode -Expected 0 -Message "Stage 4.5 fixture evidence generator exits successfully"
+        $stage45Checks = Get-Content (Join-Path $goldenRoot "stage45-evidence\stage45-fixture\checks.json") -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($stage45Checks | Where-Object { $_.status -ne "passed" }).Count -eq 0) -Message "Stage 4.5 packet evidence checks all pass"
+        Assert-True -Condition (Test-Path (Join-Path $goldenRoot "stage45-evidence\stage45-fixture\validation-results\rejected-forbidden-scope.txt")) -Message "Stage 4.5 forbidden-scope rejection evidence exists"
+    } finally {
+        if (Test-Path $goldenRoot) {
+            Remove-Item -LiteralPath $goldenRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageFiveSupport {
+    $stateToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-state.ps1") -Raw
+    $stateScript = Join-Path $fleetRoot "fleet-state.ps1"
+    $schemaPath = Join-Path $fleetRoot "templates\ship-state-schema.json"
+    $transitionPath = Join-Path $fleetRoot "templates\ship-state-transition-map.json"
+
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Stage 5 provides ship state schema"
+    Assert-True -Condition (Test-Path $transitionPath) -Message "Stage 5 provides transition map"
+    Assert-True -Condition (Test-Path $stateScript) -Message "Stage 5 exposes fleet-state command"
+    Assert-True -Condition ($stateToolText -match 'function New-FleetShipStateRecord') -Message "Stage 5 exposes state record writer"
+    Assert-True -Condition ($stateToolText -match 'function Resolve-FleetShipStateFromEvidence') -Message "Stage 5 exposes deterministic state classifier"
+    Assert-True -Condition ($stateToolText -match 'function Test-FleetShipStateTransition') -Message "Stage 5 exposes transition validator"
+
+    $schemaText = Get-Content $schemaPath -Raw
+    foreach ($status in @("UNKNOWN", "READY", "RUNNING", "REVIEWING", "AUDIT_READY", "PACKET_READY", "REPAIRING", "BLOCKED", "TASTE_GATE", "RATE_LIMIT_PAUSED", "PARKED", "ARCHIVED")) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($status)) -Message "Stage 5 schema allows $status"
+        Assert-True -Condition (Test-FleetShipStateStatus -Status $status) -Message "Stage 5 helper accepts $status"
+    }
+    Assert-False -Condition (Test-FleetShipStateStatus -Status "DONEISH") -Message "Stage 5 helper rejects invalid states"
+
+    $stage5Root = Join-Path $fixtureRoot ("stage5-state-" + [guid]::NewGuid().ToString("N"))
+    $repo = Join-Path $stage5Root "Ship"
+    New-Item -ItemType Directory -Force -Path (Join-Path $repo "docs\codex") | Out-Null
+    Push-Location $repo
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        Set-Content -Path "README.md" -Value "stage 5 fixture"
+        Set-Content -Path "docs/codex/TASK_QUEUE.md" -Value "# Task Queue"
+        git add README.md docs/codex/TASK_QUEUE.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    try {
+        $configPath = Join-Path $stage5Root "projects.json"
+        @([pscustomobject]@{ name = "Stage5Fixture"; repo = $repo }) | ConvertTo-Json -Depth 4 | Set-Content -Path $configPath -Encoding UTF8
+
+        $validUpdate = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $stateScript,
+            "-Action", "Update",
+            "-ConfigPath", $configPath,
+            "-Ship", "Stage5Fixture",
+            "-Repo", $repo,
+            "-Status", "READY",
+            "-RepoClean",
+            "-TasksRemaining", "1",
+            "-Reason", "fixture ready",
+            "-WriteCurrentState"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $validUpdate.ExitCode -Expected 0 -Message "Stage 5 valid state update succeeds"
+        Assert-True -Condition (Test-Path (Join-Path $fleetRoot "fleet\state\ship-state.json")) -Message "Stage 5 writes fleet-level state file"
+        Assert-True -Condition (Test-Path (Join-Path $repo "docs\codex\CURRENT_STATE.md")) -Message "Stage 5 writes per-ship CURRENT_STATE.md"
+        $currentStateText = Get-Content (Join-Path $repo "docs\codex\CURRENT_STATE.md") -Raw
+        Assert-True -Condition ($currentStateText -match "Current status: READY" -and $currentStateText -match "Next Safe Human Action") -Message "Stage 5 current state file is phone-readable"
+
+        $invalidUpdate = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $stateScript,
+            "-Action", "Update",
+            "-ConfigPath", $configPath,
+            "-Ship", "Stage5Fixture",
+            "-Repo", $repo,
+            "-Status", "DONEISH"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $invalidUpdate.ExitCode -Expected 1 -Message "Stage 5 invalid state update fails"
+
+        $legalTransition = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $stateScript,
+            "-Action", "ValidateTransition",
+            "-FromStatus", "READY",
+            "-ToStatus", "RUNNING"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $legalTransition.ExitCode -Expected 0 -Message "Stage 5 accepts legal transition"
+
+        $illegalTransition = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $stateScript,
+            "-Action", "ValidateTransition",
+            "-FromStatus", "ARCHIVED",
+            "-ToStatus", "RUNNING"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $illegalTransition.ExitCode -Expected 1 -Message "Stage 5 rejects illegal transition"
+
+        $classifications = @(
+            @{ name = "READY"; args = @{ RepoClean = $true; TasksRemaining = 1 } },
+            @{ name = "RUNNING"; args = @{ ActiveOwnedWork = $true; RepoClean = $false; TasksRemaining = 1 } },
+            @{ name = "BLOCKED"; args = @{ RepoState = "dirty"; RepoClean = $false; TasksRemaining = 1 } },
+            @{ name = "TASTE_GATE"; args = @{ RepoClean = $true; TasteGateRequired = $true } },
+            @{ name = "RATE_LIMIT_PAUSED"; args = @{ RepoClean = $true; RateLimitPaused = $true } },
+            @{ name = "PARKED"; args = @{ RepoClean = $true; TasksRemaining = 0 } },
+            @{ name = "UNKNOWN"; args = @{ RepoState = "missing"; RepoClean = $false } },
+            @{ name = "AUDIT_READY"; args = @{ RepoClean = $true; LastAuditPackagePath = "out/audit.zip" } },
+            @{ name = "PACKET_READY"; args = @{ RepoClean = $true; LastTaskPacketPath = "out/packet.json"; TasksRemaining = 1 } },
+            @{ name = "REPAIRING"; args = @{ RepoClean = $true; LastRunStatus = "failed"; RepairTaskExists = $true } },
+            @{ name = "ARCHIVED"; args = @{ Archived = $true } }
+        )
+        foreach ($case in $classifications) {
+            $a = $case.args
+            $record = Resolve-FleetShipStateFromEvidence -Ship ("Case" + $case.name) -Repo $repo -RepoState ([string]$a.RepoState) -RepoClean ([bool]$a.RepoClean) -ActiveOwnedWork:([bool]$a.ActiveOwnedWork) -TasksRemaining ([int]$a.TasksRemaining) -LastRunStatus ([string]$a.LastRunStatus) -LastAuditPackagePath ([string]$a.LastAuditPackagePath) -LastTaskPacketPath ([string]$a.LastTaskPacketPath) -RepairTaskExists:([bool]$a.RepairTaskExists) -TasteGateRequired:([bool]$a.TasteGateRequired) -RateLimitPaused:([bool]$a.RateLimitPaused) -Archived:([bool]$a.Archived)
+            Assert-Equal -Actual $record.status -Expected $case.name -Message "Stage 5 classifies $($case.name) scenario"
+        }
+
+        $reportPath = Join-Path $stage5Root "current.md"
+        $jsonReportPath = Join-Path $stage5Root "current.json"
+        $reportRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $stateScript,
+            "-Action", "Report",
+            "-ConfigPath", $configPath,
+            "-OutFile", $reportPath,
+            "-JsonOutFile", $jsonReportPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $reportRun.ExitCode -Expected 0 -Message "Stage 5 state report command succeeds"
+        Assert-True -Condition (Test-Path $reportPath) -Message "Stage 5 writes readable state report"
+        Assert-True -Condition (Test-Path $jsonReportPath) -Message "Stage 5 writes machine state report"
+        $reportText = Get-Content $reportPath -Raw
+        Assert-True -Condition ($reportText -match "\| Ship \| State \| Reason \|" -and $reportText -match "Stage5Fixture") -Message "Stage 5 report shows ship state"
+
+        $missingRecord = Resolve-FleetShipStateFromEvidence -Ship "LegacyMissing" -Repo (Join-Path $stage5Root "MissingRepo") -RepoState "missing"
+        Assert-Equal -Actual $missingRecord.status -Expected "UNKNOWN" -Message "Stage 5 missing legacy repo classifies without crashing"
+    } finally {
+        if (Test-Path $stage5Root) {
+            Remove-Item -LiteralPath $stage5Root -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageSixSupport {
+    $decisionToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-decision.ps1") -Raw
+    $decisionScript = Join-Path $fleetRoot "fleet-decision.ps1"
+    $decisionSchemaPath = Join-Path $fleetRoot "templates\decision-schema.json"
+    $decisionInputSchemaPath = Join-Path $fleetRoot "templates\decision-input-schema.json"
+
+    Assert-True -Condition (Test-Path $decisionSchemaPath) -Message "Stage 6 provides decision schema"
+    Assert-True -Condition (Test-Path $decisionInputSchemaPath) -Message "Stage 6 provides decision input schema"
+    Assert-True -Condition (Test-Path $decisionScript) -Message "Stage 6 exposes fleet-decision command"
+    Assert-True -Condition ($decisionToolText -match 'function New-FleetDecisionInput') -Message "Stage 6 normalizes decision input"
+    Assert-True -Condition ($decisionToolText -match 'function Resolve-FleetDecision') -Message "Stage 6 exposes pure decision function"
+
+    $schemaText = Get-Content $decisionSchemaPath -Raw
+    foreach ($decisionValue in @("NOOP", "RUN_AGAIN", "REPAIR", "PACKAGE_AUDIT", "WAIT_FOR_EXTERNAL_AUDIT", "WAIT_FOR_TASK_PACKET", "USER_TASTE_GATE", "WAIT_FOR_RATE_RESET", "PARK", "BLOCK", "ARCHIVE")) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($decisionValue)) -Message "Stage 6 schema allows $decisionValue"
+        Assert-True -Condition (Test-FleetDecisionValue -Decision $decisionValue) -Message "Stage 6 helper accepts $decisionValue"
+    }
+    Assert-False -Condition (Test-FleetDecisionValue -Decision "YOLO_RUN") -Message "Stage 6 helper rejects invalid decisions"
+
+    $decisionCases = @(
+        @{
+            expected = "NOOP"
+            state = New-FleetShipStateRecord -Ship "NoopShip" -Status "RUNNING" -RepoClean $false -TasksRemaining 1 -Reason "active"
+            input = @{ ActiveWorkOwned = $true; DeterministicGateStatus = "passed"; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "ARCHIVE"
+            state = New-FleetShipStateRecord -Ship "ArchiveShip" -Status "ARCHIVED" -Reason "retired"
+            input = @{ ExplicitArchiveRequested = $true; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "WAIT_FOR_RATE_RESET"
+            state = New-FleetShipStateRecord -Ship "RateShip" -Status "RATE_LIMIT_PAUSED" -RepoClean $true
+            input = @{ RateLimitPaused = $true; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "REPAIR"
+            state = New-FleetShipStateRecord -Ship "RepairShip" -Status "REPAIRING" -RepoClean $true -QuarantinedTasks 1
+            input = @{ DeterministicGateStatus = "failed"; RepairPathAvailable = $true; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "BLOCK"
+            state = New-FleetShipStateRecord -Ship "BlockShip" -Status "BLOCKED" -RepoClean $true
+            input = @{ DeterministicGateStatus = "failed"; RepairPathAvailable = $false; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "PACKAGE_AUDIT"
+            state = New-FleetShipStateRecord -Ship "PackageAuditShip" -Status "REVIEWING" -RepoClean $true
+            input = @{ DeterministicGateStatus = "passed"; AuditPackageReady = $false; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "WAIT_FOR_EXTERNAL_AUDIT"
+            state = New-FleetShipStateRecord -Ship "AuditWaitShip" -Status "AUDIT_READY" -RepoClean $true -LastAuditPackagePath "out/audit.zip"
+            input = @{ DeterministicGateStatus = "passed"; AuditPackageReady = $true; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "WAIT_FOR_TASK_PACKET"
+            state = New-FleetShipStateRecord -Ship "PacketWaitShip" -Status "READY" -RepoClean $true -TasksRemaining 0
+            input = @{ DeterministicGateStatus = "passed"; ValidTasksRemaining = 0; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "USER_TASTE_GATE"
+            state = New-FleetShipStateRecord -Ship "TasteShip" -Status "TASTE_GATE" -RepoClean $true
+            input = @{ DeterministicGateStatus = "passed"; TasteGateRequired = $true; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "PARK"
+            state = New-FleetShipStateRecord -Ship "ParkShip" -Status "PARKED" -RepoClean $true -TasksRemaining 0
+            input = @{ DeterministicGateStatus = "passed"; DoneEnough = $true; ValidTasksRemaining = 0; EvidenceFreshness = "fresh" }
+        },
+        @{
+            expected = "RUN_AGAIN"
+            state = New-FleetShipStateRecord -Ship "RunAgainShip" -Status "PACKET_READY" -RepoClean $true -TasksRemaining 1 -LastTaskPacketPath "out/packet.json"
+            input = @{ DeterministicGateStatus = "passed"; ValidTasksRemaining = 1; AcceptedPacketReady = $true; BudgetRemaining = $true; MaterialProgressOrPacket = $true; EvidenceFreshness = "fresh" }
+        }
+    )
+
+    foreach ($case in $decisionCases) {
+        $caseState = $case["state"]
+        $expectedDecision = [string]$case["expected"]
+        $i = $case["input"]
+        $budgetRemaining = if ($i.ContainsKey("BudgetRemaining")) { [bool]$i["BudgetRemaining"] } else { $true }
+        $validTasksRemaining = if ($i.ContainsKey("ValidTasksRemaining")) { [int]$i["ValidTasksRemaining"] } else { -1 }
+        $input = New-FleetDecisionInput -State $caseState -DeterministicGateStatus ([string]$i["DeterministicGateStatus"]) -AuditPackageReady:([bool]$i["AuditPackageReady"]) -AcceptedPacketReady:([bool]$i["AcceptedPacketReady"]) -RateLimitPaused:([bool]$i["RateLimitPaused"]) -ExplicitArchiveRequested:([bool]$i["ExplicitArchiveRequested"]) -RepairPathAvailable:([bool]$i["RepairPathAvailable"]) -BudgetRemaining $budgetRemaining -MaterialProgressOrPacket:([bool]$i["MaterialProgressOrPacket"]) -DoneEnough:([bool]$i["DoneEnough"]) -TasteGateRequired:([bool]$i["TasteGateRequired"]) -ActiveWorkOwned:([bool]$i["ActiveWorkOwned"]) -ValidTasksRemaining $validTasksRemaining -EvidenceFreshness ([string]$i["EvidenceFreshness"])
+        $decision = Resolve-FleetDecision -Input $input
+        Assert-Equal -Actual $decision.decision -Expected $expectedDecision -Message "Stage 6 decides $expectedDecision"
+        Assert-True -Condition (![string]::IsNullOrWhiteSpace([string]$decision.reason)) -Message "Stage 6 decision $expectedDecision includes reason"
+    }
+
+    $failedRunAgainState = New-FleetShipStateRecord -Ship "FailedRunAgain" -Status "READY" -RepoClean $true -TasksRemaining 2
+    $failedRunAgainInput = New-FleetDecisionInput -State $failedRunAgainState -DeterministicGateStatus "failed" -RepairPathAvailable $false -ValidTasksRemaining 2 -BudgetRemaining $true -MaterialProgressOrPacket $true -EvidenceFreshness "fresh"
+    $failedRunAgainDecision = Resolve-FleetDecision -Input $failedRunAgainInput
+    Assert-Equal -Actual $failedRunAgainDecision.decision -Expected "BLOCK" -Message "Stage 6 failed gates override RUN_AGAIN"
+
+    $activeDirtyState = New-FleetShipStateRecord -Ship "ActiveDirty" -Status "RUNNING" -RepoClean $false -TasksRemaining 2
+    $activeDirtyInput = New-FleetDecisionInput -State $activeDirtyState -ActiveWorkOwned $true -DeterministicGateStatus "passed" -ValidTasksRemaining 2 -BudgetRemaining $true -MaterialProgressOrPacket $true -EvidenceFreshness "fresh"
+    $activeDirtyDecision = Resolve-FleetDecision -Input $activeDirtyInput
+    Assert-Equal -Actual $activeDirtyDecision.decision -Expected "NOOP" -Message "Stage 6 active dirty ships choose NOOP"
+
+    $stage6Root = Join-Path $fixtureRoot ("stage6-decision-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage6Root | Out-Null
+    try {
+        $statePath = Join-Path $stage6Root "ship-state.json"
+        [pscustomobject]@{
+            schemaVersion = 1
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            ships = @(
+                (New-FleetShipStateRecord -Ship "DecisionReady" -Status "PACKET_READY" -RepoClean $true -TasksRemaining 1 -LastTaskPacketPath "out/packet.json"),
+                (New-FleetShipStateRecord -Ship "DecisionTaste" -Status "TASTE_GATE" -RepoClean $true)
+            )
+        } | ConvertTo-Json -Depth 12 | Set-Content -Path $statePath -Encoding UTF8
+        $reportPath = Join-Path $stage6Root "decisions.md"
+        $jsonPath = Join-Path $stage6Root "decisions.json"
+        $reportRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $decisionScript,
+            "-Action", "Report",
+            "-StatePath", $statePath,
+            "-OutFile", $reportPath,
+            "-JsonOutFile", $jsonPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $reportRun.ExitCode -Expected 0 -Message "Stage 6 decision report command succeeds"
+        Assert-True -Condition (Test-Path $reportPath) -Message "Stage 6 writes decision markdown report"
+        Assert-True -Condition (Test-Path $jsonPath) -Message "Stage 6 writes decision JSON report"
+        $reportText = Get-Content $reportPath -Raw
+        Assert-True -Condition ($reportText -match "DecisionReady" -and $reportText -match "RUN_AGAIN" -and $reportText -match "DecisionTaste" -and $reportText -match "USER_TASTE_GATE") -Message "Stage 6 report distinguishes key decisions"
+    } finally {
+        if (Test-Path $stage6Root) {
+            Remove-Item -LiteralPath $stage6Root -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageSevenSupport {
+    $productRoot = Join-Path $fleetRoot "docs\templates\product-quality"
+    $laneRoot = Join-Path $productRoot "lanes"
+    $exampleRoot = Join-Path $productRoot "examples"
+    $evidenceSchemaPath = Join-Path $fleetRoot "templates\product-quality-evidence-schema.json"
+
+    $requiredTemplates = @(
+        "DEMO_PROMISE.md",
+        "FIRST_SCREEN_CONTRACT.md",
+        "PRODUCT_QUALITY_CONTRACT.md",
+        "INFORMATION_HIERARCHY_CONTRACT.md",
+        "MOBILE_CONTRACT.md",
+        "DONE_CONTRACT.md",
+        "TASTE_GATE_CONTRACT.md",
+        "SIMPLICITY_OVERLOAD_GATE.md",
+        "PRODUCT_QUALITY_EVIDENCE.md"
+    )
+    foreach ($template in $requiredTemplates) {
+        $path = Join-Path $productRoot $template
+        Assert-True -Condition (Test-Path $path) -Message "Stage 7 provides $template"
+        $text = Get-Content $path -Raw
+        Assert-True -Condition ($text -match "Purpose:" -and $text -match "(?i)example|evidence|verdict|required") -Message "Stage 7 $template has usable contract content"
+    }
+
+    $firstScreenText = Get-Content (Join-Path $productRoot "FIRST_SCREEN_CONTRACT.md") -Raw
+    Assert-True -Condition ($firstScreenText -match "Customer-facing hospitality" -and $firstScreenText -match "Manager-facing operations" -and $firstScreenText -match "Analytical software" -and $firstScreenText -match "Personal productivity") -Message "Stage 7 first-screen contract covers core lanes"
+    Assert-True -Condition ($firstScreenText -match "Failure example" -and $firstScreenText -match "all at once") -Message "Stage 7 first-screen contract flags dumped information"
+    Assert-True -Condition ($firstScreenText -match "Promise -> Proof -> Path" -and $firstScreenText -match "What is this\?" -and $firstScreenText -match "Who is it for\?" -and $firstScreenText -match "What can I do next\?") -Message "Stage 15 first-screen contract requires the five-second promise/proof/path gate"
+    Assert-True -Condition ($firstScreenText -match "Proof artifact" -and $firstScreenText -match "Tertiary content must not appear as first-screen clutter") -Message "Stage 15 first-screen contract requires proof artifact and deferred tertiary content"
+
+    $productQualityText = Get-Content (Join-Path $productRoot "PRODUCT_QUALITY_CONTRACT.md") -Raw
+    Assert-True -Condition ($productQualityText -match "Promise -> Proof -> Path Gate" -and $productQualityText -match "one high-value outcome" -and $productQualityText -match "one representative proof artifact") -Message "Stage 15 product quality contract requires promise/proof/path"
+    Assert-True -Condition ($productQualityText -match "primary, secondary, and tertiary content layers" -and $productQualityText -match "rejects feature dumping" -and $productQualityText -match "Invalid example") -Message "Stage 15 product quality contract rejects feature dumping and requires layered content"
+
+    $hierarchyText = Get-Content (Join-Path $productRoot "INFORMATION_HIERARCHY_CONTRACT.md") -Raw
+    Assert-True -Condition ($hierarchyText -match "Wine list" -and $hierarchyText -match "helper" -and $hierarchyText -match "Manager brief" -and $hierarchyText -match "secondary") -Message "Stage 7 hierarchy contract reflects wine-list and manager-brief issues"
+
+    $overloadText = Get-Content (Join-Path $productRoot "SIMPLICITY_OVERLOAD_GATE.md") -Raw
+    foreach ($verdict in @("PASS", "PASS_WITH_NOTES", "FAIL_OVERLOADED", "NEEDS_TASTE_REVIEW")) {
+        Assert-True -Condition ($overloadText -match $verdict) -Message "Stage 7 overload gate documents $verdict"
+    }
+    Assert-True -Condition ($overloadText -match "customer-facing first screen shows internal/admin tools" -and $overloadText -match "mobile starts inside a giant form/table") -Message "Stage 7 overload gate catches the key overload failures"
+
+    $laneFiles = @(
+        "customer-facing-hospitality.md",
+        "manager-facing-operations.md",
+        "analytical-software.md",
+        "personal-productivity.md",
+        "local-business-website.md"
+    )
+    foreach ($laneFile in $laneFiles) {
+        $path = Join-Path $laneRoot $laneFile
+        Assert-True -Condition (Test-Path $path) -Message "Stage 7 provides lane profile $laneFile"
+        $text = Get-Content $path -Raw
+        Assert-True -Condition ($text -match "First-screen expectation" -and $text -match "Common failures" -and $text -match "Taste gate hint") -Message "Stage 7 lane profile $laneFile has pass/fail guidance"
+    }
+
+    $hospitalityText = Get-Content (Join-Path $laneRoot "customer-facing-hospitality.md") -Raw
+    $managerText = Get-Content (Join-Path $laneRoot "manager-facing-operations.md") -Raw
+    Assert-True -Condition ($hospitalityText -match "guests" -and $hospitalityText -match "internal/admin controls") -Message "Stage 7 hospitality lane protects guest-facing screens"
+    Assert-True -Condition ($managerText -match "today" -and $managerText -match "status" -and $managerText -match "priority") -Message "Stage 7 manager lane prioritizes operational first-screen work"
+
+    $laneProfileRoot = Join-Path $productRoot "lane-profiles"
+    $hospitalityProfilePath = Join-Path $laneProfileRoot "hospitality-customer-website.md"
+    Assert-True -Condition (Test-Path $hospitalityProfilePath) -Message "Stage 15 provides detailed hospitality customer website lane profile"
+    $hospitalityProfileText = Get-Content $hospitalityProfilePath -Raw
+    Assert-True -Condition ($hospitalityProfileText -match "Borrow structure, not authored identity" -and $hospitalityProfileText -match "quiet luxury tasting menu" -and $hospitalityProfileText -match "wine-led editorial") -Message "Stage 15 hospitality profile defines archetypes and anti-copy guidance"
+    Assert-True -Condition ($hospitalityProfileText -match "menu, reservations, hours, and location" -and $hospitalityProfileText -match "Mobile chapter order" -and $hospitalityProfileText -match "Positive Example" -and $hospitalityProfileText -match "Negative Example") -Message "Stage 15 hospitality profile defines first-screen logistics, mobile order, and examples"
+
+    $managerProfilePath = Join-Path $laneProfileRoot "manager-internal-restaurant-tool.md"
+    Assert-True -Condition (Test-Path $managerProfilePath) -Message "Stage 15 provides detailed manager/internal restaurant tool lane profile"
+    $managerProfileText = Get-Content $managerProfilePath -Raw
+    Assert-True -Condition ($managerProfileText -match "Shift Cockpit" -and $managerProfileText -match "attention queue" -and $managerProfileText -match "actionable") -Message "Stage 15 manager profile defines the shift cockpit pattern"
+    Assert-True -Condition ($managerProfileText -match "payroll exports" -and $managerProfileText -match "historical BI" -and $managerProfileText -match "Positive Example" -and $managerProfileText -match "Negative Example") -Message "Stage 15 manager profile separates live operations from reports and configuration"
+
+    $doneText = Get-Content (Join-Path $productRoot "DONE_CONTRACT.md") -Raw
+    $tasteText = Get-Content (Join-Path $productRoot "TASTE_GATE_CONTRACT.md") -Raw
+    Assert-True -Condition ($doneText -match "Done is not the same as taste-approved") -Message "Stage 7 done contract separates done from taste"
+    Assert-True -Condition ($tasteText -match "subjective" -and $tasteText -match "must not keep changing") -Message "Stage 7 taste gate prevents over-polishing loops"
+
+    Assert-True -Condition (Test-Path $evidenceSchemaPath) -Message "Stage 7 provides product-quality evidence schema"
+    $schema = Get-Content $evidenceSchemaPath -Raw | ConvertFrom-Json
+    Assert-True -Condition ($schema.required -contains "firstScreenStatus") -Message "Stage 7 evidence schema requires firstScreenStatus"
+    Assert-True -Condition ($schema.required -contains "simplicityGateStatus") -Message "Stage 7 evidence schema requires simplicityGateStatus"
+    Assert-True -Condition ((Get-Content $evidenceSchemaPath -Raw) -match "USER_TASTE_GATE") -Message "Stage 7 evidence schema can feed the Stage 6 taste decision"
+
+    $fixtureVerdicts = Join-Path $exampleRoot "stage7-fixture-verdicts.md"
+    Assert-True -Condition (Test-Path $fixtureVerdicts) -Message "Stage 7 provides fixture verdict examples"
+    $fixtureText = Get-Content $fixtureVerdicts -Raw
+    foreach ($caseText in @("Wine List", "Manager Brief", "Analytical Model", "Personal Productivity", "Overloaded First Screen", "Taste Gate After Deterministic Pass")) {
+        Assert-True -Condition ($fixtureText -match [regex]::Escape($caseText)) -Message "Stage 7 fixture verdicts include $caseText"
+    }
+    Assert-True -Condition ($fixtureText -match "FAIL_OVERLOADED" -and $fixtureText -match "NEEDS_TASTE_REVIEW") -Message "Stage 7 fixture verdicts prove overload and taste gate cases"
+}
+
+function Test-GoldenGameplanStageEightSupport {
+    $autonomyToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-autonomy.ps1") -Raw
+    $wrapperScript = Join-Path $fleetRoot "invoke-autonomy-wrapper.ps1"
+    Assert-True -Condition (Test-Path $wrapperScript) -Message "Stage 8 exposes autonomy wrapper command"
+    Assert-True -Condition ($autonomyToolText -match "function Test-FleetAutonomyScope") -Message "Stage 8 exposes selected-scope validator"
+    Assert-True -Condition ($autonomyToolText -match "function Resolve-FleetAutonomyAction") -Message "Stage 8 exposes decision-to-action mapper"
+    Assert-True -Condition ($autonomyToolText -match "function New-FleetAutonomyBudget") -Message "Stage 8 exposes bounded budget defaults"
+    Assert-True -Condition ($autonomyToolText -match "function Test-FleetApprovedPacketEvidence") -Message "Stage 8.5 validates real packet evidence paths"
+    Assert-True -Condition ($autonomyToolText -match "function Get-FleetAutonomyShortText") -Message "Stage 8.5 exposes phone-readable text shortening"
+    foreach ($actionName in @("WRITE_STATUS_REPORT", "RUN_ONE_BATCH", "MAKE_AUDIT_PACKAGE", "IMPORT_APPROVED_PACKET", "WRITE_REPAIR_TASK", "PARK_SHIP", "REQUEST_TASTE_GATE", "BLOCK_WITH_REASON")) {
+        Assert-True -Condition ($autonomyToolText -match $actionName) -Message "Stage 8 action matrix includes $actionName"
+    }
+
+    $stage8Root = Join-Path $fixtureRoot ("stage8-autonomy-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage8Root | Out-Null
+    try {
+        $repo = Join-Path $stage8Root "FixtureStage8"
+        New-Item -ItemType Directory -Force -Path $repo | Out-Null
+        & git -C $repo init | Out-Null
+        Set-Content -Path (Join-Path $repo "README.md") -Encoding UTF8 -Value "Stage 8 fixture"
+        & git -C $repo add README.md | Out-Null
+        & git -C $repo -c user.name=Codex -c user.email=codex@example.com commit -m init | Out-Null
+
+        $configPath = Join-Path $stage8Root "projects.stage8.json"
+        @(
+            [pscustomobject]@{ name = "FixtureStage8"; repo = $repo },
+            [pscustomobject]@{ name = "OtherShip"; repo = $repo }
+        ) | ConvertTo-Json -Depth 4 | Set-Content -Path $configPath -Encoding UTF8
+
+        $statePath = Join-Path $stage8Root "ship-state.json"
+        [pscustomobject]@{
+            schemaVersion = 1
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            ships = @(
+                (New-FleetShipStateRecord -Ship "FixtureStage8" -Repo $repo -Status "PACKET_READY" -RepoClean $true -TasksRemaining 1 -LastTaskPacketPath "out/packet.json"),
+                (New-FleetShipStateRecord -Ship "OtherShip" -Repo $repo -Status "TASTE_GATE" -RepoClean $true)
+            )
+        } | ConvertTo-Json -Depth 12 | Set-Content -Path $statePath -Encoding UTF8
+
+        $missingScope = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-ReportPath", (Join-Path $stage8Root "missing-scope.md"),
+            "-JsonReportPath", (Join-Path $stage8Root "missing-scope.json")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $missingScope.ExitCode -Expected 1 -Message "Stage 8 missing scope fails fast"
+        Assert-True -Condition (Test-Path (Join-Path $stage8Root "missing-scope.json")) -Message "Stage 8 writes contained report for invalid scope"
+
+        $dryReport = Join-Path $stage8Root "dry.md"
+        $dryJson = Join-Path $stage8Root "dry.json"
+        $dryRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage8",
+            "-ReportPath", $dryReport,
+            "-JsonReportPath", $dryJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $dryRun.ExitCode -Expected 0 -Message "Stage 8 dry-run succeeds for selected ship"
+        $dry = Get-Content $dryJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $dry.mode -Expected "dry-run" -Message "Stage 8 dry-run records dry-run mode"
+        Assert-Equal -Actual $dry.ships[0].action -Expected "WRITE_STATUS_REPORT" -Message "Stage 8 blocks RUN_AGAIN execution without allow flag"
+        Assert-False -Condition ([bool]$dry.ships[0].executed) -Message "Stage 8 dry-run executes no actions"
+        Assert-True -Condition (@($dry.selectedShips).Count -eq 1 -and $dry.selectedShips[0] -eq "FixtureStage8") -Message "Stage 8 selected scope does not expand to all ships"
+        $dryText = Get-Content $dryReport -Raw
+        Assert-True -Condition ($dryText -match "Captain Summary" -and $dryText -match "Next Captain Action") -Message "Stage 8.5 report has phone-readable summary and next action"
+
+        $multiJson = Join-Path $stage8Root "multi-default.json"
+        $multiRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage8,OtherShip",
+            "-ReportPath", (Join-Path $stage8Root "multi-default.md"),
+            "-JsonReportPath", $multiJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $multiRun.ExitCode -Expected 1 -Message "Stage 8.5 default MaxShips blocks accidental multi-ship wrapper runs"
+
+        $execReport = Join-Path $stage8Root "exec.md"
+        $execJson = Join-Path $stage8Root "exec.json"
+        $execRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage8",
+            "-Execute",
+            "-AllowRunBatch",
+            "-ReportPath", $execReport,
+            "-JsonReportPath", $execJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $execRun.ExitCode -Expected 0 -Message "Stage 8 bounded RUN_AGAIN action succeeds with explicit allow flag"
+        $exec = Get-Content $execJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $exec.ships[0].action -Expected "RUN_ONE_BATCH" -Message "Stage 8 maps RUN_AGAIN to one bounded run action"
+        Assert-Equal -Actual $exec.ships[0].executionStatus -Expected "bounded-run-approved-not-launched" -Message "Stage 8 harness test does not launch product ships"
+        Assert-True -Condition ($exec.budget.maxCycles -eq 1 -and $exec.actionsExecuted -eq 1) -Message "Stage 8 stops after one bounded cycle"
+
+        $blockedRunJson = Join-Path $stage8Root "blocked-run-budget.json"
+        $blockedRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage8",
+            "-Execute",
+            "-AllowRunBatch",
+            "-MaxRunBatchesPerShip", "0",
+            "-ReportPath", (Join-Path $stage8Root "blocked-run-budget.md"),
+            "-JsonReportPath", $blockedRunJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $blockedRun.ExitCode -Expected 0 -Message "Stage 8.5 run-batch budget block is contained"
+        $blockedRunResult = Get-Content $blockedRunJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $blockedRunResult.ships[0].action -Expected "BLOCK_WITH_REASON" -Message "Stage 8.5 blocks run action when run-batch budget is exhausted"
+
+        $lowJson = Join-Path $stage8Root "low-token.json"
+        $lowRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage8",
+            "-Execute",
+            "-AllowRunBatch",
+            "-LowTokenMode",
+            "-ReportPath", (Join-Path $stage8Root "low-token.md"),
+            "-JsonReportPath", $lowJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $lowRun.ExitCode -Expected 0 -Message "Stage 8 low-token wrapper reports instead of running"
+        $low = Get-Content $lowJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $low.ships[0].action -Expected "BLOCK_WITH_REASON" -Message "Stage 8 low-token mode blocks run actions"
+
+        $auditStatePath = Join-Path $stage8Root "audit-state.json"
+        [pscustomobject]@{
+            schemaVersion = 1
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            ships = @((New-FleetShipStateRecord -Ship "FixtureStage8" -Repo $repo -Status "REVIEWING" -RepoClean $true))
+        } | ConvertTo-Json -Depth 12 | Set-Content -Path $auditStatePath -Encoding UTF8
+        $auditJson = Join-Path $stage8Root "audit.json"
+        $auditRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $auditStatePath,
+            "-Ship", "FixtureStage8",
+            "-Execute",
+            "-AllowAuditPackage",
+            "-ReportPath", (Join-Path $stage8Root "audit.md"),
+            "-JsonReportPath", $auditJson
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $auditRun.ExitCode -Expected 0 -Message "Stage 8 can execute approved audit-package action"
+        $audit = Get-Content $auditJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $audit.ships[0].action -Expected "MAKE_AUDIT_PACKAGE" -Message "Stage 8 maps PACKAGE_AUDIT to audit package action"
+        Assert-Equal -Actual $audit.ships[0].executionStatus -Expected "audit-package-created" -Message "Stage 8 records audit package creation"
+
+        $badAuditName = "Bad:Ship"
+        $badAuditConfig = Join-Path $stage8Root "projects.bad-audit.json"
+        @([pscustomobject]@{ name = $badAuditName; repo = $repo }) | ConvertTo-Json -Depth 4 | Set-Content -Path $badAuditConfig -Encoding UTF8
+        $badAuditState = Join-Path $stage8Root "bad-audit-state.json"
+        [pscustomobject]@{
+            schemaVersion = 1
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            ships = @((New-FleetShipStateRecord -Ship $badAuditName -Repo $repo -Status "REVIEWING" -RepoClean $true))
+        } | ConvertTo-Json -Depth 12 | Set-Content -Path $badAuditState -Encoding UTF8
+        $badAuditJson = Join-Path $stage8Root "bad-audit.json"
+        $badAuditRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $badAuditConfig,
+            "-StatePath", $badAuditState,
+            "-Ship", $badAuditName,
+            "-Execute",
+            "-AllowAuditPackage",
+            "-ReportPath", (Join-Path $stage8Root "bad-audit.md"),
+            "-JsonReportPath", $badAuditJson
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $badAuditRun.ExitCode -Expected 2 -Message "Stage 8.5 contains audit package creation failure"
+        $badAudit = Get-Content $badAuditJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $badAudit.ships[0].executionStatus -Expected "failed-contained" -Message "Stage 8.5 audit package failure remains per-ship contained"
+
+        $packetStatePath = Join-Path $stage8Root "packet-state.json"
+        [pscustomobject]@{
+            schemaVersion = 1
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            ships = @((New-FleetShipStateRecord -Ship "FixtureStage8" -Repo $repo -Status "READY" -RepoClean $true -TasksRemaining 0))
+        } | ConvertTo-Json -Depth 12 | Set-Content -Path $packetStatePath -Encoding UTF8
+        $missingPacketJson = Join-Path $stage8Root "packet-missing.json"
+        $missingPacketRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $packetStatePath,
+            "-Ship", "FixtureStage8",
+            "-Execute",
+            "-AllowTaskPacketImport",
+            "-ApprovedPacketEvidence", (Join-Path $stage8Root "missing-packet.INGEST.json"),
+            "-ReportPath", (Join-Path $stage8Root "packet-missing.md"),
+            "-JsonReportPath", $missingPacketJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $missingPacketRun.ExitCode -Expected 0 -Message "Stage 8.5 missing packet evidence blocks without import"
+        $missingPacket = Get-Content $missingPacketJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $missingPacket.ships[0].action -Expected "BLOCK_WITH_REASON" -Message "Stage 8.5 import requires real packet evidence"
+
+        $validPacketEvidence = Join-Path $stage8Root "valid-packet.INGEST.json"
+        [pscustomobject]@{
+            packetId = "stage8-valid"
+            valid = $true
+            applied = $false
+            accepted = @([pscustomobject]@{ id = "task-1"; line = "- [ ] Valid task" })
+            rejected = @()
+            errors = @()
+        } | ConvertTo-Json -Depth 8 | Set-Content -Path $validPacketEvidence -Encoding UTF8
+        $validPacketJson = Join-Path $stage8Root "packet-valid.json"
+        $validPacketRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $packetStatePath,
+            "-Ship", "FixtureStage8",
+            "-Execute",
+            "-AllowTaskPacketImport",
+            "-ApprovedPacketEvidence", $validPacketEvidence,
+            "-ReportPath", (Join-Path $stage8Root "packet-valid.md"),
+            "-JsonReportPath", $validPacketJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $validPacketRun.ExitCode -Expected 0 -Message "Stage 8.5 accepts real packet validation evidence"
+        $validPacket = Get-Content $validPacketJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $validPacket.ships[0].action -Expected "IMPORT_APPROVED_PACKET" -Message "Stage 8.5 maps validated packet evidence to import-ready action"
+        Assert-True -Condition ([bool]$validPacket.approvedPacketEvidence.valid) -Message "Stage 8.5 records approved packet evidence in JSON report"
+
+        $tasteJson = Join-Path $stage8Root "taste.json"
+        $tasteRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "OtherShip",
+            "-Execute",
+            "-ReportPath", (Join-Path $stage8Root "taste.md"),
+            "-JsonReportPath", $tasteJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $tasteRun.ExitCode -Expected 0 -Message "Stage 8 taste-gate request is reportable"
+        $taste = Get-Content $tasteJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $taste.ships[0].action -Expected "REQUEST_TASTE_GATE" -Message "Stage 8 maps taste decision to taste request"
+
+        $corruptStatePath = Join-Path $stage8Root "corrupt-state.json"
+        Set-Content -Path $corruptStatePath -Encoding UTF8 -Value "{ not-json"
+        $corruptJson = Join-Path $stage8Root "corrupt-state-result.json"
+        $corruptRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $corruptStatePath,
+            "-Ship", "FixtureStage8",
+            "-ReportPath", (Join-Path $stage8Root "corrupt-state.md"),
+            "-JsonReportPath", $corruptJson
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $corruptRun.ExitCode -Expected 1 -Message "Stage 8.5 corrupt state evidence fails contained"
+        Assert-True -Condition (Test-Path $corruptJson) -Message "Stage 8.5 corrupt state still writes machine-readable report"
+    } finally {
+        if (Test-Path $stage8Root) {
+            Remove-Item -LiteralPath $stage8Root -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageNineSupport {
+    $externalToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-external-agent.ps1") -Raw
+    $workflowScript = Join-Path $fleetRoot "new-external-agent-workflow.ps1"
+    Assert-True -Condition (Test-Path $workflowScript) -Message "Stage 9 exposes external-agent workflow command"
+    Assert-True -Condition ($externalToolText -match "function Get-FleetExternalAgentRoles") -Message "Stage 9 exposes external role list"
+    Assert-True -Condition ($externalToolText -match "function New-FleetExternalAgentPrompt") -Message "Stage 9 exposes handoff prompt generator"
+    Assert-True -Condition ($externalToolText -match "function Test-FleetExternalAgentResponse") -Message "Stage 9 exposes response validator"
+    Assert-True -Condition ($externalToolText -match "function Compare-FleetExternalAgentResponses") -Message "Stage 9 exposes multi-agent comparison"
+    Assert-True -Condition ($externalToolText -match "function New-FleetExternalCaptainSummary") -Message "Stage 9.5 exposes captain summary generator"
+
+    foreach ($role in @("Issue Auditor", "Improvement Auditor", "Product Taste Auditor", "Formula Auditor", "Security Scope Auditor", "Tie-Breaker Auditor")) {
+        Assert-True -Condition (Test-FleetExternalAgentRole -Role $role) -Message "Stage 9 recognizes $role role"
+        $rolePrompt = Get-FleetExternalRolePrompt -Role $role
+        Assert-True -Condition ($rolePrompt.Length -gt 40) -Message "Stage 9 $role role has specific prompt guidance"
+    }
+
+    foreach ($template in @(
+        "docs\templates\external-agent-workflow\roles.md",
+        "docs\templates\external-agent-workflow\handoff-prompt-template.md",
+        "docs\templates\external-agent-workflow\structured-response-template.json",
+        "docs\templates\external-agent-workflow\valid-response-example.json",
+        "docs\templates\external-agent-workflow\rejected-response-example.json",
+        "docs\templates\external-agent-workflow\comparison-rubric.md",
+        "docs\templates\external-agent-workflow\captain-summary-template.md",
+        "docs\templates\external-agent-workflow\comparison-example.json",
+        "docs\templates\external-agent-workflow\captain-summary-example.md"
+    )) {
+        Assert-True -Condition (Test-Path (Join-Path $fleetRoot $template)) -Message "Stage 9 provides template $template"
+    }
+
+    $stage9Root = Join-Path $fixtureRoot ("stage9-external-agent-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage9Root | Out-Null
+    try {
+        $promptPath = Join-Path $stage9Root "issue-prompt.md"
+        $promptRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "Prompt",
+            "-Role", "Issue Auditor",
+            "-Ship", "FixtureStage9",
+            "-AuditPackagePath", "out/audit/fixture.zip",
+            "-Mission", "Find blockers and safe next tasks.",
+            "-OutPath", $promptPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $promptRun.ExitCode -Expected 0 -Message "Stage 9 prompt generation succeeds"
+        $promptText = Get-Content $promptPath -Raw
+        Assert-True -Condition ($promptText -match "Issue Auditor" -and $promptText -match "reviewer, not an executor" -and $promptText -match "Human/captain review is the final taste") -Message "Stage 9 prompt enforces reviewer-only and final taste-gate framing"
+
+        $validResponsePath = Join-Path $stage9Root "valid-response.json"
+        [pscustomobject]@{
+            auditId = "audit-1"
+            agentRole = "Issue Auditor"
+            ship = "FixtureStage9"
+            baseCommit = "abc1234"
+            verdict = "PASS_WITH_FIXES"
+            findings = @([pscustomobject]@{ severity = "P1"; title = "Missing summary"; evidence = @("report.md"); recommendation = "Add concise summary." })
+            rejectedIdeas = @()
+            taskPacket = [pscustomobject]@{
+                tasks = @([pscustomobject]@{
+                    id = "task-1"
+                    title = "Add concise external audit summary"
+                    priority = "P1"
+                    risk = "low"
+                    lane = "harness"
+                    userPain = "The captain needs a quick summary from a phone."
+                    target = "docs/templates/external-agent-workflow/captain-summary-template.md"
+                    change = "Add a concise first-screen summary section."
+                    guardrails = "Do not touch product repos, secrets, deploy config, auth, payments, packages, or locks."
+                    acceptance = "Template starts with ship, status, and next command."
+                    proof = "Run fleet tests and inspect the template."
+                    stopIf = "Scope expands beyond Stage 9 docs/templates/tests."
+                    checkCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1"
+                })
+            }
+            captainQuestions = @()
+        } | ConvertTo-Json -Depth 14 | Set-Content -Path $validResponsePath -Encoding UTF8
+
+        $validationPath = Join-Path $stage9Root "valid-validation.json"
+        $validationRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $validResponsePath,
+            "-ExpectedAuditId", "audit-1",
+            "-ExpectedShip", "FixtureStage9",
+            "-ExpectedBaseCommit", "abc1234",
+            "-OutPath", $validationPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $validationRun.ExitCode -Expected 0 -Message "Stage 9 validates a safe structured response"
+        $validation = Get-Content $validationPath -Raw | ConvertFrom-Json
+        Assert-True -Condition ([bool]$validation.valid -and [int]$validation.taskCount -eq 1) -Message "Stage 9 validation records valid task count"
+
+        $staleValidationPath = Join-Path $stage9Root "stale-validation.json"
+        $staleRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $validResponsePath,
+            "-ExpectedAuditId", "audit-1",
+            "-ExpectedShip", "FixtureStage9",
+            "-ExpectedBaseCommit", "different",
+            "-OutPath", $staleValidationPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $staleRun.ExitCode -Expected 1 -Message "Stage 9 rejects stale external response base commit"
+        $staleValidation = Get-Content $staleValidationPath -Raw | ConvertFrom-Json
+        Assert-True -Condition (($staleValidation.errors -join ";") -match "Base commit mismatch") -Message "Stage 9 explains stale response rejection"
+
+        $unsafeResponsePath = Join-Path $stage9Root "unsafe-response.json"
+        [pscustomobject]@{
+            auditId = "audit-1"
+            agentRole = "Improvement Auditor"
+            ship = "FixtureStage9"
+            baseCommit = "abc1234"
+            verdict = "PASS_WITH_FIXES"
+            findings = @()
+            rejectedIdeas = @()
+            taskPacket = [pscustomobject]@{
+                tasks = @([pscustomobject]@{
+                    id = "bad-1"
+                    title = "Deploy everything"
+                    priority = "P1"
+                    risk = "high"
+                    lane = "deploy"
+                    userPain = "Make it live."
+                    target = "package.json and deploy config"
+                    change = "git push and deploy."
+                    guardrails = "None."
+                    acceptance = "Production deploy succeeds."
+                    proof = "Live URL."
+                    stopIf = "Never."
+                    checkCommand = "git push && deploy"
+                })
+            }
+            captainQuestions = @()
+        } | ConvertTo-Json -Depth 14 | Set-Content -Path $unsafeResponsePath -Encoding UTF8
+        $unsafeValidationPath = Join-Path $stage9Root "unsafe-validation.json"
+        $unsafeRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $unsafeResponsePath,
+            "-ExpectedAuditId", "audit-1",
+            "-ExpectedShip", "FixtureStage9",
+            "-ExpectedBaseCommit", "abc1234",
+            "-OutPath", $unsafeValidationPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $unsafeRun.ExitCode -Expected 1 -Message "Stage 9 rejects broad unsafe redesign/deploy packet"
+
+        $missingFieldResponsePath = Join-Path $stage9Root "missing-field-response.json"
+        [pscustomobject]@{
+            auditId = "audit-1"
+            agentRole = "Issue Auditor"
+            ship = "FixtureStage9"
+            baseCommit = "abc1234"
+            verdict = "PASS_WITH_FIXES"
+            taskPacket = [pscustomobject]@{
+                tasks = @([pscustomobject]@{
+                    id = "missing-1"
+                    title = "Missing task fields"
+                    priority = "P1"
+                    risk = "low"
+                    lane = "harness"
+                    userPain = ""
+                    target = "docs/templates/external-agent-workflow/captain-summary-template.md"
+                    change = "Add summary."
+                    guardrails = "Stay in Stage 9 docs."
+                    acceptance = "Summary exists."
+                    proof = "Run tests."
+                    stopIf = "Scope expands."
+                    checkCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1"
+                })
+            }
+        } | ConvertTo-Json -Depth 14 | Set-Content -Path $missingFieldResponsePath -Encoding UTF8
+        $missingFieldValidationPath = Join-Path $stage9Root "missing-field-validation.json"
+        $missingFieldRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $missingFieldResponsePath,
+            "-ExpectedAuditId", "audit-1",
+            "-ExpectedShip", "FixtureStage9",
+            "-ExpectedBaseCommit", "abc1234",
+            "-OutPath", $missingFieldValidationPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $missingFieldRun.ExitCode -Expected 1 -Message "Stage 9.5 rejects missing required task fields"
+
+        $unknownRoleResponsePath = Join-Path $stage9Root "unknown-role-response.json"
+        $unknownRole = Get-Content $validResponsePath -Raw | ConvertFrom-Json
+        $unknownRole.agentRole = "Mystery Auditor"
+        $unknownRole | ConvertTo-Json -Depth 14 | Set-Content -Path $unknownRoleResponsePath -Encoding UTF8
+        $unknownRoleRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $unknownRoleResponsePath,
+            "-OutPath", (Join-Path $stage9Root "unknown-role-validation.json")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $unknownRoleRun.ExitCode -Expected 1 -Message "Stage 9.5 rejects unknown external agent roles"
+
+        $invalidVerdictResponsePath = Join-Path $stage9Root "invalid-verdict-response.json"
+        $invalidVerdict = Get-Content $validResponsePath -Raw | ConvertFrom-Json
+        $invalidVerdict.verdict = "MAYBE"
+        $invalidVerdict | ConvertTo-Json -Depth 14 | Set-Content -Path $invalidVerdictResponsePath -Encoding UTF8
+        $invalidVerdictRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $invalidVerdictResponsePath,
+            "-OutPath", (Join-Path $stage9Root "invalid-verdict-validation.json")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $invalidVerdictRun.ExitCode -Expected 1 -Message "Stage 9.5 rejects invalid verdict values"
+
+        $malformedResponsePath = Join-Path $stage9Root "malformed-response.json"
+        Set-Content -Path $malformedResponsePath -Encoding UTF8 -Value "{ nope"
+        $malformedValidationPath = Join-Path $stage9Root "malformed-validation.json"
+        $malformedRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "ValidateResponse",
+            "-ResponsePath", $malformedResponsePath,
+            "-OutPath", $malformedValidationPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $malformedRun.ExitCode -Expected 1 -Message "Stage 9.5 malformed JSON writes validation failure"
+        $malformedValidation = Get-Content $malformedValidationPath -Raw | ConvertFrom-Json
+        Assert-True -Condition (($malformedValidation.errors -join ";") -match "Malformed response JSON") -Message "Stage 9.5 malformed JSON result explains failure"
+
+        $tastePrompt = New-FleetExternalAgentPrompt -Role "Product Taste Auditor" -Ship "FixtureWebsite" -AuditPackagePath "audit.zip" -DesiredOutputType "findings-only"
+        Assert-True -Condition ($tastePrompt -match "first-screen clarity" -and $tastePrompt -match "final taste") -Message "Stage 9 product taste prompt focuses on final taste gate"
+        $formulaPrompt = New-FleetExternalAgentPrompt -Role "Formula Auditor" -Ship "FixtureFormula" -AuditPackagePath "audit.zip" -DesiredOutputType "task-packet"
+        Assert-True -Condition ($formulaPrompt -match "fake-confidence" -and $formulaPrompt -match "deterministic") -Message "Stage 9 formula prompt focuses on deterministic correctness"
+        $securityPrompt = New-FleetExternalAgentPrompt -Role "Security Scope Auditor" -Ship "FixtureSecurity" -AuditPackagePath "audit.zip" -DesiredOutputType "findings-only"
+        Assert-True -Condition ($securityPrompt -match "forbidden paths" -and $securityPrompt -match "secrets") -Message "Stage 9 security prompt focuses on forbidden scope"
+
+        $comparePath = Join-Path $stage9Root "comparison.json"
+        $compareRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "Compare",
+            "-ResponsePaths", "$validResponsePath,$unsafeResponsePath",
+            "-OutPath", $comparePath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $compareRun.ExitCode -Expected 0 -Message "Stage 9 compares multiple external reports"
+        $comparison = Get-Content $comparePath -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($comparison.accepted).Count -ge 1 -and @($comparison.rejected).Count -ge 1) -Message "Stage 9 comparison separates accepted and rejected recommendations"
+
+        $tasteConflictResponsePath = Join-Path $stage9Root "taste-conflict-response.json"
+        [pscustomobject]@{
+            auditId = "audit-1"
+            agentRole = "Product Taste Auditor"
+            ship = "FixtureStage9"
+            baseCommit = "abc1234"
+            verdict = "PASS_WITH_FIXES"
+            findings = @()
+            rejectedIdeas = @()
+            taskPacket = [pscustomobject]@{
+                tasks = @([pscustomobject]@{
+                    id = "taste-1"
+                    title = "Choose a warmer visual direction"
+                    priority = "P2"
+                    risk = "low"
+                    lane = "taste"
+                    userPain = "The captain needs to choose subjective brand direction."
+                    target = "product-quality evidence"
+                    change = "Ask captain whether the design should feel warmer or more minimal."
+                    guardrails = "Do not implement visual direction without captain approval."
+                    acceptance = "Captain question is recorded."
+                    proof = "Captain summary includes the question."
+                    stopIf = "Deterministic gates are failing."
+                    checkCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1"
+                })
+            }
+            captainQuestions = @("Warmer or more minimal?")
+        } | ConvertTo-Json -Depth 14 | Set-Content -Path $tasteConflictResponsePath -Encoding UTF8
+        $tasteComparePath = Join-Path $stage9Root "taste-comparison.json"
+        $tasteCompareRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "Compare",
+            "-ResponsePaths", $tasteConflictResponsePath,
+            "-OutPath", $tasteComparePath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $tasteCompareRun.ExitCode -Expected 0 -Message "Stage 9.5 compares taste disagreement reports"
+        $tasteComparison = Get-Content $tasteComparePath -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($tasteComparison.needsCaptain).Count -ge 1) -Message "Stage 9.5 taste disagreement lands in NEEDS_CAPTAIN"
+
+        $summaryPath = Join-Path $stage9Root "captain-summary.md"
+        $summaryRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowScript,
+            "-Mode", "CaptainSummary",
+            "-ComparisonPath", $tasteComparePath,
+            "-Ship", "FixtureStage9",
+            "-AuditPackagePath", "out/audit/fixture.zip",
+            "-RolesUsed", "Product Taste Auditor",
+            "-OutPath", $summaryPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $summaryRun.ExitCode -Expected 0 -Message "Stage 9.5 generates captain summary from comparison JSON"
+        $summaryText = Get-Content $summaryPath -Raw
+        Assert-True -Condition ($summaryText -match "External Audit Captain Summary" -and $summaryText -match "Needs captain" -and $summaryText -match "final taste/high-risk approval gate") -Message "Stage 9.5 captain summary is phone-readable and safety-framed"
+    } finally {
+        if (Test-Path $stage9Root) {
+            Remove-Item -LiteralPath $stage9Root -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageTenSupport {
+    $overnightToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-overnight.ps1") -Raw
+    $overnightScript = Join-Path $fleetRoot "invoke-overnight-mode.ps1"
+    Assert-True -Condition (Test-Path $overnightScript) -Message "Stage 10 exposes overnight mode command"
+    Assert-True -Condition ($overnightToolText -match "function New-FleetOvernightContract") -Message "Stage 10 exposes overnight contract helper"
+    Assert-True -Condition ($overnightToolText -match "function Resolve-FleetRateGovernor") -Message "Stage 10 exposes rate governor"
+    Assert-True -Condition ($overnightToolText -match "function New-FleetModelBudgetState") -Message "Stage 10 exposes model budget state helper"
+    Assert-True -Condition ($overnightToolText -match "function New-FleetSafeLandingPlan") -Message "Stage 10 exposes safe-landing plan helper"
+    Assert-True -Condition ($overnightToolText -match "function New-FleetWeeklyResetPreviewPlan") -Message "Stage 10 exposes weekly reset preview plan helper"
+    Assert-True -Condition ($overnightToolText -match "function Resolve-FleetHeartbeatLeaseRecovery") -Message "Stage 10 exposes heartbeat lease recovery helper"
+    Assert-True -Condition ($overnightToolText -match "function Test-FleetOvernightResumeEligibility") -Message "Stage 10 exposes resume eligibility helper"
+    Assert-True -Condition ($overnightToolText -match "function New-FleetOvernightMorningReport") -Message "Stage 10 exposes morning report helper"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "docs\golden-gameplan\10-overnight-mode\weekly-reset-preview-pause.md")) -Message "Stage 10 documents weekly reset preview pause"
+    Assert-True -Condition (Test-Path (Join-Path $fleetRoot "docs\golden-gameplan\10-overnight-mode\heartbeat-lease-recovery.md")) -Message "Stage 10 documents heartbeat lease recovery"
+    $rateGovernorDoc = Get-Content (Join-Path $fleetRoot "docs\golden-gameplan\10-overnight-mode\rate-governor.md") -Raw
+    foreach ($phrase in @("forecast warning", "actual threshold warning", "hard-stop imminent", "safe landing", "weekly reset preview pause", "Manual Low-Token Mode")) {
+        Assert-True -Condition ($rateGovernorDoc -match [regex]::Escape($phrase)) -Message "Stage 10 rate governor docs include $phrase"
+    }
+
+    $healthy = Resolve-FleetRateGovernor -RemainingPercent 60
+    Assert-Equal -Actual $healthy.decision -Expected "ALLOW_RUN" -Message "Stage 10 healthy budget allows bounded work"
+    $low = Resolve-FleetRateGovernor -RemainingPercent 8
+    Assert-Equal -Actual $low.decision -Expected "BLOCK_NEW_WORK" -Message "Stage 10 low budget blocks new model-heavy work"
+    $critical = Resolve-FleetRateGovernor -RemainingPercent 3
+    Assert-Equal -Actual $critical.decision -Expected "SAFE_LAND_NOW" -Message "Stage 10 3 percent budget triggers safe landing"
+    $weeklyLow = Resolve-FleetRateGovernor -RemainingPercent 50 -WeeklyRemainingPercent 5
+    Assert-Equal -Actual $weeklyLow.decision -Expected "WEEKLY_PREVIEW_PAUSE" -Message "Stage 10 5 percent weekly budget triggers preview pause"
+    Assert-True -Condition ([bool]$weeklyLow.safeLandingRequired) -Message "Stage 10 weekly preview pause requires safe landing"
+    $exhausted = Resolve-FleetRateGovernor -RemainingPercent 0
+    Assert-Equal -Actual $exhausted.decision -Expected "WAIT_FOR_RESET" -Message "Stage 10 exhausted budget waits for reset"
+    $unknown = Resolve-FleetRateGovernor -ManualBudgetLevel "unknown"
+    Assert-Equal -Actual $unknown.decision -Expected "ALLOW_STATUS_ONLY" -Message "Stage 10 unknown budget is conservative status-only"
+
+    $leaseNow = [datetime]"2026-05-28T12:00:00Z"
+    $activeLease = Resolve-FleetHeartbeatLeaseRecovery -Now $leaseNow -HeartbeatAt $leaseNow.AddMinutes(-2) -LeaseExpiresAt $leaseNow.AddMinutes(15) -LeaseOwner "worker-1"
+    Assert-Equal -Actual $activeLease.decision -Expected "LEAVE_RUNNING" -Message "Stage 10 active lease with fresh heartbeat is left alone"
+    Assert-Equal -Actual $activeLease.recoveryClass -Expected "active-with-child-work" -Message "Stage 10 active lease classifies child work"
+    $staleHeartbeat = Resolve-FleetHeartbeatLeaseRecovery -Now $leaseNow -HeartbeatAt $leaseNow.AddMinutes(-30) -LeaseExpiresAt $leaseNow.AddMinutes(15) -LeaseOwner "worker-1"
+    Assert-Equal -Actual $staleHeartbeat.decision -Expected "REQUIRE_REVIEW" -Message "Stage 10 stale heartbeat with active lease requires review"
+    Assert-True -Condition ($staleHeartbeat.deletesLocks -eq $false) -Message "Stage 10 stale heartbeat does not delete locks"
+    $expiredLease = Resolve-FleetHeartbeatLeaseRecovery -Now $leaseNow -HeartbeatAt $leaseNow.AddMinutes(-30) -LeaseExpiresAt $leaseNow.AddMinutes(-1) -LeaseOwner "worker-1"
+    Assert-Equal -Actual $expiredLease.decision -Expected "RECOVER_WITH_BACKOFF" -Message "Stage 10 expired lease permits bounded recovery"
+    Assert-True -Condition ([bool]$expiredLease.blindRetryAllowed) -Message "Stage 10 expired lease allows only bounded recovery"
+    $ambiguousState = Resolve-FleetHeartbeatLeaseRecovery -Now $leaseNow
+    Assert-Equal -Actual $ambiguousState.decision -Expected "REQUIRE_REVIEW" -Message "Stage 10 missing heartbeat and lease require review"
+    $deterministicFailure = Resolve-FleetHeartbeatLeaseRecovery -Now $leaseNow -HeartbeatAt $leaseNow.AddMinutes(-1) -LeaseExpiresAt $leaseNow.AddMinutes(-1) -FailureSignal "deterministic"
+    Assert-Equal -Actual $deterministicFailure.decision -Expected "STOP_FOR_REPAIR" -Message "Stage 10 deterministic failures stop for repair"
+    Assert-False -Condition ([bool]$deterministicFailure.blindRetryAllowed) -Message "Stage 10 deterministic failures are not blindly retried"
+    foreach ($failureClass in @("transient", "deterministic-code-defect", "environment-fault", "policy-failure", "ambiguous-state")) {
+        Assert-True -Condition ($overnightToolText -match [regex]::Escape($failureClass)) -Message "Stage 10 heartbeat helper documents recovery class $failureClass"
+    }
+
+    $forecastBudget = New-FleetModelBudgetState -CurrentRemainingPercent 60 -ForecastRemainingPercent 18 -TaskClass "implementation"
+    Assert-Equal -Actual $forecastBudget.decision -Expected "STATUS_AND_LIGHT_REPAIR_ONLY" -Message "Stage 10 forecast warning avoids new implementation"
+    Assert-True -Condition (@($forecastBudget.signals) -contains "FORECAST_WARNING") -Message "Stage 10 budget state records forecast warning"
+    $lowImplementationBudget = New-FleetModelBudgetState -CurrentRemainingPercent 8 -TaskClass "implementation"
+    Assert-Equal -Actual $lowImplementationBudget.decision -Expected "BLOCK_IMPLEMENTATION" -Message "Stage 10 current low budget blocks implementation"
+    Assert-False -Condition ([bool]$lowImplementationBudget.implementationAllowed) -Message "Stage 10 low budget does not allow implementation"
+    Assert-False -Condition ([bool]$lowImplementationBudget.productLaunchAllowed) -Message "Stage 10 low budget does not imply product launch"
+    $hardStopBudget = New-FleetModelBudgetState -CurrentRemainingPercent 0 -TaskClass "status"
+    Assert-Equal -Actual $hardStopBudget.decision -Expected "WAIT_FOR_RESET" -Message "Stage 10 hard stop waits for reset"
+    Assert-True -Condition (@($hardStopBudget.signals) -contains "HARD_STOP_IMMINENT") -Message "Stage 10 hard stop signal is explicit"
+    $manualLowToken = New-FleetModelBudgetState -CurrentRemainingPercent 70 -TaskClass "implementation" -ManualLowTokenMode
+    Assert-Equal -Actual $manualLowToken.decision -Expected "BLOCK_IMPLEMENTATION" -Message "Stage 10 manual low-token mode blocks implementation"
+    Assert-True -Condition ([bool]$manualLowToken.manualLowTokenMode) -Message "Stage 10 manual low-token mode is labeled manual"
+    $weeklyBudget = New-FleetModelBudgetState -CurrentRemainingPercent 80 -WeeklyRemainingPercent 5 -TaskClass "audit"
+    Assert-Equal -Actual $weeklyBudget.decision -Expected "WEEKLY_PREVIEW_PAUSE" -Message "Stage 10 weekly budget state pauses for preview"
+    Assert-Equal -Actual $weeklyBudget.maxConcurrentShips -Expected 1 -Message "Stage 10 low/weekly budget caps concurrency"
+    $healthyBudget = New-FleetModelBudgetState -CurrentRemainingPercent 70 -ForecastRemainingPercent 60 -TaskClass "implementation"
+    Assert-Equal -Actual $healthyBudget.decision -Expected "ALLOW_BOUNDED_RUN" -Message "Stage 10 healthy budget allows bounded run"
+    Assert-Equal -Actual $healthyBudget.modelTier -Expected "balanced" -Message "Stage 10 healthy implementation uses balanced tier"
+    $resetBudget = New-FleetModelBudgetState -CurrentRemainingPercent 0 -TaskClass "status" -ResetConfirmed
+    Assert-True -Condition ([bool]$resetBudget.resumeAfterReset) -Message "Stage 10 confirmed reset marks resume-after-reset eligible signal"
+    Assert-True -Condition ([bool]$resetBudget.requiresExplicitShipSelection) -Message "Stage 10 resume still requires explicit ship selection"
+
+    $stage10Root = Join-Path $fixtureRoot ("stage10-overnight-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage10Root | Out-Null
+    try {
+        $repo = Join-Path $stage10Root "FixtureStage10"
+        New-Item -ItemType Directory -Force -Path $repo | Out-Null
+        & git -C $repo init | Out-Null
+        Set-Content -Path (Join-Path $repo "README.md") -Encoding UTF8 -Value "Stage 10 fixture"
+        & git -C $repo add README.md | Out-Null
+        & git -C $repo -c user.name=Codex -c user.email=codex@example.com commit -m init | Out-Null
+
+        $configPath = Join-Path $stage10Root "projects.stage10.json"
+        @(
+            [pscustomobject]@{ name = "FixtureStage10"; repo = $repo },
+            [pscustomobject]@{ name = "RunningWeeklyShip"; repo = $repo },
+            [pscustomobject]@{ name = "TasteShip"; repo = $repo },
+            [pscustomobject]@{ name = "BlockedShip"; repo = $repo }
+        ) | ConvertTo-Json -Depth 4 | Set-Content -Path $configPath -Encoding UTF8
+
+        $statePath = Join-Path $stage10Root "ship-state.json"
+        [pscustomobject]@{
+            schemaVersion = 1
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            ships = @(
+                (New-FleetShipStateRecord -Ship "FixtureStage10" -Repo $repo -Status "READY" -RepoClean $true -TasksRemaining 1),
+                (New-FleetShipStateRecord -Ship "RunningWeeklyShip" -Repo $repo -Status "RUNNING" -RepoClean $true -TasksRemaining 2),
+                (New-FleetShipStateRecord -Ship "TasteShip" -Repo $repo -Status "TASTE_GATE" -RepoClean $true),
+                (New-FleetShipStateRecord -Ship "BlockedShip" -Repo $repo -Status "BLOCKED" -RepoClean $true)
+            )
+        } | ConvertTo-Json -Depth 12 | Set-Content -Path $statePath -Encoding UTF8
+
+        $criticalJson = Join-Path $stage10Root "critical.json"
+        $criticalReport = Join-Path $stage10Root "critical.md"
+        $criticalResume = Join-Path $stage10Root "critical-resume.json"
+        $criticalRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage10",
+            "-CurrentRatePercent", "3",
+            "-ReportPath", $criticalReport,
+            "-JsonReportPath", $criticalJson,
+            "-ResumeMetadataPath", $criticalResume
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $criticalRun.ExitCode -Expected 0 -Message "Stage 10 critical budget wrapper succeeds"
+        $criticalResult = Get-Content $criticalJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $criticalResult.governor.decision -Expected "SAFE_LAND_NOW" -Message "Stage 10 wrapper records safe landing decision"
+        Assert-True -Condition ([bool]$criticalResult.safeLanding -and (Test-Path $criticalResume)) -Message "Stage 10 safe landing writes resume metadata"
+        $criticalText = Get-Content $criticalReport -Raw
+        Assert-True -Condition ($criticalText -match "Captain Summary" -and $criticalText -match "Resume metadata") -Message "Stage 10 morning report is phone-readable and links evidence"
+
+        $weeklyJson = Join-Path $stage10Root "weekly-preview.json"
+        $weeklyReport = Join-Path $stage10Root "weekly-preview.md"
+        $weeklyPreview = Join-Path $stage10Root "weekly-preview-plan.json"
+        $weeklyReset = (Get-Date).AddDays(2).ToString("o")
+        $weeklyRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "RunningWeeklyShip",
+            "-CurrentRatePercent", "70",
+            "-WeeklyRatePercent", "5",
+            "-WeeklyResetPauseThresholdPercent", "5",
+            "-ResetAt", $weeklyReset,
+            "-ReportPath", $weeklyReport,
+            "-JsonReportPath", $weeklyJson,
+            "-WeeklyPreviewPlanPath", $weeklyPreview
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $weeklyRun.ExitCode -Expected 0 -Message "Stage 10 weekly preview pause wrapper succeeds"
+        $weekly = Get-Content $weeklyJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $weekly.governor.decision -Expected "WEEKLY_PREVIEW_PAUSE" -Message "Stage 10 wrapper records weekly preview pause decision"
+        Assert-True -Condition ([bool]$weekly.weeklyPreviewPause -and (Test-Path $weeklyPreview)) -Message "Stage 10 weekly preview pause writes preview plan"
+        Assert-Equal -Actual $weekly.ships[0].action -Expected "PAUSE_FOR_WEEKLY_PREVIEW" -Message "Stage 10 weekly low budget pauses unfinished ship for preview"
+        Assert-True -Condition ($weekly.nextCaptainAction -match "WEEKLY_RESET_REVIEW_NOTES") -Message "Stage 10 weekly pause points captain to bug review doc"
+        $weeklyPlan = Get-Content $weeklyPreview -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $weeklyPlan.state -Expected "WEEKLY_RESET_PREVIEW_PAUSE" -Message "Stage 10 weekly preview plan records pause state"
+        Assert-True -Condition ([bool]$weeklyPlan.holdPreviewUntilReset) -Message "Stage 10 weekly preview plan holds preview until reset"
+        Assert-True -Condition ((@($weeklyPlan.unfinishedShips | Where-Object { [string]$_.ship -eq "RunningWeeklyShip" }).Count) -eq 1) -Message "Stage 10 weekly preview plan lists unfinished running ship"
+        $weeklyText = Get-Content $weeklyReport -Raw
+        Assert-True -Condition ($weeklyText -match "Weekly preview pause" -and $weeklyText -match "Weekly preview plan") -Message "Stage 10 report links weekly preview plan"
+
+        $futureReset = (Get-Date).AddHours(1).ToString("o")
+        $waitJson = Join-Path $stage10Root "wait-reset.json"
+        $waitRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage10",
+            "-ManualBudgetLevel", "exhausted",
+            "-ResetAt", $futureReset,
+            "-JsonReportPath", $waitJson,
+            "-ReportPath", (Join-Path $stage10Root "wait-reset.md")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $waitRun.ExitCode -Expected 0 -Message "Stage 10 exhausted budget wrapper succeeds"
+        $wait = Get-Content $waitJson -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $wait.governor.decision -Expected "WAIT_FOR_RESET" -Message "Stage 10 exhausted budget waits for reset"
+        Assert-Equal -Actual $wait.governor.resetStatus -Expected "pending" -Message "Stage 10 future reset is pending"
+
+        $passedReset = (Get-Date).AddMinutes(-5).ToString("o")
+        $resumeJson = Join-Path $stage10Root "resume-ready.json"
+        $resumeRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage10",
+            "-ManualBudgetLevel", "recovered",
+            "-ResetAt", $passedReset,
+            "-AllowConfiguredResetResume",
+            "-JsonReportPath", $resumeJson,
+            "-ReportPath", (Join-Path $stage10Root "resume-ready.md")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $resumeRun.ExitCode -Expected 0 -Message "Stage 10 recovered budget wrapper succeeds"
+        $resume = Get-Content $resumeJson -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($resume.resumeEligibility | Where-Object { $_.eligible }).Count -eq 1) -Message "Stage 10 recovered budget marks eligible ship auto-resume ready"
+
+        $tasteJson = Join-Path $stage10Root "taste.json"
+        $tasteRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "TasteShip",
+            "-ManualBudgetLevel", "recovered",
+            "-AllowConfiguredResetResume",
+            "-JsonReportPath", $tasteJson,
+            "-ReportPath", (Join-Path $stage10Root "taste.md")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $tasteRun.ExitCode -Expected 0 -Message "Stage 10 taste-gated wrapper succeeds"
+        $taste = Get-Content $tasteJson -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($taste.resumeEligibility | Where-Object { $_.eligible }).Count -eq 0) -Message "Stage 10 taste-gated ship does not auto-resume"
+        Assert-Equal -Actual $taste.ships[0].action -Expected "DO_NOT_RESUME" -Message "Stage 10 taste gate blocks resume action"
+
+        $attemptJson = Join-Path $stage10Root "attempts.json"
+        $attemptRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage10",
+            "-ManualBudgetLevel", "recovered",
+            "-MaxResumeAttempts", "1",
+            "-ResumeAttemptsUsed", "1",
+            "-JsonReportPath", $attemptJson,
+            "-ReportPath", (Join-Path $stage10Root "attempts.md")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $attemptRun.ExitCode -Expected 0 -Message "Stage 10 max-attempt wrapper succeeds"
+        $attempt = Get-Content $attemptJson -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($attempt.resumeEligibility | Where-Object { $_.eligible }).Count -eq 0) -Message "Stage 10 max resume attempts stop retry loops"
+
+        $multiRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $overnightScript,
+            "-ConfigPath", $configPath,
+            "-StatePath", $statePath,
+            "-Ship", "FixtureStage10,TasteShip",
+            "-ReportPath", (Join-Path $stage10Root "multi.md"),
+            "-JsonReportPath", (Join-Path $stage10Root "multi.json")
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $multiRun.ExitCode -Expected 1 -Message "Stage 10 default MaxShips blocks accidental multi-ship overnight runs"
+    } finally {
+        if (Test-Path $stage10Root) {
+            Remove-Item -LiteralPath $stage10Root -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageElevenSupport {
+    $laneToolText = Get-Content (Join-Path $fleetRoot "tools\codex-fleet-lanes.ps1") -Raw
+    $laneScript = Join-Path $fleetRoot "invoke-specialized-lane.ps1"
+    Assert-True -Condition (Test-Path $laneScript) -Message "Stage 11 exposes specialized lane command"
+    Assert-True -Condition ($laneToolText -match "function Get-FleetLaneProfiles") -Message "Stage 11 exposes lane profiles"
+    Assert-True -Condition ($laneToolText -match "function Resolve-FleetSpecializedLane") -Message "Stage 11 exposes lane resolver"
+    Assert-True -Condition ($laneToolText -match "function Test-FleetBackendSensitiveText") -Message "Stage 11 exposes backend-sensitive override"
+
+    $profiles = @(Get-FleetLaneProfiles)
+    foreach ($laneId in @("hospitality_website", "manager_internal_tool", "analytical_software", "backend_sensitive", "maintenance")) {
+        $profile = @($profiles | Where-Object { $_.id -eq $laneId })
+        Assert-True -Condition ($profile.Count -eq 1) -Message "Stage 11 defines lane $laneId"
+        Assert-True -Condition (@($profile[0].requiredGates).Count -gt 0 -and @($profile[0].evidenceRequirements).Count -gt 0) -Message "Stage 11 lane $laneId has gates and evidence"
+    }
+
+    foreach ($template in @(
+        "docs\templates\specialized-lanes\lane-taxonomy.md",
+        "docs\templates\specialized-lanes\hospitality-website.md",
+        "docs\templates\specialized-lanes\manager-internal-tool.md",
+        "docs\templates\specialized-lanes\analytical-software.md",
+        "docs\templates\specialized-lanes\backend-sensitive.md",
+        "docs\templates\specialized-lanes\maintenance.md"
+    )) {
+        Assert-True -Condition (Test-Path (Join-Path $fleetRoot $template)) -Message "Stage 11 provides template $template"
+    }
+
+    $cases = @(
+        @{ name = "Restaurant website"; text = "Build a customer-facing restaurant website with menus, reservations, private events, and mobile navigation."; expected = "hospitality_website" },
+        @{ name = "Wine list"; text = "Create an Urban Kitchen wine list demo with beverage categories and a help-me-choose flow."; expected = "hospitality_website" },
+        @{ name = "Manager brief"; text = "Build a manager shift brief with today status, priority alerts, staff ownership, and next action."; expected = "manager_internal_tool" },
+        @{ name = "Order sheet"; text = "Create a prep order sheet and kitchen checklist for managers."; expected = "manager_internal_tool" },
+        @{ name = "Niners formula"; text = "Review Niners keeper/drop formula weights with fixture expectations, confidence rules, and tests."; expected = "analytical_software" },
+        @{ name = "Margin simulator"; text = "Build a margin simulator formula task with golden values and data validation."; expected = "analytical_software" },
+        @{ name = "Auth task"; text = "Add auth login and payment billing settings."; expected = "backend_sensitive" },
+        @{ name = "Dependency update"; text = "Update package.json dependencies for convenience."; expected = "backend_sensitive" },
+        @{ name = "Small bug patch"; text = "Fix one small fixture bug and rerun the focused test."; expected = "maintenance" },
+        @{ name = "Ambiguous risky"; text = "Quickly polish the website and touch deployment config if needed."; expected = "backend_sensitive" }
+    )
+
+    foreach ($case in $cases) {
+        $resolved = Resolve-FleetSpecializedLane -Text $case.text -ShipName $case.name
+        Assert-Equal -Actual $resolved.lane -Expected $case.expected -Message "Stage 11 maps $($case.name) to $($case.expected)"
+        Assert-True -Condition (@($resolved.requiredGates).Count -gt 0) -Message "Stage 11 $($case.name) mapping includes gates"
+    }
+
+    $backendOverride = Resolve-FleetSpecializedLane -Text "Hospitality homepage with reservation auth" -RequestedLane "hospitality_website"
+    Assert-Equal -Actual $backendOverride.lane -Expected "backend_sensitive" -Message "Stage 11 backend-sensitive scope overrides hospitality lane"
+    Assert-True -Condition ([bool]$backendOverride.captainApprovalNeeded) -Message "Stage 11 backend-sensitive override requires captain approval"
+
+    $maintenanceEscalation = Resolve-FleetSpecializedLane -Text "Maintenance polish: redesign the full website hero and brand direction"
+    Assert-Equal -Actual $maintenanceEscalation.lane -Expected "hospitality_website" -Message "Stage 11 broad redesign escalates out of maintenance"
+    Assert-True -Condition ([bool]$maintenanceEscalation.escalated) -Message "Stage 11 records maintenance escalation"
+
+    $stage11Root = Join-Path $fixtureRoot ("stage11-lanes-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage11Root | Out-Null
+    try {
+        $inputPath = Join-Path $stage11Root "lane-fixtures.json"
+        $cases | ForEach-Object {
+            [pscustomobject]@{
+                name = $_.name
+                text = $_.text
+                shipName = $_.name
+                touchedPaths = @()
+                requestedLane = ""
+            }
+        } | ConvertTo-Json -Depth 8 | Set-Content -Path $inputPath -Encoding UTF8
+
+        $jsonPath = Join-Path $stage11Root "lane-result.json"
+        $reportPath = Join-Path $stage11Root "lane-report.md"
+        $laneRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $laneScript,
+            "-InputPath", $inputPath,
+            "-JsonReportPath", $jsonPath,
+            "-ReportPath", $reportPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $laneRun.ExitCode -Expected 0 -Message "Stage 11 lane report command succeeds"
+        $laneResult = Get-Content $jsonPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $laneResult.laneCount -Expected $cases.Count -Message "Stage 11 lane report includes all fixture mappings"
+        $reportText = Get-Content $reportPath -Raw
+        Assert-True -Condition ($reportText -match "Stage 11 Specialized Lane Report" -and $reportText -match "backend_sensitive") -Message "Stage 11 markdown report includes lane outcomes"
+    } finally {
+        if (Test-Path $stage11Root) {
+            Remove-Item -LiteralPath $stage11Root -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageElevenFiveSupport {
+    $stage115Root = Join-Path $fleetRoot "docs\golden-gameplan\11.5-audit-polish-before-dashboard"
+    Assert-True -Condition (Test-Path (Join-Path $stage115Root "stage-plan.md")) -Message "Stage 11.5 provides stage plan"
+    Assert-True -Condition (Test-Path (Join-Path $stage115Root "stage8-5-through-stage11-test-summary.md")) -Message "Stage 11.5 provides concise test summary"
+    Assert-True -Condition (Test-Path (Join-Path $stage115Root "audit-evidence-note.md")) -Message "Stage 11.5 provides audit evidence note"
+    Assert-True -Condition (Test-Path (Join-Path $stage115Root "checkpoint.md")) -Message "Stage 11.5 provides checkpoint"
+
+    $summaryText = Get-Content (Join-Path $stage115Root "stage8-5-through-stage11-test-summary.md") -Raw
+    foreach ($phrase in @("Stage 8.5 autonomy hardening", "Stage 9 external agent workflow", "Stage 9.5 review reliability", "Stage 10 overnight mode", "Stage 11 specialized lanes", "Status: GREEN")) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($phrase)) -Message "Stage 11.5 test summary includes $phrase"
+    }
+
+    $lowTokenText = Get-Content (Join-Path $fleetRoot "docs\golden-gameplan\08.5-autonomy-wrapper-hardening\phase-04-low-token-documentation.md") -Raw
+    Assert-True -Condition ($lowTokenText -match "manual" -and $lowTokenText -match "status-only" -and $lowTokenText -match "do not use") -Message "Stage 11.5 clarifies manual LowTokenMode best practices"
+
+    $rateText = Get-Content (Join-Path $fleetRoot "docs\golden-gameplan\10-overnight-mode\phase-02-rate-governor-policy.md") -Raw
+    Assert-True -Condition ($rateText -match "10%" -and $rateText -match "3%" -and $rateText -match "Never invent exact") -Message "Stage 11.5 documents rate-governor threshold defaults"
+
+    $backendLaneText = Get-Content (Join-Path $fleetRoot "docs\templates\specialized-lanes\backend-sensitive.md") -Raw
+    Assert-True -Condition ($backendLaneText -match "More pass examples" -and $backendLaneText -match "Stripe" -and $backendLaneText -match "deploy/push/merge") -Message "Stage 11.5 expands backend-sensitive examples"
+
+    $maintenanceLaneText = Get-Content (Join-Path $fleetRoot "docs\templates\specialized-lanes\maintenance.md") -Raw
+    Assert-True -Condition ($maintenanceLaneText -match "More pass examples" -and $maintenanceLaneText -match "without changing runtime behavior" -and $maintenanceLaneText -match "full product redesign") -Message "Stage 11.5 expands maintenance examples"
+
+    $evidenceText = Get-Content (Join-Path $stage115Root "audit-evidence-note.md") -Raw
+    Assert-True -Condition ($evidenceText -match "sanitized changed-source snapshots" -and $evidenceText -match "runtime safety" -and $evidenceText -match "incomplete") -Message "Stage 11.5 documents dirty-repo audit evidence rule"
+}
+
+function Test-GoldenGameplanStageTwelveSupport {
+    $stage12Root = Join-Path $fleetRoot "docs\golden-gameplan\12-dashboard-control-room"
+    foreach ($docName in @(
+        "stage-plan.md",
+        "phase-01-dashboard-information-architecture.md",
+        "phase-02-fleet-overview-view.md",
+        "phase-03-ship-detail-view.md",
+        "phase-04-blocker-repair-taste-boards.md",
+        "phase-05-budget-overnight-view.md",
+        "phase-06-audit-task-packet-view.md",
+        "phase-07-safe-command-suggestions.md",
+        "phase-08-stage12-integration-check.md",
+        "audit-prompt.md",
+        "checkpoint.md"
+    )) {
+        Assert-True -Condition (Test-Path (Join-Path $stage12Root $docName)) -Message "Stage 12 provides $docName"
+    }
+
+    $controlRoomScript = Join-Path $fleetRoot "invoke-control-room.ps1"
+    Assert-True -Condition (Test-Path $controlRoomScript) -Message "Stage 12 exposes control-room command"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetControlRoomSnapshot -ErrorAction SilentlyContinue)) -Message "Stage 12 exposes control-room snapshot helper"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetControlRoomMarkdown -ErrorAction SilentlyContinue)) -Message "Stage 12 exposes control-room markdown helper"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetControlRoomCommandSuggestion -ErrorAction SilentlyContinue)) -Message "Stage 12 exposes safe command suggestion helper"
+
+    $stage12Docs = Get-Content (Join-Path $stage12Root "phase-01-dashboard-information-architecture.md") -Raw
+    foreach ($view in @("Fleet Overview", "Ship Detail", "Run Evidence", "Audit Packages", "Task Packets", "Blockers and Repairs", "Taste Gates", "Budget / Overnight", "Lane Health", "Next Safe Commands")) {
+        Assert-True -Condition ($stage12Docs -match [regex]::Escape($view)) -Message "Stage 12 IA includes $view"
+    }
+
+    $stage12FixtureRoot = Join-Path $fixtureRoot ("stage12-control-room-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage12FixtureRoot | Out-Null
+    try {
+        $inputPath = Join-Path $stage12FixtureRoot "control-room-input.json"
+        $jsonPath = Join-Path $stage12FixtureRoot "control-room-output.json"
+        $reportPath = Join-Path $stage12FixtureRoot "control-room-output.md"
+        $input = [pscustomobject]@{
+            budget = [pscustomobject]@{
+                level = "critical"
+                decision = "SAFE_LAND_NOW"
+                reason = "Fixture budget is at the safe-landing threshold."
+            }
+            ships = @(
+                [pscustomobject]@{ ship = "RunningShip"; repo = "fixture"; branch = "main"; head = "abc001"; status = "RUNNING"; decision = "NOOP"; lane = "hospitality_website"; tasksRemaining = 2; dirty = $true; active = $true; latestEvidence = "evidence/running.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" },
+                [pscustomobject]@{ ship = "BackendBlock"; repo = "fixture"; branch = "main"; head = "abc002"; status = "BLOCKED"; decision = "BLOCK"; lane = "backend_sensitive"; tasksRemaining = 1; dirty = $false; active = $false; latestEvidence = "evidence/backend.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = "Touches Stripe/deploy scope without approval."; tasteQuestion = ""; overnightStatus = ""; rateStatus = ""; backendApprovalRequired = $true },
+                [pscustomobject]@{ ship = "FormulaRepair"; repo = "fixture"; branch = "main"; head = "abc003"; status = "REPAIRING"; decision = "REPAIR"; lane = "analytical_software"; tasksRemaining = 1; dirty = $false; active = $false; latestEvidence = "evidence/formula.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = "Formula fixture expectation missing."; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" },
+                [pscustomobject]@{ ship = "TasteShip"; repo = "fixture"; branch = "main"; head = "abc004"; status = "TASTE_GATE"; decision = "USER_TASTE_GATE"; lane = "hospitality_website"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "screenshots/taste.png"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = "Is this refined enough for the brand?"; overnightStatus = ""; rateStatus = "" },
+                [pscustomobject]@{ ship = "AuditShip"; repo = "fixture"; branch = "main"; head = "abc005"; status = "AUDIT_READY"; decision = "WAIT_FOR_EXTERNAL_AUDIT"; lane = "maintenance"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "docs/codex/RUN_RESULT.json"; latestAuditPackage = "out/audit/audit.zip"; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" },
+                [pscustomobject]@{ ship = "PacketShip"; repo = "fixture"; branch = "main"; head = "abc006"; status = "PACKET_READY"; decision = "WAIT_FOR_TASK_PACKET"; lane = "maintenance"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "evidence/packet-validation.txt"; latestAuditPackage = ""; latestTaskPacket = "out/packets/packet.json"; packetStatus = "VALIDATED"; blocker = ""; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" },
+                [pscustomobject]@{ ship = "RatePaused"; repo = "fixture"; branch = "main"; head = "abc007"; status = "RATE_LIMIT_PAUSED"; decision = "WAIT_FOR_RATE_RESET"; lane = "manager_internal_tool"; tasksRemaining = 2; dirty = $false; active = $false; latestEvidence = "out/overnight/resume.json"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = ""; overnightStatus = "safe landing"; rateStatus = "critical" },
+                [pscustomobject]@{ ship = "ParkedShip"; repo = "fixture"; branch = "main"; head = "abc008"; status = "PARKED"; decision = "PARK"; lane = "maintenance"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "docs/codex/RUN_SUMMARY.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" }
+            )
+        }
+        $input | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $inputPath -Encoding UTF8
+
+        $snapshot = New-FleetControlRoomSnapshot -Ships @($input.ships) -Budget $input.budget
+        Assert-Equal -Actual $snapshot.counts.running -Expected 1 -Message "Stage 12 counts running ship"
+        Assert-Equal -Actual $snapshot.counts.blocked -Expected 1 -Message "Stage 12 counts blocked ship"
+        Assert-Equal -Actual $snapshot.counts.repair -Expected 1 -Message "Stage 12 counts repairing ship"
+        Assert-Equal -Actual $snapshot.counts.taste -Expected 1 -Message "Stage 12 counts taste-gated ship"
+        Assert-Equal -Actual $snapshot.counts.needs_captain -Expected 2 -Message "Stage 12 counts audit/packet ships as needs captain"
+        Assert-Equal -Actual $snapshot.counts.budget -Expected 1 -Message "Stage 12 counts rate-paused ship"
+        Assert-Equal -Actual $snapshot.counts.safe_to_inspect -Expected 1 -Message "Stage 12 counts parked ship as safe to inspect"
+
+        $runningSuggestion = @($snapshot.safeCommandSuggestions | Where-Object { $_.ship -eq "RunningShip" } | Select-Object -First 1)[0]
+        Assert-Equal -Actual $runningSuggestion.label -Expected "Leave running" -Message "Stage 12 running ship suggestion leaves work alone"
+        Assert-False -Condition ([bool]$runningSuggestion.executes) -Message "Stage 12 suggestions do not execute"
+
+        $backendSuggestion = @($snapshot.safeCommandSuggestions | Where-Object { $_.ship -eq "BackendBlock" } | Select-Object -First 1)[0]
+        Assert-Equal -Actual $backendSuggestion.risk -Expected "approval-required" -Message "Stage 12 backend block requires approval"
+
+        $packetSuggestion = @($snapshot.safeCommandSuggestions | Where-Object { $_.ship -eq "PacketShip" } | Select-Object -First 1)[0]
+        Assert-Equal -Actual $packetSuggestion.label -Expected "Import approved packet" -Message "Stage 12 validated packet suggests approved import"
+        Assert-True -Condition (@($packetSuggestion.requiredApprovals) -contains "valid Stage 4 packet evidence") -Message "Stage 12 packet import requires validation evidence"
+
+        $markdown = New-FleetControlRoomMarkdown -Snapshot $snapshot
+        foreach ($phrase in @("Captain Summary", "First Screen", "Blocker / Repair Board", "Taste Gate Board", "Budget / Overnight", "Audit Packages And Task Packets", "Safe Command Suggestions")) {
+            Assert-True -Condition ($markdown -match [regex]::Escape($phrase)) -Message "Stage 12 markdown includes $phrase"
+        }
+
+        $controlRoomRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $controlRoomScript,
+            "-InputPath", $inputPath,
+            "-JsonReportPath", $jsonPath,
+            "-ReportPath", $reportPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $controlRoomRun.ExitCode -Expected 0 -Message "Stage 12 control-room command succeeds"
+        $result = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $result.mode -Expected "read-only-control-room" -Message "Stage 12 JSON is read-only control room"
+        Assert-True -Condition ($result.forbiddenActions -contains "implicit-all-fleet-launch") -Message "Stage 12 forbids implicit all-fleet launch"
+        $reportText = Get-Content -LiteralPath $reportPath -Raw
+        Assert-True -Condition ($reportText -match "RunningShip" -and $reportText -match "BackendBlock" -and $reportText -match "TasteShip") -Message "Stage 12 report includes fixture ships"
+    } finally {
+        if (Test-Path $stage12FixtureRoot) {
+            Remove-Item -LiteralPath $stage12FixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageThirteenSupport {
+    $stage13Root = Join-Path $fleetRoot "docs\golden-gameplan\13-mobile-captain-console"
+    foreach ($docName in @(
+        "stage-plan.md",
+        "phase-01-mobile-status-contract.md",
+        "phase-02-command-inbox-protocol.md",
+        "phase-03-safe-remote-actions.md",
+        "phase-04-idea-intake-task-drafting.md",
+        "phase-05-rate-limit-alerts.md",
+        "phase-06-mobile-digest.md",
+        "phase-07-approval-rejection-rules.md",
+        "phase-08-stage13-integration-check.md",
+        "mobile-command-vocabulary.md",
+        "approval-flow.md",
+        "audit-prompt.md",
+        "checkpoint.md"
+    )) {
+        Assert-True -Condition (Test-Path (Join-Path $stage13Root $docName)) -Message "Stage 13 provides $docName"
+    }
+    $mobileSchemaPath = Join-Path $fleetRoot "templates\mobile-request-schema.json"
+    Assert-True -Condition (Test-Path $mobileSchemaPath) -Message "Stage 15 provides mobile request schema"
+    $mobileSchema = Get-Content $mobileSchemaPath -Raw | ConvertFrom-Json
+    Assert-True -Condition (@($mobileSchema.required) -contains "approval" -and @($mobileSchema.required) -contains "generatedPlan") -Message "Stage 15 mobile schema requires approval and generated plan"
+    Assert-True -Condition ($mobileSchema.properties.rawCommand.not -ne $null) -Message "Stage 15 mobile schema forbids rawCommand"
+
+    $mobileScript = Join-Path $fleetRoot "invoke-mobile-console.ps1"
+    Assert-True -Condition (Test-Path $mobileScript) -Message "Stage 13 exposes mobile console command"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetMobileCommandRecord -ErrorAction SilentlyContinue)) -Message "Stage 13 exposes mobile command record helper"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetMobileStatusMessage -ErrorAction SilentlyContinue)) -Message "Stage 13 exposes mobile status helper"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetMobileIdeaRecord -ErrorAction SilentlyContinue)) -Message "Stage 13 exposes idea intake helper"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetMobileRateAlert -ErrorAction SilentlyContinue)) -Message "Stage 13 exposes rate alert helper"
+
+    $actionDoc = Get-Content (Join-Path $stage13Root "phase-03-safe-remote-actions.md") -Raw
+    foreach ($action in @("STATUS", "DIGEST", "PARK_SHIP", "REQUEST_SAFE_STOP", "APPROVE_TASTE_DIRECTION", "APPROVE_PACKET_IMPORT", "RUN_DRY_CHECK", "RUN_ONE_BOUNDED_BATCH", "PACKAGE_AUDIT", "CAPTURE_IDEA", "SET_OVERNIGHT_PRESET", "RESUME_AFTER_RESET")) {
+        Assert-True -Condition ($actionDoc -match [regex]::Escape($action)) -Message "Stage 13 safe action matrix includes $action"
+    }
+    $vocabularyDoc = Get-Content (Join-Path $stage13Root "mobile-command-vocabulary.md") -Raw
+    foreach ($phrase in @("status", "why", "submit idea", "approve plan", "reject plan", "resume safe", "audit package", "mute", "snooze")) {
+        Assert-True -Condition ($vocabularyDoc -match [regex]::Escape($phrase)) -Message "Stage 15 mobile vocabulary documents '$phrase'"
+    }
+    foreach ($card in @("Running", "Blocked", "Needs Approval", "Budget", "Incidents")) {
+        Assert-True -Condition ($vocabularyDoc -match [regex]::Escape($card)) -Message "Stage 15 mobile vocabulary includes $card card"
+    }
+    $approvalFlowDoc = Get-Content (Join-Path $stage13Root "approval-flow.md") -Raw
+    foreach ($phrase in @("generated plan", "idempotency", "rollback path", "Desktop-only", "local PC must revalidate")) {
+        Assert-True -Condition ($approvalFlowDoc -match [regex]::Escape($phrase)) -Message "Stage 15 approval flow documents $phrase"
+    }
+
+    $validateMobileApproval = {
+        param(
+            [Parameter(Mandatory = $true)][object]$Payload,
+            [datetime]$Now = ([datetime]"2026-05-28T15:00:00Z")
+        )
+
+        $errors = [System.Collections.Generic.List[string]]::new()
+        if ($Payload.PSObject.Properties.Name -contains "rawCommand") { $errors.Add("raw-command-not-allowed") }
+        if ($null -eq $Payload.approval) { $errors.Add("missing-approval") }
+        if ($null -eq $Payload.generatedPlan) { $errors.Add("missing-generated-plan") }
+        if ($null -eq $Payload.approval -or $null -eq $Payload.generatedPlan) {
+            return [pscustomobject]@{ valid = $false; errors = @($errors) }
+        }
+
+        foreach ($field in @("decision", "approvedPlanId", "idempotencyKey", "approvedAt", "approvedBy")) {
+            if ([string]::IsNullOrWhiteSpace([string]$Payload.approval.$field)) { $errors.Add("approval-missing-$field") }
+        }
+        foreach ($field in @("planId", "ship", "action", "scope", "diffSummary", "evidenceSummary", "budgetImpact", "rollbackPath", "expiresAt", "idempotencyKey", "createdAt", "status")) {
+            if ($null -eq $Payload.generatedPlan.$field -or [string]::IsNullOrWhiteSpace([string]$Payload.generatedPlan.$field)) { $errors.Add("plan-missing-$field") }
+        }
+        if ([string]$Payload.approval.approvedPlanId -ne [string]$Payload.generatedPlan.planId) { $errors.Add("plan-id-mismatch") }
+        if ([string]$Payload.approval.idempotencyKey -ne [string]$Payload.generatedPlan.idempotencyKey) { $errors.Add("idempotency-key-mismatch") }
+        if (@($Payload.generatedPlan.scope).Count -eq 0) { $errors.Add("missing-scope") }
+        if ((@($Payload.generatedPlan.scope) -join " ") -match "(?i)\b(all|whole fleet|entire fleet|\*)\b") { $errors.Add("broad-scope-not-allowed") }
+        if ([string]$Payload.generatedPlan.rollbackPath -match "^\s*$") { $errors.Add("missing-rollback") }
+        if ([string]$Payload.generatedPlan.budgetImpact -match "(?i)\b(unbounded|unknown|unlimited)\b") { $errors.Add("unbounded-budget") }
+        if (([string]$Payload.generatedPlan.action + " " + [string]$Payload.generatedPlan.diffSummary) -match "(?i)(powershell|cmd\.exe|bash|remove-item|rm\s+-|taskkill|git\s+reset|deploy|push|package\.json|secret|auth|payment|migration)") { $errors.Add("raw-or-forbidden-action") }
+        try {
+            $expires = [datetime]::Parse([string]$Payload.generatedPlan.expiresAt).ToUniversalTime()
+            if ($expires -le $Now.ToUniversalTime()) { $errors.Add("expired-plan") }
+        } catch {
+            $errors.Add("invalid-expiry")
+        }
+
+        return [pscustomobject]@{ valid = ($errors.Count -eq 0); errors = @($errors) }
+    }
+
+    $validApprovalPayload = [pscustomobject]@{
+        schemaVersion = 1
+        requestId = "mobile-20260528-001"
+        approval = [pscustomobject]@{
+            decision = "approve"
+            approvedPlanId = "plan-bottlelight-audit-001"
+            idempotencyKey = "idem-bottlelight-audit-001"
+            approvedAt = "2026-05-28T15:00:00Z"
+            approvedBy = "captain"
+        }
+        generatedPlan = [pscustomobject]@{
+            planId = "plan-bottlelight-audit-001"
+            ship = "Bottlelight"
+            action = "PACKAGE_AUDIT"
+            riskLevel = "safe"
+            scope = @("Bottlelight")
+            diffSummary = "No product file changes; package current evidence only."
+            evidenceSummary = "RUN_RESULT.json and EVIDENCE_INDEX.md exist."
+            budgetImpact = "No model implementation calls."
+            rollbackPath = "Delete generated audit package only."
+            expiresAt = "2026-05-28T15:10:00Z"
+            idempotencyKey = "idem-bottlelight-audit-001"
+            createdAt = "2026-05-28T14:55:00Z"
+            status = "PENDING_APPROVAL"
+        }
+    }
+    $validApproval = & $validateMobileApproval -Payload $validApprovalPayload
+    Assert-True -Condition ([bool]$validApproval.valid) -Message "Stage 15 accepts generated-plan approval payload"
+
+    $missingKeyPayload = $validApprovalPayload | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $missingKeyPayload.approval.idempotencyKey = ""
+    $missingKey = & $validateMobileApproval -Payload $missingKeyPayload
+    Assert-False -Condition ([bool]$missingKey.valid) -Message "Stage 15 rejects missing idempotency key"
+    Assert-True -Condition (@($missingKey.errors) -contains "approval-missing-idempotencyKey") -Message "Stage 15 explains missing idempotency key"
+
+    $stalePayload = $validApprovalPayload | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $stalePayload.generatedPlan.expiresAt = "2026-05-28T14:00:00Z"
+    $stale = & $validateMobileApproval -Payload $stalePayload
+    Assert-False -Condition ([bool]$stale.valid) -Message "Stage 15 rejects expired generated plan"
+    Assert-True -Condition (@($stale.errors) -contains "expired-plan") -Message "Stage 15 explains expired generated plan"
+
+    $rawCommandPayload = $validApprovalPayload | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $rawCommandPayload | Add-Member -NotePropertyName rawCommand -NotePropertyValue "powershell Remove-Item .codex-local -Recurse"
+    $rawCommand = & $validateMobileApproval -Payload $rawCommandPayload
+    Assert-False -Condition ([bool]$rawCommand.valid) -Message "Stage 15 rejects raw-command approval payload"
+    Assert-True -Condition (@($rawCommand.errors) -contains "raw-command-not-allowed") -Message "Stage 15 explains raw-command rejection"
+
+    $broadScopePayload = $validApprovalPayload | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $broadScopePayload.generatedPlan.scope = @("ALL")
+    $broadScope = & $validateMobileApproval -Payload $broadScopePayload
+    Assert-False -Condition ([bool]$broadScope.valid) -Message "Stage 15 rejects broad all-fleet approval payload"
+    Assert-True -Condition (@($broadScope.errors) -contains "broad-scope-not-allowed") -Message "Stage 15 explains broad scope rejection"
+
+    $missingRollbackPayload = $validApprovalPayload | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $missingRollbackPayload.generatedPlan.rollbackPath = ""
+    $missingRollback = & $validateMobileApproval -Payload $missingRollbackPayload
+    Assert-False -Condition ([bool]$missingRollback.valid) -Message "Stage 15 rejects missing rollback path"
+    Assert-True -Condition (@($missingRollback.errors) -contains "plan-missing-rollbackPath") -Message "Stage 15 explains missing rollback path"
+
+    $knownShips = @("Bottlelight", "ShiftLedger", "NinersWarRoom")
+    $statusRecord = New-FleetMobileCommandRecord -Message "How is the fleet doing?" -KnownShips $knownShips
+    Assert-Equal -Actual $statusRecord.commandType -Expected "STATUS" -Message "Stage 13 parses fleet status request"
+    Assert-Equal -Actual $statusRecord.status -Expected "ACCEPTED" -Message "Stage 13 accepts status request"
+    Assert-False -Condition ([bool]$statusRecord.executes) -Message "Stage 13 status request does not execute"
+
+    $safeStopRecord = New-FleetMobileCommandRecord -Message "Stop Bottlelight safely" -KnownShips $knownShips
+    Assert-Equal -Actual $safeStopRecord.commandType -Expected "REQUEST_SAFE_STOP" -Message "Stage 13 parses safe stop request"
+    Assert-True -Condition (@($safeStopRecord.shipScope) -contains "Bottlelight") -Message "Stage 13 safe stop keeps explicit ship scope"
+    Assert-Equal -Actual $safeStopRecord.status -Expected "APPROVAL_REQUIRED" -Message "Stage 13 safe stop remains a request"
+
+    $allFleetRecord = New-FleetMobileCommandRecord -Message "Run the cellar fleet tonight" -KnownShips $knownShips
+    Assert-Equal -Actual $allFleetRecord.status -Expected "REJECTED" -Message "Stage 13 rejects implicit all-fleet remote run"
+    Assert-Equal -Actual $allFleetRecord.validationStatus -Expected "REJECTED_IMPLICIT_ALL_FLEET" -Message "Stage 13 explains implicit all-fleet rejection"
+
+    $ideaRecord = New-FleetMobileCommandRecord -Message "Idea for NinersWarRoom: add rookie keeper comparison fixture" -KnownShips $knownShips
+    Assert-Equal -Actual $ideaRecord.commandType -Expected "CAPTURE_IDEA" -Message "Stage 13 parses mobile idea"
+    $idea = New-FleetMobileIdeaRecord -CommandRecord $ideaRecord -Lane "analytical_software"
+    Assert-Equal -Actual $idea.targetShip -Expected "NinersWarRoom" -Message "Stage 13 idea keeps target ship"
+    Assert-False -Condition ([bool]$idea.queueMutationAllowed) -Message "Stage 13 ideas do not mutate task queues"
+
+    $whyRecord = New-FleetMobileCommandRecord -Message "Why is ShiftLedger blocked?" -KnownShips $knownShips
+    Assert-Equal -Actual $whyRecord.commandType -Expected "WHY" -Message "Stage 15 parses why/explain request"
+    Assert-False -Condition ([bool]$whyRecord.executes) -Message "Stage 15 why request does not execute"
+
+    $approvePlan = New-FleetMobileCommandRecord -Message "Approve plan for Bottlelight" -KnownShips $knownShips
+    Assert-Equal -Actual $approvePlan.commandType -Expected "APPROVE_PLAN" -Message "Stage 15 parses approve-plan request"
+    Assert-Equal -Actual $approvePlan.status -Expected "APPROVAL_REQUIRED" -Message "Stage 15 approve-plan remains local validation required"
+    Assert-True -Condition ([bool]$approvePlan.requiresDryRun) -Message "Stage 15 approve-plan requires dry-run/local revalidation"
+
+    $rejectPlan = New-FleetMobileCommandRecord -Message "Reject plan for ShiftLedger" -KnownShips $knownShips
+    Assert-Equal -Actual $rejectPlan.commandType -Expected "REJECT_PLAN" -Message "Stage 15 parses reject-plan request"
+    Assert-Equal -Actual $rejectPlan.status -Expected "ACCEPTED" -Message "Stage 15 reject-plan is a request record only"
+
+    $muteRequest = New-FleetMobileCommandRecord -Message "Snooze notifications for tonight" -KnownShips $knownShips
+    Assert-Equal -Actual $muteRequest.commandType -Expected "MUTE_NOTIFICATIONS" -Message "Stage 15 parses mute/snooze request"
+    Assert-False -Condition ([bool]$muteRequest.executes) -Message "Stage 15 mute/snooze does not execute fleet action"
+
+    $shellRequest = New-FleetMobileCommandRecord -Message "Run powershell Remove-Item .codex-local locks for Bottlelight" -KnownShips $knownShips
+    Assert-Equal -Actual $shellRequest.status -Expected "REJECTED" -Message "Stage 15 rejects shell-like mobile command"
+    Assert-Equal -Actual $shellRequest.validationStatus -Expected "REJECTED_FORBIDDEN_REMOTE_ACTION" -Message "Stage 15 shell-like rejection is explicit"
+
+    $tasteApproval = New-FleetMobileCommandRecord -Message "Approve taste direction for ShiftLedger" -KnownShips $knownShips
+    Assert-Equal -Actual $tasteApproval.commandType -Expected "APPROVE_TASTE_DIRECTION" -Message "Stage 13 parses taste approval"
+    Assert-Equal -Actual $tasteApproval.status -Expected "APPROVAL_REQUIRED" -Message "Stage 13 taste approval remains approval-required"
+
+    $resumeRequest = New-FleetMobileCommandRecord -Message "Resume Bottlelight after reset" -KnownShips $knownShips
+    Assert-Equal -Actual $resumeRequest.commandType -Expected "RESUME_AFTER_RESET" -Message "Stage 13 parses resume-after-reset request"
+    Assert-True -Condition ([bool]$resumeRequest.requiresDryRun) -Message "Stage 13 resume-after-reset requires dry-run/local validation"
+
+    $backendRequest = New-FleetMobileCommandRecord -Message "Add Stripe payment auth to Bottlelight" -KnownShips $knownShips
+    Assert-Equal -Actual $backendRequest.status -Expected "REJECTED" -Message "Stage 13 rejects backend-sensitive mobile command"
+    Assert-Equal -Actual $backendRequest.validationStatus -Expected "REJECTED_FORBIDDEN_REMOTE_ACTION" -Message "Stage 13 backend-sensitive rejection is explicit"
+
+    $snapshot = New-FleetControlRoomSnapshot -Ships @(
+        [pscustomobject]@{ ship = "Bottlelight"; status = "PARKED"; decision = "PARK"; lane = "hospitality_website"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "docs/codex/RUN_SUMMARY.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" },
+        [pscustomobject]@{ ship = "ShiftLedger"; status = "TASTE_GATE"; decision = "USER_TASTE_GATE"; lane = "manager_internal_tool"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "screenshots/shiftledger.png"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = "Approve compact manager brief layout?"; overnightStatus = ""; rateStatus = "" },
+        [pscustomobject]@{ ship = "NinersWarRoom"; status = "BLOCKED"; decision = "BLOCK"; lane = "analytical_software"; tasksRemaining = 1; dirty = $false; active = $false; latestEvidence = "docs/codex/formula.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = "Formula fixture expectation missing."; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" }
+    ) -Budget ([pscustomobject]@{ level = "critical"; decision = "SAFE_LAND_NOW"; reason = "Fixture budget is critical." })
+    $statusMessage = New-FleetMobileStatusMessage -ControlRoomSnapshot $snapshot -FullReportPath "out/control-room.json"
+    Assert-True -Condition ($statusMessage -match "Fleet:" -and $statusMessage -match "Top actions:" -and $statusMessage -match "Full report:") -Message "Stage 13 status response is phone-readable"
+    foreach ($card in @("Running", "Blocked", "Needs Approval", "Budget", "Incidents")) {
+        Assert-True -Condition ($statusMessage -match [regex]::Escape($card)) -Message "Stage 15 status response includes $card card"
+    }
+    $digest = New-FleetMobileDigest -ControlRoomSnapshot $snapshot -FullReportPath "out/control-room.json"
+    Assert-True -Condition ($digest -match "Digest:" -and $digest -match "Failures:" -and $digest -match "Budget:") -Message "Stage 13 digest is phone-readable"
+    $alert = New-FleetMobileRateAlert -Budget $snapshot.budget -AffectedShips @("Bottlelight") -ReportPath "out/control-room.json"
+    Assert-Equal -Actual $alert.alertType -Expected "SAFE_LANDING_STARTED" -Message "Stage 13 critical budget alert maps to safe landing"
+    Assert-Equal -Actual $alert.severity -Expected "critical" -Message "Stage 13 critical budget alert is critical"
+
+    $stage13FixtureRoot = Join-Path $fixtureRoot ("stage13-mobile-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage13FixtureRoot | Out-Null
+    try {
+        $inputPath = Join-Path $stage13FixtureRoot "mobile-input.json"
+        $jsonPath = Join-Path $stage13FixtureRoot "mobile-output.json"
+        $reportPath = Join-Path $stage13FixtureRoot "mobile-output.md"
+        $input = [pscustomobject]@{
+            budget = [pscustomobject]@{ level = "critical"; decision = "SAFE_LAND_NOW"; reason = "Fixture budget is critical." }
+            ships = @(
+                [pscustomobject]@{ ship = "Bottlelight"; status = "PARKED"; decision = "PARK"; lane = "hospitality_website"; tasksRemaining = 0; dirty = $false; active = $false; latestEvidence = "docs/codex/RUN_SUMMARY.md"; latestAuditPackage = ""; latestTaskPacket = ""; packetStatus = ""; blocker = ""; tasteQuestion = ""; overnightStatus = ""; rateStatus = "" }
+            )
+        }
+        $input | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $inputPath -Encoding UTF8
+        $mobileRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $mobileScript,
+            "-Message", "How is the fleet?",
+            "-InputPath", $inputPath,
+            "-JsonReportPath", $jsonPath,
+            "-ReportPath", $reportPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $mobileRun.ExitCode -Expected 0 -Message "Stage 13 mobile console command succeeds"
+        $result = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $result.mode -Expected "mobile-request-only" -Message "Stage 13 command is request-only"
+        Assert-False -Condition ([bool]$result.executes) -Message "Stage 13 command result does not execute"
+        Assert-True -Condition ($result.forbiddenActions -contains "implicit-all-fleet") -Message "Stage 13 result forbids implicit all-fleet"
+        $reportText = Get-Content -LiteralPath $reportPath -Raw
+        Assert-True -Condition ($reportText -match "Phone Response" -and $reportText -match "Fleet:") -Message "Stage 13 writes phone-readable report"
+    } finally {
+        if (Test-Path $stage13FixtureRoot) {
+            Remove-Item -LiteralPath $stage13FixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-GoldenGameplanStageFourteenSupport {
+    $stage14Root = Join-Path $fleetRoot "docs\golden-gameplan\14-final-hardening-stress-test"
+    foreach ($docName in @(
+        "stage-plan.md",
+        "phase-01-full-loop-test-matrix.md",
+        "phase-02-fixture-disposable-ship-suite.md",
+        "phase-03-overnight-simulation.md",
+        "phase-04-failure-injection.md",
+        "phase-05-audit-review-task-packet-stress.md",
+        "phase-06-rollback-recovery-checks.md",
+        "phase-07-final-readiness-scorecard.md",
+        "phase-08-stage14-integration-check.md",
+        "audit-prompt.md",
+        "checkpoint.md"
+    )) {
+        Assert-True -Condition (Test-Path (Join-Path $stage14Root $docName)) -Message "Stage 14 provides $docName"
+    }
+
+    $finalScript = Join-Path $fleetRoot "invoke-final-readiness.ps1"
+    Assert-True -Condition (Test-Path $finalScript) -Message "Stage 14 exposes final readiness command"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetStage14ReadinessScorecard -ErrorAction SilentlyContinue)) -Message "Stage 14 exposes readiness scorecard helper"
+    Assert-True -Condition ($null -ne (Get-Command New-FleetStage14FixtureSuite -ErrorAction SilentlyContinue)) -Message "Stage 14 exposes fixture suite helper"
+    Assert-True -Condition ($null -ne (Get-Command Get-FleetStage14RequiredScenarios -ErrorAction SilentlyContinue)) -Message "Stage 14 exposes required scenarios helper"
+    Assert-True -Condition ($null -ne (Get-Command Get-FleetStage14EdgeCaseScenarios -ErrorAction SilentlyContinue)) -Message "Stage 14 exposes edge-case scenario helper"
+
+    $matrixText = Get-Content (Join-Path $stage14Root "phase-01-full-loop-test-matrix.md") -Raw
+    foreach ($stage in 1..13) {
+        Assert-True -Condition ($matrixText -match "\|\s*$stage\s*\|") -Message "Stage 14 full-loop matrix covers Stage $stage"
+    }
+
+    $failureText = Get-Content (Join-Path $stage14Root "phase-04-failure-injection.md") -Raw
+    foreach ($failure in @("build failure", "test failure", "missing evidence", "stale lock", "invalid task packet", "backend-sensitive scope", "formula mismatch", "low budget")) {
+        Assert-True -Condition ($failureText -match [regex]::Escape($failure)) -Message "Stage 14 failure matrix includes $failure"
+    }
+    $checkpointText = Get-Content (Join-Path $stage14Root "checkpoint.md") -Raw
+    foreach ($edgeCase in @(
+        "mixed_mobile_overnight_safe_landing",
+        "audit_package_failure_blocked_state",
+        "stale_approval_after_budget_reset",
+        "taste_gate_low_budget"
+    )) {
+        Assert-True -Condition (@(Get-FleetStage14RequiredScenarios) -contains $edgeCase) -Message "Stage 14 required scenarios include $edgeCase"
+        Assert-True -Condition ($checkpointText -match [regex]::Escape($edgeCase)) -Message "Stage 14 checkpoint documents $edgeCase"
+    }
+    foreach ($nextAction in @("Wait for reset", "packaging error", "fresh local revalidation", "taste direction after budget recovery")) {
+        Assert-True -Condition ($checkpointText -match [regex]::Escape($nextAction)) -Message "Stage 14 edge-case checkpoint names next action '$nextAction'"
+    }
+
+    $checks = @(New-FleetStage14ExampleChecks)
+    $validation = Test-FleetStage14ReadinessInput -Checks $checks
+    Assert-True -Condition ([bool]$validation.valid) -Message "Stage 14 example checks cover required stages and scenarios"
+    foreach ($edgeCase in @(Get-FleetStage14EdgeCaseScenarios)) {
+        $edgeCheck = @($checks | Where-Object { [string]$_.scenario -eq [string]$edgeCase.scenario } | Select-Object -First 1)
+        Assert-True -Condition ($edgeCheck.Count -eq 1) -Message "Stage 14 example checks include edge case $($edgeCase.scenario)"
+        Assert-Equal -Actual $edgeCheck[0].category -Expected "mixed-edge-case" -Message "Stage 14 edge case $($edgeCase.scenario) uses mixed-edge-case category"
+        Assert-True -Condition (![string]::IsNullOrWhiteSpace([string]$edgeCheck[0].requiredFix)) -Message "Stage 14 edge case $($edgeCase.scenario) names next captain action"
+    }
+    $scorecard = New-FleetStage14ReadinessScorecard -Checks $checks
+    Assert-Equal -Actual $scorecard.status -Expected "PASS" -Message "Stage 14 full passing scorecard passes"
+    Assert-Equal -Actual $scorecard.finalVerdict -Expected "READY_FOR_CONTROLLED_USE" -Message "Stage 14 full passing scorecard is ready for controlled use"
+    Assert-True -Condition ($scorecard.forbiddenActions -contains "real-product-failure-injection") -Message "Stage 14 forbids real product failure injection"
+    Assert-True -Condition (@($scorecard.fixtureSuite).Count -ge 10) -Message "Stage 14 fixture suite covers crash-test ships"
+
+    $limitedChecks = @($checks | ForEach-Object { $_ })
+    $limitedChecks[0].status = "PASS_WITH_FIXES"
+    $limitedChecks[0].openRisk = "Fixture-only proof still needs final external audit."
+    $limited = New-FleetStage14ReadinessScorecard -Checks $limitedChecks
+    Assert-Equal -Actual $limited.status -Expected "PASS_WITH_FIXES" -Message "Stage 14 records pass-with-fixes status"
+    Assert-Equal -Actual $limited.finalVerdict -Expected "READY_WITH_LIMITS" -Message "Stage 14 pass-with-fixes becomes ready with limits"
+
+    $failedChecks = @($checks | Where-Object { [string]$_.scenario -ne "missing_evidence" })
+    $failed = New-FleetStage14ReadinessScorecard -Checks $failedChecks
+    Assert-Equal -Actual $failed.status -Expected "FAIL" -Message "Stage 14 missing scenario fails readiness"
+    Assert-Equal -Actual $failed.finalVerdict -Expected "NOT_READY" -Message "Stage 14 missing scenario is not ready"
+    Assert-True -Condition (@($failed.validation.missingScenarios) -contains "missing_evidence") -Message "Stage 14 reports missing scenario"
+
+    $explicitFailChecks = @($checks | ForEach-Object { $_ })
+    $explicitFailChecks[1].status = "FAIL"
+    $explicitFailChecks[1].requiredFix = "Fix failed build containment."
+    $explicitFail = New-FleetStage14ReadinessScorecard -Checks $explicitFailChecks
+    Assert-Equal -Actual $explicitFail.finalVerdict -Expected "NOT_READY" -Message "Stage 14 explicit failure blocks readiness"
+
+    $markdown = New-FleetStage14MarkdownReport -Scorecard $scorecard
+    foreach ($phrase in @("Final Readiness Report", "Verdict", "Scorecard", "Fixture Suite", "Forbidden Actions")) {
+        Assert-True -Condition ($markdown -match [regex]::Escape($phrase)) -Message "Stage 14 markdown includes $phrase"
+    }
+
+    $stage14FixtureRoot = Join-Path $fixtureRoot ("stage14-final-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $stage14FixtureRoot | Out-Null
+    try {
+        $jsonPath = Join-Path $stage14FixtureRoot "final-readiness.json"
+        $reportPath = Join-Path $stage14FixtureRoot "final-readiness.md"
+        $run = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $finalScript,
+            "-UseExampleFixture",
+            "-JsonReportPath", $jsonPath,
+            "-ReportPath", $reportPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $run.ExitCode -Expected 0 -Message "Stage 14 final readiness command succeeds"
+        $result = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $result.finalVerdict -Expected "READY_FOR_CONTROLLED_USE" -Message "Stage 14 command writes controlled-use verdict"
+        Assert-True -Condition ($result.forbiddenActions -contains "delete-user-work") -Message "Stage 14 command records forbidden destructive cleanup"
+        $reportText = Get-Content -LiteralPath $reportPath -Raw
+        Assert-True -Condition ($reportText -match "READY_FOR_CONTROLLED_USE" -and $reportText -match "Fixture Suite") -Message "Stage 14 command writes markdown readiness report"
+    } finally {
+        if (Test-Path $stage14FixtureRoot) {
+            Remove-Item -LiteralPath $stage14FixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-PostGoldenHardeningQuickStart {
+    $quickStartPath = Join-Path $fleetRoot "docs\golden-gameplan\QUICK_START_CAPTAIN.md"
+    $goldenReadmePath = Join-Path $fleetRoot "docs\golden-gameplan\README.md"
+
+    Assert-True -Condition (Test-Path $quickStartPath) -Message "Post-Golden quick start exists"
+    $quickStartText = Get-Content -LiteralPath $quickStartPath -Raw
+    foreach ($phrase in @(
+        "Phone-Readable Commands",
+        "do not touch real product repos without explicit approval",
+        "phone requests are not execution",
+        "trust artifacts, not prose summaries",
+        "Fixture-Only Checks",
+        "Audit Packages",
+        "What Must Never Be Automatic"
+    )) {
+        Assert-True -Condition ($quickStartText -match [regex]::Escape($phrase)) -Message "Post-Golden quick start includes $phrase"
+    }
+    foreach ($forbidden in @("merge", "push", "deploy", "delete user work", "manually delete locks", "bypass packet validation")) {
+        Assert-True -Condition ($quickStartText -match [regex]::Escape($forbidden)) -Message "Post-Golden quick start forbids $forbidden"
+    }
+
+    $goldenReadme = Get-Content -LiteralPath $goldenReadmePath -Raw
+    Assert-True -Condition ($goldenReadme -match "QUICK_START_CAPTAIN\.md") -Message "Golden Gameplan README links captain quick start"
+}
+
+function Test-PostGoldenHardeningControlledUseRehearsal {
+    $rehearsalDocPath = Join-Path $fleetRoot "docs\golden-gameplan\15-post-golden-gameplan-hardening\controlled-use-rehearsal.md"
+    $finalReadinessScript = Join-Path $fleetRoot "invoke-final-readiness.ps1"
+    $finalReadinessTool = Join-Path $fleetRoot "tools\codex-fleet-final-readiness.ps1"
+
+    Assert-True -Condition (Test-Path $rehearsalDocPath) -Message "Post-Golden controlled-use rehearsal doc exists"
+    $docText = Get-Content -LiteralPath $rehearsalDocPath -Raw
+    foreach ($phrase in @(
+        "fixture-only and harness-only",
+        "Status / Control Room",
+        "Audit Package Creation",
+        "Mobile Request Capture",
+        "Plan Approval Rejection",
+        "Low-Budget Safe Landing",
+        "Heartbeat Stale Classification",
+        "Final Readiness Score",
+        "Rollback/no-op behavior",
+        "GREEN / YELLOW / RED",
+        "must not launch product ships"
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($phrase)) -Message "Post-Golden rehearsal doc includes $phrase"
+    }
+    foreach ($evidence in @(
+        "controlled-use-rehearsal/status-control-room.json",
+        "controlled-use-rehearsal/audit-package-created.json",
+        "controlled-use-rehearsal/mobile-request-capture.json",
+        "controlled-use-rehearsal/plan-approval-rejected.json",
+        "controlled-use-rehearsal/low-budget-safe-landing.json",
+        "controlled-use-rehearsal/heartbeat-stale-classification.json",
+        "out/controlled-use-rehearsal/final-readiness.json"
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($evidence)) -Message "Post-Golden rehearsal doc names evidence $evidence"
+    }
+
+    $scriptText = Get-Content -LiteralPath $finalReadinessScript -Raw
+    $toolText = Get-Content -LiteralPath $finalReadinessTool -Raw
+    Assert-True -Condition ($scriptText -match "UseControlledUseRehearsal") -Message "Final readiness command exposes controlled-use rehearsal switch"
+    Assert-True -Condition ($toolText -match "New-FleetControlledUseRehearsalChecks") -Message "Final readiness tool exposes rehearsal checks"
+
+    $rehearsalRoot = Join-Path $fixtureRoot ("post-golden-rehearsal-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $rehearsalRoot | Out-Null
+    try {
+        $jsonPath = Join-Path $rehearsalRoot "final-readiness.json"
+        $reportPath = Join-Path $rehearsalRoot "final-readiness.md"
+        $run = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $finalReadinessScript,
+            "-UseControlledUseRehearsal",
+            "-JsonReportPath", $jsonPath,
+            "-ReportPath", $reportPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $run.ExitCode -Expected 0 -Message "Post-Golden controlled-use rehearsal command succeeds"
+        $result = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $result.finalVerdict -Expected "READY_FOR_CONTROLLED_USE" -Message "Post-Golden rehearsal returns controlled-use verdict"
+        Assert-True -Condition ((@($result.checks | Where-Object { [string]$_.category -eq "controlled-use-rehearsal" }).Count) -ge 6) -Message "Post-Golden rehearsal records controlled-use scenario checks"
+        Assert-True -Condition (($result.checks | ConvertTo-Json -Depth 12) -match "controlled-use-rehearsal/low-budget-safe-landing.json") -Message "Post-Golden rehearsal records low-budget evidence path"
+        $reportText = Get-Content -LiteralPath $reportPath -Raw
+        Assert-True -Condition ($reportText -match "READY_FOR_CONTROLLED_USE" -and $reportText -match "controlled-use-rehearsal") -Message "Post-Golden rehearsal report is concise and evidence-linked"
+    } finally {
+        if (Test-Path $rehearsalRoot) {
+            Remove-Item -LiteralPath $rehearsalRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-HqControlledUseRehearsalExpansion {
+    Write-Host "Testing HQ controlled-use rehearsal expansion..."
+
+    $expansionPath = Join-Path $fleetRoot "docs\fleet\CONTROLLED_USE_REHEARSAL_EXPANSION.md"
+    $basePath = Join-Path $fleetRoot "docs\golden-gameplan\15-post-golden-gameplan-hardening\controlled-use-rehearsal.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $expansionPath) -Message "HQ controlled-use rehearsal expansion doc exists"
+    Assert-True -Condition (Test-Path -LiteralPath $basePath) -Message "Post-Golden controlled-use rehearsal doc exists for expansion link"
+
+    $expansionText = Get-Content -LiteralPath $expansionPath -Raw
+    foreach ($phrase in @(
+        "fixture-only and harness-only",
+        "Repo Fingerprint Drift",
+        "Stale Lease",
+        "Worktree Mismatch",
+        "Failure Anti-Loop",
+        "Dashboard UNKNOWN",
+        "Budget Safe-Pause",
+        "Artifact Index Proof",
+        "repo-fingerprint-drift",
+        "stale-lease",
+        "worktree-mismatch",
+        "same-fingerprint-same-hypothesis",
+        "state-artifact-mismatch",
+        "budget-pressure",
+        "artifact-index-proof",
+        "GREEN / YELLOW / RED",
+        "Stop Conditions"
+    )) {
+        Assert-True -Condition ($expansionText -match [regex]::Escape($phrase)) -Message "HQ rehearsal expansion includes phrase: $phrase"
+    }
+
+    foreach ($evidence in @(
+        "controlled-use-rehearsal/hq/repo-fingerprint-drift.json",
+        "controlled-use-rehearsal/hq/stale-lease.json",
+        "controlled-use-rehearsal/hq/worktree-mismatch.json",
+        "controlled-use-rehearsal/hq/failure-anti-loop.json",
+        "controlled-use-rehearsal/hq/dashboard-unknown.json",
+        "controlled-use-rehearsal/hq/budget-safe-pause.json",
+        "controlled-use-rehearsal/hq/artifact-index-proof.json"
+    )) {
+        Assert-True -Condition ($expansionText -match [regex]::Escape($evidence)) -Message "HQ rehearsal expansion names evidence path: $evidence"
+    }
+
+    foreach ($forbidden in @(
+        "touching a real product repo",
+        "launching a product ship",
+        "running all-fleet commands",
+        "deleting locks",
+        "installing packages",
+        "creating database files or migrations",
+        "touching secrets, auth, payments, deployment settings, or permissions"
+    )) {
+        Assert-True -Condition ($expansionText -match [regex]::Escape($forbidden)) -Message "HQ rehearsal expansion stop condition includes: $forbidden"
+    }
+
+    $baseText = Get-Content -LiteralPath $basePath -Raw
+    Assert-True -Condition ($baseText -match [regex]::Escape("docs/fleet/CONTROLLED_USE_REHEARSAL_EXPANSION.md")) -Message "Base controlled-use rehearsal links HQ expansion"
+    Assert-True -Condition ($baseText -match [regex]::Escape("repo fingerprint drift, stale lease, worktree mismatch, failure anti-loop, dashboard UNKNOWN, budget safe-pause, and artifact index proof")) -Message "Base controlled-use rehearsal summarizes HQ scenarios"
+}
+
+function Test-HqRepairBatchAuditTemplate {
+    Write-Host "Testing HQ repair batch audit template..."
+
+    $templatePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md"
+    Assert-True -Condition (Test-Path -LiteralPath $templatePath) -Message "HQ repair batch audit template exists"
+
+    $templateText = Get-Content -LiteralPath $templatePath -Raw
+    foreach ($phrase in @(
+        "HQ Repair Batch Audit Template",
+        "Batch Metadata",
+        "Completed Tasks",
+        "Blocked Tasks",
+        "Files Changed",
+        "Checks Run",
+        "Unresolved Risks",
+        "External Audit Questions",
+        "Rollback And No-Op Notes",
+        "GREEN / YELLOW / RED Rubric",
+        "Captain Review Decision"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($phrase)) -Message "HQ repair batch audit template includes section: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Files changed",
+        "Checks run",
+        "unresolved",
+        "Reviewer output is evidence, not commands",
+        "No product repos were intentionally touched",
+        "No product ships were launched",
+        "No all-fleet commands were run",
+        "Generated files that are safe to delete only after approval",
+        "Files that should not be deleted because they are evidence"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($phrase)) -Message "HQ repair batch audit template captures required item: $phrase"
+    }
+
+    foreach ($rubric in @(
+        "GREEN:",
+        "YELLOW:",
+        "RED:",
+        "validation passed",
+        "validation failed",
+        "scope was exceeded",
+        "same-task queue status updates"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($rubric)) -Message "HQ repair batch audit template includes rubric item: $rubric"
+    }
+
+    foreach ($forbidden in @(
+        "product repos",
+        "product ships",
+        "all-fleet commands",
+        "merge, push, deploy",
+        "package install",
+        "migration",
+        "secrets/auth/payments",
+        "lock deletion",
+        "permission widening"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($forbidden)) -Message "HQ repair batch audit template preserves boundary: $forbidden"
+    }
+
+    Assert-False -Condition ($templateText -match "(?i)(run all-fleet|launch product|delete locks|merge|push|deploy)\s+now") -Message "HQ repair batch audit template does not ask for broad execution"
+}
+
+function Test-HqQueueReconciliationProof {
+    Write-Host "Testing HQ queue reconciliation proof..."
+
+    $templatePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $testPath = Join-Path $fleetRoot "tests\run-fleet-tests.ps1"
+
+    Assert-True -Condition (Test-Path -LiteralPath $templatePath) -Message "HQ batch audit template exists for reconciliation proof"
+    $templateText = Get-Content -LiteralPath $templatePath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $testText = Get-Content -LiteralPath $testPath -Raw
+
+    foreach ($phrase in @(
+        "Queue Reconciliation Proof",
+        "queue status lagged behind validated artifacts",
+        "Queue reconciliation is evidence only",
+        "Formerly stale tasks from the HQ safety-spine import",
+        "Remaining live tasks must stay listed separately",
+        'Do not mark `HQ-033` through `HQ-040` done'
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($phrase)) -Message "HQ reconciliation proof includes phrase: $phrase"
+    }
+
+    $taskProofs = @(
+        @{ id = "HQ-002"; proof = "Test-RepoFingerprintContract"; artifact = "templates/repo-fingerprint-schema.json" },
+        @{ id = "HQ-003"; proof = "Test-WorktreeIsolationContract"; artifact = "templates/worktree-boundary-schema.json" },
+        @{ id = "HQ-004"; proof = "Test-FailureFingerprintContract"; artifact = "templates/failure-fingerprint-schema.json" },
+        @{ id = "HQ-005"; proof = "Test-LeaseHeartbeatContract"; artifact = "templates/lease-heartbeat-schema.json" },
+        @{ id = "HQ-006"; proof = "Test-ControlRoomReconciliationContract"; artifact = "templates/control-room-reconciliation-schema.json" },
+        @{ id = "HQ-007"; proof = "Test-BudgetSafePauseContract"; artifact = "templates/budget-safe-pause-schema.json" },
+        @{ id = "HQ-008"; proof = "Test-ArtifactIndexContract"; artifact = "templates/artifact-index-schema.json" },
+        @{ id = "HQ-009"; proof = "Test-RuntimePolicyDecisionContract"; artifact = "templates/runtime-policy-decision-schema.json" },
+        @{ id = "HQ-010"; proof = "Test-ReviewPacketContract"; artifact = "templates/review-packet-schema.json" },
+        @{ id = "HQ-011"; proof = "Test-RepoFingerprintBuilderFixtureHelper"; artifact = "tools/codex-fleet-state.ps1" },
+        @{ id = "HQ-012"; proof = "Test-SelectedShipLedgerContract"; artifact = "templates/selected-ship-ledger-schema.json" },
+        @{ id = "HQ-013"; proof = "Test-WorktreeBoundaryValidatorFixtureHelper"; artifact = "tools/codex-fleet-state.ps1" },
+        @{ id = "HQ-014"; proof = "Test-FailureFingerprintNormalizerFixtureHelper"; artifact = "tools/codex-fleet-runtime.ps1" },
+        @{ id = "HQ-015"; proof = "Test-LeaseHeartbeatFixtureClassifier"; artifact = "tools/codex-fleet-overnight.ps1" },
+        @{ id = "HQ-016"; proof = "Test-ControlRoomReconciliationFixtureHelper"; artifact = "tools/codex-fleet-control-room.ps1" },
+        @{ id = "HQ-017"; proof = "Test-ArtifactIndexFixtureWriter"; artifact = "write-run-evidence.ps1" },
+        @{ id = "HQ-018"; proof = "Test-RuntimePolicyDryRunEvaluator"; artifact = "tools/codex-fleet-autonomy.ps1" }
+    )
+
+    foreach ($task in $taskProofs) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($task.id)) -Message "HQ reconciliation proof lists $($task.id)"
+        Assert-True -Condition ($templateText -match [regex]::Escape($task.proof)) -Message "HQ reconciliation proof names test evidence for $($task.id)"
+        Assert-True -Condition ($templateText -match [regex]::Escape($task.artifact)) -Message "HQ reconciliation proof names artifact for $($task.id)"
+        Assert-True -Condition ($queueText -match "### $([regex]::Escape($task.id)) .+?\r?\n\s*- status: done") -Message "$($task.id) queue status is done"
+        Assert-True -Condition ($testText -match [regex]::Escape($task.proof)) -Message "$($task.id) proof test exists in runner"
+    }
+
+    foreach ($liveTask in @("HQ-033", "HQ-034", "HQ-035", "HQ-036", "HQ-037", "HQ-038", "HQ-039", "HQ-040")) {
+        Assert-True -Condition ($queueText -match "### $liveTask .+?\r?\n\s*- status: (pending|done)") -Message "$liveTask remains tracked after reconciliation proof"
+    }
+}
+
+function Test-HqCommitReadinessInventory {
+    Write-Host "Testing HQ commit readiness inventory..."
+
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_READINESS_INVENTORY.md"
+    Assert-True -Condition (Test-Path -LiteralPath $inventoryPath) -Message "HQ commit readiness inventory exists"
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    foreach ($phrase in @(
+        "HQ Commit Readiness Inventory",
+        "Commit Candidate Groups",
+        "Source Docs",
+        "Schemas",
+        "Tests",
+        "Harness Scripts And Tools",
+        "Fleet State And Status Artifacts",
+        "Codex Evidence Docs",
+        "Generated Audit Packages",
+        "Intentionally Untracked Or Local Artifacts",
+        "Recommended Review Order",
+        "No-Op Rollback Note",
+        "Suggested Checkpoint Strategy",
+        "Open Commit Questions"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "HQ commit readiness inventory includes section: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Do not use broad staging",
+        "does not stage, commit, push, delete, rewrite history",
+        "audit packages may be useful as review evidence",
+        "Do not delete audit packages from this document",
+        "untracked does not mean disposable",
+        "Do not revert existing dirty work",
+        "Inventory status: YELLOW"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "HQ commit readiness inventory includes guardrail: $phrase"
+    }
+
+    foreach ($pathPhrase in @(
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "templates/*-schema.json",
+        "tests/run-fleet-tests.ps1",
+        "tools/codex-fleet-*.ps1",
+        "docs/codex/EVIDENCE_INDEX.md",
+        "fleet/status/current.json",
+        "audit-packages/",
+        "audit-packages/external-report-extract.txt"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($pathPhrase)) -Message "HQ commit readiness inventory lists path/group: $pathPhrase"
+    }
+
+    Assert-False -Condition ($inventoryText -match "(?i)git add \.") -Message "HQ commit readiness inventory avoids broad git add command"
+    Assert-False -Condition ($inventoryText -match "(?i)(git commit|git push|Remove-Item|git reset|git checkout)") -Message "HQ commit readiness inventory avoids executable commit/delete/revert commands"
+}
+
+function Test-PostGoldenHardeningProductLaunchChecklist {
+    $checklistPath = Join-Path $fleetRoot "docs\golden-gameplan\15-post-golden-gameplan-hardening\product-launch-checklist.md"
+
+    Assert-True -Condition (Test-Path $checklistPath) -Message "Post-Golden product launch checklist exists"
+    $checklistText = Get-Content -LiteralPath $checklistPath -Raw
+    foreach ($phrase in @(
+        "explicit ship",
+        "repo cleanliness",
+        "lane profile",
+        "demo promise",
+        "first-screen contract",
+        "acceptance command",
+        "rollback plan",
+        "budget limit",
+        "latest audit package path",
+        "captain approval"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($phrase)) -Message "Post-Golden product launch checklist requires $phrase"
+    }
+    foreach ($lane in @("Hospitality Customer", "Manager/Internal", "Analytical", "Backend-Sensitive", "Maintenance")) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($lane)) -Message "Post-Golden product launch checklist covers $lane"
+    }
+    foreach ($rejection in @("launch all", "reset the whole cellar fleet", "make it beautiful", "fix everything")) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($rejection)) -Message "Post-Golden product launch checklist rejects vague request '$rejection'"
+    }
+    foreach ($path in @(
+        "docs/templates/product-quality/lane-profiles/hospitality-customer-website.md",
+        "docs/templates/product-quality/lane-profiles/manager-internal-restaurant-tool.md"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($path)) -Message "Post-Golden product launch checklist links $path"
+    }
+    Assert-True -Condition ($checklistText -match "auth" -and $checklistText -match "payments" -and $checklistText -match "deployment" -and $checklistText -match "migrations" -and $checklistText -match "package/dependency") -Message "Post-Golden product launch checklist preserves sensitive-domain gates"
+}
+
+function Test-GoldenGameplanStageSixteenSupport {
+    $stage16Root = Join-Path $fleetRoot "docs\golden-gameplan\16-audit-loop-mode"
+    $metadataSchemaPath = Join-Path $fleetRoot "templates\audit-loop-metadata-schema.json"
+    $metadataDocPath = Join-Path $stage16Root "metadata.md"
+    $taskSchemaPath = Join-Path $fleetRoot "templates\audit-loop-task-schema.json"
+    $taskTemplatePath = Join-Path $fleetRoot "docs\templates\audit-loop\task-queue-template.md"
+    $packageBuilderPath = Join-Path $fleetRoot "invoke-audit-loop-package.ps1"
+    $packageBuilderDocPath = Join-Path $stage16Root "package-builder.md"
+    $queueConverterPath = Join-Path $fleetRoot "new-audit-loop-queue.ps1"
+    $queueConverterDocPath = Join-Path $stage16Root "queue-converter.md"
+    $taskRunnerPath = Join-Path $fleetRoot "invoke-audit-loop-task.ps1"
+    $taskRunnerDocPath = Join-Path $stage16Root "task-runner.md"
+
+    Assert-True -Condition (Test-Path (Join-Path $stage16Root "stage-plan.md")) -Message "Stage 16 provides audit loop stage plan"
+    Assert-True -Condition (Test-Path (Join-Path $stage16Root "audit-loop-mode-spec.md")) -Message "Stage 16 provides audit loop mode spec"
+    Assert-True -Condition (Test-Path $metadataSchemaPath) -Message "Stage 16 provides audit loop metadata schema"
+    Assert-True -Condition (Test-Path $metadataDocPath) -Message "Stage 16 provides audit loop metadata docs"
+    Assert-True -Condition (Test-Path $taskSchemaPath) -Message "Stage 16 provides audit loop task schema"
+    Assert-True -Condition (Test-Path $taskTemplatePath) -Message "Stage 16 provides audit loop task queue template"
+    Assert-True -Condition (Test-Path $packageBuilderPath) -Message "Stage 16 exposes audit loop package builder"
+    Assert-True -Condition (Test-Path $packageBuilderDocPath) -Message "Stage 16 documents audit loop package builder"
+    Assert-True -Condition (Test-Path $queueConverterPath) -Message "Stage 16 exposes audit loop queue converter"
+    Assert-True -Condition (Test-Path $queueConverterDocPath) -Message "Stage 16 documents audit loop queue converter"
+    Assert-True -Condition (Test-Path $taskRunnerPath) -Message "Stage 16 exposes audit loop one-task runner"
+    Assert-True -Condition (Test-Path $taskRunnerDocPath) -Message "Stage 16 documents audit loop one-task runner"
+
+    $metadataSchema = Get-Content -LiteralPath $metadataSchemaPath -Raw | ConvertFrom-Json
+    $requiredFields = @(
+        "projectName",
+        "repository",
+        "surfaces",
+        "inScopeSurfaces",
+        "safeDataSources",
+        "forbiddenDataSources",
+        "auditPackageFiles",
+        "defaultChecks",
+        "maxTasks",
+        "acceptedLimitations",
+        "ownerContact",
+        "riskTier",
+        "requiresCaptainApproval"
+    )
+    foreach ($field in $requiredFields) {
+        Assert-True -Condition (@($metadataSchema.required) -contains $field) -Message "Stage 16 metadata schema requires $field"
+        Assert-True -Condition ($metadataSchema.properties.PSObject.Properties.Name -contains $field) -Message "Stage 16 metadata schema defines $field"
+    }
+
+    $riskTierEnum = @($metadataSchema.properties.riskTier.enum)
+    foreach ($tier in @("fixture", "safe-demo", "product-demo", "sensitive")) {
+        Assert-True -Condition ($riskTierEnum -contains $tier) -Message "Stage 16 metadata schema supports risk tier $tier"
+    }
+
+    $metadataDoc = Get-Content -LiteralPath $metadataDocPath -Raw
+    foreach ($field in $requiredFields) {
+        Assert-True -Condition ($metadataDoc -match [regex]::Escape($field)) -Message "Stage 16 metadata docs explain $field"
+    }
+    Assert-True -Condition ($metadataDoc -match "HouseOS field names globally required" -and $metadataDoc -match "PublicRestaurantData") -Message "Stage 16 metadata docs keep HouseOS-specific fields local"
+    Assert-True -Condition ($metadataDoc -match "Metadata narrows scope but does not grant execution permission") -Message "Stage 16 metadata docs separate metadata from runtime safety"
+
+    $taskSchema = Get-Content -LiteralPath $taskSchemaPath -Raw | ConvertFrom-Json
+    $requiredTaskFields = @(
+        "id",
+        "title",
+        "dispatchPhrase",
+        "goal",
+        "readList",
+        "workList",
+        "acceptanceCriteria",
+        "requiredChecks",
+        "commitExpectation",
+        "riskLevel",
+        "notes",
+        "stopIf",
+        "proof"
+    )
+    foreach ($field in $requiredTaskFields) {
+        Assert-True -Condition (@($taskSchema.required) -contains $field) -Message "Stage 16 audit-loop task schema requires $field"
+        Assert-True -Condition ($taskSchema.properties.PSObject.Properties.Name -contains $field) -Message "Stage 16 audit-loop task schema defines $field"
+    }
+    $taskTemplate = Get-Content -LiteralPath $taskTemplatePath -Raw
+    foreach ($field in $requiredTaskFields) {
+        Assert-True -Condition ($taskTemplate -match [regex]::Escape($field)) -Message "Stage 16 task template documents $field"
+    }
+    Assert-True -Condition ($taskTemplate -match 'Valid Example' -and $taskTemplate -match 'Rejected Vague Example') -Message "Stage 16 task template includes valid and rejected examples"
+    Assert-True -Condition ($taskTemplate -match 'fix everything' -and $taskTemplate -match 'nested audit loops') -Message "Stage 16 task template rejects giant fixes and nested loops"
+    Assert-True -Condition ($taskTemplate -match 'Task Contract V2 Mapping') -Message "Stage 16 task template maps to Task Contract V2"
+
+    $packageDoc = Get-Content -LiteralPath $packageBuilderDocPath -Raw
+    foreach ($phrase in @("metadata-driven", "auditPackageFiles", "forbiddenDataSources", "MaxFiles", "Does not launch ships")) {
+        Assert-True -Condition ($packageDoc -match [regex]::Escape($phrase)) -Message "Stage 16 package builder docs include $phrase"
+    }
+    $queueConverterDoc = Get-Content -LiteralPath $queueConverterDocPath -Raw
+    foreach ($phrase in @("structured JSON", "maxTasks", "accepted limitations", "forbidden scope", "Does not execute tasks")) {
+        Assert-True -Condition ($queueConverterDoc -match [regex]::Escape($phrase)) -Message "Stage 16 queue converter docs include $phrase"
+    }
+    $taskRunnerDoc = Get-Content -LiteralPath $taskRunnerDocPath -Raw
+    foreach ($phrase in @("exactly one unchecked task", "Rejects skip-ahead", "requiredChecks", "Accepted-Limitation Stop", "Does not launch ships")) {
+        Assert-True -Condition ($taskRunnerDoc -match [regex]::Escape($phrase)) -Message "Stage 16 one-task runner docs include $phrase"
+    }
+
+    $stage16FixtureRoot = Join-Path $fixtureRoot ("stage16-audit-loop-" + [guid]::NewGuid().ToString("N"))
+    $stage16Repo = Join-Path $stage16FixtureRoot "Repo"
+    New-Item -ItemType Directory -Force -Path (Join-Path $stage16Repo "docs") | Out-Null
+    Set-Content -LiteralPath (Join-Path $stage16Repo "docs\readme.md") -Encoding UTF8 -Value "# Fixture audit evidence"
+    Set-Content -LiteralPath (Join-Path $stage16Repo ".env") -Encoding UTF8 -Value "SECRET=do-not-package"
+    $stage16MetadataPath = Join-Path $stage16FixtureRoot "audit-loop-metadata.json"
+    [pscustomobject]@{
+        projectName = "Stage 16 Fixture"
+        repository = $stage16Repo
+        surfaces = @("harness-docs", "fixture-tests")
+        inScopeSurfaces = @("harness-docs")
+        safeDataSources = @("docs/")
+        forbiddenDataSources = @(".env", ".git/", "node_modules/", "dist/", "build/", ".codex-local/locks/")
+        auditPackageFiles = @("docs/readme.md", ".env", "docs/missing.md")
+        defaultChecks = @(".\tests\run-fleet-tests.ps1")
+        maxTasks = 4
+        acceptedLimitations = @("Fixture intentionally omits live external transport.")
+        ownerContact = "Captain"
+        riskTier = "fixture"
+        requiresCaptainApproval = $false
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $stage16MetadataPath -Encoding UTF8
+    try {
+        $stage16OutRoot = Join-Path $stage16FixtureRoot "out"
+        $stage16Run = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $packageBuilderPath,
+            "-MetadataPath", $stage16MetadataPath,
+            "-OutRoot", $stage16OutRoot,
+            "-AuditId", "stage16-fixture",
+            "-MaxFiles", "1",
+            "-NoZip"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $stage16Run.ExitCode -Expected 0 -Message "Stage 16 audit loop package builder succeeds for fixture metadata"
+        $packageRoot = Join-Path $stage16OutRoot "stage16-fixture"
+        Assert-True -Condition (Test-Path (Join-Path $packageRoot "manifest.json")) -Message "Stage 16 package builder writes manifest"
+        Assert-True -Condition (Test-Path (Join-Path $packageRoot "PACKAGE_REPORT.md")) -Message "Stage 16 package builder writes report"
+        Assert-True -Condition (Test-Path (Join-Path $packageRoot "prompts\external-audit-prompt.md")) -Message "Stage 16 package builder writes prompt"
+        Assert-True -Condition (Test-Path (Join-Path $packageRoot "files\docs\readme.md")) -Message "Stage 16 package builder includes declared safe file"
+        Assert-False -Condition (Test-Path (Join-Path $packageRoot "files\.env")) -Message "Stage 16 package builder excludes forbidden .env"
+        $manifest = Get-Content -LiteralPath (Join-Path $packageRoot "manifest.json") -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $manifest.packageType -Expected "audit-loop" -Message "Stage 16 package manifest identifies audit-loop type"
+        Assert-True -Condition ((@($manifest.skipped | Where-Object { [string]$_.path -eq ".env" -and [string]$_.reason -eq "forbidden-or-unsafe-path" }).Count) -eq 1) -Message "Stage 16 manifest records forbidden skip"
+        Assert-True -Condition ((@($manifest.skipped | Where-Object { [string]$_.path -eq "docs/missing.md" -and [string]$_.reason -eq "missing" }).Count) -eq 1) -Message "Stage 16 manifest records missing skip"
+        Assert-True -Condition ((@($manifest.warnings).Count) -gt 0) -Message "Stage 16 package builder records max-file warning"
+        $promptText = Get-Content -LiteralPath (Join-Path $packageRoot "prompts\external-audit-prompt.md") -Raw
+        Assert-True -Condition ($promptText -match "Stage 16 Fixture" -and $promptText -match "read-only") -Message "Stage 16 package prompt fills project context"
+
+        $validTask = [pscustomobject]@{
+            id = "stage16-valid-task"
+            title = "Add queue converter fixture proof"
+            dispatchPhrase = "Start Audit Loop task stage16-valid-task from docs/codex/TASK_QUEUE.md."
+            goal = "Write a bounded queue item from structured audit data."
+            readList = @("docs/readme.md")
+            workList = @("docs/readme.md")
+            acceptanceCriteria = @("Queue contains this task.")
+            requiredChecks = @(".\tests\run-fleet-tests.ps1")
+            commitExpectation = "captain-decides"
+            riskLevel = "low"
+            notes = "Fixture-only queue conversion."
+            stopIf = @("The task touches product repos.")
+            proof = @("Queue path and validation path.")
+        }
+        $validReportPath = Join-Path $stage16FixtureRoot "valid-audit-report.json"
+        [pscustomobject]@{
+            findings = @(
+                [pscustomobject]@{
+                    id = "finding-valid"
+                    title = "Queue converter needs proof"
+                    task = $validTask
+                    requiresCaptainApproval = $false
+                },
+                [pscustomobject]@{
+                    id = "finding-limitation"
+                    title = "Fixture intentionally omits live external transport."
+                    limitation = "Fixture intentionally omits live external transport."
+                }
+            )
+        } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $validReportPath -Encoding UTF8
+        $validQueuePath = Join-Path $stage16FixtureRoot "valid-queue.md"
+        $validQueueRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $queueConverterPath,
+            "-ReportPath", $validReportPath,
+            "-MetadataPath", $stage16MetadataPath,
+            "-OutPath", $validQueuePath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $validQueueRun.ExitCode -Expected 0 -Message "Stage 16 queue converter accepts valid structured report"
+        Assert-True -Condition (Test-Path $validQueuePath) -Message "Stage 16 queue converter writes queue"
+        $validQueueText = Get-Content -LiteralPath $validQueuePath -Raw
+        Assert-True -Condition ($validQueueText -match "stage16-valid-task" -and $validQueueText -match "Skipped Findings") -Message "Stage 16 queue converter writes accepted task and skipped limitation"
+        $validQueueValidation = Get-Content -LiteralPath ([System.IO.Path]::ChangeExtension($validQueuePath, ".validation.json")) -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $validQueueValidation.status -Expected "passed" -Message "Stage 16 queue converter validation passes valid report"
+        Assert-Equal -Actual $validQueueValidation.acceptedCount -Expected 1 -Message "Stage 16 queue converter accepts one valid task"
+        Assert-True -Condition ((@($validQueueValidation.skipped | Where-Object { [string]$_.reason -eq "accepted-limitation" }).Count) -eq 1) -Message "Stage 16 queue converter skips repeated accepted caveat"
+
+        $forbiddenTask = [pscustomobject]@{
+            id = "stage16-forbidden-task"
+            title = "Touch forbidden env file"
+            dispatchPhrase = "Start forbidden fixture task."
+            goal = "This should be rejected because it touches forbidden scope."
+            readList = @(".env")
+            workList = @(".env")
+            acceptanceCriteria = @("Should not be accepted.")
+            requiredChecks = @(".\tests\run-fleet-tests.ps1")
+            commitExpectation = "none"
+            riskLevel = "low"
+            notes = "Forbidden fixture."
+            stopIf = @("Always.")
+            proof = @("Validation rejection.")
+        }
+        $forbiddenReportPath = Join-Path $stage16FixtureRoot "forbidden-audit-report.json"
+        [pscustomobject]@{ findings = @([pscustomobject]@{ id = "finding-forbidden"; task = $forbiddenTask }) } |
+            ConvertTo-Json -Depth 12 |
+            Set-Content -LiteralPath $forbiddenReportPath -Encoding UTF8
+        $forbiddenQueuePath = Join-Path $stage16FixtureRoot "forbidden-queue.md"
+        $forbiddenRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $queueConverterPath,
+            "-ReportPath", $forbiddenReportPath,
+            "-MetadataPath", $stage16MetadataPath,
+            "-OutPath", $forbiddenQueuePath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $forbiddenRun.ExitCode -Expected 1 -Message "Stage 16 queue converter rejects forbidden scope"
+        $forbiddenValidation = Get-Content -LiteralPath ([System.IO.Path]::ChangeExtension($forbiddenQueuePath, ".validation.json")) -Raw | ConvertFrom-Json
+        Assert-True -Condition (($forbiddenValidation.rejected | ConvertTo-Json -Depth 8) -match "forbidden scope") -Message "Stage 16 forbidden validation explains forbidden scope"
+        Assert-False -Condition (Test-Path $forbiddenQueuePath) -Message "Stage 16 rejected queue is not written"
+
+        $overLimitMetadataPath = Join-Path $stage16FixtureRoot "over-limit-metadata.json"
+        $overLimitMetadata = Get-Content -LiteralPath $stage16MetadataPath -Raw | ConvertFrom-Json
+        $overLimitMetadata.maxTasks = 1
+        $overLimitMetadata | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $overLimitMetadataPath -Encoding UTF8
+        $secondTask = $validTask.PSObject.Copy()
+        $secondTask.id = "stage16-second-task"
+        $secondTask.title = "Add second queue task"
+        $overLimitReportPath = Join-Path $stage16FixtureRoot "over-limit-report.json"
+        [pscustomobject]@{
+            findings = @(
+                [pscustomobject]@{ id = "finding-one"; task = $validTask },
+                [pscustomobject]@{ id = "finding-two"; task = $secondTask }
+            )
+        } | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $overLimitReportPath -Encoding UTF8
+        $overLimitQueuePath = Join-Path $stage16FixtureRoot "over-limit-queue.md"
+        $overLimitRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $queueConverterPath,
+            "-ReportPath", $overLimitReportPath,
+            "-MetadataPath", $overLimitMetadataPath,
+            "-OutPath", $overLimitQueuePath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $overLimitRun.ExitCode -Expected 1 -Message "Stage 16 queue converter rejects over-limit reports"
+        $overLimitValidation = Get-Content -LiteralPath ([System.IO.Path]::ChangeExtension($overLimitQueuePath, ".validation.json")) -Raw | ConvertFrom-Json
+        Assert-True -Condition (($overLimitValidation.rejected | ConvertTo-Json -Depth 8) -match "maxTasks-exceeded") -Message "Stage 16 over-limit validation explains maxTasks rejection"
+
+        $runnerOut = Join-Path $stage16FixtureRoot "runner-out"
+        $oneTaskRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $taskRunnerPath,
+            "-QueuePath", $validQueuePath,
+            "-OutDir", $runnerOut
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $oneTaskRun.ExitCode -Expected 0 -Message "Stage 16 one-task runner accepts generated queue"
+        $runnerResultPath = Join-Path $runnerOut "audit-loop-task-result.json"
+        Assert-True -Condition (Test-Path $runnerResultPath) -Message "Stage 16 one-task runner writes result evidence"
+        $runnerResult = Get-Content -LiteralPath $runnerResultPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $runnerResult.status -Expected "SELECTED_ONE_TASK" -Message "Stage 16 one-task runner selects exactly one task"
+        Assert-Equal -Actual $runnerResult.selectedTask.id -Expected "stage16-valid-task" -Message "Stage 16 one-task runner selects earliest unchecked task"
+        Assert-True -Condition ($runnerResult.selectedOnlyOneTask -eq $true) -Message "Stage 16 one-task runner records one-task boundary"
+        Assert-True -Condition ((@($runnerResult.checkResults | Where-Object { [string]$_.status -eq "would-run" }).Count) -eq 1) -Message "Stage 16 one-task runner records declared check in dry run"
+
+        $skipAheadQueuePath = Join-Path $stage16FixtureRoot "skip-ahead-queue.md"
+        @(
+            '# Audit Loop Generated Queue',
+            '',
+            '## Temporary Audit Loop Mode Queue',
+            '',
+            '- [ ] First task',
+            '  - id: `first-task`',
+            '  - dispatchPhrase: Start first.',
+            '  - goal: First bounded task.',
+            '  - readList: docs/readme.md',
+            '  - workList: docs/readme.md',
+            '  - acceptanceCriteria: First task is selected.',
+            '  - requiredChecks: powershell -NoProfile -ExecutionPolicy Bypass -Command "Test-Path .\docs\codex\TASK_QUEUE.md"',
+            '  - commitExpectation: none',
+            '  - riskLevel: low',
+            '  - stopIf: Product scope appears.',
+            '  - proof: result evidence',
+            '',
+            '- [ ] Second task',
+            '  - id: `second-task`',
+            '  - dispatchPhrase: Start second.',
+            '  - goal: Second bounded task.',
+            '  - readList: docs/readme.md',
+            '  - workList: docs/readme.md',
+            '  - acceptanceCriteria: Second task is selected only after first.',
+            '  - requiredChecks: powershell -NoProfile -ExecutionPolicy Bypass -Command "Test-Path .\docs\codex\TASK_QUEUE.md"',
+            '  - commitExpectation: none',
+            '  - riskLevel: low',
+            '  - stopIf: Product scope appears.',
+            '  - proof: result evidence'
+        ) | Set-Content -LiteralPath $skipAheadQueuePath -Encoding UTF8
+        $skipAheadOut = Join-Path $stage16FixtureRoot "skip-ahead-out"
+        $skipAheadRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $taskRunnerPath,
+            "-QueuePath", $skipAheadQueuePath,
+            "-OutDir", $skipAheadOut,
+            "-TaskId", "second-task"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $skipAheadRun.ExitCode -Expected 1 -Message "Stage 16 one-task runner rejects skip-ahead task"
+        $skipAheadResult = Get-Content -LiteralPath (Join-Path $skipAheadOut "audit-loop-task-result.json") -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $skipAheadResult.status -Expected "REJECTED_SKIP_AHEAD" -Message "Stage 16 skip-ahead result names rejection"
+        Assert-Equal -Actual $skipAheadResult.firstUncheckedTaskId -Expected "first-task" -Message "Stage 16 skip-ahead result preserves first unchecked task"
+
+        $missingCheckQueuePath = Join-Path $stage16FixtureRoot "missing-check-queue.md"
+        @(
+            '# Audit Loop Generated Queue',
+            '',
+            '## Temporary Audit Loop Mode Queue',
+            '',
+            '- [ ] Missing check task',
+            '  - id: `missing-check-task`',
+            '  - dispatchPhrase: Start missing check.',
+            '  - goal: Should fail validation.',
+            '  - readList: docs/readme.md',
+            '  - workList: docs/readme.md',
+            '  - acceptanceCriteria: Missing checks fail.',
+            '  - requiredChecks: ',
+            '  - commitExpectation: none',
+            '  - riskLevel: low',
+            '  - stopIf: Missing check.',
+            '  - proof: result evidence'
+        ) | Set-Content -LiteralPath $missingCheckQueuePath -Encoding UTF8
+        $missingCheckOut = Join-Path $stage16FixtureRoot "missing-check-out"
+        $missingCheckRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $taskRunnerPath,
+            "-QueuePath", $missingCheckQueuePath,
+            "-OutDir", $missingCheckOut
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $missingCheckRun.ExitCode -Expected 1 -Message "Stage 16 one-task runner rejects missing checks"
+        $missingCheckResult = Get-Content -LiteralPath (Join-Path $missingCheckOut "audit-loop-task-result.json") -Raw | ConvertFrom-Json
+        Assert-True -Condition (($missingCheckResult.errors | ConvertTo-Json -Depth 8) -match "missing requiredChecks") -Message "Stage 16 missing-check rejection is explicit"
+
+        $acceptedOnlyQueuePath = Join-Path $stage16FixtureRoot "accepted-only-queue.md"
+        @(
+            '# Audit Loop Generated Queue',
+            '',
+            '## Temporary Audit Loop Mode Queue',
+            '',
+            '## Skipped Findings',
+            '',
+            '- `finding-limitation` - accepted-limitation'
+        ) | Set-Content -LiteralPath $acceptedOnlyQueuePath -Encoding UTF8
+        $acceptedOnlyOut = Join-Path $stage16FixtureRoot "accepted-only-out"
+        $acceptedOnlyRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $taskRunnerPath,
+            "-QueuePath", $acceptedOnlyQueuePath,
+            "-OutDir", $acceptedOnlyOut
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $acceptedOnlyRun.ExitCode -Expected 0 -Message "Stage 16 one-task runner stops cleanly on accepted limitations"
+        $acceptedOnlyResult = Get-Content -LiteralPath (Join-Path $acceptedOnlyOut "audit-loop-task-result.json") -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $acceptedOnlyResult.status -Expected "STOP_ACCEPTED_LIMITATION" -Message "Stage 16 accepted-limitation queue produces stop status"
+    } finally {
+        if (Test-Path $stage16FixtureRoot) {
+            Remove-Item -LiteralPath $stage16FixtureRoot -Recurse -Force
+        }
+    }
+}
+
+function Test-EntrypointSafetyInventory {
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\ENTRYPOINT_SAFETY_INVENTORY.md"
+    $schemaPath = Join-Path $fleetRoot "templates\entrypoint-safety-schema.json"
+
+    Assert-True -Condition (Test-Path $inventoryPath) -Message "Entrypoint safety inventory doc exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Entrypoint safety schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Entrypoint safety schema is versioned"
+    foreach ($field in @("schemaVersion", "generatedAt", "entrypoints", "validatorExpectations")) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Entrypoint safety schema requires $field"
+    }
+
+    $entryProperties = $schema.properties.entrypoints.items.properties
+    foreach ($field in @(
+        "path",
+        "class",
+        "riskLevel",
+        "canReadProductRepos",
+        "canMutateProductRepos",
+        "requires",
+        "canLaunchChildWorkers",
+        "writesAuditOrEvidenceOnly",
+        "forbiddenUnattended",
+        "forbiddenWhileRateLimited",
+        "humanApprovalRequired",
+        "notes"
+    )) {
+        Assert-True -Condition (@($schema.properties.entrypoints.items.required) -contains $field) -Message "Entrypoint safety schema requires entrypoint $field"
+        Assert-True -Condition ($entryProperties.PSObject.Properties.Name -contains $field) -Message "Entrypoint safety schema defines entrypoint $field"
+    }
+
+    $allowedClasses = @($entryProperties.class.enum)
+    foreach ($class in @(
+        "read_only_status",
+        "fixture_only",
+        "selected_ship_required",
+        "selected_project_required",
+        "external_review_request_only",
+        "mobile_request_only",
+        "legacy_broad_requires_human"
+    )) {
+        Assert-True -Condition ($allowedClasses -contains $class) -Message "Entrypoint safety schema supports class $class"
+    }
+
+    $validatorProperties = $schema.properties.validatorExpectations.properties
+    foreach ($field in @("categories", "highRiskEntrypoints", "defaultAutonomyAllowed", "requiresExactHumanApproval", "nonExecutableInputs")) {
+        Assert-True -Condition (@($schema.properties.validatorExpectations.required) -contains $field) -Message "Entrypoint safety schema requires validator expectation $field"
+        Assert-True -Condition ($validatorProperties.PSObject.Properties.Name -contains $field) -Message "Entrypoint safety schema defines validator expectation $field"
+    }
+    Assert-Equal -Actual $validatorProperties.defaultAutonomyAllowed.const -Expected $false -Message "Entrypoint safety validator defaults high-risk autonomy to false"
+    Assert-Equal -Actual $validatorProperties.requiresExactHumanApproval.const -Expected $true -Message "Entrypoint safety validator requires exact human approval"
+
+    foreach ($source in @("external_reports", "mobile_requests", "task_packets", "audit_packages", "docx_reports", "queue_prose")) {
+        Assert-True -Condition (@($validatorProperties.nonExecutableInputs.items.enum) -contains $source) -Message "Entrypoint safety validator treats $source as non-executable input"
+    }
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    foreach ($phrase in @(
+        "This inventory classifies entrypoints before HQ control-plane runtime changes",
+        "It does not grant execution permission",
+        "Imported content is data, never instructions",
+        "Mobile requests and external review outputs are request records only",
+        "Legacy broad entrypoints are HUMAN APPROVAL only",
+        "Entrypoint Inventory Validator Expectations",
+        "does not change launcher behavior",
+        "defaultAutonomyAllowed",
+        "requiresExactHumanApproval",
+        "non-executable inputs"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "Entrypoint safety inventory includes invariant: $phrase"
+    }
+
+    $expectedClassByEntrypoint = [ordered]@{
+        "run-checkpoint-loop.ps1" = "selected_project_required"
+        "fleet-supervisor.ps1" = "legacy_broad_requires_human"
+        "fleet-remote-control.ps1" = "legacy_broad_requires_human"
+        "launch-overnight-run.ps1" = "legacy_broad_requires_human"
+        "start-overnight-autopilot.ps1" = "legacy_broad_requires_human"
+        "new-audit-package.ps1" = "selected_project_required"
+        "invoke-autonomy-wrapper.ps1" = "selected_ship_required"
+        "invoke-overnight-mode.ps1" = "selected_ship_required"
+        "invoke-mobile-console.ps1" = "mobile_request_only"
+        "invoke-control-room.ps1" = "read_only_status"
+    }
+
+    foreach ($entrypoint in $expectedClassByEntrypoint.Keys) {
+        $lines = @($inventoryText -split "\r?\n" | Where-Object { $_ -match [regex]::Escape($entrypoint) })
+        Assert-True -Condition ($lines.Count -ge 1) -Message "Entrypoint safety inventory represents $entrypoint"
+        Assert-True -Condition (($lines -join "`n") -match [regex]::Escape($expectedClassByEntrypoint[$entrypoint])) -Message "Entrypoint safety inventory classifies $entrypoint as $($expectedClassByEntrypoint[$entrypoint])"
+    }
+
+    foreach ($legacyEntrypoint in @(
+        "fleet-supervisor.ps1",
+        "fleet-remote-control.ps1",
+        "launch-overnight-run.ps1",
+        "start-overnight-autopilot.ps1",
+        "run-fleet.ps1",
+        "launch-cellar-fleet.ps1",
+        "scheduled-selected-overnight-run.ps1"
+    )) {
+        $legacyLines = @($inventoryText -split "\r?\n" | Where-Object { $_ -match [regex]::Escape($legacyEntrypoint) })
+        Assert-True -Condition (($legacyLines -join "`n") -match "HUMAN APPROVAL") -Message "Entrypoint safety inventory marks $legacyEntrypoint as human approval only"
+    }
+
+    foreach ($validatorEntrypoint in @(
+        "run-fleet.ps1",
+        "launch-cellar-fleet.ps1",
+        "launch-school-run.ps1",
+        "launch-proof-run.ps1",
+        "launch-overnight-run.ps1",
+        "start-overnight-autopilot.ps1",
+        "scheduled-selected-overnight-run.ps1",
+        "fleet-supervisor.ps1",
+        "fleet-remote-control.ps1",
+        "run-checkpoint-loop.ps1",
+        "fleet-phase.ps1",
+        "ingest-task-packet.ps1",
+        "new-audit-package.ps1",
+        "invoke-autonomy-wrapper.ps1",
+        "invoke-overnight-mode.ps1"
+    )) {
+        $validatorSection = ($inventoryText -split "## Entrypoint Inventory Validator Expectations", 2)[1]
+        Assert-True -Condition ($validatorSection -match [regex]::Escape($validatorEntrypoint)) -Message "Entrypoint safety validator expectations name high-risk entrypoint $validatorEntrypoint"
+    }
+
+    Assert-False -Condition ($inventoryText -match "(?i)defaultAutonomyAllowed`\s*`?is`\s*`?true") -Message "Entrypoint safety inventory does not allow high-risk default autonomy"
+}
+
+function Test-HqHumanApprovalGateDocumentation {
+    Write-Host "Testing HQ human approval gate documentation..."
+
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\ENTRYPOINT_SAFETY_INVENTORY.md"
+    $reconPath = Join-Path $fleetRoot "docs\fleet\HQ_IMPORT_RECON.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    $reconText = Get-Content -LiteralPath $reconPath -Raw
+    $combinedText = $inventoryText + "`n" + $reconText
+
+    foreach ($phrase in @(
+        "Human Approval Gate",
+        "Low-risk read/report operations",
+        "write only reports",
+        "Write, delete, launch, external-side-effect",
+        "product-repo mutation",
+        "ship launcher",
+        "legacy fleet command",
+        "explicit exact-action human approval",
+        "selected project or ship",
+        "Read/report status is not execution authority"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "HQ human approval docs include phrase: $phrase"
+    }
+
+    foreach ($highRiskPhrase in @(
+        "broad launchers",
+        "legacy fleet commands",
+        "product-repo mutation scripts",
+        "ship launchers",
+        "deployments",
+        "migrations",
+        "package installs",
+        "lock cleanup",
+        "secrets/auth/payments",
+        "permission widening"
+    )) {
+        Assert-True -Condition ($reconText -match [regex]::Escape($highRiskPhrase)) -Message "HQ import recon names high-risk approval gate area: $highRiskPhrase"
+    }
+
+    foreach ($readReportPhrase in @(
+        "sanitized local status",
+        "fixture evidence",
+        "explicitly selected project metadata",
+        "local report artifacts only"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($readReportPhrase)) -Message "Entrypoint safety inventory distinguishes read/report operation: $readReportPhrase"
+    }
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-027 Human Approval Gate Documentation Sweep\s+\r?\n\s*- status: done') -Message "HQ-027 queue task is marked done"
+}
+
+function Test-HqHighRiskEntrypointSentinelSweep {
+    Write-Host "Testing HQ high-risk entrypoint sentinel sweep..."
+
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\ENTRYPOINT_SAFETY_INVENTORY.md"
+    $reconPath = Join-Path $fleetRoot "docs\fleet\HQ_IMPORT_RECON.md"
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    $reconText = Get-Content -LiteralPath $reconPath -Raw
+    $combinedText = $inventoryText + "`n" + $reconText
+
+    foreach ($phrase in @(
+        "Pre-Demo High-Risk Entrypoint Sentinel Sweep",
+        "sentinel sweep, not permission to execute",
+        "Broad launchers remain human-approval-only",
+        "Product mutation wrappers remain exact-scope approval-gated",
+        "Remote-control and supervisor wrappers remain explicit-human-approval-only",
+        "Mobile wrappers remain request-only",
+        "Overnight/autonomy wrappers remain bounded and approval-gated",
+        "Audit/review wrappers remain evidence-only"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "Entrypoint sentinel sweep includes phrase: $phrase"
+    }
+
+    foreach ($entrypoint in @(
+        "run-fleet.ps1",
+        "launch-cellar-fleet.ps1",
+        "launch-school-run.ps1",
+        "launch-proof-run.ps1",
+        "launch-overnight-run.ps1",
+        "start-overnight-autopilot.ps1",
+        "scheduled-selected-overnight-run.ps1",
+        "run-checkpoint-loop.ps1",
+        "fleet-phase.ps1",
+        "ingest-task-packet.ps1 -Apply",
+        "fleet-remote-control.ps1",
+        "fleet-supervisor.ps1",
+        "invoke-mobile-console.ps1",
+        "invoke-autonomy-wrapper.ps1",
+        "invoke-overnight-mode.ps1",
+        "new-audit-package.ps1",
+        "new-external-agent-workflow.ps1",
+        "invoke-audit-loop-package.ps1",
+        "new-audit-loop-queue.ps1",
+        "invoke-audit-loop-task.ps1"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($entrypoint)) -Message "Entrypoint sentinel sweep names $entrypoint"
+    }
+
+    foreach ($boundary in @(
+        "Read/report commands are different from write/delete/external-side-effect commands",
+        "sanitized local status",
+        "fixture evidence",
+        "one explicitly selected project",
+        "local report artifacts only",
+        "product file writes",
+        "product repo mutation",
+        "child-worker launch",
+        "product ship launch",
+        "all-fleet command execution",
+        "deploy",
+        "package install",
+        "migration",
+        "secrets/auth/payments access",
+        "lock deletion",
+        "permission widening",
+        "merge",
+        "push",
+        "broad audit packaging from real product repositories"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($boundary)) -Message "Entrypoint sentinel sweep distinguishes boundary: $boundary"
+    }
+
+    foreach ($reconPhrase in @(
+        "Pre-demo sentinel",
+        "broad launchers, product mutation wrappers, remote/mobile wrappers, and overnight/autonomy wrappers remain human-approval-gated",
+        "Mobile wrappers are request-only and must keep ``executes = false``",
+        "external review wrappers are evidence-only",
+        "write/delete/external-side-effect commands require exact-action approval"
+    )) {
+        Assert-True -Condition ($reconText -match [regex]::Escape($reconPhrase)) -Message "HQ import recon includes sentinel phrase: $reconPhrase"
+    }
+
+    Assert-False -Condition ($combinedText -match "(?i)(sentinel|sweep).*(approves|authorizes|grants)\s+.*(launch|mutat|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions|merge|push)") -Message "Entrypoint sentinel sweep does not approve high-risk operations"
+}
+
+function Test-RepoFingerprintContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\REPO_FINGERPRINT_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\repo-fingerprint-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Repo fingerprint contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Repo fingerprint schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Repo fingerprint schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "fingerprintId",
+        "shipId",
+        "repoRoot",
+        "gitTopLevel",
+        "branch",
+        "head",
+        "dirtyState",
+        "changedFileSummary",
+        "worktreePath",
+        "generatedAt",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Repo fingerprint schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Repo fingerprint schema defines $field"
+    }
+
+    foreach ($state in @("clean", "dirty", "missing", "wrong-root", "git-error", "path-traversal", "stale-head")) {
+        Assert-True -Condition (@($schema.properties.dirtyState.enum) -contains $state) -Message "Repo fingerprint schema supports dirtyState $state"
+    }
+
+    $summaryProperties = $schema.properties.changedFileSummary.properties
+    foreach ($field in @("count", "files", "truncated")) {
+        Assert-True -Condition (@($schema.properties.changedFileSummary.required) -contains $field) -Message "Repo fingerprint changedFileSummary requires $field"
+        Assert-True -Condition ($summaryProperties.PSObject.Properties.Name -contains $field) -Message "Repo fingerprint changedFileSummary defines $field"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($field in @("status", "reasons")) {
+        Assert-True -Condition (@($schema.properties.validation.required) -contains $field) -Message "Repo fingerprint validation requires $field"
+        Assert-True -Condition ($validationProperties.PSObject.Properties.Name -contains $field) -Message "Repo fingerprint validation defines $field"
+    }
+
+    foreach ($reason in @("clean", "dirty", "wrong-root", "missing-repo", "stale-head", "path-traversal", "git-error", "dirty-state-ambiguous", "worktree-missing", "evidence-missing")) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Repo fingerprint validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "evidence, not permission",
+        "exactly one selected ship",
+        "gitTopLevel must match repoRoot",
+        "Dirty state is not failure by itself",
+        "The model cannot mark an invalid fingerprint valid",
+        "No real product repo is required for this contract"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Repo fingerprint contract includes invariant: $phrase"
+    }
+
+    foreach ($fixtureCase in @("clean", "dirty", "wrong-root", "missing-repo", "stale-head", "path-traversal")) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($fixtureCase)) -Message "Repo fingerprint contract documents fixture case $fixtureCase"
+    }
+
+    foreach ($freshnessPhrase in @(
+        "Freshness And Ambiguity Negative Fixtures",
+        "dirty-state-ambiguous",
+        "git-error",
+        "must block execution",
+        "must defer write-capable or real-project execution",
+        "never approval to launch ships",
+        "mutate product repositories"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($freshnessPhrase)) -Message "Repo fingerprint contract documents freshness boundary: $freshnessPhrase"
+    }
+
+    foreach ($outOfScope in @(
+        "Creating git worktrees",
+        "Authorizing product mutations",
+        "Adding SQLite or Fleet.Core",
+        "Running all-fleet status or launch commands",
+        "Reading or modifying real product repos",
+        "Deleting locks"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Repo fingerprint contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-RepoFingerprintBuilderFixtureHelper {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\REPO_FINGERPRINT_CONTRACT.md"
+    $stateToolText = Get-Content -LiteralPath (Join-Path $fleetRoot "tools\codex-fleet-state.ps1") -Raw
+    Assert-True -Condition ($stateToolText -match "function New-FleetRepoFingerprint") -Message "Repo fingerprint builder helper exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "New-FleetRepoFingerprint",
+        "FixtureRoot",
+        "No product repo is read by fixture validation",
+        "clean fixture repo",
+        "dirty fixture repo",
+        "wrong-root fixture path",
+        "missing repo path",
+        "stale head",
+        "path traversal"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Repo fingerprint contract documents builder helper: $phrase"
+    }
+
+    $fingerprintRoot = Join-Path $fixtureRoot ("hq011-repo-fingerprint-" + [guid]::NewGuid().ToString("N"))
+    $repoRoot = Join-Path $fingerprintRoot "fixture-repo"
+    New-Item -ItemType Directory -Force -Path $repoRoot | Out-Null
+    Push-Location $repoRoot
+    try {
+        git init | Out-Null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Fleet Test"
+        "fixture" | Set-Content -LiteralPath "README.md" -Encoding UTF8
+        git add README.md
+        git commit -m "init" | Out-Null
+    } finally {
+        Pop-Location
+    }
+
+    try {
+        $clean = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $repoRoot -WorktreePath $repoRoot -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $clean.schemaVersion -Expected 1 -Message "Repo fingerprint builder returns schema version"
+        Assert-Equal -Actual $clean.shipId -Expected "FixtureShip" -Message "Repo fingerprint builder records ship id"
+        Assert-Equal -Actual $clean.dirtyState -Expected "clean" -Message "Repo fingerprint builder classifies clean fixture repo"
+        Assert-Equal -Actual $clean.validation.status -Expected "valid" -Message "Repo fingerprint builder marks clean fixture valid"
+        Assert-True -Condition (![string]::IsNullOrWhiteSpace([string]$clean.branch)) -Message "Repo fingerprint builder records branch"
+        Assert-True -Condition (![string]::IsNullOrWhiteSpace([string]$clean.head) -and [string]$clean.head -ne "unknown") -Message "Repo fingerprint builder records head"
+        Assert-Equal -Actual $clean.changedFileSummary.count -Expected 0 -Message "Repo fingerprint builder counts clean changed files"
+        Assert-True -Condition (@($clean.validation.reasons) -contains "clean") -Message "Repo fingerprint builder records clean reason"
+
+        "dirty" | Set-Content -LiteralPath (Join-Path $repoRoot "dirty.txt") -Encoding UTF8
+        $dirty = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $repoRoot -WorktreePath $repoRoot -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $dirty.dirtyState -Expected "dirty" -Message "Repo fingerprint builder classifies dirty fixture repo"
+        Assert-True -Condition ($dirty.changedFileSummary.count -ge 1) -Message "Repo fingerprint builder records dirty changed-file count"
+        Assert-True -Condition ((@($dirty.changedFileSummary.files) -join " ") -match "dirty.txt") -Message "Repo fingerprint builder records dirty changed file name"
+
+        $dirtyAmbiguous = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $repoRoot -WorktreePath $repoRoot -FixtureRoot $fingerprintRoot
+        Assert-Equal -Actual $dirtyAmbiguous.dirtyState -Expected "dirty" -Message "Repo fingerprint builder keeps dirty state for ambiguous dirty fixture"
+        Assert-Equal -Actual $dirtyAmbiguous.validation.status -Expected "unknown" -Message "Repo fingerprint builder marks dirty state without evidence unknown"
+        Assert-True -Condition (@($dirtyAmbiguous.validation.reasons) -contains "dirty-state-ambiguous") -Message "Repo fingerprint builder records dirty ambiguity reason"
+        Assert-True -Condition (@($dirtyAmbiguous.validation.reasons) -contains "evidence-missing") -Message "Repo fingerprint builder records missing evidence for ambiguous dirty fixture"
+
+        $childPath = Join-Path $repoRoot "child"
+        New-Item -ItemType Directory -Force -Path $childPath | Out-Null
+        $wrongRoot = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $childPath -WorktreePath $childPath -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $wrongRoot.dirtyState -Expected "wrong-root" -Message "Repo fingerprint builder classifies wrong-root fixture path"
+        Assert-Equal -Actual $wrongRoot.validation.status -Expected "invalid" -Message "Repo fingerprint builder marks wrong-root invalid"
+        Assert-True -Condition (@($wrongRoot.validation.reasons) -contains "wrong-root") -Message "Repo fingerprint builder records wrong-root reason"
+
+        $missingPath = Join-Path $fingerprintRoot "missing-repo"
+        $missing = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $missingPath -WorktreePath $missingPath -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $missing.dirtyState -Expected "missing" -Message "Repo fingerprint builder classifies missing repo"
+        Assert-Equal -Actual $missing.validation.status -Expected "invalid" -Message "Repo fingerprint builder marks missing repo invalid"
+        Assert-True -Condition (@($missing.validation.reasons) -contains "missing-repo") -Message "Repo fingerprint builder records missing-repo reason"
+
+        $stale = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $repoRoot -WorktreePath $repoRoot -ExpectedHead "not-the-head" -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $stale.dirtyState -Expected "stale-head" -Message "Repo fingerprint builder classifies stale head"
+        Assert-Equal -Actual $stale.validation.status -Expected "invalid" -Message "Repo fingerprint builder marks stale head invalid"
+        Assert-True -Condition (@($stale.validation.reasons) -contains "stale-head") -Message "Repo fingerprint builder records stale-head reason"
+
+        $outsidePath = Join-Path $fleetRoot "projects.json"
+        $escape = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $outsidePath -WorktreePath $outsidePath -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $escape.dirtyState -Expected "path-traversal" -Message "Repo fingerprint builder rejects fixture-root escape before git"
+        Assert-True -Condition (@($escape.validation.reasons) -contains "path-traversal") -Message "Repo fingerprint builder records path-traversal reason"
+
+        $gitErrorRoot = Join-Path $fingerprintRoot "not-a-git-repo"
+        New-Item -ItemType Directory -Force -Path $gitErrorRoot | Out-Null
+        Set-Content -LiteralPath (Join-Path $gitErrorRoot ".git") -Encoding UTF8 -Value "gitdir: missing-fixture-gitdir"
+        $gitError = New-FleetRepoFingerprint -ShipId "FixtureShip" -RepoRoot $gitErrorRoot -WorktreePath $gitErrorRoot -FixtureRoot $fingerprintRoot -EvidenceRefs @("fixture/git-status.txt")
+        Assert-Equal -Actual $gitError.dirtyState -Expected "git-error" -Message "Repo fingerprint builder classifies non-git fixture path as git-error"
+        Assert-Equal -Actual $gitError.validation.status -Expected "invalid" -Message "Repo fingerprint builder marks git-error invalid"
+        Assert-True -Condition (@($gitError.validation.reasons) -contains "git-error") -Message "Repo fingerprint builder records git-error reason"
+
+        foreach ($unsafeFingerprint in @($wrongRoot, $missing, $stale, $escape, $gitError)) {
+            Assert-False -Condition ($unsafeFingerprint.validation.status -eq "valid") -Message "Repo fingerprint negative fixture is not valid for real-project execution"
+        }
+    } finally {
+        if (Test-Path -LiteralPath $fingerprintRoot) {
+            Remove-Item -LiteralPath $fingerprintRoot -Recurse -Force
+        }
+    }
+}
+
+function Test-WorktreeIsolationContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\WORKTREE_ISOLATION_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\worktree-boundary-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Worktree isolation contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Worktree boundary schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Worktree boundary schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "boundaryId",
+        "shipId",
+        "sourceRepoRoot",
+        "sourceGitTopLevel",
+        "worktreePath",
+        "branch",
+        "owner",
+        "leaseId",
+        "cleanupPosture",
+        "boundaryState",
+        "generatedAt",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Worktree boundary schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Worktree boundary schema defines $field"
+    }
+
+    foreach ($posture in @("preserve", "manual-review", "safe-dispose-fixture-only", "do-not-delete-locks")) {
+        Assert-True -Condition (@($schema.properties.cleanupPosture.enum) -contains $posture) -Message "Worktree boundary schema supports cleanup posture $posture"
+    }
+
+    foreach ($state in @("fixture-only", "planned", "active", "stale", "blocked", "invalid")) {
+        Assert-True -Condition (@($schema.properties.boundaryState.enum) -contains $state) -Message "Worktree boundary schema supports state $state"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($field in @("status", "reasons")) {
+        Assert-True -Condition (@($schema.properties.validation.required) -contains $field) -Message "Worktree boundary validation requires $field"
+        Assert-True -Condition ($validationProperties.PSObject.Properties.Name -contains $field) -Message "Worktree boundary validation defines $field"
+    }
+
+    foreach ($reason in @(
+        "single-selected-ship",
+        "missing-worktree",
+        "broad-ship-selection",
+        "direct-product-root-mutation",
+        "ship-mismatch",
+        "source-root-mismatch",
+        "fixture-root-escape",
+        "ambiguous-boundary",
+        "fixture-only-exception",
+        "lock-deletion-forbidden"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Worktree boundary validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "no implicit direct product-root mutation",
+        "one selected ship",
+        "one dedicated worktree",
+        "fixture-only exception",
+        "do not delete locks",
+        "not grant execution permission",
+        "No real product repo is required"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Worktree isolation contract includes invariant: $phrase"
+    }
+
+    foreach ($rejectedCase in @("missing-worktree", "broad-ship-selection", "direct-product-root-mutation", "ship-mismatch", "fixture-root-escape", "ambiguous-boundary")) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($rejectedCase)) -Message "Worktree isolation contract documents rejected case $rejectedCase"
+    }
+
+    foreach ($outOfScope in @(
+        "Creating git worktrees",
+        "Deleting locks",
+        "Launching product ships",
+        "Mutating product repos",
+        "Adding SQLite or Fleet.Core"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Worktree isolation contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-WorktreeBoundaryValidatorFixtureHelper {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\WORKTREE_ISOLATION_CONTRACT.md"
+    $stateToolText = Get-Content -LiteralPath (Join-Path $fleetRoot "tools\codex-fleet-state.ps1") -Raw
+    Assert-True -Condition ($stateToolText -match "function Test-FleetWorktreeBoundary") -Message "Worktree boundary validator helper exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "Test-FleetWorktreeBoundary",
+        "validates schema-shaped worktree boundary records",
+        "without creating git worktrees",
+        "without creating git worktrees, deleting locks, launching ships, or reading product repositories",
+        "not a runtime worktree manager",
+        "does not grant mutation permission",
+        "one non-wildcard selected ship",
+        "worktreePath that is separate from sourceRepoRoot",
+        "traversal-like fixture paths that escape FixtureRoot",
+        "missing branch, owner, lease id, evidence refs, or planned/stale/blocked boundary states"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Worktree boundary contract documents validator helper: $phrase"
+    }
+
+    $boundaryFixtureRoot = Join-Path $fixtureRoot ("hq013-worktree-boundary-" + [guid]::NewGuid().ToString("N"))
+    $sourceRoot = Join-Path $boundaryFixtureRoot "source"
+    $worktreeRoot = Join-Path $boundaryFixtureRoot "worktree"
+    New-Item -ItemType Directory -Force -Path $worktreeRoot | Out-Null
+    try {
+        $baseBoundary = [pscustomobject]@{
+            schemaVersion = 1
+            boundaryId = "boundary-fixture-001"
+            shipId = "FixtureShip"
+            sourceRepoRoot = $sourceRoot
+            sourceGitTopLevel = $sourceRoot
+            worktreePath = $worktreeRoot
+            branch = "codex/fixture"
+            owner = "codex-test"
+            leaseId = "lease-fixture-001"
+            cleanupPosture = "safe-dispose-fixture-only"
+            boundaryState = "fixture-only"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            evidenceRefs = @("fixture/worktree-boundary.json")
+            validation = [pscustomobject]@{ status = "unknown"; reasons = @() }
+        }
+
+        $valid = Test-FleetWorktreeBoundary -Boundary $baseBoundary -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $valid.status -Expected "valid" -Message "Worktree boundary validator accepts one selected ship with one fixture worktree"
+        Assert-True -Condition (@($valid.reasons) -contains "single-selected-ship") -Message "Worktree boundary validator records single selected ship"
+        Assert-True -Condition (@($valid.reasons) -contains "fixture-only-exception") -Message "Worktree boundary validator records fixture-only exception"
+
+        $missingWorktree = $baseBoundary.PSObject.Copy()
+        $missingWorktree.worktreePath = ""
+        $missingResult = Test-FleetWorktreeBoundary -Boundary $missingWorktree -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $missingResult.status -Expected "invalid" -Message "Worktree boundary validator rejects missing worktree"
+        Assert-True -Condition (@($missingResult.reasons) -contains "missing-worktree") -Message "Worktree boundary validator records missing-worktree reason"
+
+        $directRoot = $baseBoundary.PSObject.Copy()
+        $directRoot.worktreePath = $sourceRoot
+        $directResult = Test-FleetWorktreeBoundary -Boundary $directRoot -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $directResult.status -Expected "invalid" -Message "Worktree boundary validator rejects direct product-root mutation marker"
+        Assert-True -Condition (@($directResult.reasons) -contains "direct-product-root-mutation") -Message "Worktree boundary validator records direct-product-root-mutation reason"
+
+        $wildcard = $baseBoundary.PSObject.Copy()
+        $wildcard.shipId = "*"
+        $wildcardResult = Test-FleetWorktreeBoundary -Boundary $wildcard -SelectedShipId "*" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $wildcardResult.status -Expected "invalid" -Message "Worktree boundary validator rejects wildcard ship"
+        Assert-True -Condition (@($wildcardResult.reasons) -contains "broad-ship-selection") -Message "Worktree boundary validator records broad-ship-selection reason"
+
+        $mismatch = $baseBoundary.PSObject.Copy()
+        $mismatchResult = Test-FleetWorktreeBoundary -Boundary $mismatch -SelectedShipId "OtherFixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $mismatchResult.status -Expected "invalid" -Message "Worktree boundary validator rejects mismatched ship id"
+        Assert-True -Condition (@($mismatchResult.reasons) -contains "ship-mismatch") -Message "Worktree boundary validator records ship-mismatch reason"
+
+        $sourceMismatch = $baseBoundary.PSObject.Copy()
+        $sourceMismatch.sourceGitTopLevel = Join-Path $boundaryFixtureRoot "other-source"
+        $sourceMismatchResult = Test-FleetWorktreeBoundary -Boundary $sourceMismatch -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $sourceMismatchResult.status -Expected "invalid" -Message "Worktree boundary validator rejects source root mismatch"
+        Assert-True -Condition (@($sourceMismatchResult.reasons) -contains "source-root-mismatch") -Message "Worktree boundary validator records source-root-mismatch reason"
+
+        $traversalEscape = $baseBoundary.PSObject.Copy()
+        $traversalEscape.worktreePath = Join-Path $boundaryFixtureRoot "..\escaped-worktree"
+        $traversalResult = Test-FleetWorktreeBoundary -Boundary $traversalEscape -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $traversalResult.status -Expected "invalid" -Message "Worktree boundary validator rejects traversal path outside fixture root"
+        Assert-True -Condition (@($traversalResult.reasons) -contains "fixture-root-escape") -Message "Worktree boundary validator records fixture-root-escape reason"
+
+        $ambiguous = $baseBoundary.PSObject.Copy()
+        $ambiguous.owner = ""
+        $ambiguous.leaseId = ""
+        $ambiguous.evidenceRefs = @()
+        $ambiguous.boundaryState = "planned"
+        $ambiguousResult = Test-FleetWorktreeBoundary -Boundary $ambiguous -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-Equal -Actual $ambiguousResult.status -Expected "unknown" -Message "Worktree boundary validator fails ambiguous boundary closed"
+        Assert-True -Condition (@($ambiguousResult.reasons) -contains "ambiguous-boundary") -Message "Worktree boundary validator records ambiguous-boundary reason"
+    } finally {
+        if (Test-Path -LiteralPath $boundaryFixtureRoot) {
+            Remove-Item -LiteralPath $boundaryFixtureRoot -Recurse -Force
+        }
+    }
+}
+
+function Test-FailureFingerprintContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\FAILURE_FINGERPRINT_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\failure-fingerprint-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Failure fingerprint contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Failure fingerprint schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Failure fingerprint schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "fingerprintId",
+        "shipId",
+        "runId",
+        "failureClass",
+        "rawSummary",
+        "normalizedSummary",
+        "normalizationRules",
+        "hypothesis",
+        "attemptCount",
+        "firstSeenAt",
+        "lastSeenAt",
+        "decision",
+        "retriable",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Failure fingerprint schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Failure fingerprint schema defines $field"
+    }
+
+    foreach ($rule in @("timestamp", "temp-path", "guid", "noisy-id", "machine-root", "duration", "line-ending", "absolute-path", "port")) {
+        Assert-True -Condition (@($schema.properties.normalizationRules.items.enum) -contains $rule) -Message "Failure fingerprint schema supports normalization rule $rule"
+    }
+
+    foreach ($failureClass in @(
+        "build-failure",
+        "test-failure",
+        "runtime-failure",
+        "invalid-run-result",
+        "missing-evidence",
+        "stale-lock",
+        "dirty-unowned-repo",
+        "invalid-task-packet",
+        "stale-task-packet",
+        "broad-unsafe-task",
+        "backend-sensitive-scope",
+        "low-budget",
+        "report-write-failure",
+        "audit-package-too-large",
+        "policy-denial"
+    )) {
+        Assert-True -Condition (@($schema.properties.failureClass.enum) -contains $failureClass) -Message "Failure fingerprint schema supports failure class $failureClass"
+    }
+
+    foreach ($decision in @("retry-once", "repair-task", "safe-pause", "block", "repacketize", "wait-for-rate-reset", "non-retriable-policy-denial")) {
+        Assert-True -Condition (@($schema.properties.decision.enum) -contains $decision) -Message "Failure fingerprint schema supports decision $decision"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($field in @("status", "reasons")) {
+        Assert-True -Condition (@($schema.properties.validation.required) -contains $field) -Message "Failure fingerprint validation requires $field"
+        Assert-True -Condition ($validationProperties.PSObject.Properties.Name -contains $field) -Message "Failure fingerprint validation defines $field"
+    }
+
+    foreach ($reason in @(
+        "normalized",
+        "same-hypothesis-twice",
+        "safe-pause-required",
+        "repair-task-required",
+        "policy-denial-non-retriable",
+        "blind-retry-forbidden",
+        "missing-evidence",
+        "missing-allowed-file",
+        "validation-requires-forbidden-action",
+        "ambiguous-external-evidence",
+        "scope-expansion",
+        "repacketize-required",
+        "deny-required",
+        "failure-class-erased",
+        "noisy-id-normalized"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Failure fingerprint validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "same fingerprint plus same hypothesis twice maps to safe pause or repair task, not blind retry",
+        "policy denial is non-retriable",
+        "timestamp",
+        "temp path",
+        "GUID/noisy ID",
+        "machine root",
+        "duration",
+        "line-ending noise",
+        "Failure Loop Breaker Matrix",
+        "safe-pause",
+        "repacketize",
+        "deny outcomes",
+        "blind-retry-forbidden",
+        "Changing live retry runtime behavior"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Failure fingerprint contract includes invariant: $phrase"
+    }
+
+    foreach ($fixtureCase in @(
+        "same-hypothesis-twice-safe-pause",
+        "same-hypothesis-twice-repair-task",
+        "policy-denial-non-retriable",
+        "same-fingerprint-same-hypothesis-twice-safe-pause",
+        "same-fingerprint-same-hypothesis-twice-repair-task",
+        "missing-allowed-file-repacketize",
+        "validation-requires-forbidden-action-deny",
+        "repeated-ambiguous-external-evidence-repacketize",
+        "scope-expansion-repacketize",
+        "timestamp-normalized",
+        "temp-path-normalized",
+        "guid-normalized",
+        "machine-root-normalized",
+        "duration-normalized",
+        "line-ending-normalized"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($fixtureCase)) -Message "Failure fingerprint contract documents anti-loop fixture $fixtureCase"
+    }
+
+    foreach ($outOfScope in @(
+        "Launching product ships",
+        "Mutating product repos",
+        "Running all-fleet commands",
+        "Deleting locks",
+        "Killing processes",
+        "Touching product repos",
+        "Package sending",
+        "Installing packages",
+        "Running migrations"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Failure fingerprint contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-FailureFingerprintNormalizerFixtureHelper {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\FAILURE_FINGERPRINT_CONTRACT.md"
+    $runtimeText = Get-Content -LiteralPath (Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1") -Raw
+
+    Assert-True -Condition ($runtimeText -match "function ConvertTo-FleetFailureNormalizedSummary") -Message "Failure fingerprint normalizer helper exists"
+    Assert-True -Condition ($runtimeText -match "function New-FleetFailureFingerprint") -Message "Failure fingerprint fixture builder exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "ConvertTo-FleetFailureNormalizedSummary",
+        "New-FleetFailureFingerprint",
+        "schema-shaped fixture fingerprint record",
+        "does not change live retry runtime behavior",
+        "same normalized failure with same hypothesis twice is not retry",
+        "policy denial stays non-retriable"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Failure fingerprint contract documents helper: $phrase"
+    }
+
+    $rawOne = "2026-05-30T10:15:22Z runtime-failure in C:\Users\codex-agent\AppData\Local\Temp\fleet-123\run.log id 123e4567-e89b-12d3-a456-426614174000 after 4312ms on port 5173`r`nPID 987654"
+    $rawTwo = "2026-05-30T11:45:33Z runtime-failure in C:\Users\other\AppData\Local\Temp\fleet-999\run.log id 223e4567-e89b-12d3-a456-426614174999 after 99 seconds on port 4311`nPID 111111"
+
+    $normalizedOne = ConvertTo-FleetFailureNormalizedSummary -Text $rawOne
+    $normalizedTwo = ConvertTo-FleetFailureNormalizedSummary -Text $rawTwo
+    Assert-Equal -Actual $normalizedOne.summary -Expected $normalizedTwo.summary -Message "Failure fingerprint normalizer collapses noisy timestamp/temp/guid/duration/port differences"
+    foreach ($rule in @("timestamp", "temp-path", "guid", "duration", "port", "line-ending", "noisy-id")) {
+        Assert-True -Condition (@($normalizedOne.rules) -contains $rule) -Message "Failure fingerprint normalizer records $rule rule"
+    }
+    Assert-True -Condition ($normalizedOne.summary -match "runtime-failure") -Message "Failure fingerprint normalizer preserves failure class"
+
+    $first = New-FleetFailureFingerprint -ShipId "FixtureShip" -RunId "run-1" -FailureClass "runtime-failure" -RawSummary $rawOne -Hypothesis "same hypothesis" -AttemptCount 1 -EvidenceRefs @("fixture/failure.log")
+    $repeat = New-FleetFailureFingerprint -ShipId "FixtureShip" -RunId "run-2" -FailureClass "runtime-failure" -RawSummary $rawTwo -Hypothesis "same hypothesis" -AttemptCount 2 -EvidenceRefs @("fixture/failure.log")
+    Assert-Equal -Actual $first.fingerprintId -Expected $repeat.fingerprintId -Message "Failure fingerprint builder gives same fingerprint to normalized matching failures"
+    Assert-Equal -Actual $first.decision -Expected "retry-once" -Message "Failure fingerprint builder allows first bounded transient retry"
+    Assert-Equal -Actual $repeat.decision -Expected "safe-pause" -Message "Failure fingerprint builder maps same hypothesis twice to safe pause"
+    Assert-False -Condition $repeat.retriable -Message "Failure fingerprint repeat decision is not retriable"
+    Assert-True -Condition (@($repeat.validation.reasons) -contains "same-hypothesis-twice") -Message "Failure fingerprint repeat records same-hypothesis-twice reason"
+    Assert-True -Condition (@($repeat.validation.reasons) -contains "blind-retry-forbidden") -Message "Failure fingerprint repeat forbids blind retry"
+
+    $repair = New-FleetFailureFingerprint -ShipId "FixtureShip" -RunId "run-3" -FailureClass "test-failure" -RawSummary "test-failure assertion failed after 4s" -Hypothesis "same hypothesis" -AttemptCount 2 -EvidenceRefs @("fixture/test.log") -RepairTaskOnRepeat
+    Assert-Equal -Actual $repair.decision -Expected "repair-task" -Message "Failure fingerprint builder can map repeated fixture failure to repair task"
+    Assert-True -Condition (@($repair.validation.reasons) -contains "repair-task-required") -Message "Failure fingerprint repair path records repair-task-required reason"
+
+    $denial = New-FleetFailureFingerprint -ShipId "FixtureShip" -RunId "run-4" -FailureClass "policy-denial" -RawSummary "policy denial: broad unsafe task all ships" -Hypothesis "try broad run" -AttemptCount 1 -EvidenceRefs @("fixture/policy.json")
+    Assert-Equal -Actual $denial.decision -Expected "non-retriable-policy-denial" -Message "Failure fingerprint builder keeps policy denial non-retriable"
+    Assert-False -Condition $denial.retriable -Message "Failure fingerprint policy denial is not retriable"
+    Assert-True -Condition (@($denial.validation.reasons) -contains "policy-denial-non-retriable") -Message "Failure fingerprint policy denial records non-retriable reason"
+}
+
+function Test-LeaseHeartbeatContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\LEASE_HEARTBEAT_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\lease-heartbeat-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Lease heartbeat contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Lease heartbeat schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Lease heartbeat schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "leaseId",
+        "shipId",
+        "owner",
+        "fenceToken",
+        "heartbeatAt",
+        "heartbeatAgeMinutes",
+        "heartbeatState",
+        "leaseCreatedAt",
+        "leaseExpiresAt",
+        "leaseState",
+        "recoveryClass",
+        "decision",
+        "deletesLocks",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Lease heartbeat schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Lease heartbeat schema defines $field"
+    }
+
+    foreach ($state in @("fresh", "stale", "missing", "ambiguous")) {
+        Assert-True -Condition (@($schema.properties.heartbeatState.enum) -contains $state) -Message "Lease heartbeat schema supports heartbeat state $state"
+    }
+
+    foreach ($state in @("active", "expired", "missing", "ambiguous")) {
+        Assert-True -Condition (@($schema.properties.leaseState.enum) -contains $state) -Message "Lease heartbeat schema supports lease state $state"
+    }
+
+    foreach ($class in @("fresh", "stale", "expired", "ambiguous", "deterministic-failure", "environment-fault", "policy-failure")) {
+        Assert-True -Condition (@($schema.properties.recoveryClass.enum) -contains $class) -Message "Lease heartbeat schema supports recovery class $class"
+    }
+
+    foreach ($decision in @("LEAVE_RUNNING", "RECOVER_WITH_BACKOFF", "STOP_FOR_REPAIR", "WAIT_FOR_ENVIRONMENT", "BLOCK_FOR_POLICY_REVIEW", "REQUIRE_REVIEW")) {
+        Assert-True -Condition (@($schema.properties.decision.enum) -contains $decision) -Message "Lease heartbeat schema supports decision $decision"
+    }
+
+    Assert-Equal -Actual $schema.properties.deletesLocks.const -Expected $false -Message "Lease heartbeat schema forbids lock deletion"
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($field in @("status", "reasons")) {
+        Assert-True -Condition (@($schema.properties.validation.required) -contains $field) -Message "Lease heartbeat validation requires $field"
+        Assert-True -Condition ($validationProperties.PSObject.Properties.Name -contains $field) -Message "Lease heartbeat validation defines $field"
+    }
+
+    foreach ($reason in @("fresh", "stale", "expired", "ambiguous", "deterministic-failure", "owner-required", "fence-token-required", "fence-token-mismatch", "clock-skew-suspicion", "lock-deletion-forbidden", "review-required")) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Lease heartbeat validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "owner",
+        "fence token",
+        "heartbeat age",
+        "lease expiry",
+        "recovery class",
+        "stale state",
+        "expired state",
+        "ambiguous state",
+        "deterministic failure",
+        "do not delete locks as recovery"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Lease heartbeat contract includes invariant: $phrase"
+    }
+
+    foreach ($fixtureCase in @(
+        "fresh-active-owner",
+        "stale-active-ambiguous",
+        "expired-stale-recoverable",
+        "missing-ambiguous-review",
+        "ambiguous-owner-review",
+        "fence-token-mismatch",
+        "clock-skew-suspicion-review",
+        "deterministic-failure-stop-for-repair",
+        "policy-failure-blocked"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($fixtureCase)) -Message "Lease heartbeat contract documents fixture $fixtureCase"
+    }
+
+    foreach ($outOfScope in @(
+        "Deleting locks",
+        "Killing processes",
+        "Creating a durable lease manager",
+        "Creating SQLite or Fleet.Core tables",
+        "Launching product ships",
+        "Mutating product repos"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Lease heartbeat contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-LeaseHeartbeatFixtureClassifier {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\LEASE_HEARTBEAT_CONTRACT.md"
+    $overnightToolText = Get-Content -LiteralPath (Join-Path $fleetRoot "tools\codex-fleet-overnight.ps1") -Raw
+
+    Assert-True -Condition ($overnightToolText -match "function New-FleetLeaseHeartbeatClassification") -Message "Lease heartbeat fixture classifier exists"
+    Assert-True -Condition ($overnightToolText -match [regex]::Escape('deletesLocks = $false')) -Message "Lease heartbeat fixture classifier does not delete locks"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "New-FleetLeaseHeartbeatClassification",
+        "schema-shaped lease heartbeat fixture records",
+        "does not delete locks, rewrite lock files, kill processes",
+        "fresh heartbeat plus active lease",
+        "stale heartbeat plus active lease",
+        "expired lease plus stale heartbeat",
+        "fence-token mismatch",
+        "clock-skew suspicion",
+        "deterministic failure",
+        "deletesLocks is always false"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Lease heartbeat contract documents classifier helper: $phrase"
+    }
+
+    $now = [datetime]"2026-05-30T12:00:00Z"
+    $fresh = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-2) -LeaseCreatedAt $now.AddMinutes(-20) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -FenceToken "fence-1" -EvidenceRefs @("fixture/heartbeat.json")
+    Assert-Equal -Actual $fresh.recoveryClass -Expected "fresh" -Message "Lease heartbeat classifier classifies fresh active owner"
+    Assert-Equal -Actual $fresh.decision -Expected "LEAVE_RUNNING" -Message "Lease heartbeat classifier leaves fresh owner running"
+    Assert-Equal -Actual $fresh.deletesLocks -Expected $false -Message "Lease heartbeat classifier never deletes locks for fresh owner"
+    Assert-True -Condition (@($fresh.validation.reasons) -contains "fresh") -Message "Lease heartbeat classifier records fresh reason"
+
+    $stale = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-30) -LeaseCreatedAt $now.AddMinutes(-40) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -FenceToken "fence-1" -EvidenceRefs @("fixture/heartbeat.json")
+    Assert-Equal -Actual $stale.recoveryClass -Expected "stale" -Message "Lease heartbeat classifier classifies stale active lease"
+    Assert-Equal -Actual $stale.decision -Expected "REQUIRE_REVIEW" -Message "Lease heartbeat classifier requires review for stale active lease"
+    Assert-True -Condition (@($stale.validation.reasons) -contains "review-required") -Message "Lease heartbeat classifier records review for stale active lease"
+    Assert-Equal -Actual $stale.deletesLocks -Expected $false -Message "Lease heartbeat classifier does not delete locks for stale active lease"
+
+    $expired = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-30) -LeaseCreatedAt $now.AddMinutes(-60) -LeaseExpiresAt $now.AddMinutes(-5) -Owner "worker-1" -FenceToken "fence-1" -EvidenceRefs @("fixture/heartbeat.json")
+    Assert-Equal -Actual $expired.recoveryClass -Expected "expired" -Message "Lease heartbeat classifier classifies expired stale lease"
+    Assert-Equal -Actual $expired.decision -Expected "RECOVER_WITH_BACKOFF" -Message "Lease heartbeat classifier allows bounded recovery for expired stale lease"
+    Assert-True -Condition (@($expired.validation.reasons) -contains "expired") -Message "Lease heartbeat classifier records expired reason"
+    Assert-Equal -Actual $expired.deletesLocks -Expected $false -Message "Lease heartbeat classifier does not delete locks for expired stale lease"
+
+    $ambiguousOwner = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-2) -LeaseCreatedAt $now.AddMinutes(-20) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -ExpectedOwner "worker-2" -FenceToken "fence-1" -EvidenceRefs @("fixture/heartbeat.json")
+    Assert-Equal -Actual $ambiguousOwner.recoveryClass -Expected "ambiguous" -Message "Lease heartbeat classifier classifies ambiguous owner"
+    Assert-Equal -Actual $ambiguousOwner.decision -Expected "REQUIRE_REVIEW" -Message "Lease heartbeat classifier requires review for ambiguous owner"
+    Assert-True -Condition (@($ambiguousOwner.validation.reasons) -contains "ambiguous") -Message "Lease heartbeat classifier records ambiguous reason"
+    Assert-Equal -Actual $ambiguousOwner.deletesLocks -Expected $false -Message "Lease heartbeat classifier does not delete locks for ambiguous owner"
+
+    $fenceMismatch = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-2) -LeaseCreatedAt $now.AddMinutes(-20) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -FenceToken "fence-1" -ExpectedFenceToken "fence-2" -EvidenceRefs @("fixture/heartbeat.json")
+    Assert-Equal -Actual $fenceMismatch.recoveryClass -Expected "ambiguous" -Message "Lease heartbeat classifier classifies fence-token mismatch as ambiguous"
+    Assert-True -Condition (@($fenceMismatch.validation.reasons) -contains "fence-token-mismatch") -Message "Lease heartbeat classifier records fence-token-mismatch reason"
+    Assert-Equal -Actual $fenceMismatch.deletesLocks -Expected $false -Message "Lease heartbeat classifier does not delete locks for fence mismatch"
+
+    $clockSkew = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(5) -LeaseCreatedAt $now.AddMinutes(1) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -FenceToken "fence-1" -EvidenceRefs @("fixture/heartbeat.json")
+    Assert-Equal -Actual $clockSkew.recoveryClass -Expected "ambiguous" -Message "Lease heartbeat classifier classifies clock-skew suspicion as ambiguous"
+    Assert-Equal -Actual $clockSkew.decision -Expected "REQUIRE_REVIEW" -Message "Lease heartbeat classifier requires review for clock-skew suspicion"
+    Assert-True -Condition (@($clockSkew.validation.reasons) -contains "clock-skew-suspicion") -Message "Lease heartbeat classifier records clock-skew-suspicion reason"
+    Assert-Equal -Actual $clockSkew.deletesLocks -Expected $false -Message "Lease heartbeat classifier does not delete locks for clock-skew suspicion"
+
+    $deterministic = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-1) -LeaseCreatedAt $now.AddMinutes(-20) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -FenceToken "fence-1" -FailureSignal "deterministic" -EvidenceRefs @("fixture/failure.json")
+    Assert-Equal -Actual $deterministic.recoveryClass -Expected "deterministic-failure" -Message "Lease heartbeat classifier classifies deterministic failure"
+    Assert-Equal -Actual $deterministic.decision -Expected "STOP_FOR_REPAIR" -Message "Lease heartbeat classifier stops deterministic failure for repair"
+    Assert-True -Condition (@($deterministic.validation.reasons) -contains "deterministic-failure") -Message "Lease heartbeat classifier records deterministic-failure reason"
+    Assert-Equal -Actual $deterministic.deletesLocks -Expected $false -Message "Lease heartbeat classifier does not delete locks for deterministic failure"
+}
+
+function Test-ControlRoomReconciliationContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\control-room-reconciliation-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Control-room reconciliation contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Control-room reconciliation schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Control-room reconciliation schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "reconciliationId",
+        "shipId",
+        "repoFingerprintRef",
+        "runArtifactRef",
+        "dbStateRef",
+        "statusSnapshotRef",
+        "reconciliationStatus",
+        "mismatchReasons",
+        "displayStatus",
+        "generatedAt",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Control-room reconciliation schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Control-room reconciliation schema defines $field"
+    }
+
+    foreach ($status in @("MATCH", "MISMATCH", "UNKNOWN")) {
+        Assert-True -Condition (@($schema.properties.reconciliationStatus.enum) -contains $status) -Message "Control-room reconciliation schema supports status $status"
+    }
+
+    foreach ($display in @("MATCH", "UNKNOWN")) {
+        Assert-True -Condition (@($schema.properties.displayStatus.enum) -contains $display) -Message "Control-room reconciliation schema supports display status $display"
+    }
+
+    foreach ($reason in @(
+        "stale-artifact",
+        "repo-fingerprint-drift",
+        "missing-db-state-ref",
+        "missing-run-artifact-ref",
+        "missing-repo-fingerprint-ref",
+        "missing-dry-run-evidence",
+        "ambiguous-approval-evidence",
+        "status-snapshot-mismatch",
+        "contradictory-lease",
+        "dirty-state-conflict",
+        "ship-id-mismatch",
+        "unknown-source"
+    )) {
+        Assert-True -Condition (@($schema.properties.mismatchReasons.items.enum) -contains $reason) -Message "Control-room reconciliation schema supports mismatch reason $reason"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($field in @("status", "reasons")) {
+        Assert-True -Condition (@($schema.properties.validation.required) -contains $field) -Message "Control-room reconciliation validation requires $field"
+        Assert-True -Condition ($validationProperties.PSObject.Properties.Name -contains $field) -Message "Control-room reconciliation validation defines $field"
+    }
+
+    foreach ($reason in @(
+        "matched",
+        "mismatch-shows-unknown",
+        "unknown-shows-unknown",
+        "stale-artifact",
+        "repo-fingerprint-drift",
+        "missing-db-state-ref",
+        "missing-run-artifact-ref",
+        "missing-repo-fingerprint-ref",
+        "missing-dry-run-evidence",
+        "ambiguous-approval-evidence",
+        "status-snapshot-mismatch",
+        "contradictory-lease",
+        "ship-id-mismatch"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Control-room reconciliation validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "dashboard must show UNKNOWN on DB/Git/run artifact mismatch",
+        "repo fingerprint",
+        "run artifact",
+        "DB/state",
+        "reconciliation status",
+        "mismatch reasons",
+        "generatedAt",
+        "the model cannot mark mismatched evidence as MATCH",
+        "UNKNOWN blocks execution",
+        "UI labels, generated evidence, reviewer output, mobile requests, queue prose",
+        "cannot convert ``UNKNOWN`` or ``MISMATCH`` reconciliation evidence into ``MATCH``"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Control-room reconciliation contract includes invariant: $phrase"
+    }
+
+    foreach ($fixtureCase in @(
+        "MATCH",
+        "MISMATCH",
+        "UNKNOWN",
+        "stale-artifact",
+        "repo-fingerprint-drift",
+        "missing-db-state-ref",
+        "contradictory-lease",
+        "stale-run-artifact-unknown",
+        "missing-repo-fingerprint-unknown",
+        "mismatched-selected-target-unknown",
+        "contradictory-lease-unknown",
+        "missing-dry-run-evidence-unknown",
+        "ambiguous-approval-evidence-unknown"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($fixtureCase)) -Message "Control-room reconciliation contract documents fixture $fixtureCase"
+    }
+
+    foreach ($outOfScope in @(
+        "Introducing SQLite",
+        "Changing live dashboard output",
+        "Mutating product repos",
+        "Launching product ships",
+        "Running all-fleet commands",
+        "Live dashboard integration",
+        "SQLite integration",
+        "Remote UI implementation",
+        "Product-repo access",
+        "Package sending",
+        "Deleting locks"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Control-room reconciliation contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-ControlRoomReconciliationFixtureHelper {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md"
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+
+    Assert-True -Condition ($null -ne (Get-Command New-FleetControlRoomReconciliationFixture -ErrorAction SilentlyContinue)) -Message "Control-room reconciliation fixture helper exists"
+    foreach ($phrase in @(
+        "New-FleetControlRoomReconciliationFixture",
+        "Plain helper invariant: the helper does not introduce SQLite",
+        "stale run artifact",
+        "repo fingerprint drift",
+        "missing DB/state ref",
+        "contradictory lease"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Control-room reconciliation contract documents helper phrase: $phrase"
+    }
+
+    $now = [datetime]"2026-05-30T12:00:00Z"
+    $match = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -GeneratedAt $now -RunArtifactGeneratedAt $now.AddMinutes(-5) -EvidenceRefs @("fixtures/reconciliation/match.json")
+    Assert-Equal -Actual $match.schemaVersion -Expected 1 -Message "Control-room reconciliation helper returns schema version"
+    Assert-Equal -Actual $match.reconciliationStatus -Expected "MATCH" -Message "Control-room reconciliation helper returns MATCH for aligned evidence"
+    Assert-Equal -Actual $match.displayStatus -Expected "MATCH" -Message "Control-room reconciliation helper displays MATCH only for aligned evidence"
+    Assert-True -Condition (@($match.validation.reasons) -contains "matched") -Message "Control-room reconciliation helper records matched validation reason"
+    Assert-True -Condition (@($match.evidenceRefs) -contains "fixtures/reconciliation/match.json") -Message "Control-room reconciliation helper preserves evidence refs"
+
+    $stale = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -GeneratedAt $now -RunArtifactGeneratedAt $now.AddHours(-2)
+    Assert-Equal -Actual $stale.reconciliationStatus -Expected "MISMATCH" -Message "Control-room reconciliation helper returns MISMATCH for stale run artifact"
+    Assert-Equal -Actual $stale.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for stale run artifact"
+    Assert-True -Condition (@($stale.mismatchReasons) -contains "stale-artifact") -Message "Control-room reconciliation helper records stale-artifact mismatch"
+    Assert-True -Condition (@($stale.validation.reasons) -contains "mismatch-shows-unknown") -Message "Control-room reconciliation helper marks mismatches as UNKNOWN display"
+
+    $drift = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -RepoFingerprintRef "repo:expected" -ObservedRepoFingerprintRef "repo:observed" -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $drift.reconciliationStatus -Expected "MISMATCH" -Message "Control-room reconciliation helper returns MISMATCH for repo fingerprint drift"
+    Assert-True -Condition (@($drift.mismatchReasons) -contains "repo-fingerprint-drift") -Message "Control-room reconciliation helper records repo fingerprint drift"
+
+    $missingDb = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -DbStateRef "" -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $missingDb.reconciliationStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper returns UNKNOWN for missing DB/state ref"
+    Assert-Equal -Actual $missingDb.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for missing DB/state ref"
+    Assert-True -Condition (@($missingDb.mismatchReasons) -contains "missing-db-state-ref") -Message "Control-room reconciliation helper records missing DB/state ref"
+    Assert-True -Condition (@($missingDb.validation.reasons) -contains "unknown-shows-unknown") -Message "Control-room reconciliation helper records unknown display posture"
+
+    $missingRepo = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -RepoFingerprintRef "" -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $missingRepo.reconciliationStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper returns UNKNOWN for missing repo fingerprint"
+    Assert-Equal -Actual $missingRepo.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for missing repo fingerprint"
+    Assert-True -Condition (@($missingRepo.mismatchReasons) -contains "missing-repo-fingerprint-ref") -Message "Control-room reconciliation helper records missing repo fingerprint"
+
+    $targetMismatch = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -ExpectedStatus "READY" -SnapshotStatus "RUNNING" -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $targetMismatch.reconciliationStatus -Expected "MISMATCH" -Message "Control-room reconciliation helper returns MISMATCH for status snapshot mismatch"
+    Assert-Equal -Actual $targetMismatch.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for status snapshot mismatch"
+    Assert-True -Condition (@($targetMismatch.mismatchReasons) -contains "status-snapshot-mismatch") -Message "Control-room reconciliation helper records selected target/status mismatch"
+
+    $contradictoryLease = New-FleetControlRoomReconciliationFixture -ShipId "FixtureShip" -ContradictoryLease -GeneratedAt $now -RunArtifactGeneratedAt $now
+    Assert-Equal -Actual $contradictoryLease.reconciliationStatus -Expected "MISMATCH" -Message "Control-room reconciliation helper returns MISMATCH for contradictory lease"
+    Assert-Equal -Actual $contradictoryLease.displayStatus -Expected "UNKNOWN" -Message "Control-room reconciliation helper displays UNKNOWN for contradictory lease"
+    Assert-True -Condition (@($contradictoryLease.mismatchReasons) -contains "contradictory-lease") -Message "Control-room reconciliation helper records contradictory lease"
+}
+
+function Test-BudgetSafePauseContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\BUDGET_SAFE_PAUSE_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\budget-safe-pause-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Budget safe-pause contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Budget safe-pause schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Budget safe-pause schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "budgetRecordId",
+        "shipId",
+        "budgetLevel",
+        "decision",
+        "manualBudgetSignal",
+        "providerBudgetSignal",
+        "thresholds",
+        "resetAt",
+        "pausedAt",
+        "resumableShips",
+        "nonResumableShips",
+        "resumeEligibility",
+        "reviewNotePath",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Budget safe-pause schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Budget safe-pause schema defines $field"
+    }
+
+    foreach ($level in @("unknown", "healthy", "cautious", "low", "critical", "exhausted", "reset_pending", "recovered", "weekly_low")) {
+        Assert-True -Condition (@($schema.properties.budgetLevel.enum) -contains $level) -Message "Budget safe-pause schema supports budget level $level"
+    }
+
+    foreach ($decision in @("ALLOW_STATUS_ONLY", "ALLOW_BOUNDED_RUN", "BLOCK_NEW_WORK", "SAFE_LAND_NOW", "WAIT_FOR_RESET", "WEEKLY_PREVIEW_PAUSE")) {
+        Assert-True -Condition (@($schema.properties.decision.enum) -contains $decision) -Message "Budget safe-pause schema supports decision $decision"
+    }
+
+    $thresholdProperties = $schema.properties.thresholds.properties
+    foreach ($field in @("forecastWarningPercent", "lowBudgetPercent", "safeLandingPercent", "weeklyResetPausePercent")) {
+        Assert-True -Condition (@($schema.properties.thresholds.required) -contains $field) -Message "Budget safe-pause thresholds require $field"
+        Assert-True -Condition ($thresholdProperties.PSObject.Properties.Name -contains $field) -Message "Budget safe-pause thresholds define $field"
+    }
+
+    foreach ($signalField in @("level", "source", "capturedAt")) {
+        Assert-True -Condition (@($schema.properties.manualBudgetSignal.required) -contains $signalField) -Message "Budget safe-pause manual signal requires $signalField"
+    }
+
+    foreach ($signalField in @("status", "remainingPercent", "weeklyRemainingPercent", "capturedAt")) {
+        Assert-True -Condition (@($schema.properties.providerBudgetSignal.required) -contains $signalField) -Message "Budget safe-pause provider signal requires $signalField"
+    }
+
+    foreach ($eligibility in @("eligible", "ineligible", "unknown")) {
+        Assert-True -Condition (@($schema.properties.resumeEligibility.enum) -contains $eligibility) -Message "Budget safe-pause schema supports resume eligibility $eligibility"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($reason in @(
+        "SAFE_LAND_NOW",
+        "WAIT_FOR_RESET",
+        "WEEKLY_PREVIEW_PAUSE",
+        "ALLOW_STATUS_ONLY",
+        "manual-budget-signal",
+        "provider-budget-signal",
+        "resume-eligibility-required",
+        "no-auto-resume-until-approved",
+        "review-note-required",
+        "product-launch-forbidden"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Budget safe-pause validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "manual budget signal",
+        "provider budget signal",
+        "weekly reset preview pause",
+        "safe landing",
+        "resume eligibility",
+        "no auto-resume until approved",
+        "SAFE_LAND_NOW",
+        "WAIT_FOR_RESET",
+        "WEEKLY_PREVIEW_PAUSE",
+        "ALLOW_STATUS_ONLY",
+        "docs/codex/WEEKLY_RESET_REVIEW_NOTES.md"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Budget safe-pause contract includes invariant: $phrase"
+    }
+
+    foreach ($fixtureCase in @(
+        "manual-budget-signal",
+        "provider-budget-signal",
+        "resume-eligibility-required",
+        "no-auto-resume-until-approved"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($fixtureCase)) -Message "Budget safe-pause contract documents fixture $fixtureCase"
+    }
+
+    foreach ($outOfScope in @(
+        "Provider API integration",
+        "Auto-resume behavior",
+        "Launching product ships",
+        "Mutating product repos",
+        "Running all-fleet commands",
+        "Deleting locks"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Budget safe-pause contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-ArtifactIndexContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\ARTIFACT_INDEX_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\artifact-index-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Artifact index contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Artifact index schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Artifact index schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "artifactId",
+        "path",
+        "artifactType",
+        "shipId",
+        "runId",
+        "sha256",
+        "createdAt",
+        "retentionClass",
+        "sensitiveExportPolicy",
+        "sourceCommand",
+        "evidenceRefs",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Artifact index schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Artifact index schema defines $field"
+    }
+
+    foreach ($type in @(
+        "run-result",
+        "run-summary",
+        "evidence-index",
+        "test-summary",
+        "audit-package",
+        "audit-manifest",
+        "task-packet",
+        "review-output",
+        "status-report",
+        "status-json",
+        "mobile-request",
+        "control-room-report",
+        "safe-pause",
+        "diff-snapshot"
+    )) {
+        Assert-True -Condition (@($schema.properties.artifactType.enum) -contains $type) -Message "Artifact index schema supports artifact type $type"
+    }
+
+    foreach ($retentionClass in @("ephemeral", "run-local", "audit-retained", "captain-review", "archive", "do-not-export")) {
+        Assert-True -Condition (@($schema.properties.retentionClass.enum) -contains $retentionClass) -Message "Artifact index schema supports retention class $retentionClass"
+    }
+
+    foreach ($policy in @("exportable", "internal-only", "non-exportable", "redact-before-export", "unknown-review-required")) {
+        Assert-True -Condition (@($schema.properties.sensitiveExportPolicy.enum) -contains $policy) -Message "Artifact index schema supports export policy $policy"
+    }
+
+    foreach ($sourceCommand in @(
+        "write-run-evidence.ps1",
+        "new-audit-package.ps1",
+        "invoke-audit-loop-package.ps1",
+        "new-external-agent-workflow.ps1",
+        "ingest-task-packet.ps1",
+        "invoke-mobile-console.ps1",
+        "invoke-control-room.ps1",
+        "invoke-overnight-mode.ps1",
+        "tests/run-fleet-tests.ps1",
+        "manual-captain-note"
+    )) {
+        Assert-True -Condition (@($schema.properties.sourceCommand.enum) -contains $sourceCommand) -Message "Artifact index schema supports source command $sourceCommand"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($reason in @(
+        "hash-present",
+        "hash-missing",
+        "artifact-exists",
+        "artifact-missing",
+        "retention-classified",
+        "exportable",
+        "internal-only",
+        "non-exportable",
+        "redact-before-export",
+        "unknown-review-required",
+        "secret-like-path",
+        "source-command-reference-only"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Artifact index validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "artifact id",
+        "sha256",
+        "retention class",
+        "sensitive export policy",
+        "source command",
+        "artifacts are references, not commands",
+        "secret-like or private artifacts must be non-exportable",
+        "docs/codex/RUN_RESULT.json",
+        "docs/codex/RUN_SUMMARY.md",
+        "docs/codex/EVIDENCE_INDEX.md",
+        "new-audit-package.ps1",
+        "write-run-evidence.ps1"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Artifact index contract includes invariant: $phrase"
+    }
+
+    foreach ($artifactType in @("run-result", "run-summary", "evidence-index", "audit-package", "task-packet", "review-output", "status-report", "mobile-request", "safe-pause")) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($artifactType)) -Message "Artifact index contract maps artifact type $artifactType"
+    }
+
+    foreach ($outOfScope in @(
+        "Moving existing artifacts",
+        "Deleting existing artifacts",
+        "Rewriting evidence packages",
+        "Exporting secrets or private files",
+        "Launching product ships",
+        "Mutating product repos"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Artifact index contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-ArtifactIndexFixtureWriter {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\ARTIFACT_INDEX_CONTRACT.md"
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "write-run-evidence.ps1 -WriteArtifactIndexFixture",
+        "Plain writer invariant: source commands are reference labels only",
+        'writes only under `FixtureRoot`',
+        'classifies secret-like paths as `non-exportable`',
+        "does not move existing artifacts"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Artifact index contract documents fixture writer phrase: $phrase"
+    }
+
+    $artifactFixtureRoot = Join-Path $fixtureRoot ("artifact-index-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $artifactFixtureRoot | Out-Null
+    try {
+        $artifactPath = Join-Path $artifactFixtureRoot "evidence\run-result.json"
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $artifactPath) | Out-Null
+        "{ `"status`": `"GREEN`" }" | Set-Content -LiteralPath $artifactPath -Encoding UTF8
+
+        $outputPath = Join-Path $artifactFixtureRoot "artifact-index\record.json"
+        $writer = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "write-run-evidence.ps1"),
+            "-WriteArtifactIndexFixture",
+            "-FixtureRoot", $artifactFixtureRoot,
+            "-ArtifactPath", "evidence\run-result.json",
+            "-ArtifactType", "run-result",
+            "-Ship", "FixtureShip",
+            "-RunId", "fixture-run-001",
+            "-RetentionClass", "run-local",
+            "-SourceCommand", "write-run-evidence.ps1",
+            "-OutputPath", $outputPath,
+            "-EvidencePath", "fixtures/artifact-index/source.json"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $writer.ExitCode -Expected 0 -Message "Artifact index fixture writer succeeds"
+        Assert-True -Condition (Test-Path -LiteralPath $outputPath) -Message "Artifact index fixture writer creates record"
+
+        $record = Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $record.schemaVersion -Expected 1 -Message "Artifact index fixture writer returns schema version"
+        Assert-Equal -Actual $record.artifactType -Expected "run-result" -Message "Artifact index fixture writer records artifact type"
+        Assert-Equal -Actual $record.shipId -Expected "FixtureShip" -Message "Artifact index fixture writer records ship id"
+        Assert-Equal -Actual $record.runId -Expected "fixture-run-001" -Message "Artifact index fixture writer records run id"
+        Assert-Equal -Actual $record.retentionClass -Expected "run-local" -Message "Artifact index fixture writer records retention class"
+        Assert-Equal -Actual $record.sensitiveExportPolicy -Expected "exportable" -Message "Artifact index fixture writer records default export policy"
+        Assert-True -Condition ([string]$record.sha256 -match "^[a-f0-9]{64}$") -Message "Artifact index fixture writer records sha256"
+        Assert-True -Condition (@($record.validation.reasons) -contains "hash-present") -Message "Artifact index fixture writer records hash-present"
+        Assert-True -Condition (@($record.validation.reasons) -contains "artifact-exists") -Message "Artifact index fixture writer records artifact-exists"
+        Assert-True -Condition (@($record.validation.reasons) -contains "source-command-reference-only") -Message "Artifact index fixture writer treats source command as reference"
+
+        $secretPath = Join-Path $artifactFixtureRoot ".env"
+        "TOKEN=fixture" | Set-Content -LiteralPath $secretPath -Encoding UTF8
+        $secretOutputPath = Join-Path $artifactFixtureRoot "artifact-index\secret-record.json"
+        $secretWriter = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "write-run-evidence.ps1"),
+            "-WriteArtifactIndexFixture",
+            "-FixtureRoot", $artifactFixtureRoot,
+            "-ArtifactPath", ".env",
+            "-ArtifactType", "diff-snapshot",
+            "-Ship", "FixtureShip",
+            "-RunId", "fixture-run-002",
+            "-RetentionClass", "do-not-export",
+            "-OutputPath", $secretOutputPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $secretWriter.ExitCode -Expected 0 -Message "Artifact index fixture writer classifies secret-like path"
+        $secretRecord = Get-Content -LiteralPath $secretOutputPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $secretRecord.sensitiveExportPolicy -Expected "non-exportable" -Message "Artifact index fixture writer marks secret-like paths non-exportable"
+        Assert-True -Condition (@($secretRecord.validation.reasons) -contains "secret-like-path") -Message "Artifact index fixture writer records secret-like path reason"
+
+        $missingOutputPath = Join-Path $artifactFixtureRoot "artifact-index\missing-record.json"
+        $missingWriter = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "write-run-evidence.ps1"),
+            "-WriteArtifactIndexFixture",
+            "-FixtureRoot", $artifactFixtureRoot,
+            "-ArtifactPath", "missing\not-yet-written.json",
+            "-ArtifactType", "review-output",
+            "-Ship", "FixtureShip",
+            "-RunId", "fixture-run-003",
+            "-RetentionClass", "captain-review",
+            "-OutputPath", $missingOutputPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $missingWriter.ExitCode -Expected 0 -Message "Artifact index fixture writer records missing artifacts"
+        $missingRecord = Get-Content -LiteralPath $missingOutputPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $missingRecord.validation.status -Expected "unknown" -Message "Artifact index fixture writer keeps missing artifact visible"
+        Assert-Equal -Actual $missingRecord.sha256 -Expected "" -Message "Artifact index fixture writer leaves missing artifact hash empty"
+        Assert-True -Condition (@($missingRecord.validation.reasons) -contains "artifact-missing") -Message "Artifact index fixture writer records artifact-missing"
+        Assert-True -Condition (@($missingRecord.validation.reasons) -contains "hash-missing") -Message "Artifact index fixture writer records hash-missing"
+    } finally {
+        if (Test-Path $artifactFixtureRoot) {
+            Remove-Item -LiteralPath $artifactFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-RuntimePolicyDecisionContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_POLICY_DECISION_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\runtime-policy-decision-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Runtime policy decision contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Runtime policy decision schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Runtime policy decision schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "policyVersion",
+        "decisionId",
+        "selectedShipId",
+        "entrypoint",
+        "action",
+        "riskClass",
+        "decision",
+        "dryRunResult",
+        "approvalRequirement",
+        "denialReason",
+        "repoFingerprintRef",
+        "worktreeBoundaryRef",
+        "budgetRecordRef",
+        "evidenceRefs",
+        "generatedAt",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Runtime policy decision schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Runtime policy decision schema defines $field"
+    }
+
+    foreach ($decision in @("ALLOW", "DENY", "DEFER")) {
+        Assert-True -Condition (@($schema.properties.decision.enum) -contains $decision) -Message "Runtime policy decision schema supports decision $decision"
+    }
+
+    foreach ($dryRunResult in @("ALLOW_DRY_RUN", "DEFER_NEEDS_HUMAN", "DENY_UNSAFE")) {
+        Assert-True -Condition (@($schema.properties.dryRunResult.enum) -contains $dryRunResult) -Message "Runtime policy decision schema supports dry-run result $dryRunResult"
+    }
+
+    foreach ($action in @(
+        "WRITE_STATUS_REPORT",
+        "RUN_ONE_BATCH",
+        "MAKE_AUDIT_PACKAGE",
+        "IMPORT_APPROVED_PACKET",
+        "WRITE_REPAIR_TASK",
+        "PARK_SHIP",
+        "REQUEST_TASTE_GATE",
+        "BLOCK_WITH_REASON"
+    )) {
+        Assert-True -Condition (@($schema.properties.action.enum) -contains $action) -Message "Runtime policy decision schema supports action $action"
+    }
+
+    foreach ($riskClass in @(
+        "report_only",
+        "audit_package",
+        "packet_import",
+        "bounded_selected_ship",
+        "repair_task_writer",
+        "park_or_stop_request",
+        "external_review_request_only",
+        "mobile_request_only",
+        "legacy_broad_requires_human",
+        "forbidden"
+    )) {
+        Assert-True -Condition (@($schema.properties.riskClass.enum) -contains $riskClass) -Message "Runtime policy decision schema supports risk class $riskClass"
+    }
+
+    foreach ($approval in @(
+        "none",
+        "captain_exact_action",
+        "captain_selected_ship",
+        "captain_selected_project",
+        "captain_packet_import",
+        "captain_legacy_broad",
+        "external_audit_review",
+        "not_approvable"
+    )) {
+        Assert-True -Condition (@($schema.properties.approvalRequirement.enum) -contains $approval) -Message "Runtime policy decision schema supports approval requirement $approval"
+    }
+
+    foreach ($reason in @(
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "forbidden-scope",
+        "missing-approval",
+        "stale-fingerprint",
+        "missing-repo-fingerprint",
+        "missing-worktree-boundary",
+        "legacy-broad-entrypoint",
+        "external-report-non-executable",
+        "mobile-request-non-executable",
+        "task-packet-not-validated",
+        "low-budget",
+        "secret-like-path",
+        "product-launch-forbidden",
+        "unknown-policy-version"
+    )) {
+        Assert-True -Condition (@($schema.properties.denialReason.enum) -contains $reason) -Message "Runtime policy decision schema supports denial reason $reason"
+    }
+
+    foreach ($entrypoint in @(
+        "invoke-autonomy-wrapper.ps1",
+        "invoke-overnight-mode.ps1",
+        "invoke-mobile-console.ps1",
+        "new-audit-package.ps1",
+        "ingest-task-packet.ps1",
+        "run-checkpoint-loop.ps1",
+        "fleet-supervisor.ps1",
+        "fleet-remote-control.ps1"
+    )) {
+        Assert-True -Condition (@($schema.properties.entrypoint.enum) -contains $entrypoint) -Message "Runtime policy decision schema supports entrypoint $entrypoint"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($reason in @(
+        "selected-ship-present",
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "forbidden-scope",
+        "missing-approval",
+        "stale-fingerprint",
+        "legacy-broad-entrypoint",
+        "external-report-non-executable",
+        "mobile-request-non-executable",
+        "model-cannot-grant-permission",
+        "policy-version-recorded",
+        "evidence-recorded"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Runtime policy decision validation supports reason $reason"
+    }
+
+    foreach ($fixtureName in @(
+        "blank-ship-denied",
+        "all-ship-denied",
+        "multi-ship-denied",
+        "forbidden-scope-denied",
+        "missing-approval-deferred",
+        "stale-fingerprint-denied",
+        "legacy-broad-entrypoint-deferred",
+        "mobile-request-non-executable",
+        "external-report-non-executable",
+        "validated-selected-ship-allowed"
+    )) {
+        Assert-True -Condition (@($validationProperties.fixtureName.enum) -contains $fixtureName) -Message "Runtime policy decision schema supports fixture $fixtureName"
+    }
+
+    $evidenceBundle = $schema.properties.evidenceBundle
+    Assert-True -Condition ($null -ne $evidenceBundle) -Message "Runtime policy decision schema defines optional evidence bundle"
+    Assert-Equal -Actual $evidenceBundle.additionalProperties -Expected $false -Message "Runtime evidence bundle is strict"
+    foreach ($field in @(
+        "selectedShipId",
+        "entrypoint",
+        "action",
+        "repoFingerprintRef",
+        "worktreeBoundaryRef",
+        "leaseHeartbeatRef",
+        "failureFingerprintRef",
+        "approvalEvidenceRef",
+        "budgetEvidenceRef",
+        "sourceProvenance",
+        "generatedAt",
+        "validation"
+    )) {
+        Assert-True -Condition (@($evidenceBundle.required) -contains $field) -Message "Runtime evidence bundle requires $field"
+        Assert-True -Condition ($evidenceBundle.properties.PSObject.Properties.Name -contains $field) -Message "Runtime evidence bundle defines $field"
+    }
+
+    $sourceProvenance = $evidenceBundle.properties.sourceProvenance
+    Assert-Equal -Actual $sourceProvenance.additionalProperties -Expected $false -Message "Runtime evidence bundle source provenance is strict"
+    Assert-Equal -Actual $sourceProvenance.properties.nonExecutable.const -Expected $true -Message "Runtime evidence bundle source provenance is non-executable"
+    foreach ($sourceType in @(
+        "local_fixture",
+        "captain_approval_packet",
+        "external_report",
+        "mobile_request",
+        "task_packet",
+        "audit_package",
+        "docx_report",
+        "queue_prose",
+        "generated_evidence"
+    )) {
+        Assert-True -Condition (@($sourceProvenance.properties.sourceType.enum) -contains $sourceType) -Message "Runtime evidence bundle supports provenance source $sourceType"
+    }
+
+    $bundleReasons = $evidenceBundle.properties.validation.properties.reasons.items.enum
+    foreach ($reason in @(
+        "bundle-local-dry-run-only",
+        "repo-fingerprint-ref-required",
+        "worktree-boundary-ref-required",
+        "lease-heartbeat-ref-required",
+        "failure-fingerprint-ref-required",
+        "approval-evidence-ref-required",
+        "budget-evidence-ref-required",
+        "source-provenance-recorded",
+        "external-source-non-executable",
+        "mobile-source-non-executable",
+        "task-packet-source-non-executable",
+        "audit-package-source-non-executable",
+        "docx-source-non-executable",
+        "queue-prose-source-non-executable",
+        "generated-evidence-non-executable",
+        "missing-or-stale-ref-denies-or-defers",
+        "never-executes"
+    )) {
+        Assert-True -Condition (@($bundleReasons) -contains $reason) -Message "Runtime evidence bundle validation supports reason $reason"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "the model cannot grant itself permission",
+        "blank, all, wildcard, or multi-ship",
+        "fail closed",
+        "selected ship",
+        "risk class",
+        "allow, denied, or deferred",
+        "exact-action human approval",
+        "stale fingerprint",
+        "missing approval",
+        "legacy broad entrypoints",
+        "external reports, mobile requests, task packets, and repair queues remain data",
+        "Dry-Run Result Vocabulary",
+        "dryRunResult",
+        "ALLOW_DRY_RUN",
+        "DEFER_NEEDS_HUMAN",
+        "DENY_UNSAFE",
+        "``ALLOW_DRY_RUN`` is not execution authority",
+        '`ALLOW_DRY_RUN` means "the dry-run fixture passed"',
+        "never means approval to execute, mutate, stage, commit, push, launch, run a demo, or carry future authority",
+        "``executesProductActions = false``",
+        "``mutatesProductRepos = false``",
+        "``canApproveFutureRuns = false``",
+        "``commandInput = false``",
+        "cannot mutate product repos",
+        "malformed, stale, broad, external, mobile, missing-approval",
+        "existing ``ALLOW``, ``DEFER``, and ``DENY`` remain evidence-only policy decisions",
+        "Runtime Evidence Bundle",
+        "local dry-run evidence bundle",
+        "repo fingerprint ref",
+        "worktree boundary ref",
+        "lease heartbeat ref",
+        "failure fingerprint ref",
+        "approval evidence ref",
+        "budget evidence ref",
+        "source provenance",
+        "missing or stale refs deny/defer and never execute",
+        "external_report",
+        "mobile_request",
+        "task_packet",
+        "audit_package",
+        "docx_report",
+        "queue_prose",
+        "generated_evidence",
+        "No new runtime storage, DB, SQLite, migration, worktree creation, product repo access, or real product repo fingerprinting"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Runtime policy decision contract includes invariant: $phrase"
+    }
+
+    foreach ($outOfScope in @(
+        "Changing action mapping",
+        "Launching product ships",
+        "Mutating product repos",
+        "Importing external prose as commands",
+        "Treating mobile requests as execution authority",
+        "Deleting locks",
+        "Widening permissions"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Runtime policy decision contract keeps out of scope: $outOfScope"
+    }
+
+    Assert-False -Condition ($contractText -match "(?i)(evidenceBundle|evidence bundle).*?(approves|authorizes|grants)\s+.*?(execution|product mutation|demo trial|worktree creation|package installation|runtime widening)") -Message "Runtime evidence bundle does not grant execution authority"
+    Assert-False -Condition ($contractText -match "(?i)ALLOW_DRY_RUN\s+(approves|authorizes|permits|grants)\s+.*?(execution|mutation|staging|commit|push|launch|demo|future)") -Message "ALLOW_DRY_RUN is not described as approval, authorization, permission, or future authority"
+}
+
+function Test-RuntimePolicyDryRunEvaluator {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_POLICY_DECISION_CONTRACT.md"
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+
+    Assert-True -Condition ($null -ne (Get-Command New-FleetRuntimePolicyDecisionDryRun -ErrorAction SilentlyContinue)) -Message "Runtime policy dry-run evaluator exists"
+    foreach ($phrase in @(
+        "New-FleetRuntimePolicyDecisionDryRun",
+        "Plain evaluator invariant: a dry-run decision record is evidence only",
+        "does not call launch scripts",
+        "forbidden or secret-like paths",
+        'Allowed fixture outcomes are `ALLOW`, `DENY`, and `DEFER`',
+        "New-FleetRuntimePolicyDecisionDryRun`` defaults to ``DENY_UNSAFE``",
+        "Missing exact-action human approval returns ``DEFER_NEEDS_HUMAN``",
+        "Valid fixture-only evidence may return ``ALLOW_DRY_RUN`` and writes or executes nothing"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Runtime policy contract documents evaluator phrase: $phrase"
+    }
+
+    $now = [datetime]"2026-05-30T12:00:00Z"
+    $baseParams = @{
+        GeneratedAt = $now
+        RepoFingerprintRef = "repo:fingerprint:fixture"
+        WorktreeBoundaryRef = "worktree:boundary:fixture"
+        BudgetRecordRef = "budget:fixture"
+        EvidenceRefs = @("fixtures/policy/evidence.json")
+    }
+
+    $allowed = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -Entrypoint "invoke-autonomy-wrapper.ps1" -Action "RUN_ONE_BATCH" -CaptainApproval
+    Assert-Equal -Actual $allowed.schemaVersion -Expected 1 -Message "Runtime policy evaluator returns schema version"
+    Assert-Equal -Actual $allowed.policyVersion -Expected "runtime-policy-v1" -Message "Runtime policy evaluator records policy version"
+    Assert-Equal -Actual $allowed.decision -Expected "ALLOW" -Message "Runtime policy evaluator allows validated selected ship"
+    Assert-Equal -Actual $allowed.dryRunResult -Expected "ALLOW_DRY_RUN" -Message "Runtime policy evaluator emits ALLOW_DRY_RUN for validated fixture"
+    Assert-Equal -Actual $allowed.denialReason -Expected "" -Message "Runtime policy evaluator has no denial reason for allowed selected ship"
+    Assert-Equal -Actual $allowed.validation.fixtureName -Expected "validated-selected-ship-allowed" -Message "Runtime policy evaluator records allowed fixture"
+    Assert-True -Condition (@($allowed.validation.reasons) -contains "selected-ship-present") -Message "Runtime policy evaluator records selected ship"
+    Assert-True -Condition (@($allowed.validation.reasons) -contains "model-cannot-grant-permission") -Message "Runtime policy evaluator records model cannot grant permission"
+    Assert-True -Condition (@($allowed.validation.reasons) -contains "policy-version-recorded") -Message "Runtime policy evaluator records policy version reason"
+    Assert-True -Condition (@($allowed.validation.reasons) -contains "evidence-recorded") -Message "Runtime policy evaluator records evidence"
+
+    $blank = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "" -CaptainApproval
+    Assert-Equal -Actual $blank.decision -Expected "DENY" -Message "Runtime policy evaluator denies blank ship"
+    Assert-Equal -Actual $blank.dryRunResult -Expected "DENY_UNSAFE" -Message "Runtime policy evaluator emits DENY_UNSAFE for blank ship"
+    Assert-Equal -Actual $blank.denialReason -Expected "blank-ship" -Message "Runtime policy evaluator records blank ship denial"
+    Assert-Equal -Actual $blank.validation.fixtureName -Expected "blank-ship-denied" -Message "Runtime policy evaluator records blank ship fixture"
+
+    $allShip = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "all" -CaptainApproval
+    Assert-Equal -Actual $allShip.decision -Expected "DENY" -Message "Runtime policy evaluator denies all ship"
+    Assert-Equal -Actual $allShip.denialReason -Expected "all-ship" -Message "Runtime policy evaluator records all ship denial"
+
+    $wildcardShip = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "*" -CaptainApproval
+    Assert-Equal -Actual $wildcardShip.decision -Expected "DENY" -Message "Runtime policy evaluator denies wildcard ship"
+    Assert-Equal -Actual $wildcardShip.denialReason -Expected "wildcard-ship" -Message "Runtime policy evaluator records wildcard ship denial"
+    Assert-True -Condition (@($wildcardShip.validation.reasons) -contains "wildcard-ship") -Message "Runtime policy evaluator records wildcard reason"
+
+    $multiShip = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip,OtherShip" -CaptainApproval
+    Assert-Equal -Actual $multiShip.decision -Expected "DENY" -Message "Runtime policy evaluator denies multi-ship"
+    Assert-Equal -Actual $multiShip.denialReason -Expected "multi-ship" -Message "Runtime policy evaluator records multi-ship denial"
+
+    $plusShip = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip + OtherShip" -CaptainApproval
+    Assert-Equal -Actual $plusShip.decision -Expected "DENY" -Message "Runtime policy evaluator denies alternate multi-ship syntax"
+    Assert-Equal -Actual $plusShip.denialReason -Expected "multi-ship" -Message "Runtime policy evaluator records alternate multi-ship denial"
+
+    $missingApproval = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -Action "RUN_ONE_BATCH"
+    Assert-Equal -Actual $missingApproval.decision -Expected "DEFER" -Message "Runtime policy evaluator defers missing approval"
+    Assert-Equal -Actual $missingApproval.dryRunResult -Expected "DEFER_NEEDS_HUMAN" -Message "Runtime policy evaluator emits DEFER_NEEDS_HUMAN for missing approval"
+    Assert-Equal -Actual $missingApproval.denialReason -Expected "missing-approval" -Message "Runtime policy evaluator records missing approval"
+    Assert-Equal -Actual $missingApproval.approvalRequirement -Expected "captain_exact_action" -Message "Runtime policy evaluator requires exact-action approval"
+    Assert-Equal -Actual $missingApproval.validation.fixtureName -Expected "missing-approval-deferred" -Message "Runtime policy evaluator records missing approval fixture"
+    Assert-True -Condition (@($missingApproval.validation.reasons) -contains "missing-approval") -Message "Runtime policy evaluator records missing approval reason"
+
+    $stale = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -StaleFingerprint
+    Assert-Equal -Actual $stale.decision -Expected "DENY" -Message "Runtime policy evaluator denies stale fingerprint"
+    Assert-Equal -Actual $stale.denialReason -Expected "stale-fingerprint" -Message "Runtime policy evaluator records stale fingerprint denial"
+    Assert-True -Condition (@($stale.validation.reasons) -contains "stale-fingerprint") -Message "Runtime policy evaluator records stale fingerprint reason"
+
+    $missingRepoFingerprint = New-FleetRuntimePolicyDecisionDryRun -GeneratedAt $now -EvidenceRefs @("evidence://runtime-policy-fixture") -BudgetRecordRef "budget-fixture-1" -WorktreeBoundaryRef "worktree-fixture-1" -SelectedShipId "FixtureShip" -CaptainApproval
+    Assert-Equal -Actual $missingRepoFingerprint.decision -Expected "DENY" -Message "Runtime policy evaluator denies missing repo fingerprint"
+    Assert-Equal -Actual $missingRepoFingerprint.denialReason -Expected "missing-repo-fingerprint" -Message "Runtime policy evaluator records missing repo fingerprint"
+    Assert-True -Condition (@($missingRepoFingerprint.validation.reasons) -contains "missing-repo-fingerprint") -Message "Runtime policy evaluator records missing repo fingerprint reason"
+
+    $missingWorktreeBoundary = New-FleetRuntimePolicyDecisionDryRun -GeneratedAt $now -EvidenceRefs @("evidence://runtime-policy-fixture") -BudgetRecordRef "budget-fixture-1" -RepoFingerprintRef "repo-fixture-1" -SelectedShipId "FixtureShip" -CaptainApproval
+    Assert-Equal -Actual $missingWorktreeBoundary.decision -Expected "DENY" -Message "Runtime policy evaluator denies missing worktree boundary"
+    Assert-Equal -Actual $missingWorktreeBoundary.denialReason -Expected "missing-worktree-boundary" -Message "Runtime policy evaluator records missing worktree boundary"
+    Assert-True -Condition (@($missingWorktreeBoundary.validation.reasons) -contains "missing-worktree-boundary") -Message "Runtime policy evaluator records missing worktree boundary reason"
+
+    $secretPath = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -RequestedPaths @(".env")
+    Assert-Equal -Actual $secretPath.decision -Expected "DENY" -Message "Runtime policy evaluator denies secret-like path"
+    Assert-Equal -Actual $secretPath.denialReason -Expected "secret-like-path" -Message "Runtime policy evaluator records secret-like path"
+    Assert-Equal -Actual $secretPath.riskClass -Expected "forbidden" -Message "Runtime policy evaluator marks secret-like path forbidden"
+    Assert-True -Condition (@($secretPath.validation.reasons) -contains "forbidden-scope") -Message "Runtime policy evaluator records forbidden scope reason"
+
+    $unvalidatedPacket = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -Action "IMPORT_APPROVED_PACKET" -CaptainApproval
+    Assert-Equal -Actual $unvalidatedPacket.decision -Expected "DENY" -Message "Runtime policy evaluator denies unvalidated packet import"
+    Assert-Equal -Actual $unvalidatedPacket.denialReason -Expected "task-packet-not-validated" -Message "Runtime policy evaluator records unvalidated packet import"
+    Assert-True -Condition (@($unvalidatedPacket.validation.reasons) -contains "task-packet-not-validated") -Message "Runtime policy evaluator records unvalidated packet reason"
+
+    $legacy = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -Entrypoint "fleet-supervisor.ps1" -CaptainApproval
+    Assert-Equal -Actual $legacy.decision -Expected "DEFER" -Message "Runtime policy evaluator defers legacy broad entrypoint"
+    Assert-Equal -Actual $legacy.denialReason -Expected "legacy-broad-entrypoint" -Message "Runtime policy evaluator records legacy broad entrypoint"
+    Assert-Equal -Actual $legacy.approvalRequirement -Expected "captain_legacy_broad" -Message "Runtime policy evaluator requires legacy broad approval"
+
+    $mobile = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -Entrypoint "invoke-mobile-console.ps1" -CaptainApproval
+    Assert-Equal -Actual $mobile.decision -Expected "DENY" -Message "Runtime policy evaluator denies mobile request execution"
+    Assert-Equal -Actual $mobile.denialReason -Expected "mobile-request-non-executable" -Message "Runtime policy evaluator records mobile non-executable"
+
+    $external = New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -Entrypoint "new-external-agent-workflow.ps1" -CaptainApproval
+    Assert-Equal -Actual $external.decision -Expected "DENY" -Message "Runtime policy evaluator denies external report execution"
+    Assert-Equal -Actual $external.denialReason -Expected "external-report-non-executable" -Message "Runtime policy evaluator records external report non-executable"
+
+    foreach ($unsafeInput in @(
+        @{ name = "broad"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -BroadInput) },
+        @{ name = "malformed"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -MalformedInput) },
+        @{ name = "unauthorized"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -UnauthorizedEvidence) },
+        @{ name = "docx"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -DocxReportInput) },
+        @{ name = "audit-package"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -AuditPackageInput) },
+        @{ name = "queue-prose"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -SelectedShipId "FixtureShip" -CaptainApproval -QueueProseInput) }
+    )) {
+        Assert-Equal -Actual $unsafeInput.decision.decision -Expected "DENY" -Message "Runtime policy evaluator denies $($unsafeInput.name) input"
+        Assert-Equal -Actual $unsafeInput.decision.dryRunResult -Expected "DENY_UNSAFE" -Message "Runtime policy evaluator emits DENY_UNSAFE for $($unsafeInput.name) input"
+        Assert-Equal -Actual $unsafeInput.decision.denialReason -Expected "forbidden-scope" -Message "Runtime policy evaluator records forbidden scope for $($unsafeInput.name) input"
+        Assert-True -Condition (@($unsafeInput.decision.validation.reasons) -contains "forbidden-scope") -Message "Runtime policy evaluator records forbidden-scope reason for $($unsafeInput.name) input"
+    }
+
+    foreach ($blockedDecision in @($blank, $allShip, $wildcardShip, $multiShip, $plusShip, $missingApproval, $stale, $missingRepoFingerprint, $missingWorktreeBoundary, $secretPath, $unvalidatedPacket, $legacy, $mobile, $external)) {
+        Assert-False -Condition ($blockedDecision.decision -eq "ALLOW") -Message "Runtime policy negative fixture does not allow unsafe or incomplete input"
+        Assert-False -Condition ($blockedDecision.dryRunResult -eq "ALLOW_DRY_RUN") -Message "Runtime policy negative fixture does not emit ALLOW_DRY_RUN"
+        Assert-False -Condition ($blockedDecision.approvalRequirement -eq "none" -and $blockedDecision.decision -ne "DENY") -Message "Runtime policy negative fixture does not silently approve product-repo mutation"
+    }
+
+    foreach ($unsafeSource in @("malformed", "stale", "broad", "external", "mobile", "missing-approval")) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($unsafeSource)) -Message "Runtime policy dry-run vocabulary covers unsafe source: $unsafeSource"
+    }
+    Assert-False -Condition ($contractText -match "(?i)ALLOW_DRY_RUN.*?(authorizes|approves|grants)\s+.*?(execution|mutation|product repo|stage|commit|push|demo trial)") -Message "ALLOW_DRY_RUN is not documented as executable authority"
+}
+
+function Test-RuntimeDryRunEvidenceContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\runtime-dry-run-evidence-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $contractPath) -Message "Runtime dry-run evidence contract exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Runtime dry-run evidence schema exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+
+    Assert-False -Condition ([bool]$schema.additionalProperties) -Message "Runtime dry-run evidence schema closes top-level object shape"
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Runtime dry-run evidence schema is versioned"
+
+    foreach ($field in @(
+        "schemaVersion",
+        "dryRunId",
+        "selectedTargetRef",
+        "selectedShipRef",
+        "selectedProjectRef",
+        "policyDecisionRef",
+        "fixtureInputRefs",
+        "expectedAction",
+        "actualDryRunResult",
+        "decision",
+        "denialReasons",
+        "deferReasons",
+        "validationCommand",
+        "generatedAt",
+        "nonAuthorityNotice",
+        "safety",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Runtime dry-run evidence schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Runtime dry-run evidence schema defines $field"
+    }
+
+    foreach ($result in @("ALLOW_DRY_RUN", "DEFER_NEEDS_HUMAN", "DENY_UNSAFE")) {
+        Assert-True -Condition (@($schema.properties.actualDryRunResult.enum) -contains $result) -Message "Runtime dry-run evidence schema supports result $result"
+        Assert-True -Condition ($contractText -match [regex]::Escape($result)) -Message "Runtime dry-run evidence contract documents result $result"
+    }
+
+    foreach ($reason in @(
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "forbidden-scope",
+        "missing-approval",
+        "stale-fingerprint",
+        "missing-repo-fingerprint",
+        "missing-worktree-boundary",
+        "legacy-broad-entrypoint",
+        "external-report-non-executable",
+        "mobile-request-non-executable",
+        "task-packet-not-validated",
+        "audit-package-non-executable",
+        "docx-report-non-executable",
+        "queue-prose-non-executable",
+        "generated-evidence-non-executable",
+        "package-sending-forbidden",
+        "command-binding-forbidden",
+        "product-repo-access-forbidden",
+        "unknown-policy-version"
+    )) {
+        Assert-True -Condition (@($schema.'$defs'.reason.enum) -contains $reason) -Message "Runtime dry-run evidence schema supports deny/defer reason $reason"
+        Assert-True -Condition ($contractText -match [regex]::Escape($reason)) -Message "Runtime dry-run evidence contract documents deny/defer reason $reason"
+    }
+
+    foreach ($safetyField in @(
+        "executesProductActions",
+        "mutatesProductRepos",
+        "readsProductRepos",
+        "bindsRuntimeCommands",
+        "createsOrSendsPackages",
+        "canApproveFutureRuns",
+        "commandInput"
+    )) {
+        Assert-True -Condition (@($schema.properties.safety.required) -contains $safetyField) -Message "Runtime dry-run evidence safety requires $safetyField"
+        Assert-Equal -Actual $schema.properties.safety.properties.$safetyField.const -Expected $false -Message "Runtime dry-run evidence safety keeps $safetyField false"
+        Assert-True -Condition ($contractText -match [regex]::Escape($safetyField)) -Message "Runtime dry-run evidence contract documents safety field $safetyField"
+    }
+
+    foreach ($phrase in @(
+        "evidence only",
+        "does not approve live execution",
+        "runtime command binding",
+        "product-repo access",
+        "package sending",
+        "future permission",
+        "never means approval to execute",
+        "missing-evidence",
+        "Stop and mark that task blocked"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Runtime dry-run evidence contract preserves non-authority phrase: $phrase"
+    }
+}
+
+function Test-SelectedProjectReadOnlyGateContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\SELECTED_PROJECT_READ_ONLY_GATE.md"
+    $charterPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md"
+    $rehearsalPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md"
+    $schemaPath = Join-Path $fleetRoot "templates\selected-project-read-only-gate-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $contractPath) -Message "Selected-project read-only gate contract exists"
+    Assert-True -Condition (Test-Path -LiteralPath $charterPath) -Message "Read-only demo readiness planning charter exists"
+    Assert-True -Condition (Test-Path -LiteralPath $rehearsalPath) -Message "Read-only demo gate rehearsal plan exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Selected-project read-only gate schema exists"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    $charterText = Get-Content -LiteralPath $charterPath -Raw
+    $rehearsalText = Get-Content -LiteralPath $rehearsalPath -Raw
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+
+    Assert-False -Condition ([bool]$schema.additionalProperties) -Message "Selected-project read-only gate schema closes top-level object shape"
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Selected-project read-only gate schema is versioned"
+
+    foreach ($field in @(
+        "schemaVersion",
+        "gateId",
+        "selectedTarget",
+        "owner",
+        "repoFingerprintRef",
+        "readOnlyActions",
+        "expiresAt",
+        "stopConditions",
+        "evidenceRefs",
+        "nonAuthorityNotice",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Selected-project read-only gate schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Selected-project read-only gate schema defines $field"
+    }
+
+    Assert-Equal -Actual $schema.properties.selectedTarget.properties.singleTargetOnly.const -Expected $true -Message "Selected-project read-only gate requires a single target"
+
+    foreach ($action in @(
+        "READ_STATUS",
+        "READ_REPO_FINGERPRINT",
+        "READ_VALIDATION_SUMMARY",
+        "READ_AUDIT_EVIDENCE",
+        "READ_CONTROL_ROOM_SNAPSHOT",
+        "READ_DRY_RUN_EVIDENCE"
+    )) {
+        Assert-True -Condition (@($schema.properties.readOnlyActions.items.enum) -contains $action) -Message "Selected-project read-only gate supports read-only action $action"
+        Assert-True -Condition ($contractText -match [regex]::Escape($action)) -Message "Selected-project read-only gate contract documents read-only action $action"
+    }
+
+    foreach ($decision in @(
+        "deny_blank_target",
+        "deny_all_target",
+        "deny_wildcard_target",
+        "deny_multi_target",
+        "deny_missing_owner",
+        "deny_missing_repo_fingerprint",
+        "deny_invalid_repo_fingerprint_ref",
+        "deny_stale_fingerprint",
+        "deny_write_capable_action",
+        "deny_phone_only_approval",
+        "deny_package_sending",
+        "deny_command_binding",
+        "deny_product_mutation",
+        "deny_remote_access",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($schema.properties.validation.properties.decision.enum) -contains $decision) -Message "Selected-project read-only gate schema supports denial decision $decision"
+        Assert-True -Condition ($contractText -match [regex]::Escape($decision)) -Message "Selected-project read-only gate contract documents denial decision $decision"
+    }
+
+    foreach ($phrase in @(
+        "evidence only",
+        "does not approve product-repo access",
+        "does not approve product-repo access, product-repo mutation",
+        "without approving any product mutation",
+        "must not contain write-capable operations",
+        "package sending",
+        "runtime command binding",
+        "Denied records remain evidence",
+        "reviewer output",
+        "mobile requests",
+        "queue prose",
+        "Stop and repacketize"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Selected-project read-only gate contract preserves non-authority phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Read-Only Demo Gate Rehearsal Plan",
+        "Evidence only; not executable authority or approval.",
+        "valid planning",
+        "stale fingerprint",
+        "invalid fingerprint",
+        "missing owner",
+        "ambiguous approval",
+        "multi-target",
+        "wildcard target",
+        "write-capable action",
+        "no real project selection",
+        "no product repo access",
+        "no demo execution",
+        "no command binding",
+        "no package sending",
+        "does not select a real project",
+        "does not approve real-project work",
+        "running an overnight runner",
+        "future authority"
+    )) {
+        Assert-True -Condition ($rehearsalText -match [regex]::Escape($phrase)) -Message "Read-only demo gate rehearsal plan preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+        "valid planning",
+        "stale fingerprint",
+        "invalid fingerprint",
+        "missing owner",
+        "ambiguous approval",
+        "multi-target",
+        "wildcard target",
+        "write-capable action",
+        "does not select a real project",
+        "inspect product repositories",
+        "run a demo",
+        "bind commands",
+        "send packages",
+        "run an overnight runner",
+        "future authority"
+    )) {
+        Assert-True -Condition (($contractText + "`n" + $charterText) -match [regex]::Escape($phrase)) -Message "Selected-project gate source docs reference rehearsal boundary phrase: $phrase"
+    }
+
+    Assert-False -Condition ($rehearsalText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo gate rehearsal plan does not grant forbidden authority"
+}
+
+function Test-SelectedProjectReadOnlyEndToEndFixtureMatrix {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-gates"
+    $gateDocPath = Join-Path $fleetRoot "docs\fleet\SELECTED_PROJECT_READ_ONLY_GATE.md"
+    $dryRunDocPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md"
+    $evidenceCaptureDocPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_EVIDENCE_CAPTURE.md"
+    $reconciliationDocPath = Join-Path $fleetRoot "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Selected-project read-only matrix fixture directory exists"
+
+    $gateDoc = Get-Content -LiteralPath $gateDocPath -Raw
+    $dryRunDoc = Get-Content -LiteralPath $dryRunDocPath -Raw
+    $evidenceCaptureDoc = Get-Content -LiteralPath $evidenceCaptureDocPath -Raw
+    $reconciliationDoc = Get-Content -LiteralPath $reconciliationDocPath -Raw
+    $combinedDocs = @($gateDoc, $dryRunDoc, $evidenceCaptureDoc, $reconciliationDoc) -join "`n"
+
+    foreach ($phrase in @(
+        "Combined End-To-End Fixture Matrix",
+        "tests/fixtures/fleet/read-only-gates",
+        "local evidence only",
+        "does not inspect product repos",
+        "runtime command binding",
+        "cannot approve or execute work",
+        "Selected-Project Read-Only Matrix Alignment",
+        "Gate Rehearsal Evidence Fields",
+        "selected fixture id",
+        "gate decision",
+        "denial reasons",
+        "defer reasons",
+        "validation commands",
+        "non-authority notice",
+        "forbidden capability flags"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($phrase)) -Message "Selected-project read-only matrix docs preserve phrase: $phrase"
+    }
+
+    $expectedCases = @{
+        "selected-project-read-only.valid-fixture.json" = @{
+            gateStatus = "valid"
+            gateDecision = "valid_read_only_gate"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "ALLOW"
+            dryRunResult = "ALLOW_DRY_RUN"
+            reconciliationStatus = "MATCH"
+            displayStatus = "MATCH"
+            category = "valid_fixture_only_read_only"
+            requiresHumanReview = $false
+        }
+        "selected-project-read-only.missing-owner-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_missing_owner"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_missing_owner"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.stale-fingerprint-deferred.json" = @{
+            gateStatus = "deferred"
+            gateDecision = "defer_stale_fingerprint"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DEFER"
+            dryRunResult = "DEFER_NEEDS_HUMAN"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "defer_stale_fingerprint"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.write-capable-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_write_capable_action"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_write_capable_action"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.ambiguous-approval-unknown.json" = @{
+            gateStatus = "deferred"
+            gateDecision = "defer_ambiguous_approval"
+            hqTaskId = "HQ-158"
+            singleTargetOnly = $true
+            runtimeDecision = "DEFER"
+            dryRunResult = "DEFER_NEEDS_HUMAN"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "defer_ambiguous_approval"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.multi-target-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_multi_target"
+            hqTaskId = "HQ-165"
+            singleTargetOnly = $false
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_multi_target"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.wildcard-target-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_wildcard_target"
+            hqTaskId = "HQ-165"
+            singleTargetOnly = $false
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_wildcard_target"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.invalid-fingerprint-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_invalid_repo_fingerprint_ref"
+            hqTaskId = "HQ-165"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_invalid_repo_fingerprint_ref"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.expired-approval-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_expired_approval"
+            hqTaskId = "HQ-185"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_expired_approval"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.reused-approval-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_reused_approval"
+            hqTaskId = "HQ-185"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_reused_approval"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.package-sending-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_package_sending"
+            hqTaskId = "HQ-185"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_package_sending"
+            requiresHumanReview = $true
+        }
+        "selected-project-read-only.phone-only-denied.json" = @{
+            gateStatus = "denied"
+            gateDecision = "deny_phone_only_approval"
+            hqTaskId = "HQ-185"
+            singleTargetOnly = $true
+            runtimeDecision = "DENY"
+            dryRunResult = "DENY_UNSAFE"
+            reconciliationStatus = "UNKNOWN"
+            displayStatus = "UNKNOWN"
+            category = "deny_phone_only_approval"
+            requiresHumanReview = $true
+        }
+    }
+
+    foreach ($fixtureName in $expectedCases.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Selected-project read-only matrix fixture exists: $fixtureName"
+
+        $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        $expected = $expectedCases[$fixtureName]
+
+        Assert-Equal -Actual ([int]$fixture.schemaVersion) -Expected 1 -Message "Selected-project read-only matrix fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.hqTaskId) -Expected $expected.hqTaskId -Message "Selected-project read-only matrix fixture maps to expected HQ task: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.combinedMatrixKind) -Expected "selected_project_read_only_end_to_end" -Message "Selected-project read-only matrix fixture names matrix kind: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "evidence only") -Message "Selected-project read-only matrix fixture is evidence only: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "cannot approve") -Message "Selected-project read-only matrix fixture cannot approve: $fixtureName"
+        Assert-True -Condition ([string]$fixture.fixtureId -match [regex]::Escape($fixtureName.Replace(".json", ""))) -Message "Selected-project read-only matrix fixture records selected fixture id: $fixtureName"
+
+        Assert-Equal -Actual ([string]$fixture.selectedProjectGate.validationStatus) -Expected $expected.gateStatus -Message "Selected-project read-only matrix gate status matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.selectedProjectGate.validationDecision) -Expected $expected.gateDecision -Message "Selected-project read-only matrix gate decision matches: $fixtureName"
+        Assert-Equal -Actual ([bool]$fixture.selectedProjectGate.selectedTarget.singleTargetOnly) -Expected $expected.singleTargetOnly -Message "Selected-project read-only matrix fixture single-target expectation matches: $fixtureName"
+        Assert-False -Condition ([bool]$fixture.selectedProjectGate.productRepoInspected) -Message "Selected-project read-only matrix fixture does not inspect product repo: $fixtureName"
+        Assert-False -Condition ([bool]$fixture.repoFingerprint.productRepoInspected) -Message "Selected-project read-only matrix repo fingerprint stays fixture-only: $fixtureName"
+
+        Assert-Equal -Actual ([string]$fixture.runtimePolicyDecision.decision) -Expected $expected.runtimeDecision -Message "Selected-project read-only matrix runtime decision matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.runtimePolicyDecision.dryRunResult) -Expected $expected.dryRunResult -Message "Selected-project read-only matrix runtime dry-run result matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.dryRunEvidence.actualDryRunResult) -Expected $expected.dryRunResult -Message "Selected-project read-only matrix dry-run evidence result matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.dryRunEvidence.decision) -Expected $expected.runtimeDecision -Message "Selected-project read-only matrix dry-run decision matches: $fixtureName"
+        Assert-True -Condition ($fixture.dryRunEvidence.PSObject.Properties.Name -contains "denialReasons") -Message "Selected-project read-only matrix records denial reasons field: $fixtureName"
+        Assert-True -Condition ($fixture.dryRunEvidence.PSObject.Properties.Name -contains "deferReasons") -Message "Selected-project read-only matrix records defer reasons field: $fixtureName"
+
+        Assert-Equal -Actual ([string]$fixture.reconciliation.reconciliationStatus) -Expected $expected.reconciliationStatus -Message "Selected-project read-only matrix reconciliation status matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.reconciliation.displayStatus) -Expected $expected.displayStatus -Message "Selected-project read-only matrix display status matches: $fixtureName"
+        if ($expected.displayStatus -eq "UNKNOWN") {
+            Assert-True -Condition (@($fixture.reconciliation.mismatchReasons).Count -ge 1) -Message "Selected-project read-only matrix UNKNOWN fixture names mismatch reason: $fixtureName"
+        }
+
+        Assert-Equal -Actual ([string]$fixture.expectedOutcome.category) -Expected $expected.category -Message "Selected-project read-only matrix category matches: $fixtureName"
+        Assert-True -Condition ([bool]$fixture.expectedOutcome.blocksLiveExecution) -Message "Selected-project read-only matrix blocks live execution: $fixtureName"
+        Assert-Equal -Actual ([bool]$fixture.expectedOutcome.requiresHumanReview) -Expected $expected.requiresHumanReview -Message "Selected-project read-only matrix human-review expectation matches: $fixtureName"
+
+        foreach ($safetyField in @(
+            "executesProductActions",
+            "mutatesProductRepos",
+            "readsProductRepos",
+            "bindsRuntimeCommands",
+            "createsOrSendsPackages",
+            "canApproveFutureRuns"
+        )) {
+            Assert-False -Condition ([bool]$fixture.dryRunEvidence.safety.$safetyField) -Message "Selected-project read-only matrix dry-run safety keeps $safetyField false: $fixtureName"
+            Assert-False -Condition ([bool]$fixture.safety.$safetyField) -Message "Selected-project read-only matrix top-level safety keeps $safetyField false: $fixtureName"
+        }
+        Assert-False -Condition ([bool]$fixture.safety.runsAllFleet) -Message "Selected-project read-only matrix fixture cannot run all-fleet: $fixtureName"
+
+        if ($fixtureName -eq "selected-project-read-only.valid-fixture.json") {
+            Assert-True -Condition (@($fixture.evidenceRefs) -contains "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md") -Message "Valid selected-project fixture references rehearsal plan evidence"
+            Assert-True -Condition (@($fixture.evidenceRefs) -contains "docs/fleet/RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md") -Message "Valid selected-project fixture references runtime dry-run evidence contract"
+            Assert-True -Condition (@($fixture.validationCommands).Count -ge 1) -Message "Valid selected-project fixture records validation command refs"
+            Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "run demos") -Message "Valid selected-project fixture denies demo authority"
+            Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "bind runtime commands") -Message "Valid selected-project fixture denies runtime command binding"
+            Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "select product repos") -Message "Valid selected-project fixture denies product repo selection"
+        }
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-Equal -Actual $fixtures.Count -Expected 12 -Message "Selected-project read-only matrix has exactly twelve fixtures"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.runtimePolicyDecision.dryRunResult -eq "ALLOW_DRY_RUN" }).Count -eq 1) -Message "Selected-project read-only matrix has one valid ALLOW_DRY_RUN fixture"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.runtimePolicyDecision.dryRunResult -eq "DENY_UNSAFE" }).Count -ge 9) -Message "Selected-project read-only matrix covers DENY_UNSAFE outcomes"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.runtimePolicyDecision.dryRunResult -eq "DEFER_NEEDS_HUMAN" }).Count -ge 2) -Message "Selected-project read-only matrix covers DEFER_NEEDS_HUMAN outcomes"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.reconciliation.displayStatus -eq "UNKNOWN" }).Count -ge 11) -Message "Selected-project read-only matrix covers UNKNOWN reconciliation outcomes"
+}
+
+function Test-RuntimePolicyDryRunFixtureMatrix {
+    $dryRunContractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md"
+    $policyContractPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_POLICY_DECISION_CONTRACT.md"
+    $dryRunSchemaPath = Join-Path $fleetRoot "templates\runtime-dry-run-evidence-schema.json"
+    $policySchemaPath = Join-Path $fleetRoot "templates\runtime-policy-decision-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $dryRunContractPath) -Message "Runtime dry-run evidence contract exists for fixture matrix"
+    Assert-True -Condition (Test-Path -LiteralPath $policyContractPath) -Message "Runtime policy decision contract exists for fixture matrix"
+
+    $dryRunText = Get-Content -LiteralPath $dryRunContractPath -Raw
+    $policyText = Get-Content -LiteralPath $policyContractPath -Raw
+    $dryRunSchema = Get-Content -LiteralPath $dryRunSchemaPath -Raw | ConvertFrom-Json
+    $policySchema = Get-Content -LiteralPath $policySchemaPath -Raw | ConvertFrom-Json
+
+    foreach ($fixture in @(
+        "read-only-fixture-allowed",
+        "blank-target-denied",
+        "wildcard-target-denied",
+        "all-target-denied",
+        "write-capable-action-denied",
+        "stale-fingerprint-denied",
+        "package-sending-denied",
+        "phone-only-approval-denied",
+        "ambiguous-evidence-deferred"
+    )) {
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($fixture)) -Message "Runtime dry-run evidence contract documents fixture matrix case $fixture"
+        Assert-True -Condition ($policyText -match [regex]::Escape($fixture)) -Message "Runtime policy decision contract aligns fixture matrix case $fixture"
+    }
+
+    foreach ($dryRunResult in @("ALLOW_DRY_RUN", "DEFER_NEEDS_HUMAN", "DENY_UNSAFE")) {
+        Assert-True -Condition (@($dryRunSchema.properties.actualDryRunResult.enum) -contains $dryRunResult) -Message "Dry-run evidence schema supports matrix result $dryRunResult"
+        Assert-True -Condition (@($policySchema.properties.dryRunResult.enum) -contains $dryRunResult) -Message "Policy decision schema supports matrix result $dryRunResult"
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($dryRunResult)) -Message "Dry-run evidence matrix documents result $dryRunResult"
+        Assert-True -Condition ($policyText -match [regex]::Escape($dryRunResult)) -Message "Policy matrix alignment documents result $dryRunResult"
+    }
+
+    foreach ($decision in @("ALLOW", "DEFER", "DENY")) {
+        Assert-True -Condition (@($dryRunSchema.properties.decision.enum) -contains $decision) -Message "Dry-run evidence schema supports matrix decision $decision"
+        Assert-True -Condition (@($policySchema.properties.decision.enum) -contains $decision) -Message "Policy decision schema supports matrix decision $decision"
+    }
+
+    Assert-True -Condition (@($dryRunSchema.properties.expectedAction.enum) -contains "READ_ONLY_RECONCILE") -Message "Dry-run evidence schema supports read-only reconcile fixture action"
+    Assert-True -Condition ($dryRunText -match [regex]::Escape("READ_ONLY_RECONCILE")) -Message "Dry-run evidence matrix documents read-only reconcile action"
+
+    foreach ($reason in @(
+        "blank-ship",
+        "wildcard-ship",
+        "all-ship",
+        "forbidden-scope",
+        "stale-fingerprint",
+        "package-sending-forbidden",
+        "command-binding-forbidden",
+        "missing-approval"
+    )) {
+        Assert-True -Condition (@($dryRunSchema.'$defs'.reason.enum) -contains $reason) -Message "Dry-run evidence schema supports matrix reason $reason"
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($reason)) -Message "Dry-run evidence matrix documents reason $reason"
+        Assert-True -Condition ($policyText -match [regex]::Escape($reason)) -Message "Policy matrix alignment documents reason $reason"
+    }
+
+    foreach ($reason in @("blank-ship", "wildcard-ship", "all-ship", "forbidden-scope", "stale-fingerprint", "missing-approval")) {
+        Assert-True -Condition (@($policySchema.properties.denialReason.enum) -contains $reason) -Message "Policy decision schema supports shared matrix reason $reason"
+    }
+
+    foreach ($phrase in @(
+        "No runtime command binding.",
+        "No product-repo reads.",
+        "No package sending.",
+        "No all-fleet execution."
+    )) {
+        Assert-True -Condition ($dryRunText -match [regex]::Escape($phrase)) -Message "Dry-run evidence matrix preserves invariant: $phrase"
+        Assert-True -Condition ($policyText -match [regex]::Escape($phrase)) -Message "Policy matrix alignment preserves invariant: $phrase"
+    }
+}
+
+function Test-RuntimePilotWrapperDryRunContract {
+    Write-Host "Testing runtime pilot wrapper dry-run contract..."
+
+    $wrapperPath = Join-Path $fleetRoot "invoke-autonomy-wrapper.ps1"
+    $planPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md"
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\ENTRYPOINT_SAFETY_INVENTORY.md"
+    $fixtureRoot = Join-Path $fleetRoot ".codex-local\fixtures\runtime-pilot-wrapper"
+    New-Item -ItemType Directory -Force -Path $fixtureRoot | Out-Null
+
+    $wrapperText = Get-Content -LiteralPath $wrapperPath -Raw
+    $planText = Get-Content -LiteralPath $planPath -Raw
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+
+    foreach ($phrase in @(
+        "RuntimePolicyPilotDryRun",
+        "New-FleetRuntimePolicyDecisionDryRun",
+        "Test-Stage8RuntimePilotEvidencePath",
+        "executesProductActions = `$false",
+        "launchesShips = `$false",
+        "importsPackets = `$false",
+        "mutatesProductRepos = `$false",
+        "canApproveFutureRuns = `$false",
+        "commandInput = `$false",
+        "runtime-pilot-evidence",
+        "exit 0"
+    )) {
+        Assert-True -Condition ($wrapperText -match [regex]::Escape($phrase)) -Message "Runtime pilot wrapper includes dry-run phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "One-Entrypoint Dry-Run Pilot Wrapper Contract",
+        "``invoke-autonomy-wrapper.ps1`` exposes ``-RuntimePolicyPilotDryRun``",
+        "exits before normal project/config processing",
+        "Default wrapper behavior outside ``-RuntimePolicyPilotDryRun`` remains unchanged",
+        "executesProductActions = false",
+        "launchesShips = false",
+        "importsPackets = false",
+        "mutatesProductRepos = false",
+        "denied or deferred",
+        "Pilot Evidence Output And Audit Trail",
+        "local harness evidence roots or test fixtures",
+        "canApproveFutureRuns = false",
+        "commandInput = false",
+        "No audit package is created or sent"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($phrase)) -Message "Runtime enforcement plan documents pilot wrapper phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "``-RuntimePolicyPilotDryRun`` never executes product actions",
+        "Runtime pilot use of ``invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun`` is evidence-only",
+        "executesProductActions = false",
+        "launchesShips = false",
+        "importsPackets = false",
+        "mutatesProductRepos = false"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "Entrypoint inventory documents runtime pilot wrapper phrase: $phrase"
+    }
+
+    $cases = @(
+        @{ name = "valid"; args = @("-RuntimePolicyPilotDryRun", "-Preset", "fixture-only", "-RuntimePilotCaptainApproval"); expectedResult = "ALLOW_DRY_RUN"; expectedDecision = "ALLOW"; expectedReason = "" },
+        @{ name = "blank"; args = @("-RuntimePolicyPilotDryRun"); expectedResult = "DENY_UNSAFE"; expectedDecision = "DENY"; expectedReason = "blank-ship" },
+        @{ name = "all"; args = @("-RuntimePolicyPilotDryRun", "-Ship", "all", "-RuntimePilotCaptainApproval"); expectedResult = "DENY_UNSAFE"; expectedDecision = "DENY"; expectedReason = "all-ship" },
+        @{ name = "wildcard"; args = @("-RuntimePolicyPilotDryRun", "-Ship", "*", "-RuntimePilotCaptainApproval"); expectedResult = "DENY_UNSAFE"; expectedDecision = "DENY"; expectedReason = "wildcard-ship" },
+        @{ name = "multi-ship"; args = @("-RuntimePolicyPilotDryRun", "-Ship", "FixtureShip,OtherShip", "-RuntimePilotCaptainApproval"); expectedResult = "DENY_UNSAFE"; expectedDecision = "DENY"; expectedReason = "multi-ship" },
+        @{ name = "missing-fingerprint"; args = @("-RuntimePolicyPilotDryRun", "-Ship", "FixtureShip", "-RuntimePilotCaptainApproval", "-RuntimePilotRepoFingerprintRef", " "); expectedResult = "DENY_UNSAFE"; expectedDecision = "DENY"; expectedReason = "missing-repo-fingerprint" },
+        @{ name = "missing-worktree"; args = @("-RuntimePolicyPilotDryRun", "-Ship", "FixtureShip", "-RuntimePilotCaptainApproval", "-RuntimePilotWorktreeBoundaryRef", " "); expectedResult = "DENY_UNSAFE"; expectedDecision = "DENY"; expectedReason = "missing-worktree-boundary" },
+        @{ name = "missing-approval"; args = @("-RuntimePolicyPilotDryRun", "-Ship", "FixtureShip"); expectedResult = "DEFER_NEEDS_HUMAN"; expectedDecision = "DEFER"; expectedReason = "missing-approval" },
+        @{ name = "execute-still-dry"; args = @("-RuntimePolicyPilotDryRun", "-Preset", "fixture-only", "-RuntimePilotCaptainApproval", "-Execute"); expectedResult = "ALLOW_DRY_RUN"; expectedDecision = "ALLOW"; expectedReason = "" }
+    )
+
+    foreach ($case in $cases) {
+        $jsonPath = Join-Path $fixtureRoot "$($case.name).json"
+        $reportPath = Join-Path $fixtureRoot "$($case.name).md"
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $wrapperPath @($case.args) -JsonReportPath $jsonPath -ReportPath $reportPath 2>&1
+        Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Runtime pilot wrapper exits cleanly for $($case.name): $($output -join ' ')"
+        Assert-True -Condition (Test-Path -LiteralPath $jsonPath) -Message "Runtime pilot wrapper writes JSON evidence for $($case.name)"
+        Assert-True -Condition (Test-Path -LiteralPath $reportPath) -Message "Runtime pilot wrapper writes report evidence for $($case.name)"
+        $record = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $record.mode -Expected "runtime-policy-pilot-dry-run" -Message "Runtime pilot wrapper records dry-run mode for $($case.name)"
+        Assert-Equal -Actual $record.entrypoint -Expected "invoke-autonomy-wrapper.ps1" -Message "Runtime pilot wrapper records one entrypoint for $($case.name)"
+        Assert-Equal -Actual $record.executesProductActions -Expected $false -Message "Runtime pilot wrapper does not execute product actions for $($case.name)"
+        Assert-Equal -Actual $record.launchesShips -Expected $false -Message "Runtime pilot wrapper does not launch ships for $($case.name)"
+        Assert-Equal -Actual $record.importsPackets -Expected $false -Message "Runtime pilot wrapper does not import packets for $($case.name)"
+        Assert-Equal -Actual $record.mutatesProductRepos -Expected $false -Message "Runtime pilot wrapper does not mutate product repos for $($case.name)"
+        Assert-Equal -Actual $record.nonExecutable -Expected $true -Message "Runtime pilot wrapper marks evidence non-executable for $($case.name)"
+        Assert-Equal -Actual $record.canApproveFutureRuns -Expected $false -Message "Runtime pilot wrapper evidence cannot approve future runs for $($case.name)"
+        Assert-Equal -Actual $record.commandInput -Expected $false -Message "Runtime pilot wrapper evidence is not command input for $($case.name)"
+        Assert-True -Condition (@($record.evidenceRefs) -contains "evidence://runtime-policy-pilot/invoke-autonomy-wrapper") -Message "Runtime pilot wrapper records evidence refs for $($case.name)"
+        Assert-Equal -Actual $record.policyDecision.evidenceBundle.sourceProvenance.nonExecutable -Expected $true -Message "Runtime pilot wrapper records non-executable source provenance for $($case.name)"
+        Assert-Equal -Actual $record.policyDecision.evidenceBundle.leaseHeartbeatRef -Expected "lease:heartbeat:fixture" -Message "Runtime pilot wrapper records lease heartbeat ref for $($case.name)"
+        Assert-Equal -Actual $record.policyDecision.evidenceBundle.failureFingerprintRef -Expected "failure:fingerprint:fixture" -Message "Runtime pilot wrapper records failure fingerprint ref for $($case.name)"
+        Assert-True -Condition (@($record.evidenceArtifacts).Count -eq 2) -Message "Runtime pilot wrapper records JSON and Markdown evidence artifacts for $($case.name)"
+        foreach ($artifact in @($record.evidenceArtifacts)) {
+            Assert-Equal -Actual $artifact.nonExecutable -Expected $true -Message "Runtime pilot evidence artifact is non-executable for $($case.name)"
+            Assert-True -Condition ([string]$artifact.path -match [regex]::Escape($fleetRoot)) -Message "Runtime pilot evidence artifact stays inside fleet root for $($case.name)"
+            Assert-False -Condition ([string]$artifact.path -match "(?i)([\\/]\.git[\\/]|[\\/]node_modules[\\/]|[\\/]dist[\\/]|[\\/]build[\\/]|[\\/]\.env($|[\\/])|secret|token|credential|private[-_]?key|auth|payment|stripe|deploy|migration)") -Message "Runtime pilot evidence artifact avoids forbidden paths for $($case.name)"
+        }
+        Assert-Equal -Actual $record.policyDecision.dryRunResult -Expected $case.expectedResult -Message "Runtime pilot wrapper returns expected dry-run result for $($case.name)"
+        Assert-Equal -Actual $record.policyDecision.decision -Expected $case.expectedDecision -Message "Runtime pilot wrapper returns expected policy decision for $($case.name)"
+        Assert-Equal -Actual $record.policyDecision.denialReason -Expected $case.expectedReason -Message "Runtime pilot wrapper returns expected reason for $($case.name)"
+    }
+
+    $now = [datetime]"2026-06-01T12:00:00Z"
+    $baseParams = @{
+        GeneratedAt = $now
+        SelectedShipId = "FixtureShip"
+        Entrypoint = "invoke-autonomy-wrapper.ps1"
+        Action = "RUN_ONE_BATCH"
+        RepoFingerprintRef = "repo:fingerprint:fixture"
+        WorktreeBoundaryRef = "worktree:boundary:fixture"
+        BudgetRecordRef = "budget:fixture"
+        EvidenceRefs = @("fixture/runtime-pilot/evidence.json")
+        CaptainApproval = $true
+    }
+
+    $matrixDecisions = @(
+        @{ name = "stale fingerprint"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -StaleFingerprint); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "stale-fingerprint" },
+        @{ name = "unicode control input"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -RawInputText ("approve" + [char]0x202E + "eman")); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "forbidden-scope" },
+        @{ name = "control-character input"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -RawInputText "approve$([char]7)run"); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "forbidden-scope" },
+        @{ name = "ambiguous requested path"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -RequestedPaths @("..\outside-product-root")); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "forbidden-scope" },
+        @{ name = "external report"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -ExternalReportInput); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "external-report-non-executable" },
+        @{ name = "mobile request"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -MobileRequestInput); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "mobile-request-non-executable" },
+        @{ name = "DOCX report"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -DocxReportInput); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "forbidden-scope" },
+        @{ name = "audit package"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -AuditPackageInput); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "forbidden-scope" },
+        @{ name = "queue prose"; decision = (New-FleetRuntimePolicyDecisionDryRun @baseParams -QueueProseInput); dryRunResult = "DENY_UNSAFE"; decisionValue = "DENY"; reason = "forbidden-scope" }
+    )
+
+    foreach ($matrix in $matrixDecisions) {
+        Assert-Equal -Actual $matrix.decision.dryRunResult -Expected $matrix.dryRunResult -Message "Runtime pilot matrix returns expected dry-run result for $($matrix.name)"
+        Assert-Equal -Actual $matrix.decision.decision -Expected $matrix.decisionValue -Message "Runtime pilot matrix returns expected decision for $($matrix.name)"
+        Assert-Equal -Actual $matrix.decision.denialReason -Expected $matrix.reason -Message "Runtime pilot matrix returns expected reason for $($matrix.name)"
+        Assert-False -Condition ($matrix.decision.dryRunResult -eq "ALLOW_DRY_RUN") -Message "Runtime pilot matrix negative case does not allow $($matrix.name)"
+    }
+
+    $staleLease = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-30) -LeaseCreatedAt $now.AddMinutes(-40) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -FenceToken "fence-1" -EvidenceRefs @("fixture/lease/stale.json")
+    Assert-Equal -Actual $staleLease.decision -Expected "REQUIRE_REVIEW" -Message "Runtime pilot matrix requires review for stale active lease"
+    Assert-Equal -Actual $staleLease.deletesLocks -Expected $false -Message "Runtime pilot matrix stale lease does not delete locks"
+
+    $ambiguousLease = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-2) -LeaseCreatedAt $now.AddMinutes(-40) -LeaseExpiresAt $now.AddMinutes(20) -Owner "worker-1" -ExpectedOwner "worker-2" -FenceToken "fence-1" -ExpectedFenceToken "fence-2" -EvidenceRefs @("fixture/lease/ambiguous.json")
+    Assert-Equal -Actual $ambiguousLease.decision -Expected "REQUIRE_REVIEW" -Message "Runtime pilot matrix requires review for ambiguous lease"
+    Assert-True -Condition (@($ambiguousLease.validation.reasons) -contains "ambiguous") -Message "Runtime pilot matrix records ambiguous lease reason"
+    Assert-Equal -Actual $ambiguousLease.deletesLocks -Expected $false -Message "Runtime pilot matrix ambiguous lease does not delete locks"
+
+    $expiredLease = New-FleetLeaseHeartbeatClassification -Now $now -HeartbeatAt $now.AddMinutes(-30) -LeaseCreatedAt $now.AddMinutes(-80) -LeaseExpiresAt $now.AddMinutes(-5) -Owner "worker-1" -FenceToken "fence-1" -EvidenceRefs @("fixture/lease/expired.json")
+    Assert-Equal -Actual $expiredLease.decision -Expected "RECOVER_WITH_BACKOFF" -Message "Runtime pilot matrix expired lease allows only bounded recovery planning"
+    Assert-True -Condition (@($expiredLease.validation.reasons) -contains "expired") -Message "Runtime pilot matrix records expired lease reason"
+    Assert-Equal -Actual $expiredLease.deletesLocks -Expected $false -Message "Runtime pilot matrix expired lease does not delete locks"
+
+    $boundaryFixtureRoot = Join-Path $fixtureRoot ("hq081-worktree-boundary-" + [guid]::NewGuid().ToString("N"))
+    $sourceRoot = Join-Path $boundaryFixtureRoot "source"
+    $worktreeRoot = Join-Path $boundaryFixtureRoot "worktree"
+    New-Item -ItemType Directory -Force -Path $worktreeRoot | Out-Null
+    try {
+        $contradictoryBoundary = [pscustomobject]@{
+            schemaVersion = 1
+            boundaryId = "boundary-hq081-contradictory"
+            shipId = "FixtureShip"
+            sourceRepoRoot = $sourceRoot
+            sourceGitTopLevel = (Join-Path $boundaryFixtureRoot "other-source")
+            worktreePath = $worktreeRoot
+            branch = "codex/fixture"
+            owner = ""
+            leaseId = ""
+            cleanupPosture = "safe-dispose-fixture-only"
+            boundaryState = "planned"
+            generatedAt = $now.ToUniversalTime().ToString("o")
+            evidenceRefs = @()
+            validation = [pscustomobject]@{ status = "unknown"; reasons = @() }
+        }
+        $contradictoryResult = Test-FleetWorktreeBoundary -Boundary $contradictoryBoundary -SelectedShipId "FixtureShip" -FixtureRoot $boundaryFixtureRoot
+        Assert-True -Condition ($contradictoryResult.status -in @("invalid", "unknown")) -Message "Runtime pilot matrix fails contradictory worktree boundary closed"
+        Assert-True -Condition (@($contradictoryResult.reasons) -contains "source-root-mismatch") -Message "Runtime pilot matrix records contradictory source root"
+        Assert-True -Condition (@($contradictoryResult.reasons) -contains "ambiguous-boundary") -Message "Runtime pilot matrix records ambiguous boundary"
+    } finally {
+        if (Test-Path -LiteralPath $boundaryFixtureRoot) {
+            Remove-Item -LiteralPath $boundaryFixtureRoot -Recurse -Force
+        }
+    }
+
+    $repeatFailure = New-FleetFailureFingerprint -RawSummary "Runtime error at C:\Temp\ship\run-123 line 44 after 9.8s" -Hypothesis "same dry-run hypothesis" -AttemptCount 2 -EvidenceRefs @("fixture/failure/repeated.json")
+    Assert-Equal -Actual $repeatFailure.decision -Expected "safe-pause" -Message "Runtime pilot matrix repeated deterministic failure safe-pauses"
+    Assert-Equal -Actual $repeatFailure.retriable -Expected $false -Message "Runtime pilot matrix repeated deterministic failure is not retriable"
+    Assert-True -Condition (@($repeatFailure.validation.reasons) -contains "blind-retry-forbidden") -Message "Runtime pilot matrix records blind retry forbidden"
+
+    foreach ($phrase in @(
+        "Runtime Pilot Fixture Matrix",
+        "HQ-081 extends the fixture matrix",
+        "blank ship",
+        "all ship",
+        "wildcard ship",
+        "multi-ship",
+        "Unicode bidi/control-character inputs",
+        "traversal-like or ambiguous requested paths",
+        "stale fingerprint",
+        "missing repo fingerprint",
+        "missing worktree boundary",
+        "contradictory worktree boundaries",
+        "expired leases",
+        "missing approval",
+        "stale active lease",
+        "ambiguous lease",
+        "repeated deterministic failure",
+        "external report",
+        "mobile request",
+        "DOCX report",
+        "audit package",
+        "queue prose",
+        "Real-project demo remains blocked"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($phrase)) -Message "Runtime enforcement plan documents pilot fixture matrix phrase: $phrase"
+    }
+
+    $goNoGoText = Get-Content -LiteralPath (Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md") -Raw
+    foreach ($phrase in @(
+        "Runtime Pilot Fixture Matrix Status",
+        "unsafe classes remain",
+        "Real-project demo remains blocked",
+        "does not fill an approval packet",
+        "clear stop signs",
+        "touch product repositories",
+        "turn pilot evidence into execution authority"
+    )) {
+        Assert-True -Condition ($goNoGoText -match [regex]::Escape($phrase)) -Message "Demo go/no-go documents runtime pilot matrix boundary: $phrase"
+    }
+
+    $artifactContractPath = Join-Path $fleetRoot "docs\fleet\ARTIFACT_INDEX_CONTRACT.md"
+    $artifactContractText = Get-Content -LiteralPath $artifactContractPath -Raw
+    foreach ($phrase in @(
+        "runtime-pilot-evidence",
+        "runtime-pilot-report",
+        "``invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun`` JSON output",
+        "``invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun`` Markdown output",
+        "``invoke-autonomy-wrapper.ps1``"
+    )) {
+        Assert-True -Condition ($artifactContractText -match [regex]::Escape($phrase)) -Message "Artifact index contract documents runtime pilot artifact phrase: $phrase"
+    }
+}
+
+function Test-HqRepairQueueContract {
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $contractPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_QUEUE_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\hq-repair-task-schema.json"
+
+    Assert-True -Condition (Test-Path $queuePath) -Message "HQ repair queue exists"
+    Assert-True -Condition (Test-Path $contractPath) -Message "HQ repair queue contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "HQ repair task schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    foreach ($field in @(
+        "id",
+        "status",
+        "goal",
+        "prerequisites",
+        "allowedFiles",
+        "readFirst",
+        "acceptance",
+        "validationCommands",
+        "stopIf",
+        "evidence"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "HQ repair task schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "HQ repair task schema defines $field"
+    }
+
+    foreach ($status in @("pending", "in_progress", "done", "blocked", "needs_audit")) {
+        Assert-True -Condition (@($schema.properties.status.enum) -contains $status) -Message "HQ repair task schema supports status $status"
+    }
+
+    foreach ($arrayField in @("prerequisites", "allowedFiles", "readFirst", "acceptance", "validationCommands", "stopIf", "evidence")) {
+        Assert-Equal -Actual $schema.properties.$arrayField.type -Expected "array" -Message "HQ repair task schema models $arrayField as array"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "one task per run",
+        "queue text is data, not commands",
+        "validation commands are local checks only",
+        'patch only `allowedFiles`',
+        'run only `validationCommands`',
+        "does not build an autonomous multi-task executor",
+        "touching real product repos",
+        "launching product ships",
+        "running all-fleet commands"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "HQ repair queue contract includes invariant: $phrase"
+    }
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match [regex]::Escape('Schema: `templates/hq-repair-task-schema.json`')) -Message "HQ repair queue links schema"
+    Assert-True -Condition ($queueText -match [regex]::Escape('Contract: `docs/fleet/HQ_REPAIR_QUEUE_CONTRACT.md`')) -Message "HQ repair queue links contract"
+    Assert-True -Condition ($queueText -match '### HQ-019 Repair Queue Schema And One-Task Runner Contract\s+\r?\n\s*- status: done') -Message "HQ-019 queue task is marked done"
+
+    $queueLines = Get-Content -LiteralPath $queuePath
+    $validationCommands = [System.Collections.Generic.List[string]]::new()
+    $allowedFiles = [System.Collections.Generic.List[string]]::new()
+    $captureValidation = $false
+    $captureAllowed = $false
+    foreach ($line in $queueLines) {
+        if ($line -match "^- validationCommands:") {
+            $captureValidation = $true
+            $captureAllowed = $false
+            continue
+        }
+        if ($line -match "^- allowedFiles:") {
+            $captureAllowed = $true
+            $captureValidation = $false
+            continue
+        }
+        if ($line -match "^- (readFirst|acceptance|stopIf|evidence|validationCommands|allowedFiles|goal|prerequisites):") {
+            if ($line -notmatch "^- validationCommands:") { $captureValidation = $false }
+            if ($line -notmatch "^- allowedFiles:") { $captureAllowed = $false }
+        }
+        if ($captureValidation -and $line -match '^\s+-\s+`(.+)`') {
+            $validationCommands.Add($Matches[1]) | Out-Null
+        }
+        if ($captureAllowed -and $line -match '^\s+-\s+`(.+)`') {
+            $allowedFiles.Add($Matches[1]) | Out-Null
+        }
+    }
+
+    Assert-True -Condition ($validationCommands.Count -gt 0) -Message "HQ repair queue declares validation commands"
+    foreach ($command in $validationCommands) {
+        Assert-False -Condition ($command -match "(?i)(git\s+(merge|push|reset|checkout)|npm\s+install|pnpm\s+install|yarn\s+install|deploy|migration|run-fleet\.ps1|launch-|start-overnight-autopilot|fleet-supervisor|fleet-remote-control|all-fleet)") -Message "HQ repair queue validation command stays local/safe: $command"
+    }
+
+    Assert-True -Condition ($allowedFiles.Count -gt 0) -Message "HQ repair queue declares allowed files"
+    foreach ($allowedFile in $allowedFiles) {
+        Assert-False -Condition ($allowedFile -match "(?i)(^|[\\/])(\.git|node_modules|dist|build|secrets?|auth|payments?|deploy|migrations?)([\\/]|$)") -Message "HQ repair queue allowed file avoids forbidden path: $allowedFile"
+        Assert-False -Condition ($allowedFile -match "^[A-Za-z]:\\") -Message "HQ repair queue allowed file is repo-relative: $allowedFile"
+    }
+}
+
+function Test-HqRepairExternalAuditPackage {
+    $auditPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_EXTERNAL_AUDIT.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    Assert-True -Condition (Test-Path $auditPath) -Message "HQ repair external audit doc exists"
+    $auditText = Get-Content -LiteralPath $auditPath -Raw
+    $requiredStructurePhrases = @(
+        "Files To Package",
+        "Must Not Export",
+        "Reviewer Questions"
+    )
+    $requiredSafetyPhrases = @(
+        "external reviewer output is non-executable",
+        "verifies safety, not execution bypasses",
+        "real product repositories",
+        'Do not use unscoped `new-audit-package.ps1` defaults'
+    )
+    $requiredConversionPhrases = @(
+        "Convert accepted findings into bounded HQ repair queue tasks"
+    )
+    foreach ($phrase in @($requiredStructurePhrases + $requiredSafetyPhrases + $requiredConversionPhrases)) {
+        Assert-True -Condition ($auditText -match [regex]::Escape($phrase)) -Message "HQ repair external audit doc includes phrase: $phrase"
+    }
+
+    foreach ($packageFile in @(
+        "docs/fleet/HQ_IMPORT_RECON.md",
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/HQ_REPAIR_QUEUE_CONTRACT.md",
+        "templates/*-schema.json",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($auditText -match [regex]::Escape($packageFile)) -Message "HQ repair external audit package lists $packageFile"
+    }
+
+    foreach ($forbiddenExport in @(
+        "real product repositories or product source snapshots",
+        ".git",
+        ".env",
+        "secrets, tokens, credentials, private keys",
+        "auth material",
+        "payment material",
+        "deployment settings",
+        "migration data"
+    )) {
+        Assert-True -Condition ($auditText -match [regex]::Escape($forbiddenExport)) -Message "HQ repair external audit doc forbids export: $forbiddenExport"
+    }
+
+    Assert-False -Condition ($auditText -match "(?i)bypass\s+(secrets|auth|payments?|deploy|migrations?|validation|policy)") -Message "HQ repair external audit doc contains no bypass-forbidden-domain language"
+    Assert-False -Condition ($auditText -match "(?i)(launch product ships|run all-fleet commands|delete locks|widen permissions)\s+without") -Message "HQ repair external audit doc contains no unsafe execution permission language"
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-020 External Audit Package For HQ Repairs\s+\r?\n\s*- status: done') -Message "HQ-020 queue task is marked done"
+    Assert-True -Condition ($queueText -match '### HQ-020A External Audit Doc Green Fix\s+\r?\n\s*- status: done') -Message "HQ-020A queue task is marked done"
+    Assert-True -Condition ($queueText -match '### HQ-020B External Audit Test Expectation Cleanup\s+\r?\n\s*- status: done') -Message "HQ-020B queue task is marked done"
+}
+
+function Test-HqControlPlaneSpineDecision {
+    Write-Host "Testing HQ control-plane spine decision..."
+
+    $decisionPath = Join-Path $fleetRoot "docs\fleet\CONTROL_PLANE_SPINE_DECISION.md"
+    $mvpPath = Join-Path $fleetRoot "docs\fleet\FLEET_CORE_MVP.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $decisionPath) -Message "Control-plane spine decision doc exists"
+    Assert-True -Condition (Test-Path -LiteralPath $mvpPath) -Message "Fleet.Core MVP proposal placeholder exists"
+
+    $decisionText = Get-Content -LiteralPath $decisionPath -Raw
+    foreach ($phrase in @(
+        "Continue with the current PowerShell plus JSON control-plane spine",
+        "SQLite and Fleet.Core should remain a documented MVP proposal",
+        "one mutating run has exactly one selected ship",
+        "policy gates are deterministic and fail closed",
+        "dashboard mismatches must show UNKNOWN",
+        "The smallest approved future Fleet.Core MVP should be a local CLI/library, not a service",
+        "Deferred Until Captain Approval",
+        "installing packages",
+        "creating SQLite database files",
+        "creating database migrations",
+        "using Fleet.Core records to authorize product-repo mutation",
+        "Decision: continue PowerShell plus JSON"
+    )) {
+        Assert-True -Condition ($decisionText -match [regex]::Escape($phrase)) -Message "Control-plane spine decision includes phrase: $phrase"
+    }
+
+    foreach ($module in @(
+        "registry",
+        "fingerprint",
+        "policy",
+        "queue",
+        "leases",
+        "artifacts",
+        "reconciliation"
+    )) {
+        Assert-True -Condition ($decisionText -match [regex]::Escape($module)) -Message "Control-plane spine decision names MVP module: $module"
+    }
+
+    $mvpText = Get-Content -LiteralPath $mvpPath -Raw
+    foreach ($phrase in @(
+        "Do not build Fleet.Core yet",
+        "local no-service-first CLI/library",
+        "no database migrations",
+        "package installation",
+        "using Fleet.Core to authorize real product mutation",
+        "proposal only"
+    )) {
+        Assert-True -Condition ($mvpText -match [regex]::Escape($phrase)) -Message "Fleet.Core MVP includes phrase: $phrase"
+    }
+}
+
+function Test-HqFleetCoreMvpProposal {
+    Write-Host "Testing HQ Fleet.Core MVP proposal..."
+
+    $mvpPath = Join-Path $fleetRoot "docs\fleet\FLEET_CORE_MVP.md"
+    $testPlanPath = Join-Path $fleetRoot "docs\fleet\FLEET_CORE_TEST_PLAN.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $mvpPath) -Message "Fleet.Core MVP proposal exists"
+    Assert-True -Condition (Test-Path -LiteralPath $testPlanPath) -Message "Fleet.Core test plan exists"
+
+    $mvpText = Get-Content -LiteralPath $mvpPath -Raw
+    foreach ($phrase in @(
+        "proposal only",
+        "local no-service-first CLI/library",
+        "fixture-first and dry-run-first",
+        "Registry",
+        "Selection",
+        "Policy",
+        "Queue",
+        "Leases",
+        "Artifacts",
+        "Reconciliation",
+        "Migration decision: no database migrations",
+        'The test plan lives in `docs/fleet/FLEET_CORE_TEST_PLAN.md`',
+        "Deferred Until Captain Approval"
+    )) {
+        Assert-True -Condition ($mvpText -match [regex]::Escape($phrase)) -Message "Fleet.Core MVP includes phrase: $phrase"
+    }
+
+    foreach ($forbidden in @(
+        "network services",
+        "background daemons",
+        "package installation",
+        "database migrations",
+        "product repo writes",
+        "all-fleet execution"
+    )) {
+        Assert-True -Condition ($mvpText -match [regex]::Escape($forbidden)) -Message "Fleet.Core MVP defers forbidden runtime scope: $forbidden"
+    }
+
+    $testPlanText = Get-Content -LiteralPath $testPlanPath -Raw
+    foreach ($phrase in @(
+        "fixture-first, dry-run-first, and fail-closed",
+        "Registry Tests",
+        "Selection Tests",
+        "Policy Tests",
+        "Queue Tests",
+        "Lease Tests",
+        "Artifact Tests",
+        "Reconciliation Tests",
+        "Integration Test Boundaries",
+        "Migration decision: no migrations",
+        "does not build Fleet.Core"
+    )) {
+        Assert-True -Condition ($testPlanText -match [regex]::Escape($phrase)) -Message "Fleet.Core test plan includes phrase: $phrase"
+    }
+
+    foreach ($forbiddenBoundary in @(
+        "launchers",
+        "supervisors",
+        "product repos",
+        "installs",
+        "migrations",
+        "deployments",
+        "auth",
+        "payments",
+        "secrets",
+        "lock deletion",
+        "permission changes"
+    )) {
+        Assert-True -Condition ($testPlanText -match [regex]::Escape($forbiddenBoundary)) -Message "Fleet.Core test plan excludes boundary: $forbiddenBoundary"
+    }
+}
+
+function Test-HqStage16ScopeClarification {
+    Write-Host "Testing HQ Stage 16 scope clarification..."
+
+    $contractPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_QUEUE_CONTRACT.md"
+    $auditPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_EXTERNAL_AUDIT.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    $auditText = Get-Content -LiteralPath $auditPath -Raw
+    $combinedText = $contractText + "`n" + $auditText
+
+    foreach ($phrase in @(
+        "HQ repair tasks are harness/docs/tests scoped",
+        "Stage 16 audit-loop artifacts",
+        "can inform bounded HQ queue tasks",
+        "cannot execute those tasks",
+        "cannot grant product-repo scope",
+        "cannot approve broader files",
+        "one-task-per-run rule"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "HQ Stage 16 scope clarification includes phrase: $phrase"
+    }
+
+    Assert-True -Condition ($contractText -match [regex]::Escape("Stage 16 task runners remain optional audit-loop infrastructure")) -Message "HQ queue contract keeps Stage 16 optional"
+    Assert-True -Condition ($auditText -match [regex]::Escape("They are not Stage 16 product-audit tasks")) -Message "HQ external audit doc separates HQ repairs from Stage 16 product-audit tasks"
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-028 Stage 16 Scope Clarification\s+\r?\n\s*- status: done') -Message "HQ-028 queue task is marked done"
+}
+
+function Test-HqReviewerFeedbackExamples {
+    Write-Host "Testing HQ reviewer feedback examples..."
+
+    $auditPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_EXTERNAL_AUDIT.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $auditText = Get-Content -LiteralPath $auditPath -Raw
+
+    foreach ($phrase in @(
+        "Reviewer Feedback Examples",
+        "file/path-grounded",
+        "evidence-focused",
+        "bounded",
+        "Good finding",
+        "Good follow-up task shape",
+        "Unacceptable reviewer feedback",
+        "speculative",
+        "product-scoped",
+        "broad execution",
+        "permission-widening",
+        "non-executable reviewer guidance"
+    )) {
+        Assert-True -Condition ($auditText -match [regex]::Escape($phrase)) -Message "HQ reviewer feedback examples include phrase: $phrase"
+    }
+
+    foreach ($rejectedPhrase in @(
+        "product repo audit",
+        "fix all findings across every ship",
+        "Launch the fleet",
+        "all-project default",
+        "Bypass the permission model",
+        "Edit secrets, auth, payments, deploy, migration, lock, or product repository files"
+    )) {
+        Assert-True -Condition ($auditText -match [regex]::Escape($rejectedPhrase)) -Message "HQ reviewer feedback examples reject unsafe example: $rejectedPhrase"
+    }
+
+    Assert-True -Condition ($auditText -match [regex]::Escape("These examples are documentation examples only")) -Message "HQ reviewer examples are documentation-only"
+    Assert-True -Condition ($auditText -match [regex]::Escape("do not create tasks, approve product repo actions, widen permissions, or authorize broad execution")) -Message "HQ reviewer examples preserve non-executable framing"
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-029 Reviewer Feedback Examples\s+\r?\n\s*- status: done') -Message "HQ-029 queue task is marked done"
+}
+
+function Test-HqFailClosedContractSweep {
+    Write-Host "Testing HQ fail-closed contract sweep..."
+
+    $contractFiles = @(
+        "docs\fleet\REPO_FINGERPRINT_CONTRACT.md",
+        "docs\fleet\WORKTREE_ISOLATION_CONTRACT.md",
+        "docs\fleet\FAILURE_FINGERPRINT_CONTRACT.md",
+        "docs\fleet\LEASE_HEARTBEAT_CONTRACT.md",
+        "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md",
+        "docs\fleet\BUDGET_SAFE_PAUSE_CONTRACT.md",
+        "docs\fleet\ARTIFACT_INDEX_CONTRACT.md",
+        "docs\fleet\RUNTIME_POLICY_DECISION_CONTRACT.md",
+        "docs\fleet\REVIEW_PACKET_CONTRACT.md",
+        "docs\fleet\SELECTED_SHIP_LEDGER_CONTRACT.md"
+    )
+
+    $requiredPhrases = @(
+        "Fail-Closed Input Handling",
+        "Malformed input",
+        "unknown fields",
+        "stale timestamps",
+        "externally supplied packets",
+        "executable-looking prose",
+        "rejected without execution",
+        "evidence only",
+        "must not run commands",
+        "must not run commands, launch ships, mutate product repos, delete locks, or widen permissions"
+    )
+
+    foreach ($relativePath in $contractFiles) {
+        $contractPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $contractPath) -Message "HQ fail-closed contract target exists: $relativePath"
+        $contractText = Get-Content -LiteralPath $contractPath -Raw
+        foreach ($phrase in $requiredPhrases) {
+            Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "HQ fail-closed contract $relativePath includes phrase: $phrase"
+        }
+    }
+
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-025 Fail-Closed Contract Sweep\s+\r?\n\s*- status: done') -Message "HQ-025 queue task is marked done"
+}
+
+function Test-HqSchemaStrictnessSweep {
+    Write-Host "Testing HQ schema strictness sweep..."
+
+    $schemaExpectations = @{
+        "templates\repo-fingerprint-schema.json" = @("schemaVersion", "shipId", "repoRoot", "gitTopLevel", "head", "dirtyState", "evidenceRefs", "validation")
+        "templates\worktree-boundary-schema.json" = @("schemaVersion", "shipId", "sourceRepoRoot", "sourceGitTopLevel", "worktreePath", "owner", "leaseId", "evidenceRefs", "validation")
+        "templates\failure-fingerprint-schema.json" = @("schemaVersion", "shipId", "runId", "failureClass", "normalizedSummary", "hypothesis", "attemptCount", "evidenceRefs", "validation")
+        "templates\lease-heartbeat-schema.json" = @("schemaVersion", "shipId", "owner", "fenceToken", "heartbeatAt", "heartbeatAgeMinutes", "leaseExpiresAt", "deletesLocks", "evidenceRefs", "validation")
+        "templates\control-room-reconciliation-schema.json" = @("schemaVersion", "shipId", "repoFingerprintRef", "runArtifactRef", "dbStateRef", "statusSnapshotRef", "reconciliationStatus", "evidenceRefs", "validation")
+        "templates\budget-safe-pause-schema.json" = @("schemaVersion", "shipId", "budgetLevel", "decision", "manualBudgetSignal", "providerBudgetSignal", "thresholds", "resumeEligibility", "evidenceRefs", "validation")
+        "templates\artifact-index-schema.json" = @("schemaVersion", "artifactId", "path", "artifactType", "shipId", "runId", "sha256", "sensitiveExportPolicy", "sourceCommand", "evidenceRefs", "validation")
+        "templates\runtime-policy-decision-schema.json" = @("schemaVersion", "policyVersion", "decisionId", "selectedShipId", "entrypoint", "action", "decision", "dryRunResult", "repoFingerprintRef", "worktreeBoundaryRef", "evidenceRefs", "validation")
+        "templates\review-packet-schema.json" = @("schemaVersion", "reviewPacketId", "auditId", "reviewer", "shipId", "baseCommit", "verdict", "evidenceRefs", "policy", "validation")
+        "templates\selected-ship-ledger-schema.json" = @("schemaVersion", "ledgerId", "selectedShipId", "repoFingerprintRef", "policyDecisionRef", "owner", "status", "evidenceRefs", "dryRun", "validation")
+        "templates\hq-repair-task-schema.json" = @("id", "status", "goal", "prerequisites", "allowedFiles", "readFirst", "acceptance", "validationCommands", "stopIf", "evidence")
+    }
+
+    foreach ($relativePath in ($schemaExpectations.Keys | Sort-Object)) {
+        $schemaPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "HQ strict schema exists: $relativePath"
+        $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+        Assert-False -Condition ([bool]$schema.additionalProperties) -Message "HQ strict schema closes top-level object shape: $relativePath"
+        foreach ($requiredField in $schemaExpectations[$relativePath]) {
+            Assert-True -Condition (@($schema.required) -contains $requiredField) -Message "HQ strict schema $relativePath requires trust-context field: $requiredField"
+        }
+    }
+
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-026 Schema Strictness Sweep\s+\r?\n\s*- status: done') -Message "HQ-026 queue task is marked done"
+}
+
+function Test-HqSchemaFailClosedNegativeFixtures {
+    Write-Host "Testing HQ schema fail-closed negative fixtures..."
+
+    $malformedJsonFailed = $false
+    try {
+        '{ "id": "HQ-999", ' | ConvertFrom-Json | Out-Null
+    } catch {
+        $malformedJsonFailed = $true
+    }
+    Assert-True -Condition $malformedJsonFailed -Message "Malformed JSON fails parsing before it can become work"
+
+    $schemas = @{
+        "templates\hq-repair-task-schema.json" = @(
+            "id",
+            "status",
+            "goal",
+            "prerequisites",
+            "allowedFiles",
+            "readFirst",
+            "acceptance",
+            "validationCommands",
+            "stopIf",
+            "evidence"
+        )
+        "templates\task-packet-schema.json" = @(
+            "packetId",
+            "generatedAt",
+            "project",
+            "baseCommit",
+            "tasks"
+        )
+        "templates\mobile-request-schema.json" = @(
+            "schemaVersion",
+            "requestId",
+            "approval",
+            "generatedPlan"
+        )
+        "templates\review-packet-schema.json" = @(
+            "schemaVersion",
+            "reviewPacketId",
+            "auditId",
+            "reviewer",
+            "shipId",
+            "baseCommit",
+            "verdict",
+            "findings",
+            "evidenceRefs",
+            "suggestedTasks",
+            "limitations",
+            "rejectedIdeas",
+            "captainQuestions",
+            "policy",
+            "generatedAt",
+            "validation"
+        )
+    }
+
+    $negativeFixtureTokens = @(
+        "\\.\\.",
+        "^[A-Za-z]:",
+        "^/",
+        "\.git",
+        "node_modules",
+        "dist",
+        "build",
+        "\.env",
+        "secret",
+        "token",
+        "credential",
+        "private[-_]?key",
+        "auth",
+        "payments?",
+        "deploy",
+        "migrations?"
+    )
+    $weirdInputTokens = @(
+        "\\u0000-\\u001F",
+        "\\u007F-\\u009F",
+        "\\u2215",
+        "\\u2044",
+        "\\uFF0F",
+        "\\uFF3C",
+        "\\u2216",
+        "^\\s",
+        "\\s$",
+        "maxLength"
+    )
+
+    foreach ($relativePath in ($schemas.Keys | Sort-Object)) {
+        $schemaPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "HQ fail-closed schema exists: $relativePath"
+        $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+        $schema = $schemaText | ConvertFrom-Json
+        Assert-False -Condition ([bool]$schema.additionalProperties) -Message "HQ fail-closed schema rejects unknown top-level fields: $relativePath"
+        foreach ($requiredField in $schemas[$relativePath]) {
+            Assert-True -Condition (@($schema.required) -contains $requiredField) -Message "HQ fail-closed schema requires field: $relativePath -> $requiredField"
+        }
+        foreach ($token in $negativeFixtureTokens) {
+            Assert-True -Condition ($schemaText -match [regex]::Escape($token)) -Message "HQ fail-closed schema covers negative fixture token: $relativePath -> $token"
+        }
+        foreach ($token in $weirdInputTokens) {
+            Assert-True -Condition ($schemaText -match [regex]::Escape($token)) -Message "HQ weird-input schema covers negative fixture token: $relativePath -> $token"
+        }
+    }
+
+    $taskPacketSchema = Get-Content -LiteralPath (Join-Path $fleetRoot "templates\task-packet-schema.json") -Raw | ConvertFrom-Json
+    Assert-False -Condition ([bool]$taskPacketSchema.properties.tasks.items.additionalProperties) -Message "Task packet item schema rejects unknown task fields"
+    foreach ($taskField in @("id", "title", "checklistLine")) {
+        Assert-True -Condition (@($taskPacketSchema.properties.tasks.items.required) -contains $taskField) -Message "Task packet item requires $taskField"
+    }
+
+    $mobileSchema = Get-Content -LiteralPath (Join-Path $fleetRoot "templates\mobile-request-schema.json") -Raw | ConvertFrom-Json
+    Assert-True -Condition ($mobileSchema.properties.rawCommand.not -ne $null) -Message "Mobile request schema still forbids rawCommand"
+
+    $reviewSchema = Get-Content -LiteralPath (Join-Path $fleetRoot "templates\review-packet-schema.json") -Raw | ConvertFrom-Json
+    foreach ($policyField in @("canApprove", "canExecute", "canOverridePolicy", "canBypassTaskPacketValidation")) {
+        Assert-Equal -Actual $reviewSchema.properties.policy.properties.$policyField.const -Expected $false -Message "Review packet policy keeps $policyField false"
+    }
+
+    $contractPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_QUEUE_CONTRACT.md"
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "Fail-Closed Negative Fixture Expectations",
+        "malformed JSON",
+        "missing required fields",
+        "parent traversal",
+        "absolute paths",
+        ".git",
+        "node_modules",
+        "dist",
+        "build",
+        ".env",
+        "secret-like",
+        "token-like",
+        "credential-like",
+        "private-key-like",
+        "secrets, auth, payments, deploy, or migrations",
+        "Unicode confusable slashes",
+        "control characters",
+        "misleading leading or trailing whitespace",
+        "overlong names or paths beyond schema maxLength limits",
+        "Bad input blocks or is classified invalid, never accepted as executable work",
+        "Additional Weird-Input Triage Note",
+        "HQ-066",
+        "executable-bearing fields",
+        "Free-form reviewer prose can remain descriptive evidence",
+        "must stay non-executable",
+        "cannot approve, select scope, bypass validation",
+        "no new schema field was widened",
+        "no real external packet was imported",
+        "no product repository was read or changed",
+        "no runtime launcher behavior was modified",
+        "fixture-only and fail-closed"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "HQ repair queue contract records fail-closed negative fixture expectation: $phrase"
+    }
+}
+
+function Test-HqSchemaExampleFixtures {
+    Write-Host "Testing HQ schema example fixtures..."
+
+    $exampleContracts = @{
+        "docs\fleet\REPO_FINGERPRINT_CONTRACT.md" = @("repo fingerprint sample", "repo-fixture-001", "FixtureShip", "changedFileSummary", "dirty", "not a live runtime record", "not permission to touch a product repo")
+        "docs\fleet\FAILURE_FINGERPRINT_CONTRACT.md" = @("failure fingerprint sample", "failure-fixture-001", "policy-denial", "non-retriable-policy-denial", '"retriable": false', "not permission to retry", "not an instruction to run a command")
+        "docs\fleet\LEASE_HEARTBEAT_CONTRACT.md" = @("lease heartbeat sample", "lease-fixture-001", "fence-fixture-1", "LEAVE_RUNNING", '"deletesLocks": false', "not permission to recover a worker", "not an instruction to delete locks")
+        "docs\fleet\BUDGET_SAFE_PAUSE_CONTRACT.md" = @("budget safe-pause sample", "budget-fixture-001", "WEEKLY_PREVIEW_PAUSE", "manualBudgetSignal", "providerBudgetSignal", "no-auto-resume-until-approved", "not permission to resume", "not an instruction to launch ships")
+    }
+
+    foreach ($relativePath in ($exampleContracts.Keys | Sort-Object)) {
+        $contractPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $contractPath) -Message "HQ schema example contract exists: $relativePath"
+        $contractText = Get-Content -LiteralPath $contractPath -Raw
+        Assert-True -Condition ($contractText -match "Documentation-Only Sample JSON") -Message "HQ schema example contract has documentation-only sample section: $relativePath"
+        Assert-True -Condition ($contractText -match '```json') -Message "HQ schema example contract has JSON fenced sample: $relativePath"
+        Assert-True -Condition ($contractText -match "fixture documentation example only") -Message "HQ schema example contract marks sample as fixture documentation only: $relativePath"
+        foreach ($phrase in $exampleContracts[$relativePath]) {
+            Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "HQ schema example contract $relativePath includes phrase: $phrase"
+        }
+    }
+
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-030 Schema Example Fixtures\s+\r?\n\s*- status: done') -Message "HQ-030 queue task is marked done"
+}
+
+function Test-HqOtherProjectTestReadinessGate {
+    Write-Host "Testing HQ other-project test readiness gate..."
+
+    $readinessPath = Join-Path $fleetRoot "docs\fleet\OTHER_PROJECT_TEST_READINESS.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $readinessPath) -Message "Other-project test readiness doc exists"
+    $readinessText = Get-Content -LiteralPath $readinessPath -Raw
+
+    foreach ($phrase in @(
+        "Other-Project Test Readiness Gate",
+        "GREEN",
+        "YELLOW",
+        "RED",
+        "HQ-020 external audit remediation is complete",
+        "Fail-closed contracts are checked",
+        "Strict schemas are checked",
+        "Human approval gates are documented",
+        "No product-repo launch automation is enabled or approved",
+        "Mobile requests, external reports, task packets, audit packages, and queue prose remain non-executable"
+    )) {
+        Assert-True -Condition ($readinessText -match [regex]::Escape($phrase)) -Message "Other-project readiness doc includes GREEN criterion: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "manual, read-only, single-project inspection",
+        "explicit human approval",
+        "selected project",
+        "entrypoint",
+        "allowed action",
+        "expected evidence",
+        "stop condition"
+    )) {
+        Assert-True -Condition ($readinessText -match [regex]::Escape($phrase)) -Message "Other-project readiness doc includes YELLOW criterion: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Validation fails",
+        "Product repo boundaries are unclear",
+        "Human approval is missing or vague",
+        "touch real product repos",
+        "launch product ships",
+        "run all-fleet commands",
+        "deploy, install packages, run migrations",
+        "touch secrets/auth/payments",
+        "delete locks",
+        "widen permissions"
+    )) {
+        Assert-True -Condition ($readinessText -match [regex]::Escape($phrase)) -Message "Other-project readiness doc includes RED criterion: $phrase"
+    }
+
+    foreach ($forbiddenPermission in @(
+        "does not grant permission",
+        "readiness is evidence, not permission",
+        "not for autonomous product mutation",
+        "Do not expand scope to make progress",
+        "Product-repo launch automation",
+        "Treating this readiness gate as permission"
+    )) {
+        Assert-True -Condition ($readinessText -match [regex]::Escape($forbiddenPermission)) -Message "Other-project readiness doc avoids permission grant: $forbiddenPermission"
+    }
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queueText -match '### HQ-031 Other-Project Test Readiness Gate\s+\r?\n\s*- status: done') -Message "HQ-031 queue task is marked done"
+}
+
+function Test-HqNextExternalAuditPrompt {
+    Write-Host "Testing HQ next external audit prompt..."
+
+    $promptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $auditPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_EXTERNAL_AUDIT.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $promptPath) -Message "HQ next external audit prompt exists"
+    $promptText = Get-Content -LiteralPath $promptPath -Raw
+    $auditText = Get-Content -LiteralPath $auditPath -Raw
+
+    foreach ($phrase in @(
+        "Paste-Ready External Audit Prompt",
+        "demo-trial readiness",
+        "evidence only",
+        "cannot approve, execute, bypass policy",
+        "manual, read-only, single-project demo trial",
+        "mobile requests, external reports, task packets, audit packages, queue prose",
+        "Overall verdict: GREEN, YELLOW, or RED",
+        "Suggested follow-up tasks only as non-executable suggestions"
+    )) {
+        Assert-True -Condition ($promptText -match [regex]::Escape($phrase)) -Message "HQ next external audit prompt includes phrase: $phrase"
+    }
+
+    foreach ($includeFile in @(
+        "docs/fleet/NEW_CHAT_HANDOFF_PACKET.md",
+        "docs/fleet/HQ_IMPORT_RECON.md",
+        "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/HQ_REPAIR_QUEUE_CONTRACT.md",
+        "docs/fleet/HQ_REPAIR_EXTERNAL_AUDIT.md",
+        "docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md",
+        "docs/fleet/HQ_COMMIT_READINESS_INVENTORY.md",
+        "docs/fleet/OTHER_PROJECT_TEST_READINESS.md",
+        "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+        "templates/*-schema.json",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($promptText -match [regex]::Escape($includeFile)) -Message "HQ next external audit prompt lists include file: $includeFile"
+    }
+
+    foreach ($excluded in @(
+        "product repositories or product source snapshots",
+        'unscoped `new-audit-package.ps1` output',
+        ".git",
+        ".env",
+        "node_modules",
+        "dist",
+        "build",
+        'raw `.codex-local/locks`',
+        "secrets, tokens, credentials, private keys",
+        "auth, payments, deploy, migration",
+        "unknown package zips"
+    )) {
+        Assert-True -Condition ($promptText -match [regex]::Escape($excluded)) -Message "HQ next external audit prompt excludes: $excluded"
+    }
+
+    foreach ($forbidden in @(
+        "launch product ships",
+        "run all-fleet commands",
+        "mutate product repositories",
+        "install packages",
+        "run migrations",
+        "touch secrets/auth/payments",
+        "delete locks",
+        "widen permissions",
+        "merge, push"
+    )) {
+        Assert-True -Condition ($promptText -match [regex]::Escape($forbidden)) -Message "HQ next external audit prompt forbids: $forbidden"
+    }
+
+    Assert-True -Condition ($auditText -match [regex]::Escape("docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md")) -Message "HQ repair external audit doc links next prompt"
+    Assert-True -Condition ($auditText -match [regex]::Escape("The refresh package is not created by this document")) -Message "HQ repair external audit doc says refresh package is not created"
+    Assert-False -Condition ($promptText -match "(?i)(run|launch|execute)\s+(now|the fleet now|all-fleet now|product ships now)") -Message "HQ next external audit prompt avoids executable broad instructions"
+}
+
+function Test-HqFixtureOnlyDemoRehearsalRunbook {
+    Write-Host "Testing HQ fixture-only demo rehearsal runbook..."
+
+    $runbookPath = Join-Path $fleetRoot "docs\fleet\FIXTURE_ONLY_DEMO_REHEARSAL_RUNBOOK.md"
+    $expansionPath = Join-Path $fleetRoot "docs\fleet\CONTROLLED_USE_REHEARSAL_EXPANSION.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $runbookPath) -Message "Fixture-only demo rehearsal runbook exists"
+    $runbookText = Get-Content -LiteralPath $runbookPath -Raw
+    $expansionText = Get-Content -LiteralPath $expansionPath -Raw
+
+    foreach ($phrase in @(
+        "Fixture-Only Demo Rehearsal Runbook",
+        "fixture-only and harness-only",
+        "fixture selection",
+        "Read-Only Inspection",
+        "Blocked Write Attempts",
+        "HQ Safety-Spine Scenario Evidence",
+        "Safe Pause And Report Capture",
+        "GREEN / YELLOW / RED Exit Criteria",
+        "Stop Conditions",
+        "rehearsal evidence is not permission",
+        "fixture-only success does not authorize a real-project trial"
+    )) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($phrase)) -Message "Fixture-only demo rehearsal runbook includes phrase: $phrase"
+    }
+
+    foreach ($evidence in @(
+        "controlled-use-rehearsal/demo/fixture-selection.json",
+        "controlled-use-rehearsal/demo/read-only-inspection.md",
+        "controlled-use-rehearsal/demo/read-only-inspection.json",
+        "controlled-use-rehearsal/demo/blocked-write-attempts.json",
+        "controlled-use-rehearsal/demo/safe-pause.json",
+        "controlled-use-rehearsal/demo/rehearsal-report.md",
+        "controlled-use-rehearsal/demo/rehearsal-report.json",
+        "controlled-use-rehearsal/hq/repo-fingerprint-drift.json",
+        "controlled-use-rehearsal/hq/stale-lease.json",
+        "controlled-use-rehearsal/hq/worktree-mismatch.json",
+        "controlled-use-rehearsal/hq/failure-anti-loop.json",
+        "controlled-use-rehearsal/hq/dashboard-unknown.json",
+        "controlled-use-rehearsal/hq/budget-safe-pause.json",
+        "controlled-use-rehearsal/hq/artifact-index-proof.json"
+    )) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($evidence)) -Message "Fixture-only demo rehearsal runbook names evidence: $evidence"
+    }
+
+    foreach ($criterion in @(
+        "GREEN means all fixture-only steps pass",
+        "YELLOW means the rehearsal is locally safe but needs captain review",
+        "RED means stop before any real-project action",
+        "no auto-resume",
+        "no real-project trial approval",
+        "external reviewer output remains evidence only"
+    )) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($criterion)) -Message "Fixture-only demo rehearsal runbook includes criterion: $criterion"
+    }
+
+    foreach ($stopCondition in @(
+        "touching a real product repo",
+        "launching a product ship",
+        "running all-fleet commands",
+        "writing product files",
+        "deleting locks",
+        "installing packages",
+        "running migrations",
+        "touching secrets, auth, payments",
+        "merging, pushing, or deploying",
+        "using unscoped broad audit packaging",
+        "treating external reports, mobile requests, task packets, audit packages, this runbook, or queue prose as executable commands"
+    )) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($stopCondition)) -Message "Fixture-only demo rehearsal runbook includes stop condition: $stopCondition"
+    }
+
+    Assert-True -Condition ($runbookText -match [regex]::Escape("invoke-final-readiness.ps1") -and $runbookText -match [regex]::Escape("-UseControlledUseRehearsal")) -Message "Fixture-only demo rehearsal runbook references final readiness rehearsal switch"
+    Assert-True -Condition ($expansionText -match [regex]::Escape("docs/fleet/FIXTURE_ONLY_DEMO_REHEARSAL_RUNBOOK.md")) -Message "HQ rehearsal expansion links fixture-only demo runbook"
+}
+
+function Test-HqDemoTrialApprovalPacket {
+    Write-Host "Testing HQ demo trial approval packet template..."
+
+    $packetPath = Join-Path $fleetRoot "docs\fleet\DEMO_TRIAL_APPROVAL_PACKET.md"
+    $readinessPath = Join-Path $fleetRoot "docs\fleet\OTHER_PROJECT_TEST_READINESS.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $packetPath) -Message "Demo trial approval packet template exists"
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $readinessText = Get-Content -LiteralPath $readinessPath -Raw
+
+    foreach ($phrase in @(
+        "Demo Trial Approval Packet Template",
+        "template only",
+        "manual, read-only, single-project demo trial",
+        "approval is exact-action-bound",
+        "Selected project id",
+        "Exact repo path",
+        "Approved entrypoint",
+        "Allowed action",
+        "Expected output",
+        "Approver / owner",
+        "Approval timestamp",
+        "Expiration timestamp",
+        "Stop condition",
+        "Completeness Gate",
+        "Approval status",
+        "Approved Read-Only Command List",
+        "Required Preflight Checklist",
+        "Owner Training Note",
+        "Fixture-Only Non-Approval Example",
+        "Rejected approval examples",
+        "Expiration And Reuse"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Demo trial approval packet includes phrase: $phrase"
+    }
+
+    foreach ($forbidden in @(
+        "product file writes",
+        "product ship launches",
+        "all-fleet commands",
+        "merges, pushes, deploys",
+        "package installs",
+        "migrations",
+        "secrets/auth/payments/deploy work",
+        "lock deletion",
+        "permission changes",
+        "external side effects",
+        "broad audit packaging",
+        "use on any other project or repo path",
+        "Missing, placeholder, expired, reused, broad, ambiguous, wildcard, all-fleet, multi-project",
+        "Do not repair the packet by guessing",
+        "not valid for real projects",
+        "not signed approval",
+        "not reusable approval",
+        "not current approval",
+        "not permission to run any command"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($forbidden)) -Message "Demo trial approval packet forbids: $forbidden"
+    }
+
+    foreach ($ownerGuidance in @(
+        "queue cannot fill a real approval packet",
+        "select a real project",
+        "incomplete approval",
+        "expired approval",
+        "reused approval",
+        "broad approval",
+        "ambiguous approval",
+        "write-capable approval",
+        "fixture-only approval",
+        "exact project id",
+        "absolute repo path",
+        "exact read-only commands",
+        "expected evidence",
+        "owner",
+        "approval timestamp",
+        "expiration timestamp",
+        "stop conditions",
+        "not valid for real projects",
+        "stop before action and mark the real-project trial blocked"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($ownerGuidance)) -Message "Demo trial approval packet includes owner training guidance: $ownerGuidance"
+    }
+
+    foreach ($requiredField in @(
+        "Selected project id",
+        "Exact repo path",
+        "Approved entrypoint",
+        "Allowed action",
+        "Expected output",
+        "Approver / owner",
+        "Approval timestamp",
+        "Expiration timestamp",
+        "Stop condition"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($requiredField)) -Message "Demo trial approval packet still requires field: $requiredField"
+    }
+
+    foreach ($blockedCase in @(
+        "Missing approval",
+        "Expired approval",
+        "Reused approval",
+        "Broad approval",
+        "Ambiguous approval",
+        "Write-capable approval",
+        "External-side-effect approval",
+        "Forbidden operation approval"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($blockedCase)) -Message "Demo trial approval packet includes blocked fixture case: $blockedCase"
+    }
+
+    foreach ($stop in @(
+        "selected project id is missing",
+        "exact repo path is missing",
+        "approval is missing, incomplete, expired, reused",
+        "approval status is not exactly",
+        "approval timestamp or expiration timestamp is missing",
+        "command is not listed",
+        "command differs from the exact approved command",
+        "write product files",
+        "launch product ships",
+        "run all-fleet commands",
+        "deploy, install packages, run migrations",
+        "touch secrets/auth/payments/deploy material",
+        "delete locks",
+        "widen permissions",
+        "merge, or push",
+        "use unscoped audit package defaults",
+        "treated as executable commands"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($stop)) -Message "Demo trial approval packet includes stop condition: $stop"
+    }
+
+    Assert-True -Condition ($packetText -match [regex]::Escape("APPROVED_FOR_READ_ONLY_DEMO_TRIAL")) -Message "Demo trial approval packet names approved status explicitly"
+    Assert-True -Condition ($packetText -match [regex]::Escape("Approval cannot be reused for another project")) -Message "Demo trial approval packet forbids reuse"
+    Assert-True -Condition ($packetText -match [regex]::Escape("Every trial needs a fresh owner, timestamp, expiration, exact command list, and stop condition")) -Message "Demo trial approval packet requires fresh per-trial approval"
+    Assert-True -Condition ($packetText -match [regex]::Escape("at least one exact command, no placeholders, no broad defaults")) -Message "Demo trial approval packet blocks empty or placeholder command lists"
+    Assert-True -Condition ($packetText -match [regex]::Escape("FIXTURE_EXAMPLE_NOT_APPROVED")) -Message "Demo trial approval packet fixture example is explicitly not approved"
+    Assert-True -Condition ($packetText -match [regex]::Escape("Do not copy this example into a real trial packet")) -Message "Demo trial approval packet blocks copying fixture example"
+    Assert-True -Condition ($packetText -match [regex]::Escape("FixtureOnlyDemoProject") -and $packetText -match [regex]::Escape("fixture no-op commands")) -Message "Demo trial approval packet fixture values remain explicitly non-real"
+    Assert-True -Condition ($packetText -match [regex]::Escape("docs/fleet/DEMO_TRIAL_EVIDENCE_TEMPLATE.md")) -Message "Demo trial approval packet points to evidence template"
+    Assert-True -Condition ($readinessText -match [regex]::Escape("docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md")) -Message "Other-project readiness links demo trial approval packet"
+    Assert-True -Condition ($readinessText -match [regex]::Escape("Missing, expired, reused, broad, ambiguous, wildcard, all-fleet, multi-project")) -Message "Other-project readiness blocks incomplete or broad approvals"
+    Assert-True -Condition ($readinessText -match [regex]::Escape("The exact command must appear in the approved read-only command list")) -Message "Other-project readiness requires exact approved command list"
+    Assert-False -Condition ($packetText -match "(?i)(approval|approved)\s+(grants|allows|authorizes)\s+.*(writes|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions|merge|push)") -Message "Demo trial approval packet does not approve forbidden operations"
+}
+
+function Test-HqDemoTrialEvidenceTemplate {
+    Write-Host "Testing HQ demo trial evidence template..."
+
+    $templatePath = Join-Path $fleetRoot "docs\fleet\DEMO_TRIAL_EVIDENCE_TEMPLATE.md"
+    $packetPath = Join-Path $fleetRoot "docs\fleet\DEMO_TRIAL_APPROVAL_PACKET.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $templatePath) -Message "Demo trial evidence template exists"
+    $templateText = Get-Content -LiteralPath $templatePath -Raw
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+
+    foreach ($phrase in @(
+        "Demo Trial Evidence Template",
+        "template only",
+        "Trial Metadata",
+        "Approved Scope",
+        "Commands Actually Run",
+        "Output Summary",
+        "Blocked Operations",
+        "Observed Risks",
+        "No-Op Confirmation",
+        "GREEN / YELLOW / RED Trial Result Rubric",
+        "External Audit Questions",
+        "Stop Conditions",
+        "Approval packet path",
+        "Selected project id",
+        "Exact repo path",
+        "Owner / approver",
+        "Approval timestamp",
+        "Expiration timestamp"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($phrase)) -Message "Demo trial evidence template includes phrase: $phrase"
+    }
+
+    foreach ($blocked in @(
+        "approved scope",
+        "commands actually run",
+        "Outputs were summarized",
+        "blocked operations",
+        "observed risks",
+        "No product files changed",
+        "No product repo mutation occurred",
+        "No product ships launched",
+        "No all-fleet commands ran",
+        "No deploy, package install, migration, secrets/auth/payments/deploy, lock deletion, permission widening, merge, or push work occurred"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($blocked)) -Message "Demo trial evidence template captures required evidence: $blocked"
+    }
+
+    foreach ($rubric in @(
+        "GREEN means the trial stayed within one approved manual read-only single-project scope",
+        "YELLOW means the trial remained read-only and no-op against the product repo",
+        "RED means stop and do not continue"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($rubric)) -Message "Demo trial evidence template includes rubric text: $rubric"
+    }
+
+    foreach ($question in @(
+        "Did the selected project id and exact repo path match the approval packet?",
+        "Did every command actually run appear in the approved read-only command list?",
+        "Were blocked operations complete and correctly classified?",
+        "Is the result GREEN, YELLOW, or RED based on the rubric?"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($question)) -Message "Demo trial evidence template includes external audit question: $question"
+    }
+
+    Assert-True -Condition ($templateText -match [regex]::Escape("docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md")) -Message "Demo trial evidence template links approval packet"
+    Assert-True -Condition ($packetText -match [regex]::Escape("docs/fleet/DEMO_TRIAL_EVIDENCE_TEMPLATE.md")) -Message "Demo trial approval packet links evidence template"
+    Assert-False -Condition ($templateText -match "(?i)(run|launch|execute)\s+(now|the fleet now|all-fleet now|product ships now)") -Message "Demo trial evidence template does not contain broad executable phrasing"
+}
+
+function Test-HqDemoTrialStopSignsChecklist {
+    Write-Host "Testing HQ demo trial stop-signs checklist..."
+
+    $checklistPath = Join-Path $fleetRoot "docs\fleet\DEMO_TRIAL_STOP_SIGNS.md"
+    $packetPath = Join-Path $fleetRoot "docs\fleet\DEMO_TRIAL_APPROVAL_PACKET.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $checklistPath) -Message "Demo trial stop-signs checklist exists"
+    $checklistText = Get-Content -LiteralPath $checklistPath -Raw
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+
+    foreach ($phrase in @(
+        "Demo Trial Stop-Signs Checklist",
+        "checklist only",
+        "Stop signs produce evidence and no execution",
+        "Operator Checklist",
+        "Stop Signs",
+        "Evidence Action",
+        "GREEN / YELLOW / RED Use",
+        "a stop sign means stop before action",
+        "stop-sign evidence is not permission to continue",
+        "read-only demo trial cannot become product mutation work"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($phrase)) -Message "Demo trial stop-signs checklist includes phrase: $phrase"
+    }
+
+    foreach ($source in @(
+        "docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md",
+        "docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md",
+        "docs/fleet/WORKTREE_ISOLATION_CONTRACT.md",
+        "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+        "docs/fleet/DEMO_TRIAL_EVIDENCE_TEMPLATE.md"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($source)) -Message "Demo trial stop-signs checklist references input: $source"
+    }
+
+    foreach ($stopSign in @(
+        "unclear project identity",
+        "missing approval",
+        "repo path mismatch",
+        "dirty boundary ambiguity",
+        "stale fingerprint",
+        "unapproved command",
+        "invalid approval timing",
+        "incomplete command approval",
+        "write request",
+        "external side effect",
+        "secret/auth/payment/deploy/migration touch",
+        "lock deletion",
+        "permission widening",
+        "merge or push",
+        "all-fleet scope",
+        "product launch"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($stopSign)) -Message "Demo trial stop-signs checklist includes stop sign: $stopSign"
+    }
+
+    foreach ($operatorItem in @(
+        "Project identity is exact",
+        "Approval packet exists, is complete",
+        "Approval timestamp and expiration timestamp are present",
+        "Exact repo path matches",
+        "Approved entrypoint and command match",
+        "does not show dirty boundary ambiguity",
+        "does not show stale fingerprint",
+        "Command is read-only against the product repo",
+        "Command writes only approved local report evidence",
+        "Command does not create an external side effect",
+        "Command does not touch secrets/auth/payments/deploy material",
+        "Command does not delete locks or widen permissions",
+        "Command does not merge or push"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($operatorItem)) -Message "Demo trial stop-signs checklist includes operator item: $operatorItem"
+    }
+
+    foreach ($evidenceAction in @(
+        "Record the stop sign",
+        "Record the source document, command, or observed field",
+        "Mark the trial result RED",
+        "Do not run fallback commands",
+        "Do not edit product repos",
+        "Do not launch product ships",
+        "Do not treat the stop-sign checklist as approval to continue"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($evidenceAction)) -Message "Demo trial stop-signs checklist includes evidence action: $evidenceAction"
+    }
+
+    Assert-True -Condition ($packetText -match [regex]::Escape("docs/fleet/DEMO_TRIAL_STOP_SIGNS.md")) -Message "Demo trial approval packet links stop-signs checklist"
+    Assert-True -Condition ($checklistText -match [regex]::Escape("Approval invalid means missing, incomplete, expired, reused, broad, ambiguous, wrong-owner")) -Message "Demo trial stop-signs checklist defines invalid approval"
+    Assert-True -Condition ($checklistText -match [regex]::Escape("missing exact command list")) -Message "Demo trial stop-signs checklist blocks missing exact command list"
+    Assert-True -Condition ($checklistText -match [regex]::Escape("Fixture-only examples")) -Message "Demo trial stop-signs checklist treats fixture examples as evidence only"
+    Assert-True -Condition ($checklistText -match [regex]::Escape("must block a real-project trial if copied")) -Message "Demo trial stop-signs checklist blocks copied fixture approval"
+    foreach ($ownerStop in @(
+        "Owner training rule",
+        "incomplete approval",
+        "expired approval",
+        "reused approval",
+        "broad approval",
+        "ambiguous approval",
+        "write-capable approval",
+        "fixture-only approval",
+        "active stop signs",
+        "exact project id",
+        "absolute repo path",
+        "exact read-only commands",
+        "expected evidence",
+        "queue cannot fill a real approval packet"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($ownerStop)) -Message "Demo trial stop-signs checklist includes owner training stop rule: $ownerStop"
+    }
+    Assert-False -Condition ($checklistText -match "(?i)(checklist|stop-sign).*?(approves|authorizes|grants)\s+.*?(execution|product mutation|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions|merge|push)") -Message "Demo trial stop-signs checklist does not approve forbidden operations"
+}
+
+function Test-HqDemoReadyTrialGoNoGoSummary {
+    Write-Host "Testing HQ demo-ready trial go/no-go summary..."
+
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $summaryPath) -Message "Demo-ready trial go/no-go summary exists"
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "Demo-Ready Trial Go/No-Go Summary",
+        "local go/no-go summary only",
+        "Completed Prerequisites",
+        "Test Status",
+        "Commit Status",
+        "External Audit Status",
+        "Remaining Risks",
+        "Go / No-Go Rubric",
+        "Exact Next Human Decision",
+        "go/no-go evidence is not permission",
+        "a demo-ready trial still requires exact human approval",
+        "no product repo action is approved by this summary"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($phrase)) -Message "Demo-ready go/no-go summary includes phrase: $phrase"
+    }
+
+    foreach ($prerequisite in @(
+        "HQ-021 Control-Plane Spine Decision Point",
+        "HQ-022 Fleet.Core MVP Scaffold Proposal",
+        "HQ-023 Controlled-Use Rehearsal Expansion Plan",
+        "HQ-024 Post-Batch Audit Summary Template",
+        "HQ-032 Queue Reconciliation Proof",
+        "HQ-033 Commit Readiness Inventory",
+        "HQ-034 External Audit Refresh Package Plan",
+        "HQ-035 Fixture-Only Demo Rehearsal Runbook",
+        "HQ-036 Demo Trial Approval Packet Template",
+        "HQ-037 Demo Trial Evidence Template",
+        "HQ-038 High-Risk Entrypoint Sentinel Sweep",
+        "HQ-039 Demo Trial Stop-Signs Checklist"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($prerequisite)) -Message "Demo-ready go/no-go summary lists prerequisite: $prerequisite"
+    }
+
+    foreach ($evidencePath in @(
+        "docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md",
+        "docs/fleet/HQ_COMMIT_READINESS_INVENTORY.md",
+        "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+        "docs/fleet/FIXTURE_ONLY_DEMO_REHEARSAL_RUNBOOK.md",
+        "docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md",
+        "docs/fleet/DEMO_TRIAL_EVIDENCE_TEMPLATE.md",
+        "docs/fleet/DEMO_TRIAL_STOP_SIGNS.md"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($evidencePath)) -Message "Demo-ready go/no-go summary references evidence path: $evidencePath"
+    }
+
+    foreach ($statusPhrase in @(
+        "Expected local interpretation: GREEN only after the command passes",
+        "Current commit posture remains YELLOW",
+        "Current external audit posture is YELLOW",
+        "Final Audit Remediation Status",
+        "Current recommendation: ``SEND_EXTERNAL_AUDIT`` after ``HQ-060`` passes validation"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($statusPhrase)) -Message "Demo-ready go/no-go summary includes status phrase: $statusPhrase"
+    }
+
+    foreach ($rubric in @(
+        "GREEN means ready for one approved read-only single-project demo trial",
+        "YELLOW means more review or fixture rehearsal is needed",
+        "RED means do not run a real-project trial"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($rubric)) -Message "Demo-ready go/no-go summary includes rubric: $rubric"
+    }
+
+    foreach ($finalTaskId in @("HQ-048", "HQ-049", "HQ-050", "HQ-051", "HQ-052", "HQ-053", "HQ-054", "HQ-055", "HQ-056", "HQ-057", "HQ-058")) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($finalTaskId)) -Message "Demo-ready go/no-go summary lists completed final audit remediation task: $finalTaskId"
+    }
+
+    foreach ($posturePhrase in @(
+        "Ready for fixture-only rehearsal",
+        "Ready to ask another external reviewer for GREEN/YELLOW/RED after a human approves exact package scope",
+        "Not ready for an unapproved real-project demo trial",
+        "One manual read-only single-project demo can be considered only after"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($posturePhrase)) -Message "Demo-ready go/no-go summary includes final posture phrase: $posturePhrase"
+    }
+
+    foreach ($closeoutPhrase in @(
+        "Overnight Final Audit Follow-Up Closeout",
+        "HQ-061",
+        "HQ-062",
+        "HQ-063",
+        "HQ-064",
+        "HQ-065",
+        "HQ-066",
+        "HQ-067",
+        "Morning human decisions still needed",
+        "External audit review",
+        "Commit-scope review",
+        "Approval packet",
+        "Stop signs",
+        "Runtime implementation approval if desired",
+        "Closeout GREEN",
+        "Closeout YELLOW",
+        "Closeout RED",
+        "Fixture-only posture remains the default"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($closeoutPhrase)) -Message "Demo-ready go/no-go summary includes overnight closeout phrase: $closeoutPhrase"
+    }
+
+    foreach ($runtimeFreezePhrase in @(
+        "Runtime Pilot Evidence Freeze",
+        "dry-run evidence only",
+        "one named entrypoint only",
+        "``invoke-autonomy-wrapper.ps1``",
+        "All ``ALLOW``, ``ALLOW_DRY_RUN``, or positive pilot outcomes remain local evidence only",
+        '`ALLOW_DRY_RUN` means "the dry-run fixture passed"',
+        "never means approval to execute, mutate, stage, commit, push, launch, run a demo, or carry future authority",
+        "Real-project demo posture remains YELLOW until human approval packet, stop-sign review, commit-scope review, and exact project selection are complete",
+        "real demo approval packet",
+        "stop signs reviewed and inactive",
+        "exact project selection",
+        "explicit runtime-widening approval",
+        "does not approve product mutation, staging, commit, push, demo trial, worktree creation/deletion, package installation"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($runtimeFreezePhrase)) -Message "Demo-ready go/no-go summary includes runtime pilot evidence freeze phrase: $runtimeFreezePhrase"
+    }
+
+    foreach ($runtimeDecisionPhrase in @(
+        "Runtime Pilot Go/No-Go Refresh",
+        "HQ-077",
+        "What the runtime pilot now proves locally",
+        "What the runtime pilot still does not prove",
+        "Runtime pilot go/no-go status: YELLOW",
+        "one named entrypoint: ``invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun``",
+        "ALLOW_DRY_RUN",
+        "executesProductActions = false",
+        "launchesShips = false",
+        "importsPackets = false",
+        "mutatesProductRepos = false",
+        "canApproveFutureRuns = false",
+        "commandInput = false",
+        "fail-closed or human-review-only",
+        "generated runtime pilot evidence stays local",
+        "no real product repository has been selected",
+        "no real approval packet has been filled",
+        "no stop-sign review has cleared a real trial",
+        "no external audit disposition has returned GREEN",
+        "no commit-scope review has separated existing dirty work",
+        "The posture can move toward GREEN for one manual read-only single-project demo only after",
+        "SEND_RUNTIME_PILOT_AUDIT",
+        "STAY_FIXTURE_ONLY",
+        "PREPARE_ONE_READ_ONLY_DEMO_PACKET",
+        "NO_GO",
+        "RED stop signs remain active"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($runtimeDecisionPhrase)) -Message "Demo-ready go/no-go summary includes runtime pilot decision phrase: $runtimeDecisionPhrase"
+    }
+
+    foreach ($runtimeCloseoutPhrase in @(
+        "Runtime Pilot Queue Closeout",
+        "HQ-078",
+        "Runtime Enforcement Pilot Queue 2026-06-01",
+        "Runtime pilot queue closeout status: local GREEN for docs/tests evidence",
+        "Real-project demo posture remains YELLOW",
+        "HQ-069",
+        "HQ-070",
+        "HQ-071",
+        "HQ-072",
+        "HQ-073",
+        "HQ-074",
+        "HQ-075",
+        "HQ-076",
+        "HQ-077",
+        "Remaining human decisions",
+        "External audit disposition",
+        "Commit-scope review",
+        "Approval packet",
+        "Stop signs",
+        "generated evidence and audit packages stay local",
+        "separate commit-scope review",
+        "SEND_RUNTIME_PILOT_AUDIT",
+        "STAY_FIXTURE_ONLY",
+        "PREPARE_ONE_READ_ONLY_DEMO_PACKET",
+        "CONTINUE_RUNTIME_HARDENING",
+        "NO_GO",
+        "does not create or send packages",
+        "does not permit execution, staging, commit, push, product repo access, package sending, or a demo trial"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($runtimeCloseoutPhrase)) -Message "Demo-ready go/no-go summary includes runtime pilot closeout phrase: $runtimeCloseoutPhrase"
+    }
+
+    foreach ($approvalOwnerPhrase in @(
+        "HQ-065",
+        "owner guidance",
+        "incomplete approval",
+        "expired approval",
+        "reused approval",
+        "broad approval",
+        "ambiguous approval",
+        "write-capable approval",
+        "fixture-only approval",
+        "queue cannot fill a real approval packet",
+        "exact project id",
+        "absolute repo path",
+        "exact read-only commands",
+        "expected evidence",
+        "approval timestamp",
+        "expiration timestamp",
+        "stop conditions"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($approvalOwnerPhrase)) -Message "Demo-ready go/no-go summary includes HQ-065 owner guidance: $approvalOwnerPhrase"
+    }
+
+    foreach ($decision in @(
+        "STAY_FIXTURE_ONLY",
+        "SEND_EXTERNAL_AUDIT",
+        "APPROVE_ONE_READ_ONLY_DEMO_TRIAL",
+        "NO_GO"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($decision)) -Message "Demo-ready go/no-go summary includes human decision: $decision"
+    }
+
+    foreach ($forbidden in @(
+        "product repo edits",
+        "product ship launches",
+        "all-fleet commands",
+        "broad audit packaging",
+        "deploy",
+        "package install",
+        "migration",
+        "secrets/auth/payments/deploy work",
+        "lock deletion",
+        "permission widening",
+        "merge",
+        "push"
+    )) {
+        Assert-True -Condition ($summaryText -match [regex]::Escape($forbidden)) -Message "Demo-ready go/no-go summary preserves forbidden boundary: $forbidden"
+    }
+
+    Assert-True -Condition ($queueText -match '### HQ-039 Demo Trial Stop-Signs Checklist\s+\r?\n\s*- status: done') -Message "HQ-039 queue prerequisite is marked done"
+    Assert-True -Condition ($queueText -match '### HQ-077 Runtime Pilot Go/No-Go Refresh\s+\r?\n\s*- status: (pending|done)') -Message "HQ-077 queue task is active or completed"
+    Assert-True -Condition ($queueText -match '### HQ-078 Runtime Pilot Closeout And Next Decision\s+\r?\n\s*- status: (pending|done)') -Message "HQ-078 queue task is active or completed"
+    Assert-False -Condition ($summaryText -match '(?i)(summary|go/no-go).*?(approves|authorizes|grants)\s+.*?(execution|product mutation|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions|merge|push)') -Message "Demo-ready go/no-go summary does not approve forbidden operations"
+    Assert-False -Condition ($summaryText -match '(?i)closeout.*?(approves|authorizes|grants)\s+.*?(execution|staging|commit|push|demo trial|product-repo|runtime enforcement)') -Message "Overnight closeout text does not grant execution authority"
+    Assert-False -Condition ($summaryText -match '(?i)(runtime pilot|evidence freeze).*?(approves|authorizes|grants)\s+.*?(product mutation|staging|commit|push|demo trial|worktree creation|package installation|runtime widening)') -Message "Runtime pilot evidence freeze does not grant execution authority"
+    Assert-False -Condition ($summaryText -match '(?i)(runtime pilot go/no-go|runtime pilot decision|pilot evidence).*?(approves|authorizes|grants)\s+.*?(product mutation|staging|commit|push|demo execution|product-mode authority)') -Message "Runtime pilot go/no-go text does not grant execution authority"
+    Assert-False -Condition ($summaryText -match '(?i)(runtime pilot queue closeout|HQ-078).*?(approves|authorizes|grants)\s+.*?(execution|staging|commit|push|product repo access|demo trial|package sending)') -Message "Runtime pilot closeout text does not grant execution authority"
+}
+
+function Test-HqExternalAuditRefreshEvidenceRecord {
+    Write-Host "Testing HQ external audit refresh evidence record..."
+
+    $promptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $auditPath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_EXTERNAL_AUDIT.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $promptText = Get-Content -LiteralPath $promptPath -Raw
+    $auditText = Get-Content -LiteralPath $auditPath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $combinedText = $promptText + "`n" + $auditText + "`n" + $summaryText
+
+    foreach ($phrase in @(
+        "Current Refresh Evidence Record",
+        "Latest Bounded Refresh Evidence Record",
+        "HQ-045 External Audit Refresh Evidence Record",
+        "harness/docs/tests/schemas/scrubbed evidence only",
+        "scrubbed validation summary or test evidence",
+        "Reviewer handoff status",
+        "YELLOW evidence ready for bounded external review",
+        "Demo posture remains YELLOW",
+        "external reviewer returns GREEN",
+        "captain explicitly accepts a bounded YELLOW limitation",
+        "fills the exact approval packet",
+        "no active stop signs"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "HQ external audit refresh evidence records phrase: $phrase"
+    }
+
+    foreach ($includeScope in @(
+        "docs/fleet/NEW_CHAT_HANDOFF_PACKET.md",
+        "docs/fleet/HQ_IMPORT_RECON.md",
+        "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/HQ_REPAIR_QUEUE_CONTRACT.md",
+        "docs/fleet/HQ_REPAIR_EXTERNAL_AUDIT.md",
+        "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+        "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md",
+        "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+        "templates/*-schema.json",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($includeScope)) -Message "HQ external audit refresh records bounded include scope: $includeScope"
+    }
+
+    foreach ($excluded in @(
+        "product repos",
+        "product source snapshots",
+        ".git",
+        ".env",
+        "node_modules",
+        "dist",
+        "build",
+        "raw locks",
+        ".codex-local/locks",
+        "secrets",
+        "tokens",
+        "credentials",
+        "private keys",
+        "auth/payments/deploy/migration material",
+        "unknown zips",
+        "live worker state"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($excluded)) -Message "HQ external audit refresh records exclusion: $excluded"
+    }
+
+    foreach ($forbiddenAuthority in @(
+        "cannot approve",
+        "execute",
+        "import tasks",
+        "bypass policy",
+        "launch product ships",
+        "run all-fleet commands",
+        "mutate product repositories",
+        "install packages",
+        "run migrations",
+        "delete locks",
+        "widen permissions",
+        "merge",
+        "push",
+        "grant future permission",
+        "authorize a demo trial"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($forbiddenAuthority)) -Message "HQ external audit refresh keeps reviewer non-authority boundary: $forbiddenAuthority"
+    }
+
+    Assert-False -Condition ($combinedText -match "(?i)(create|build|send)\s+(an?\s+)?(unscoped|all-fleet|product repo|product source).*audit package") -Message "HQ external audit refresh does not request unscoped/product audit package creation"
+}
+
+function Test-HqRuntimeEnforcementDeferralBoundary {
+    Write-Host "Testing HQ runtime enforcement deferral boundary..."
+
+    $decisionPath = Join-Path $fleetRoot "docs\fleet\CONTROL_PLANE_SPINE_DECISION.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $planPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md"
+    $readinessPath = Join-Path $fleetRoot "docs\fleet\OTHER_PROJECT_TEST_READINESS.md"
+
+    $decisionText = Get-Content -LiteralPath $decisionPath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $planText = Get-Content -LiteralPath $planPath -Raw
+    $readinessText = Get-Content -LiteralPath $readinessPath -Raw
+    $combinedText = $decisionText + "`n" + $summaryText + "`n" + $planText + "`n" + $readinessText
+
+    foreach ($relativePath in @(
+        "docs\fleet\CONTROL_PLANE_SPINE_DECISION.md",
+        "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md",
+        "docs\fleet\RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md",
+        "docs\fleet\OTHER_PROJECT_TEST_READINESS.md"
+    )) {
+        $text = Get-Content -LiteralPath (Join-Path $fleetRoot $relativePath) -Raw
+        Assert-True -Condition (($text -match [regex]::Escape("Runtime Enforcement Deferral Boundary")) -or ($text -match [regex]::Escape("Anti-Confusion Note For Current Queue"))) -Message "Runtime enforcement deferral boundary section exists: $relativePath"
+    }
+
+    foreach ($phrase in @(
+        "contracts, schemas, fixture helpers",
+        "documentation evidence only",
+        "lease heartbeat records",
+        "repo fingerprint records",
+        "worktree boundary records",
+        "runtime policy decisions",
+        "selected-ship ledger records",
+        "not full runtime enforcement gates",
+        "later bounded task explicitly implements",
+        "YELLOW for automated or mutating work",
+        "not permission to mutate product repositories",
+        "not allow product repo edits",
+        "one explicitly approved manual read-only single-project demo",
+        "approval packet",
+        "stop-sign review",
+        "external audit disposition",
+        "commit-scope review",
+        "Anti-confusion rule",
+        "Anti-Confusion Note For Current Queue",
+        "current queue does not implement runtime enforcement",
+        "Strict schemas, contracts, ledgers",
+        "reviewer outputs",
+        "not runtime gates",
+        "not permission",
+        "separate captain-approved bounded task",
+        "dry-run-first runtime pilot",
+        "externally supplied",
+        "queue-prose-sourced input remains non-executable"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Runtime enforcement deferral boundary preserves phrase: $phrase"
+    }
+
+    foreach ($blocked in @(
+        "product-repo mutation",
+        "ship launches",
+        "all-fleet commands",
+        "package installation",
+        "migrations",
+        "secrets/auth/payments/deploy",
+        "lock deletion",
+        "permission widening",
+        "merge",
+        "push",
+        "worktree creation",
+        "durable lease enforcement",
+        "runtime policy enforcement",
+        "Fleet.Core/SQLite implementation",
+        "treating contracts/schemas/helpers as permission"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($blocked)) -Message "Runtime enforcement deferral boundary blocks: $blocked"
+    }
+
+    Assert-False -Condition ($combinedText -match "(?i)(contracts|schemas|helpers|ledgers|fingerprints|leases).*?(authorize\s+(mutation|execution|launch|all-fleet)|approve\s+(mutation|execution|launch|all-fleet)|grant\s+(runtime execution|product mutation|all-fleet scope))") -Message "Runtime enforcement deferral boundary does not turn evidence into authority"
+}
+
+function Test-HqRuntimeEnforcementImplementationPlan {
+    Write-Host "Testing HQ runtime enforcement implementation plan..."
+
+    $planPath = Join-Path $fleetRoot "docs\fleet\RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md"
+    $decisionPath = Join-Path $fleetRoot "docs\fleet\CONTROL_PLANE_SPINE_DECISION.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $planPath) -Message "Runtime enforcement implementation plan exists"
+
+    $planText = Get-Content -LiteralPath $planPath -Raw
+    $decisionText = Get-Content -LiteralPath $decisionPath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $combinedText = $planText + "`n" + $decisionText + "`n" + $summaryText
+
+    foreach ($phase in @(
+        "Future Phase 0: Evidence Freeze And Preconditions",
+        "Future Phase 1: Runtime Policy Evaluation Harness",
+        "Future Phase 2: Repo Fingerprint Validation Gate",
+        "Future Phase 3: Worktree Boundary Enforcement",
+        "Future Phase 4: Lease Heartbeat Management",
+        "Future Phase 5: Failure Fingerprint Anti-Loop Gate",
+        "Future Phase 6: One Entrypoint Integration",
+        "Future Pilot Task Spec: Single-Entrypoint Dry-Run Enforcement",
+        "Runtime Pilot Evidence Freeze"
+        "Runtime Evidence Bundle Contract"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($phase)) -Message "Runtime enforcement plan includes phase: $phase"
+    }
+
+    foreach ($phrase in @(
+        "allowed future files",
+        "dry-run-first tests",
+        "Fail-closed behavior",
+        "Human approval gate",
+        "Non-Goals",
+        "Stop Signs For Future Implementation",
+        "repo fingerprint validation",
+        "worktree boundary enforcement",
+        "lease heartbeat management",
+        "runtime policy decisions",
+        "failure fingerprints",
+        "Runtime implementation remains blocked",
+        "future-plan only",
+        "future task specification only",
+        "single-entrypoint",
+        "dry-run-only enforcement pilot",
+        "local evidence only",
+        "Required future non-goals",
+        "Required future dry-run-first tests",
+        "Required future fail-closed defaults",
+        "Required future human approval gate",
+        "ambiguous, stale, missing, broad, or unauthorized evidence returns ``DENY`` by default",
+        "missing exact-action human approval returns ``DEFER``",
+        "mobile requests, external reports, DOCX reports, audit packages, task packets, and queue prose remain non-executable",
+        "legacy broad entrypoints remain ``legacy_broad_requires_human``",
+        "The spec is not implementation",
+        "keeps ``DENY`` as the default",
+        "keeps any ``ALLOW`` dry-run-only",
+        "captain approval naming one entrypoint",
+        "one named entrypoint only",
+        "``invoke-autonomy-wrapper.ps1``",
+        "All ``ALLOW``, ``ALLOW_DRY_RUN``, or positive pilot outcomes are local evidence only",
+        '`ALLOW_DRY_RUN` means "the dry-run fixture passed"',
+        "never means approval to execute, mutate, stage, commit, push, launch, run a demo, or carry future authority",
+        "Every runtime pilot report that shows ``ALLOW_DRY_RUN`` must show the non-executable fields beside it",
+        "real demo approval packet",
+        "stop signs reviewed and inactive",
+        "exact product/project selection",
+        "explicit runtime widening approval",
+        "checkpoint commit ``5a1743f``",
+        "HQ-068",
+        "HQ-069",
+        "local dry-run evidence bundle",
+        "repo fingerprint",
+        "worktree boundary",
+        "lease heartbeat",
+        "failure fingerprint",
+        "approval evidence",
+        "budget evidence",
+        "source provenance",
+        "Missing or stale refs deny/defer and never execute",
+        "external reports, mobile requests, task packets, audit packages, DOCX reports, queue prose, and generated evidence remains non-executable",
+        "adds no new runtime storage, DB, SQLite, migration, product repo access, real product repo fingerprinting"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Runtime enforcement plan preserves boundary phrase: $phrase"
+    }
+
+    foreach ($blocked in @(
+        "product-repo mutation",
+        "product ship launch",
+        "all-fleet command execution",
+        "worktree creation",
+        "durable lease enforcement",
+        "Fleet.Core or SQLite implementation",
+        "package installation",
+        "database migrations",
+        "secrets/auth/payments/deploy",
+        "lock deletion",
+        "permission widening",
+        "stage",
+        "commit",
+        "push",
+        "demo trial",
+        "worktree creation/deletion",
+        "package installation"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($blocked)) -Message "Runtime enforcement plan blocks: $blocked"
+    }
+
+    Assert-False -Condition ($planText -match "(?i)(this\s+task|this\s+plan).*?(implements|enforces|creates)\s+.*?(runtime enforcement|worktree|SQLite|Fleet\.Core|lease manager)") -Message "Runtime enforcement plan does not claim implementation in this task"
+    Assert-False -Condition ($planText -match "(?i)(approve|authorize|grant)\s+.*?(product-repo mutation|product ship launch|all-fleet|runtime execution)") -Message "Runtime enforcement plan does not grant execution authority"
+    Assert-False -Condition ($combinedText -match "(?i)(runtime pilot|evidence freeze).*?(approves|authorizes|grants)\s+.*?(product mutation|staging|commit|push|demo trial|worktree creation|package installation|runtime widening)") -Message "Runtime pilot evidence freeze cannot approve forbidden actions"
+    Assert-False -Condition ($combinedText -match "(?i)ALLOW_DRY_RUN\s+(approves|authorizes|permits|grants)\s+.*?(execution|mutation|staging|commit|push|launch|demo|future)") -Message "Runtime pilot docs never describe ALLOW_DRY_RUN as permission or future authority"
+}
+
+function Test-HqPostRemediationAuditRepeatPackagePlan {
+    Write-Host "Testing HQ post-remediation audit repeat package plan..."
+
+    $promptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $templatePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\ENTRYPOINT_SAFETY_INVENTORY.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $promptText = Get-Content -LiteralPath $promptPath -Raw
+    $templateText = Get-Content -LiteralPath $templatePath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $combinedText = $promptText + "`n" + $templateText + "`n" + $summaryText + "`n" + $inventoryText
+
+    foreach ($relativePath in @(
+        "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+        "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md",
+        "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    )) {
+        $text = Get-Content -LiteralPath (Join-Path $fleetRoot $relativePath) -Raw
+        Assert-True -Condition ($text -match [regex]::Escape("Post-Remediation Repeat-Audit Checkpoint")) -Message "Post-remediation repeat-audit checkpoint exists: $relativePath"
+    }
+
+    foreach ($phrase in @(
+        "HQ-048",
+        "HQ-060",
+        "Final External Audit Package Checklist",
+        "Final External Audit Package Refresh Plan",
+        "Package creation remains a later human-approved step",
+        "create a package",
+        "send a package",
+        "stage files",
+        "commit",
+        "push",
+        "harness/docs/tests/schemas/scrubbed",
+        "scrubbed validation summary",
+        "GREEN",
+        "YELLOW accepted limitation",
+        "RED",
+        "runtime-enforcement deferral",
+        "commit-scope review",
+        "exact approval packet",
+        "stop signs",
+        "one manual read-only single-project demo",
+        "Repeated audits do not approve execution",
+        "only provide evidence for human decisions",
+        "cannot fill the approval packet",
+        "bypass stop signs",
+        "grant future permission",
+        "Manual Final Audit Zip Verification Checklist",
+        "manual final audit zip verification",
+        "does not create a zip",
+        "does not create, send, stage, commit, push, approve, or grant permission",
+        "exact include and exclude lists",
+        "exact final-audit evidence list",
+        "generated evidence is not scrubbed",
+        "Package scope remains YELLOW"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Post-remediation repeat-audit plan includes phrase: $phrase"
+    }
+
+    foreach ($evidencePath in @(
+        "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md",
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+        "docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md",
+        "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+        "docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md",
+        "docs/fleet/DEMO_TRIAL_STOP_SIGNS.md",
+        "docs/fleet/CONTROL_PLANE_SPINE_DECISION.md",
+        "docs/fleet/OTHER_PROJECT_TEST_READINESS.md",
+        "docs/fleet/HQ_COMMIT_SCOPE_DECISION_PACKET.md",
+        "docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md",
+        "templates/*-schema.json",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($evidencePath)) -Message "Post-remediation repeat-audit plan includes evidence path: $evidencePath"
+    }
+
+    foreach ($excluded in @(
+        "product repos",
+        "product source snapshots",
+        ".git",
+        ".env",
+        "dependency folders",
+        "build outputs",
+        "raw locks",
+        "secrets",
+        "auth/payments/deploy/migration material",
+        "unknown zips",
+        "live worker state",
+        "unscoped project exports",
+        "unreviewed full package directories",
+        "staging, commit, push"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($excluded)) -Message "Post-remediation repeat-audit plan preserves exclusion: $excluded"
+    }
+
+    foreach ($reviewerAsk in @(
+        "Overall verdict: GREEN, YELLOW, or RED",
+        "Findings ordered by severity",
+        "file/path evidence",
+        "Missing tests or ambiguous safety boundaries",
+        "Demo-trial readiness recommendation",
+        "accepted limitation",
+        "non-executable suggestions"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($reviewerAsk)) -Message "Final external audit package plan includes reviewer ask: $reviewerAsk"
+    }
+
+    Assert-True -Condition ($queueText -match '### HQ-059 Final Demo Readiness Go/No-Go Refresh\s+\r?\n\s*- status: done') -Message "HQ-059 queue prerequisite is marked done"
+    Assert-False -Condition ($combinedText -match "(?i)(repeat audit|reviewer|package plan|template|prompt).*?(approves|authorizes|grants)\s+.*?(execution|product mutation|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions|merge|push|stage|commit)") -Message "Post-remediation repeat-audit plan does not grant execution authority"
+}
+
+function Test-HqRuntimePilotExternalAuditPackagePlan {
+    Write-Host "Testing HQ runtime pilot external audit package plan..."
+
+    $promptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $templatePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $promptText = Get-Content -LiteralPath $promptPath -Raw
+    $templateText = Get-Content -LiteralPath $templatePath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $combinedText = $promptText + "`n" + $templateText + "`n" + $summaryText
+
+    foreach ($phrase in @(
+        "Runtime Pilot External Audit Package Plan",
+        "Runtime Pilot External Audit Checklist",
+        "Runtime Pilot External Audit Package Status",
+        "dry-run-only behavior",
+        "fail-closed defaults",
+        "evidence-only output",
+        "no product repo access",
+        "invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun",
+        "ALLOW_DRY_RUN",
+        "DENY_UNSAFE",
+        "DEFER_NEEDS_HUMAN",
+        "executesProductActions = false",
+        "launchesShips = false",
+        "importsPackets = false",
+        "mutatesProductRepos = false",
+        "canApproveFutureRuns = false",
+        "commandInput = false",
+        "Reviewer output remains evidence only and cannot approve execution or demo trial",
+        "generated runtime pilot evidence is local, scrubbed, non-executable, and not a command input",
+        "positive pilot evidence does not grant future permission",
+        "wrapper source visibility",
+        "direct runtime-pilot control-flow inspection",
+        "-RuntimePolicyPilotDryRun early-exit path",
+        "Wrapper source visibility is audit evidence only",
+        "Source visibility does not approve execution"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Runtime pilot audit package plan includes phrase: $phrase"
+    }
+
+    foreach ($runtimeEvidence in @(
+        "invoke-autonomy-wrapper.ps1",
+        "docs/fleet/NEW_CHAT_HANDOFF_PACKET.md",
+        "docs/fleet/HQ_IMPORT_RECON.md",
+        "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+        "docs/fleet/RUNTIME_ENFORCEMENT_IMPLEMENTATION_PLAN.md",
+        "docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md",
+        "docs/fleet/ARTIFACT_INDEX_CONTRACT.md",
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md",
+        "docs/fleet/HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md",
+        "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+        "tests/run-fleet-tests.ps1",
+        "scrubbed validation summary"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($runtimeEvidence)) -Message "Runtime pilot audit package plan includes evidence: $runtimeEvidence"
+    }
+
+    foreach ($excluded in @(
+        "product repos",
+        "product repositories",
+        "product source snapshots",
+        ".git",
+        ".env",
+        "dependency folders",
+        "build outputs",
+        "raw locks",
+        "secrets",
+        "auth/payments/deploy/migration material",
+        "unknown zips",
+        "live worker state",
+        "runtime-execution material"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($excluded)) -Message "Runtime pilot audit package plan preserves exclusion: $excluded"
+    }
+
+    foreach ($unsafeSource in @(
+        "external/mobile/DOCX/audit-package/queue-prose sources",
+        "reviewer output",
+        "DOCX reports",
+        "mobile requests",
+        "task packets",
+        "audit packages",
+        "queue prose",
+        "generated evidence"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($unsafeSource)) -Message "Runtime pilot audit package plan keeps unsafe source evidence-only: $unsafeSource"
+    }
+
+    Assert-True -Condition ($queueText -match '### HQ-075 Runtime Pilot Fixture Matrix\s+\r?\n\s*- status: done') -Message "HQ-075 queue prerequisite is marked done"
+    Assert-True -Condition ($queueText -match '### HQ-076 Runtime Pilot External Audit Package Plan\s+\r?\n\s*- status: (pending|done)') -Message "HQ-076 queue task is active or completed"
+    Assert-True -Condition ($queueText -match '### HQ-079 Runtime Pilot Wrapper Source Audit Evidence\s+\r?\n\s*- status: (pending|done)') -Message "HQ-079 queue task is active or completed"
+    Assert-False -Condition ($combinedText -match "(?i)(runtime pilot|package plan|checklist|reviewer output).*?(approves|authorizes|grants)\s+.*?(product mutation|staging|commit|push|demo trial|future runs|product-mode execution)") -Message "Runtime pilot audit package plan does not grant forbidden authority"
+    Assert-False -Condition ($combinedText -match "(?i)(wrapper source visibility|source visibility).*?(approves|authorizes|grants)\s+.*?(execution|package sending|product repo access|runtime widening|staging|commit|push|demo trial)") -Message "Runtime pilot wrapper source visibility does not grant forbidden authority"
+}
+
+function Test-HqLatestExternalAuditFindingsLedgerRefresh {
+    Write-Host "Testing HQ latest external audit findings ledger refresh..."
+
+    $ledgerPath = Join-Path $fleetRoot "docs\fleet\HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $ledgerText = Get-Content -LiteralPath $ledgerPath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $combinedText = $ledgerText + "`n" + $summaryText
+
+    foreach ($phrase in @(
+        "Codex Prompt Request (5).docx",
+        "Codex Prompt Request (4).docx",
+        "Latest 2026-06-01 final demo-readiness external audit report",
+        "Latest report date: 2026-06-01",
+        "Latest report source: ``C:\Users\codex-agent\Downloads\Codex Prompt Request (5).docx``",
+        "Overall external-audit verdict: YELLOW",
+        "YELLOW evidence",
+        "not approval",
+        "runtime enforcement remains deferred",
+        "commit scope is unresolved",
+        "no exact approval packet has been filled",
+        "local validation later completed ``HQ-060`` and marked it done",
+        "bounded final audit remediation queue",
+        "Overnight Final Audit Follow-Up Queue Mapping",
+        "HQ-048",
+        "HQ-060",
+        "HQ-061",
+        "HQ-068",
+        "required-fix",
+        "optional-improvement",
+        "accepted-limitation",
+        "no-action",
+        "human-decision-needed"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Latest external audit ledger refresh includes phrase: $phrase"
+    }
+
+    foreach ($taskId in @("HQ-048", "HQ-049", "HQ-050", "HQ-051", "HQ-052", "HQ-053", "HQ-054", "HQ-055", "HQ-056", "HQ-057", "HQ-058", "HQ-059", "HQ-060")) {
+        Assert-True -Condition ($ledgerText -match [regex]::Escape($taskId)) -Message "Latest external audit ledger maps final queue task: $taskId"
+    }
+
+    foreach ($blocker in @(
+        "External-audit disposition is GREEN or the captain explicitly accepts a bounded YELLOW limitation",
+        "Commit scope has been reviewed enough",
+        'A human fills `docs/fleet/DEMO_TRIAL_APPROVAL_PACKET.md`',
+        '`docs/fleet/DEMO_TRIAL_STOP_SIGNS.md` has no active stop signs',
+        "manual, read-only, single-project"
+    )) {
+        Assert-True -Condition ($ledgerText -match [regex]::Escape($blocker)) -Message "Latest external audit ledger preserves demo blocker: $blocker"
+    }
+
+    foreach ($boundary in @(
+        "cannot approve work",
+        "grant future permission",
+        "execute recommendations",
+        "touch product repositories",
+        "launch product ships",
+        "run all-fleet commands",
+        "merge, push",
+        "install packages",
+        "run migrations",
+        "touch secrets/auth/payments/deploy material",
+        "delete locks",
+        "widen permissions"
+    )) {
+        Assert-True -Condition ($ledgerText -match [regex]::Escape($boundary)) -Message "Latest external audit ledger preserves non-executable boundary: $boundary"
+    }
+
+    foreach ($closeoutPhrase in @(
+        "Overnight Closeout Status",
+        "Local overnight follow-up outcomes through ``HQ-067``",
+        "HQ-061",
+        "HQ-062",
+        "HQ-063",
+        "HQ-064",
+        "HQ-065",
+        "HQ-066",
+        "HQ-067",
+        "Morning human decisions still needed",
+        "External audit review",
+        "Commit-scope review",
+        "Approval packet",
+        "Stop-sign review",
+        "Runtime implementation approval if desired",
+        "GREEN applies only to the validated local overnight docs/tests/schema closeout",
+        "YELLOW remains the real-demo posture",
+        "RED applies to any attempt",
+        "Fixture-only posture remains the default"
+    )) {
+        Assert-True -Condition ($ledgerText -match [regex]::Escape($closeoutPhrase)) -Message "Latest external audit ledger includes overnight closeout phrase: $closeoutPhrase"
+    }
+
+    foreach ($runtimePilotDisposition in @(
+        "Runtime Pilot Go/No-Go Disposition",
+        "Runtime pilot local posture after ``HQ-069`` through ``HQ-076``: YELLOW",
+        "one named entrypoint only: ``invoke-autonomy-wrapper.ps1 -RuntimePolicyPilotDryRun``",
+        "ALLOW_DRY_RUN",
+        '`ALLOW_DRY_RUN` non-permission clarity',
+        '`ALLOW_DRY_RUN` means "the dry-run fixture passed"',
+        "never means approval to execute, mutate, stage, commit, push, launch, run a demo, or carry future authority",
+        "executesProductActions = false",
+        "launchesShips = false",
+        "importsPackets = false",
+        "mutatesProductRepos = false",
+        "canApproveFutureRuns = false",
+        "commandInput = false",
+        "fail-closed or human-review-only handling",
+        "does not prove real-project demo readiness by itself",
+        "Real-project demo posture remains YELLOW until human approval packet, stop-sign review, commit-scope review, and exact project selection are complete",
+        "external audit disposition",
+        "commit-scope review",
+        "exact project selection",
+        "exact approval packet completion",
+        "inactive stop-sign review",
+        "exact no-op read-only command list",
+        "SEND_RUNTIME_PILOT_AUDIT",
+        "STAY_FIXTURE_ONLY",
+        "PREPARE_ONE_READ_ONLY_DEMO_PACKET",
+        "NO_GO"
+    )) {
+        Assert-True -Condition ($ledgerText -match [regex]::Escape($runtimePilotDisposition)) -Message "Latest external audit ledger includes runtime pilot disposition phrase: $runtimePilotDisposition"
+    }
+
+    foreach ($runtimePilotCloseout in @(
+        "Runtime Pilot Queue Closeout",
+        "Runtime pilot queue closeout status: local GREEN for docs/tests evidence",
+        "Real-project demo posture remains YELLOW",
+        "HQ-078",
+        "Runtime Enforcement Pilot Queue 2026-06-01",
+        "HQ-069",
+        "HQ-070",
+        "HQ-071",
+        "HQ-072",
+        "HQ-073",
+        "HQ-074",
+        "HQ-075",
+        "HQ-076",
+        "HQ-077",
+        "Remaining human decisions",
+        "external audit disposition",
+        "commit-scope review",
+        "exact project selection",
+        "exact approval packet completion",
+        "inactive stop-sign review",
+        "exact no-op read-only command list",
+        "SEND_RUNTIME_PILOT_AUDIT",
+        "STAY_FIXTURE_ONLY",
+        "PREPARE_ONE_READ_ONLY_DEMO_PACKET",
+        "CONTINUE_RUNTIME_HARDENING",
+        "NO_GO",
+        "Generated evidence and audit packages stay local",
+        "separate commit-scope review",
+        "does not create or send packages",
+        "does not run a demo trial",
+        "does not stage files, commit, push, touch product repositories"
+    )) {
+        Assert-True -Condition ($ledgerText -match [regex]::Escape($runtimePilotCloseout)) -Message "Latest external audit ledger includes runtime pilot closeout phrase: $runtimePilotCloseout"
+    }
+
+    Assert-True -Condition ($summaryText -match [regex]::Escape("2026-06-01 external audit remains YELLOW")) -Message "Go/no-go summary records latest YELLOW audit risk"
+    Assert-True -Condition ($summaryText -match [regex]::Escape("Latest Final Audit Evidence")) -Message "Go/no-go summary records latest final audit evidence"
+    Assert-True -Condition ($summaryText -match [regex]::Escape("The report recommended completing ``HQ-060``; local validation later completed ``HQ-060`` and marked it done")) -Message "Go/no-go summary reconciles HQ-060 timing"
+    Assert-True -Condition ($summaryText -match [regex]::Escape('Current recommendation: `SEND_EXTERNAL_AUDIT` after `HQ-060` passes validation')) -Message "Go/no-go summary recommends final external-audit package refresh"
+    Assert-True -Condition ($queueText -match '### HQ-048 Latest External Audit Findings Ledger Refresh\s+\r?\n\s*- status: done') -Message "HQ-048 queue task records completed validation bookkeeping"
+    Assert-True -Condition ($queueText -match '### HQ-068 Overnight Queue Closeout Summary\s+\r?\n\s*- status: (pending|done)') -Message "HQ-068 queue closeout is active or completed"
+    Assert-True -Condition ($queueText -match '### HQ-077 Runtime Pilot Go/No-Go Refresh\s+\r?\n\s*- status: (pending|done)') -Message "HQ-077 queue task records active or completed validation bookkeeping"
+    Assert-True -Condition ($queueText -match '### HQ-078 Runtime Pilot Closeout And Next Decision\s+\r?\n\s*- status: (pending|done)') -Message "HQ-078 queue task records active or completed validation bookkeeping"
+    Assert-True -Condition ($queueText -match '### HQ-080 ALLOW_DRY_RUN Non-Permission Clarity\s+\r?\n\s*- status: (pending|done)') -Message "HQ-080 queue task records active or completed validation bookkeeping"
+    Assert-False -Condition ($combinedText -match "(?i)(audit|ledger|summary|report).*?(approves|authorizes|grants)\s+.*?(execution|product mutation|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions|merge|push)") -Message "Latest external audit refresh does not grant execution authority"
+    Assert-False -Condition ($combinedText -match "(?i)closeout.*?(approves|authorizes|grants)\s+.*?(execution|staging|commit|push|demo trial|product-repo|runtime enforcement)") -Message "Overnight closeout ledger text does not grant execution authority"
+    Assert-False -Condition ($combinedText -match "(?i)(runtime pilot|pilot evidence|pilot local posture).*?(approves|authorizes|grants)\s+.*?(product mutation|staging|commit|push|demo execution|product-mode authority)") -Message "Runtime pilot disposition does not grant execution authority"
+    Assert-False -Condition ($combinedText -match "(?i)(runtime pilot queue closeout|HQ-078).*?(approves|authorizes|grants)\s+.*?(execution|staging|commit|push|product repo access|demo trial|package sending)") -Message "Runtime pilot closeout ledger text does not grant execution authority"
+    Assert-False -Condition ($combinedText -match "(?i)ALLOW_DRY_RUN\s+(approves|authorizes|permits|grants)\s+.*?(execution|mutation|staging|commit|push|launch|demo|future)") -Message "Ledger and summary never describe ALLOW_DRY_RUN as permission or future authority"
+}
+
+function Test-HqCommitScopeStagingGuardPlan {
+    Write-Host "Testing HQ commit-scope staging guard plan..."
+
+    $packetPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_SCOPE_DECISION_PACKET.md"
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_READINESS_INVENTORY.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $combinedText = $packetText + "`n" + $inventoryText + "`n" + $summaryText
+
+    foreach ($phrase in @(
+        "No-Op Staged-File Risk Guard",
+        "Staged-File Risk Guard",
+        "staged-file list",
+        "candidate commit group",
+        "excluded group",
+        "Commit-scope GREEN",
+        "Commit-scope YELLOW",
+        "Commit-scope RED",
+        "no-op evidence only",
+        "does not stage files",
+        "does not stage, commit, push, delete, rewrite history",
+        "avoid broad staging commands",
+        "Do not revert existing dirty work",
+        "exact human approval"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Commit-scope staging guard includes phrase: $phrase"
+    }
+
+    foreach ($excluded in @(
+        "product repos",
+        "product source snapshots",
+        ".git",
+        ".env",
+        "dependency folders",
+        "build outputs",
+        "raw locks",
+        "unknown zips",
+        "unreviewed package directories",
+        "secrets",
+        "tokens",
+        "credentials",
+        "private keys",
+        "local machine identity",
+        "auth/payments/deploy/migration material",
+        "package-install material",
+        "permission material",
+        "live worker state"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($excluded)) -Message "Commit-scope staging guard excludes: $excluded"
+    }
+
+    foreach ($reviewNeeded in @(
+        "generated Fleet state/status files",
+        '`docs/codex/` evidence',
+        "audit packages",
+        "harness scripts"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($reviewNeeded)) -Message "Commit-scope staging guard calls out review-needed group: $reviewNeeded"
+    }
+
+    Assert-True -Condition ($summaryText -match [regex]::Escape("Staged-file risk before commit")) -Message "Go/no-go summary records staged-file risk"
+    foreach ($refreshPhrase in @(
+        "Codex Prompt Request (5).docx",
+        "commit readiness YELLOW",
+        "commit-scope decision YELLOW",
+        "HQ-060",
+        "Human decisions still needed",
+        "Exact human choices still required",
+        "generated audit packages stay local",
+        "script/tool changes are reviewed separately from policy docs",
+        "does not select a commit shape",
+        "decision support only"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($refreshPhrase)) -Message "Commit-scope refresh preserves phrase: $refreshPhrase"
+    }
+
+    Assert-True -Condition ($summaryText -match [regex]::Escape("HQ-062")) -Message "Go/no-go summary records HQ-062 commit-scope refresh"
+    Assert-True -Condition ($queueText -match '### HQ-049 Commit Scope Staging Guard Plan\s+\r?\n\s*- status: done') -Message "HQ-049 queue task records completed validation bookkeeping"
+    Assert-False -Condition ($combinedText -match "(?i)(git add \.|git commit|git push|Remove-Item|git reset|git checkout)") -Message "Commit-scope staging guard does not include executable git/delete/revert commands"
+    Assert-False -Condition ($combinedText -match "(?i)(guard|inventory|packet).*?(approves|authorizes|grants)\s+.*?(commit|push|delete|rewrite|product mutation|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions)") -Message "Commit-scope staging guard does not grant forbidden authority"
+}
+
+function Test-HqCommitScopeDemoEvidenceSeparationRefresh {
+    Write-Host "Testing HQ commit-scope and demo evidence separation refresh..."
+
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_READINESS_INVENTORY.md"
+    $packetPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_SCOPE_DECISION_PACKET.md"
+    $summaryPath = Join-Path $fleetRoot "docs\fleet\DEMO_READY_TRIAL_GO_NO_GO.md"
+    $ledgerPath = Join-Path $fleetRoot "docs\fleet\HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+    $ledgerText = Get-Content -LiteralPath $ledgerPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $combinedText = $inventoryText + "`n" + $packetText + "`n" + $summaryText + "`n" + $ledgerText
+
+    foreach ($phrase in @(
+        "Current Repair Evidence Vs Future Demo Evidence",
+        "Repair Evidence And Future Demo Evidence Boundary",
+        "Repair Checkpoint And Future Demo Evidence Separation",
+        "Commit Scope And Demo Evidence Separation",
+        "existing repair/audit evidence",
+        "generated audit-package plans",
+        '`docs/codex` evidence',
+        "fleet state/status artifacts",
+        "runtime script changes",
+        "Future demo evidence must be created only after a separate approval packet",
+        "one no-op/read-only command list",
+        "should not be mixed into the current repair checkpoint by accident",
+        "commit-scope review is complete enough to avoid evidence confusion",
+        "Go/no-go posture remains YELLOW",
+        "YELLOW remains the real-demo posture"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "HQ-082 separation refresh includes phrase: $phrase"
+    }
+
+    foreach ($nonAuthority in @(
+        "does not stage files",
+        "commit",
+        "push",
+        "delete evidence",
+        "rewrite history",
+        "approve a demo",
+        "touch product repos",
+        "grant future permission"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($nonAuthority)) -Message "HQ-082 separation refresh preserves non-authority phrase: $nonAuthority"
+    }
+
+    Assert-True -Condition ($queueText -match '### HQ-082 Commit Scope And Demo Evidence Separation Refresh\s+\r?\n\s*- status: (pending|done)') -Message "HQ-082 queue task records active or completed validation bookkeeping"
+    Assert-False -Condition ($combinedText -match "(?i)(repair evidence|current repair checkpoint|existing repair/audit evidence).*?(approves|authorizes|grants|permits)\s+.*?(demo|execution|staging|commit|push|product-repo|product mutation|future permission)") -Message "HQ-082 repair evidence is not described as demo or execution authority"
+    Assert-False -Condition ($combinedText -match "(?i)(future demo evidence|demo evidence).*?(created|generated|recorded|approved)\s+(now|by this|from this|in this refresh)") -Message "HQ-082 does not claim future demo evidence is created by this refresh"
+}
+
+function Test-HqCommitScopeDryRunInventoryCommandSpec {
+    Write-Host "Testing HQ commit-scope dry-run inventory command spec..."
+
+    $packetPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_SCOPE_DECISION_PACKET.md"
+    $inventoryPath = Join-Path $fleetRoot "docs\fleet\HQ_COMMIT_READINESS_INVENTORY.md"
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw
+    $combinedText = $packetText + "`n" + $inventoryText
+
+    foreach ($phrase in @(
+        "Future Dry-Run Inventory Command Contract",
+        "Dry-Run Inventory Command Spec",
+        "dry-run-only",
+        "not implemented here",
+        "candidatePaths",
+        "excludedPaths",
+        "ambiguousPaths",
+        "recommendedDispositions",
+        "validationSummary",
+        "posture",
+        "candidate_group",
+        "keep_local",
+        "review_needed",
+        "excluded",
+        "human_decision_needed"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Commit-scope dry-run inventory spec includes phrase: $phrase"
+    }
+
+    foreach ($forbiddenInvariant in @(
+        "must not stage files",
+        "must not create commits",
+        "must not push branches",
+        "must not delete",
+        "must not rewrite history",
+        "must not mutate",
+        "must not run product ships",
+        "must not execute external reports"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($forbiddenInvariant)) -Message "Commit-scope dry-run inventory spec preserves invariant: $forbiddenInvariant"
+    }
+
+    Assert-True -Condition ($combinedText -match [regex]::Escape('Any ambiguous path must keep the commit posture `YELLOW` or `RED`')) -Message "Commit-scope dry-run inventory spec fail-closes ambiguous paths"
+    Assert-False -Condition ($combinedText -match "(?i)(dry-run inventory|future command).*?(stages|commits|pushes|deletes|rewrites|mutates)\s+.*?(files|branches|history|evidence|product repositories)") -Message "Commit-scope dry-run inventory spec does not describe mutating behavior"
+    Assert-False -Condition ($combinedText -match "(?i)(dry-run inventory|future command).*?(approves|authorizes|grants)\s+.*?(staging|commit|push|delete|rewrite|product mutation|launch|all-fleet|deploy|install|migration|secrets|auth|payments|locks|permissions)") -Message "Commit-scope dry-run inventory spec does not grant forbidden authority"
+}
+
+function Test-ReviewPacketContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\REVIEW_PACKET_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\review-packet-schema.json"
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Review packet contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Review packet schema exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Review packet schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "reviewPacketId",
+        "auditId",
+        "reviewer",
+        "shipId",
+        "baseCommit",
+        "verdict",
+        "findings",
+        "evidenceRefs",
+        "suggestedTasks",
+        "limitations",
+        "rejectedIdeas",
+        "captainQuestions",
+        "policy",
+        "generatedAt",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Review packet schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Review packet schema defines $field"
+    }
+
+    $reviewerProperties = $schema.properties.reviewer.properties
+    foreach ($field in @("name", "role", "source")) {
+        Assert-True -Condition (@($schema.properties.reviewer.required) -contains $field) -Message "Review packet reviewer requires $field"
+        Assert-True -Condition ($reviewerProperties.PSObject.Properties.Name -contains $field) -Message "Review packet reviewer defines $field"
+    }
+
+    foreach ($role in @("Issue Auditor", "Improvement Auditor", "Product Taste Auditor", "Formula Auditor", "Security Scope Auditor", "Tie-Breaker Auditor")) {
+        Assert-True -Condition (@($reviewerProperties.role.enum) -contains $role) -Message "Review packet schema supports reviewer role $role"
+    }
+
+    foreach ($verdict in @("PASS", "PASS_WITH_FIXES", "FAIL", "NEEDS_CAPTAIN", "LIMITED")) {
+        Assert-True -Condition (@($schema.properties.verdict.enum) -contains $verdict) -Message "Review packet schema supports verdict $verdict"
+    }
+
+    $findingProperties = $schema.properties.findings.items.properties
+    foreach ($field in @("id", "severity", "title", "description", "evidenceRefs", "recommendation", "status")) {
+        Assert-True -Condition (@($schema.properties.findings.items.required) -contains $field) -Message "Review packet finding requires $field"
+        Assert-True -Condition ($findingProperties.PSObject.Properties.Name -contains $field) -Message "Review packet finding defines $field"
+    }
+
+    foreach ($status in @("new", "accepted", "rejected", "deferred", "accepted_limitation")) {
+        Assert-True -Condition (@($findingProperties.status.enum) -contains $status) -Message "Review packet finding supports status $status"
+    }
+
+    $taskProperties = $schema.properties.suggestedTasks.items.properties
+    foreach ($field in @("id", "title", "priority", "risk", "lane", "target", "change", "acceptance", "proof", "stopIf", "validationStatus")) {
+        Assert-True -Condition (@($schema.properties.suggestedTasks.items.required) -contains $field) -Message "Review packet suggested task requires $field"
+        Assert-True -Condition ($taskProperties.PSObject.Properties.Name -contains $field) -Message "Review packet suggested task defines $field"
+    }
+
+    foreach ($status in @(
+        "suggested_only",
+        "requires_stage4_validation",
+        "rejected_forbidden_operation",
+        "rejected_broad_scope",
+        "rejected_stale_base",
+        "needs_captain_approval",
+        "accepted_limitation"
+    )) {
+        Assert-True -Condition (@($taskProperties.validationStatus.enum) -contains $status) -Message "Review packet suggested task supports validation status $status"
+    }
+
+    foreach ($operation in @(
+        "merge",
+        "push",
+        "deploy",
+        "install-packages",
+        "run-migrations",
+        "touch-secrets",
+        "touch-auth",
+        "touch-payments",
+        "delete-locks",
+        "widen-permissions",
+        "launch-product-ships",
+        "run-all-fleet-commands",
+        "bypass-task-packet-validation",
+        "treat-prose-as-command"
+    )) {
+        Assert-True -Condition (@($taskProperties.forbiddenOperation.enum) -contains $operation) -Message "Review packet schema rejects forbidden operation $operation"
+    }
+
+    $limitationProperties = $schema.properties.limitations.items.properties
+    foreach ($field in @("id", "type", "description", "accepted")) {
+        Assert-True -Condition (@($schema.properties.limitations.items.required) -contains $field) -Message "Review packet limitation requires $field"
+        Assert-True -Condition ($limitationProperties.PSObject.Properties.Name -contains $field) -Message "Review packet limitation defines $field"
+    }
+    foreach ($type in @("accepted_limitation", "audit_scope_limit", "external_tool_limit", "missing_context", "out_of_scope", "captain_decision_needed")) {
+        Assert-True -Condition (@($limitationProperties.type.enum) -contains $type) -Message "Review packet schema supports limitation type $type"
+    }
+
+    $policyProperties = $schema.properties.policy.properties
+    foreach ($field in @("canApprove", "canExecute", "canOverridePolicy", "canBypassTaskPacketValidation")) {
+        Assert-True -Condition (@($schema.properties.policy.required) -contains $field) -Message "Review packet policy requires $field"
+        Assert-True -Condition ($policyProperties.PSObject.Properties.Name -contains $field) -Message "Review packet policy defines $field"
+        Assert-Equal -Actual $policyProperties.$field.const -Expected $false -Message "Review packet policy keeps $field false"
+    }
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($reason in @(
+        "findings-separated-from-tasks",
+        "evidence-refs-present",
+        "suggested-tasks-non-executable",
+        "limitations-recorded",
+        "reviewer-identity-present",
+        "cannot-approve",
+        "cannot-execute",
+        "cannot-override-policy",
+        "cannot-bypass-task-packet-validation",
+        "forbidden-operation-rejected",
+        "accepted-limitation-recorded",
+        "captain-approval-required",
+        "stale-base-rejected",
+        "external-prose-non-executable"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Review packet validation supports reason $reason"
+    }
+
+    foreach ($fixtureName in @(
+        "valid-review-packet",
+        "forbidden-merge-rejected",
+        "forbidden-deploy-rejected",
+        "forbidden-secret-touch-rejected",
+        "task-packet-bypass-rejected",
+        "mobile-command-rejected",
+        "accepted-limitation-recorded",
+        "captain-approval-required",
+        "stale-base-rejected",
+        "external-prose-non-executable"
+    )) {
+        Assert-True -Condition (@($validationProperties.fixtureName.enum) -contains $fixtureName) -Message "Review packet schema supports fixture $fixtureName"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "Review packets are evidence, not commands",
+        "cannot approve, execute, override policy, or bypass task-packet validation",
+        "external prose is non-executable",
+        "findings and suggested tasks remain separate",
+        "accepted limitations are recorded as limitations",
+        "Suggested tasks are not executable",
+        "Stage 4 task-packet validation",
+        "canApprove",
+        "canExecute",
+        "canOverridePolicy",
+        "canBypassTaskPacketValidation"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Review packet contract includes invariant: $phrase"
+    }
+
+    foreach ($outOfScope in @(
+        "Importing external prose as live tasks",
+        "Executing suggested tasks",
+        "Approving high-risk work",
+        "Bypassing Stage 4 task-packet validation",
+        "Launching product ships",
+        "Mutating product repos",
+        "Running all-fleet commands",
+        "Deleting locks",
+        "Widening permissions"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Review packet contract keeps out of scope: $outOfScope"
+    }
+}
+
+function Test-SelectedShipLedgerContract {
+    $contractPath = Join-Path $fleetRoot "docs\fleet\SELECTED_SHIP_LEDGER_CONTRACT.md"
+    $schemaPath = Join-Path $fleetRoot "templates\selected-ship-ledger-schema.json"
+    $autonomyText = Get-Content -LiteralPath (Join-Path $fleetRoot "tools\codex-fleet-autonomy.ps1") -Raw
+
+    Assert-True -Condition (Test-Path $contractPath) -Message "Selected ship ledger contract exists"
+    Assert-True -Condition (Test-Path $schemaPath) -Message "Selected ship ledger schema exists"
+    Assert-True -Condition ($autonomyText -match "function Write-FleetSelectedShipLedgerDryRun") -Message "Selected ship ledger dry-run writer exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Selected ship ledger schema is versioned"
+    foreach ($field in @(
+        "schemaVersion",
+        "ledgerId",
+        "selectedShipId",
+        "repoFingerprintRef",
+        "policyDecisionRef",
+        "owner",
+        "createdAt",
+        "expiresAt",
+        "status",
+        "evidenceRefs",
+        "dryRun",
+        "validation"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Selected ship ledger schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Selected ship ledger schema defines $field"
+    }
+
+    foreach ($status in @("selected", "dry-run-only", "denied", "expired", "released")) {
+        Assert-True -Condition (@($schema.properties.status.enum) -contains $status) -Message "Selected ship ledger schema supports status $status"
+    }
+    Assert-Equal -Actual $schema.properties.dryRun.const -Expected $true -Message "Selected ship ledger schema is dry-run true for this task"
+
+    $validationProperties = $schema.properties.validation.properties
+    foreach ($reason in @(
+        "single-selected-ship",
+        "blank-ship",
+        "all-ship",
+        "wildcard-ship",
+        "multi-ship",
+        "repo-fingerprint-ref-required",
+        "policy-decision-ref-required",
+        "owner-required",
+        "fixture-root-required",
+        "fixture-root-escape",
+        "dry-run-only",
+        "evidence-recorded"
+    )) {
+        Assert-True -Condition (@($validationProperties.reasons.items.enum) -contains $reason) -Message "Selected ship ledger validation supports reason $reason"
+    }
+    foreach ($fixtureName in @("blank-ship", "all-ship", "multi-ship", "wildcard-ship", "fixture-root-escape", "valid-fixture-dry-run")) {
+        Assert-True -Condition (@($validationProperties.fixtureName.enum) -contains $fixtureName) -Message "Selected ship ledger schema supports fixture $fixtureName"
+    }
+
+    $contractText = Get-Content -LiteralPath $contractPath -Raw
+    foreach ($phrase in @(
+        "evidence, not permission",
+        "exactly one selected ship",
+        "blank, all, wildcard, or multi-ship selections are rejected",
+        "dry-run ledger writing must stay inside fixture roots",
+        "repoFingerprintRef",
+        "policyDecisionRef",
+        "Write-FleetSelectedShipLedgerDryRun",
+        "never writes outside the fixture root",
+        "never reads product repos"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($phrase)) -Message "Selected ship ledger contract includes invariant: $phrase"
+    }
+    foreach ($outOfScope in @(
+        "Using the ledger to authorize real product mutation",
+        "Launching product ships",
+        "Mutating product repos",
+        "Running all-fleet commands",
+        "Importing task packets",
+        "Creating durable DB tables",
+        "Deleting locks",
+        "Widening permissions"
+    )) {
+        Assert-True -Condition ($contractText -match [regex]::Escape($outOfScope)) -Message "Selected ship ledger contract keeps out of scope: $outOfScope"
+    }
+
+    $ledgerFixtureRoot = Join-Path $fixtureRoot ("hq012-selected-ship-ledger-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $ledgerFixtureRoot | Out-Null
+    try {
+        $validPath = Join-Path $ledgerFixtureRoot "ledger.json"
+        $valid = Write-FleetSelectedShipLedgerDryRun -SelectedShipId "FixtureShip" -RepoFingerprintRef "repo-fixture-1" -PolicyDecisionRef "policy-fixture-1" -Owner "test-owner" -FixtureRoot $ledgerFixtureRoot -OutPath $validPath -EvidenceRefs @("fixture/repo-fingerprint.json")
+        Assert-True -Condition ($valid.written -and (Test-Path -LiteralPath $validPath)) -Message "Selected ship ledger dry-run writer writes inside fixture root"
+        Assert-Equal -Actual $valid.record.status -Expected "dry-run-only" -Message "Selected ship ledger dry-run writer records dry-run-only status"
+        Assert-Equal -Actual $valid.record.validation.status -Expected "valid" -Message "Selected ship ledger dry-run writer validates single ship"
+        Assert-True -Condition (@($valid.record.validation.reasons) -contains "single-selected-ship") -Message "Selected ship ledger dry-run writer records single-selected-ship reason"
+
+        $blank = Write-FleetSelectedShipLedgerDryRun -SelectedShipId "" -RepoFingerprintRef "repo-fixture-1" -PolicyDecisionRef "policy-fixture-1" -Owner "test-owner" -FixtureRoot $ledgerFixtureRoot -OutPath (Join-Path $ledgerFixtureRoot "blank.json")
+        Assert-False -Condition $blank.written -Message "Selected ship ledger dry-run writer rejects blank ship"
+        Assert-True -Condition (@($blank.record.validation.reasons) -contains "blank-ship") -Message "Selected ship ledger dry-run writer records blank-ship reason"
+
+        $all = Write-FleetSelectedShipLedgerDryRun -SelectedShipId "all" -RepoFingerprintRef "repo-fixture-1" -PolicyDecisionRef "policy-fixture-1" -Owner "test-owner" -FixtureRoot $ledgerFixtureRoot -OutPath (Join-Path $ledgerFixtureRoot "all.json")
+        Assert-False -Condition $all.written -Message "Selected ship ledger dry-run writer rejects all ship"
+        Assert-True -Condition (@($all.record.validation.reasons) -contains "all-ship") -Message "Selected ship ledger dry-run writer records all-ship reason"
+
+        $multi = Write-FleetSelectedShipLedgerDryRun -SelectedShipId "FixtureA,FixtureB" -RepoFingerprintRef "repo-fixture-1" -PolicyDecisionRef "policy-fixture-1" -Owner "test-owner" -FixtureRoot $ledgerFixtureRoot -OutPath (Join-Path $ledgerFixtureRoot "multi.json")
+        Assert-False -Condition $multi.written -Message "Selected ship ledger dry-run writer rejects multi-ship selection"
+        Assert-True -Condition (@($multi.record.validation.reasons) -contains "multi-ship") -Message "Selected ship ledger dry-run writer records multi-ship reason"
+
+        $wildcard = Write-FleetSelectedShipLedgerDryRun -SelectedShipId "*" -RepoFingerprintRef "repo-fixture-1" -PolicyDecisionRef "policy-fixture-1" -Owner "test-owner" -FixtureRoot $ledgerFixtureRoot -OutPath (Join-Path $ledgerFixtureRoot "wildcard.json")
+        Assert-False -Condition $wildcard.written -Message "Selected ship ledger dry-run writer rejects wildcard ship"
+        Assert-True -Condition (@($wildcard.record.validation.reasons) -contains "wildcard-ship") -Message "Selected ship ledger dry-run writer records wildcard reason"
+
+        $escapePath = Join-Path $fleetRoot ".codex-local\selected-ship-escape.json"
+        $escape = Write-FleetSelectedShipLedgerDryRun -SelectedShipId "FixtureShip" -RepoFingerprintRef "repo-fixture-1" -PolicyDecisionRef "policy-fixture-1" -Owner "test-owner" -FixtureRoot $ledgerFixtureRoot -OutPath $escapePath
+        Assert-False -Condition $escape.written -Message "Selected ship ledger dry-run writer rejects fixture-root escape"
+        Assert-True -Condition (@($escape.record.validation.reasons) -contains "fixture-root-escape") -Message "Selected ship ledger dry-run writer records fixture-root escape"
+        Assert-False -Condition (Test-Path -LiteralPath $escapePath) -Message "Selected ship ledger dry-run writer does not create escaped file"
+    } finally {
+        if (Test-Path -LiteralPath $ledgerFixtureRoot) {
+            Remove-Item -LiteralPath $ledgerFixtureRoot -Recurse -Force
+        }
+    }
+}
+
+function Test-ThinTaskPacketSchemaAndExample {
+    $schemaPath = Join-Path $fleetRoot "templates\thin-task-packet-schema.json"
+    $examplePath = Join-Path $fleetRoot "tests\fixtures\fleet\thin-task-packets\hq-084-thin-task-packet.example.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Thin task packet schema exists"
+    Assert-True -Condition (Test-Path -LiteralPath $examplePath) -Message "HQ-084 thin task packet example exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    $example = Get-Content -LiteralPath $examplePath -Raw | ConvertFrom-Json
+
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Thin task packet schema is versioned"
+    foreach ($field in @(
+        "packetId",
+        "taskId",
+        "mode",
+        "goal",
+        "stableContextCapsuleRef",
+        "allowedFiles",
+        "readFirst",
+        "acceptance",
+        "validationCommands",
+        "stopIf",
+        "statusUpdateRules",
+        "evidenceDigest"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Thin task packet schema requires $field"
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "Thin task packet schema defines $field"
+    }
+
+    foreach ($mode in @("validation_only", "docs_only", "schema_fixture_test", "docs_and_tests", "audit_package_planning", "queue_bookkeeping_only")) {
+        Assert-True -Condition (@($schema.properties.mode.enum) -contains $mode) -Message "Thin task packet schema supports mode $mode"
+    }
+
+    $statusRules = $schema.properties.statusUpdateRules.properties
+    Assert-Equal -Actual $statusRules.onValidationPass.const -Expected "mark_this_task_done" -Message "Thin task packet pass rule marks only this task done"
+    Assert-Equal -Actual $statusRules.onValidationFail.const -Expected "patch_only_task_caused_failures_or_mark_blocked" -Message "Thin task packet fail rule stays bounded"
+    Assert-Equal -Actual $statusRules.onScopeExpansion.const -Expected "mark_this_task_blocked_and_stop" -Message "Thin task packet scope expansion blocks and stops"
+    Assert-Equal -Actual $statusRules.queueFile.const -Expected "docs/fleet/HQ_REPAIR_TASK_QUEUE.md" -Message "Thin task packet status updates target HQ queue"
+    Assert-Equal -Actual $statusRules.oneTaskOnly.const -Expected $true -Message "Thin task packet enforces one-task-only"
+
+    Assert-Equal -Actual $example.schemaVersion -Expected 1 -Message "HQ-084 thin packet example uses schema version 1"
+    Assert-Equal -Actual $example.taskId -Expected "HQ-084" -Message "HQ-084 thin packet example models HQ-084"
+    Assert-Equal -Actual $example.mode -Expected "validation_only" -Message "HQ-084 thin packet example is validation-only"
+    Assert-Equal -Actual $example.stableContextCapsuleRef -Expected "docs/fleet/STABLE_CONTEXT_CAPSULE.md" -Message "HQ-084 thin packet example references capsule path"
+    Assert-True -Condition (@($example.allowedFiles) -contains "docs/fleet/HQ_REPAIR_TASK_QUEUE.md") -Message "HQ-084 thin packet includes queue file"
+    Assert-True -Condition (@($example.validationCommands) -contains 'powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1') -Message "HQ-084 thin packet includes fleet validation command"
+    Assert-Equal -Actual $example.statusUpdateRules.oneTaskOnly -Expected $true -Message "HQ-084 thin packet is one-task-only"
+    Assert-True -Condition ($example.evidenceDigest.nonAuthorityNotice -match "does not approve") -Message "HQ-084 thin packet example carries non-authority notice"
+
+    $exampleText = Get-Content -LiteralPath $examplePath -Raw
+    Assert-False -Condition ($exampleText -match "(?i)(git add|git commit|git push|npm install|pnpm install|yarn install)") -Message "HQ-084 thin packet example avoids forbidden executable commands"
+    Assert-True -Condition ($exampleText -match "product repo access") -Message "HQ-084 thin packet example names product-repo access only as a forbidden boundary"
+}
+
+function Test-CompactEvidenceDigestSchemas {
+    $validationSchemaPath = Join-Path $fleetRoot "templates\validation-output-summary-schema.json"
+    $auditSchemaPath = Join-Path $fleetRoot "templates\external-audit-intake-digest-schema.json"
+    $validationExamplePath = Join-Path $fleetRoot "tests\fixtures\fleet\evidence\validation-output-summary.example.json"
+    $auditExamplePath = Join-Path $fleetRoot "tests\fixtures\fleet\evidence\external-audit-intake.example.json"
+    $auditPromptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $tokenModelPath = Join-Path $fleetRoot "docs\fleet\TOKEN_CONTROL_OPERATING_MODEL.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $validationSchemaPath) -Message "Validation output summary schema exists"
+    Assert-True -Condition (Test-Path -LiteralPath $auditSchemaPath) -Message "External audit intake digest schema exists"
+    Assert-True -Condition (Test-Path -LiteralPath $validationExamplePath) -Message "Validation output summary example exists"
+    Assert-True -Condition (Test-Path -LiteralPath $auditExamplePath) -Message "External audit intake digest example exists"
+
+    $validationSchema = Get-Content -LiteralPath $validationSchemaPath -Raw | ConvertFrom-Json
+    $auditSchema = Get-Content -LiteralPath $auditSchemaPath -Raw | ConvertFrom-Json
+    $validationExample = Get-Content -LiteralPath $validationExamplePath -Raw | ConvertFrom-Json
+    $auditExample = Get-Content -LiteralPath $auditExamplePath -Raw | ConvertFrom-Json
+
+    Assert-Equal -Actual $validationSchema.properties.schemaVersion.const -Expected 1 -Message "Validation output summary schema is versioned"
+    foreach ($field in @("result", "failureFingerprint", "firstError", "fullLogPath", "nextAction")) {
+        Assert-True -Condition (@($validationSchema.required) -contains $field) -Message "Validation output summary schema requires $field"
+        Assert-True -Condition ($validationSchema.properties.PSObject.Properties.Name -contains $field) -Message "Validation output summary schema defines $field"
+    }
+    foreach ($result in @("PASS", "FAIL", "INTERRUPTED", "BLOCKED")) {
+        Assert-True -Condition (@($validationSchema.properties.result.enum) -contains $result) -Message "Validation output summary supports result $result"
+    }
+    Assert-Equal -Actual $validationExample.result -Expected "PASS" -Message "Validation output summary example records PASS"
+    Assert-Equal -Actual $validationExample.failureFingerprint -Expected $null -Message "Validation output summary example records no failure fingerprint on pass"
+    Assert-Equal -Actual $validationExample.firstError -Expected $null -Message "Validation output summary example records no first error on pass"
+    Assert-True -Condition ($validationExample.nonAuthorityNotice -match "compact evidence only") -Message "Validation output summary example carries non-authority notice"
+
+    Assert-Equal -Actual $auditSchema.properties.schemaVersion.const -Expected 1 -Message "External audit intake digest schema is versioned"
+    foreach ($field in @("findingId", "severity", "affectedArtifact", "boundedDisposition", "suggestedLocalFollowup", "unresolvedAssumptions", "nonAuthorityNotice")) {
+        Assert-True -Condition (@($auditSchema.required) -contains $field) -Message "External audit intake digest schema requires $field"
+        Assert-True -Condition ($auditSchema.properties.PSObject.Properties.Name -contains $field) -Message "External audit intake digest schema defines $field"
+    }
+    foreach ($severity in @("GREEN", "YELLOW", "RED", "INFO")) {
+        Assert-True -Condition (@($auditSchema.properties.severity.enum) -contains $severity) -Message "External audit intake digest supports severity $severity"
+    }
+    foreach ($disposition in @("no_action", "accepted_limitation", "queue_candidate", "blocked_needs_human", "red_stop")) {
+        Assert-True -Condition (@($auditSchema.properties.boundedDisposition.enum) -contains $disposition) -Message "External audit intake digest supports disposition $disposition"
+    }
+    Assert-Equal -Actual $auditExample.severity -Expected "YELLOW" -Message "External audit intake example records YELLOW finding"
+    Assert-Equal -Actual $auditExample.boundedDisposition -Expected "queue_candidate" -Message "External audit intake example stays a queue candidate"
+    Assert-True -Condition ($auditExample.nonAuthorityNotice -match "evidence only") -Message "External audit intake example carries non-authority notice"
+    Assert-True -Condition (@($auditExample.suggestedLocalFollowup.allowedFiles) -contains "docs/fleet/HQ_REPAIR_TASK_QUEUE.md") -Message "External audit intake example suggests bounded local files"
+
+    $auditPrompt = Get-Content -LiteralPath $auditPromptPath -Raw
+    Assert-True -Condition ($auditPrompt -match "findingId") -Message "External audit prompt requests findingId digest field"
+    Assert-True -Condition ($auditPrompt -match "boundedDisposition") -Message "External audit prompt requests boundedDisposition digest field"
+    Assert-True -Condition ($auditPrompt -match "nonAuthorityNotice") -Message "External audit prompt requests nonAuthorityNotice digest field"
+    Assert-True -Condition ($auditPrompt -match "Do not include raw terminal logs") -Message "External audit prompt discourages raw logs"
+
+    $tokenModel = Get-Content -LiteralPath $tokenModelPath -Raw
+    Assert-True -Condition ($tokenModel -match "templates/validation-output-summary-schema.json") -Message "Token model references validation summary schema"
+    Assert-True -Condition ($tokenModel -match "templates/external-audit-intake-digest-schema.json") -Message "Token model references audit intake digest schema"
+}
+
+function Test-HqEvidenceDigestRegressionFixtures {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\evidence"
+    $validValidationPath = Join-Path $fixtureDir "validation-output-summary.valid-compact-pass.json"
+    $rejectedValidationPath = Join-Path $fixtureDir "validation-output-summary.rejected-raw-log.json"
+    $validAuditPath = Join-Path $fixtureDir "external-audit-intake.valid-digest.json"
+    $rejectedCommandAuditPath = Join-Path $fixtureDir "external-audit-intake.rejected-command-like.json"
+    $rejectedMissingNoticeAuditPath = Join-Path $fixtureDir "external-audit-intake.rejected-missing-non-authority.json"
+
+    foreach ($path in @(
+        $validValidationPath,
+        $rejectedValidationPath,
+        $validAuditPath,
+        $rejectedCommandAuditPath,
+        $rejectedMissingNoticeAuditPath
+    )) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Evidence digest regression fixture exists: $(Split-Path -Path $path -Leaf)"
+        Get-Content -LiteralPath $path -Raw | ConvertFrom-Json | Out-Null
+    }
+
+    $validValidation = Get-Content -LiteralPath $validValidationPath -Raw | ConvertFrom-Json
+    $rejectedValidation = Get-Content -LiteralPath $rejectedValidationPath -Raw | ConvertFrom-Json
+    $validAudit = Get-Content -LiteralPath $validAuditPath -Raw | ConvertFrom-Json
+    $rejectedCommandAudit = Get-Content -LiteralPath $rejectedCommandAuditPath -Raw | ConvertFrom-Json
+    $rejectedMissingNoticeAudit = Get-Content -LiteralPath $rejectedMissingNoticeAuditPath -Raw | ConvertFrom-Json
+
+    $forbiddenActionPattern = "(?i)(git\s+(add|commit|push|merge|reset|checkout)|npm\s+install|pnpm\s+install|yarn\s+install|deploy|migration|secret|token|credential|private-key|run-fleet\.ps1|all-fleet)"
+    $forbiddenPathPattern = "(?i)(\.git|\.env|\.\.|product[-_ ]?repo|secret|token|credential|private-key|node_modules|dist|build)"
+
+    Assert-Equal -Actual $validValidation.result -Expected "PASS" -Message "Valid compact validation fixture records PASS"
+    Assert-Equal -Actual $validValidation.failureFingerprint -Expected $null -Message "Valid compact validation fixture omits failure fingerprint on pass"
+    Assert-Equal -Actual $validValidation.firstError -Expected $null -Message "Valid compact validation fixture omits first error on pass"
+    Assert-True -Condition ($validValidation.nonAuthorityNotice -match "evidence only") -Message "Valid compact validation fixture carries non-authority notice"
+    Assert-False -Condition ($validValidation.PSObject.Properties.Name -contains "embeddedOutput") -Message "Valid compact validation fixture omits embedded output"
+    Assert-False -Condition ($validValidation.command -match $forbiddenActionPattern) -Message "Valid compact validation fixture avoids forbidden action patterns"
+    Assert-False -Condition ($validValidation.fullLogPath -match $forbiddenPathPattern) -Message "Valid compact validation fixture avoids forbidden log paths"
+
+    Assert-Equal -Actual $rejectedValidation.expectedValidity -Expected "rejected" -Message "Rejected validation fixture declares rejected validity"
+    Assert-Equal -Actual $rejectedValidation.rejectionReason -Expected "embedded_terminal_output" -Message "Rejected validation fixture records embedded output reason"
+    Assert-True -Condition ($rejectedValidation.PSObject.Properties.Name -contains "embeddedOutput") -Message "Rejected validation fixture includes embedded output marker"
+    Assert-True -Condition ($rejectedValidation.nonAuthorityNotice -match "evidence only") -Message "Rejected validation fixture still carries non-authority notice"
+
+    Assert-Equal -Actual $validAudit.boundedDisposition -Expected "queue_candidate" -Message "Valid audit digest remains a queue candidate"
+    Assert-True -Condition ($validAudit.nonAuthorityNotice -match "evidence only") -Message "Valid audit digest carries non-authority notice"
+    Assert-False -Condition ($validAudit.affectedArtifact -match $forbiddenPathPattern) -Message "Valid audit digest avoids forbidden affected artifact paths"
+    foreach ($allowedFile in @($validAudit.suggestedLocalFollowup.allowedFiles)) {
+        Assert-False -Condition ($allowedFile -match $forbiddenPathPattern) -Message "Valid audit digest allowed file avoids forbidden path: $allowedFile"
+    }
+    foreach ($validationIdea in @($validAudit.suggestedLocalFollowup.validationIdeas)) {
+        Assert-False -Condition ($validationIdea -match $forbiddenActionPattern) -Message "Valid audit digest validation idea avoids forbidden action: $validationIdea"
+    }
+
+    Assert-Equal -Actual $rejectedCommandAudit.expectedValidity -Expected "rejected" -Message "Rejected command-like audit fixture declares rejected validity"
+    Assert-Equal -Actual $rejectedCommandAudit.rejectionReason -Expected "command_like_digest" -Message "Rejected command-like audit fixture records command-like reason"
+    Assert-True -Condition ((@($rejectedCommandAudit.suggestedLocalFollowup.validationIdeas) -join "`n") -match "all-fleet") -Message "Rejected command-like audit fixture contains command-like evidence marker"
+    Assert-True -Condition ($rejectedCommandAudit.nonAuthorityNotice -match "evidence only") -Message "Rejected command-like audit fixture still carries non-authority notice"
+
+    Assert-Equal -Actual $rejectedMissingNoticeAudit.expectedValidity -Expected "rejected" -Message "Rejected missing-notice audit fixture declares rejected validity"
+    Assert-Equal -Actual $rejectedMissingNoticeAudit.rejectionReason -Expected "missing_non_authority_notice" -Message "Rejected missing-notice audit fixture records missing notice reason"
+    Assert-False -Condition ($rejectedMissingNoticeAudit.PSObject.Properties.Name -contains "nonAuthorityNotice") -Message "Rejected missing-notice audit fixture omits nonAuthorityNotice"
+}
+
+function Test-HqEvidenceDigestShapeEnforcement {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\evidence"
+    $validationSchemaPath = Join-Path $fleetRoot "templates\validation-output-summary-schema.json"
+    $auditSchemaPath = Join-Path $fleetRoot "templates\external-audit-intake-digest-schema.json"
+    $tokenModelPath = Join-Path $fleetRoot "docs\fleet\TOKEN_CONTROL_OPERATING_MODEL.md"
+    $importReconPath = Join-Path $fleetRoot "docs\fleet\HQ_IMPORT_RECON.md"
+
+    $validationSchema = Get-Content -LiteralPath $validationSchemaPath -Raw | ConvertFrom-Json
+    $auditSchema = Get-Content -LiteralPath $auditSchemaPath -Raw | ConvertFrom-Json
+
+    Assert-True -Condition (@($validationSchema.required) -contains "nonAuthorityNotice") -Message "Validation summary schema requires nonAuthorityNotice"
+    Assert-True -Condition (@($auditSchema.required) -contains "nonAuthorityNotice") -Message "Audit digest schema requires nonAuthorityNotice"
+    Assert-True -Condition ($validationSchema.properties.command.not.pattern -match "git") -Message "Validation summary schema forbids command-like git operations"
+    Assert-True -Condition ($auditSchema.properties.suggestedLocalFollowup.properties.validationIdeas.items.not.pattern -match "all-fleet") -Message "Audit digest schema forbids all-fleet validation ideas"
+
+    $forbiddenActionPattern = "(?i)(git\s+(add|commit|push|merge|reset|checkout)|npm\s+install|pnpm\s+install|yarn\s+install|deploy|migration|secret|token|credential|private-key|run-fleet\.ps1|all-fleet|launch\s+ships|delete\s+locks|widen\s+permissions|product[-_ ]?repo\s+mutation)"
+    $forbiddenPathPattern = "(?i)(\.git|\.env|\.\.|product[-_ ]?repo|secret|token|credential|private-key|node_modules|dist|build)"
+
+    $validationFixtures = Get-ChildItem -LiteralPath $fixtureDir -Filter "validation-output-summary*.json"
+    Assert-True -Condition ($validationFixtures.Count -ge 3) -Message "Validation summary fixture set includes valid and rejected cases"
+    foreach ($fixture in $validationFixtures) {
+        $summary = Get-Content -LiteralPath $fixture.FullName -Raw | ConvertFrom-Json
+        $isRejected = ($summary.PSObject.Properties.Name -contains "expectedValidity") -and $summary.expectedValidity -eq "rejected"
+        $hasNotice = $summary.PSObject.Properties.Name -contains "nonAuthorityNotice"
+
+        if ($isRejected) {
+            Assert-True -Condition ($summary.PSObject.Properties.Name -contains "rejectionReason") -Message "Rejected validation summary fixture names rejection reason: $($fixture.Name)"
+            if ($summary.rejectionReason -eq "embedded_terminal_output") {
+                Assert-True -Condition ($summary.PSObject.Properties.Name -contains "embeddedOutput") -Message "Embedded-output validation fixture exposes the rejected field"
+            }
+            if ($hasNotice) {
+                Assert-True -Condition ($summary.nonAuthorityNotice -match "evidence only") -Message "Rejected validation summary notice remains non-authoritative: $($fixture.Name)"
+            }
+        } else {
+            Assert-True -Condition $hasNotice -Message "Accepted validation summary fixture has nonAuthorityNotice: $($fixture.Name)"
+            Assert-True -Condition ($summary.nonAuthorityNotice -match "evidence only|compact evidence only") -Message "Accepted validation summary notice is evidence-only: $($fixture.Name)"
+            Assert-False -Condition ($summary.PSObject.Properties.Name -contains "embeddedOutput") -Message "Accepted validation summary omits embedded output: $($fixture.Name)"
+            Assert-False -Condition ($summary.command -match $forbiddenActionPattern) -Message "Accepted validation summary avoids forbidden command content: $($fixture.Name)"
+            if ($summary.fullLogPath -ne $null) {
+                Assert-False -Condition ($summary.fullLogPath -match $forbiddenPathPattern) -Message "Accepted validation summary avoids forbidden log path: $($fixture.Name)"
+            }
+        }
+    }
+
+    $auditFixtures = Get-ChildItem -LiteralPath $fixtureDir -Filter "external-audit-intake*.json"
+    Assert-True -Condition ($auditFixtures.Count -ge 4) -Message "Audit digest fixture set includes valid and rejected cases"
+    foreach ($fixture in $auditFixtures) {
+        $digest = Get-Content -LiteralPath $fixture.FullName -Raw | ConvertFrom-Json
+        $isRejected = ($digest.PSObject.Properties.Name -contains "expectedValidity") -and $digest.expectedValidity -eq "rejected"
+        $hasNotice = $digest.PSObject.Properties.Name -contains "nonAuthorityNotice"
+        $validationIdeas = if ($digest.suggestedLocalFollowup -ne $null) { @($digest.suggestedLocalFollowup.validationIdeas) } else { @() }
+        $allowedFiles = if ($digest.suggestedLocalFollowup -ne $null) { @($digest.suggestedLocalFollowup.allowedFiles) } else { @() }
+
+        if ($isRejected) {
+            Assert-True -Condition ($digest.PSObject.Properties.Name -contains "rejectionReason") -Message "Rejected audit digest fixture names rejection reason: $($fixture.Name)"
+            if ($digest.rejectionReason -eq "missing_non_authority_notice") {
+                Assert-False -Condition $hasNotice -Message "Missing-notice audit digest is rejected without nonAuthorityNotice"
+            }
+            if ($digest.rejectionReason -eq "command_like_digest") {
+                Assert-True -Condition ((@($validationIdeas) -join "`n") -match $forbiddenActionPattern) -Message "Command-like audit digest carries forbidden actionable marker"
+            }
+        } else {
+            Assert-True -Condition $hasNotice -Message "Accepted audit digest fixture has nonAuthorityNotice: $($fixture.Name)"
+            Assert-True -Condition ($digest.nonAuthorityNotice -match "evidence only") -Message "Accepted audit digest notice is evidence-only: $($fixture.Name)"
+            Assert-False -Condition ($digest.affectedArtifact -match $forbiddenPathPattern) -Message "Accepted audit digest avoids forbidden affected artifact: $($fixture.Name)"
+            foreach ($allowedFile in $allowedFiles) {
+                Assert-False -Condition ($allowedFile -match $forbiddenPathPattern) -Message "Accepted audit digest avoids forbidden allowed file: $allowedFile"
+            }
+            foreach ($validationIdea in $validationIdeas) {
+                Assert-False -Condition ($validationIdea -match $forbiddenActionPattern) -Message "Accepted audit digest avoids forbidden validation idea: $validationIdea"
+            }
+        }
+    }
+
+    $tokenModel = Get-Content -LiteralPath $tokenModelPath -Raw
+    $importRecon = Get-Content -LiteralPath $importReconPath -Raw
+    Assert-True -Condition ($tokenModel -match "without turning logs into commands") -Message "Token model keeps compact validation summaries non-command-like"
+    Assert-True -Condition ($tokenModel -match "Digest records are evidence only") -Message "Token model keeps audit digests evidence-only"
+    Assert-True -Condition ($importRecon -match "External reports, audit outputs, DOCX reports") -Message "Import recon requires external evidence reduction"
+    Assert-True -Condition ($importRecon -match "nonAuthorityNotice") -Message "Import recon names nonAuthorityNotice digest field"
+}
+
+function Test-HqExternalAuditPackageManifestSchemaAndFixtures {
+    $schemaPath = Join-Path $fleetRoot "templates\external-audit-package-manifest-schema.json"
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\evidence"
+    $validManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.valid-integrated.json"
+    $rejectedManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.rejected-forbidden-material.json"
+    $controlledManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.controlled-hardening.json"
+    $readOnlyDemoFollowupManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.read-only-demo-followup.json"
+    $readOnlyDemoCombinedManifestPath = Join-Path $fixtureDir "external-audit-package-manifest.read-only-demo-combined.json"
+    $auditPromptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $batchTemplatePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_BATCH_AUDIT_TEMPLATE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "External audit package manifest schema exists"
+    Assert-True -Condition (Test-Path -LiteralPath $validManifestPath) -Message "Valid external audit package manifest fixture exists"
+    Assert-True -Condition (Test-Path -LiteralPath $rejectedManifestPath) -Message "Rejected external audit package manifest fixture exists"
+    Assert-True -Condition (Test-Path -LiteralPath $controlledManifestPath) -Message "Controlled-hardening external audit package manifest fixture exists"
+    Assert-True -Condition (Test-Path -LiteralPath $readOnlyDemoFollowupManifestPath) -Message "Read-only demo follow-up external audit package manifest fixture exists"
+    Assert-True -Condition (Test-Path -LiteralPath $readOnlyDemoCombinedManifestPath) -Message "Combined read-only demo external audit package manifest fixture exists"
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw | ConvertFrom-Json
+    $validManifest = Get-Content -LiteralPath $validManifestPath -Raw | ConvertFrom-Json
+    $rejectedManifest = Get-Content -LiteralPath $rejectedManifestPath -Raw | ConvertFrom-Json
+    $controlledManifest = Get-Content -LiteralPath $controlledManifestPath -Raw | ConvertFrom-Json
+    $readOnlyDemoFollowupManifest = Get-Content -LiteralPath $readOnlyDemoFollowupManifestPath -Raw | ConvertFrom-Json
+    $readOnlyDemoCombinedManifest = Get-Content -LiteralPath $readOnlyDemoCombinedManifestPath -Raw | ConvertFrom-Json
+
+    foreach ($field in @(
+        "packageId",
+        "preparedAt",
+        "sourceRepo",
+        "sourceCommit",
+        "packagePurpose",
+        "includedFiles",
+        "excludedPatterns",
+        "validationSummaryRef",
+        "reviewerPromptRef",
+        "forbiddenScopeDenials",
+        "evidenceOnlyNotice",
+        "packageCreationStatus",
+        "noSendStatus",
+        "noProductRepos",
+        "noAuthorityNotice"
+    )) {
+        Assert-True -Condition ($schema.properties.PSObject.Properties.Name -contains $field) -Message "External audit package manifest schema defines $field"
+    }
+
+    Assert-Equal -Actual $schema.properties.noProductRepos.const -Expected $true -Message "Manifest schema requires noProductRepos"
+    Assert-Equal -Actual $schema.properties.noSendStatus.const -Expected $true -Message "Manifest schema keeps package sending disabled"
+    Assert-Equal -Actual $schema.properties.includedFiles.items.properties.evidenceOnly.const -Expected $true -Message "Manifest schema requires included files to be evidence-only"
+    Assert-Equal -Actual $schema.properties.includedFiles.items.properties.containsRawLogs.const -Expected $false -Message "Manifest schema excludes raw logs from included files"
+    Assert-Equal -Actual $schema.properties.includedFiles.items.properties.containsReviewerCommands.const -Expected $false -Message "Manifest schema excludes reviewer commands from included files"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($schema.properties.forbiddenScopeDenials.items.enum) -contains $denial) -Message "Manifest schema supports forbidden-scope denial $denial"
+    }
+
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    foreach ($requiredExclusion in @(
+        "\.git",
+        "\.env",
+        "product",
+        "node_modules",
+        "dist",
+        "build",
+        "raw",
+        "unknown",
+        "live",
+        "secret",
+        "auth",
+        "payment",
+        "deploy",
+        "migration",
+        "all-fleet"
+    )) {
+        Assert-True -Condition ($schemaText -match $requiredExclusion) -Message "Manifest schema names exclusion marker $requiredExclusion"
+    }
+
+    $forbiddenPathPattern = "(?i)(\.git|\.env|\.\.|product[-_ ]?repo|node_modules|dist|build|raw[-_ ]?locks?|unknown[-_ ]?zip|live[-_ ]?worker|secret|credential|private[-_ ]?key|auth|payments?|deploy|migration)"
+    $commandLikePattern = "(?i)(run\s+all-fleet|launch\s+ships|git\s+(add|commit|push|merge)|deploy|npm\s+install|pnpm\s+install|yarn\s+install|delete\s+locks|widen\s+permissions)"
+
+    Assert-Equal -Actual $validManifest.expectedValidity -Expected "valid" -Message "Valid manifest declares valid expected validity"
+    Assert-Equal -Actual $validManifest.sourceRepo -Expected "codex-fleet-harness" -Message "Valid manifest source is the harness repo"
+    Assert-Equal -Actual $validManifest.noProductRepos -Expected $true -Message "Valid manifest excludes product repos"
+    Assert-True -Condition ($validManifest.evidenceOnlyNotice -match "evidence only") -Message "Valid manifest carries evidence-only notice"
+    Assert-True -Condition ($validManifest.noAuthorityNotice -match "cannot approve|cannot.*bypass") -Message "Valid manifest carries no-authority notice"
+    Assert-True -Condition (@($validManifest.includedFiles).Count -ge 5) -Message "Valid manifest includes integrated audit package entries"
+    Assert-Equal -Actual $validManifest.externalAuditDigestSchemaRef -Expected "templates/external-audit-intake-digest-schema.json" -Message "Valid manifest links to audit digest schema"
+
+    foreach ($includedFile in @($validManifest.includedFiles)) {
+        Assert-False -Condition ($includedFile.path -match $forbiddenPathPattern) -Message "Valid manifest included path avoids forbidden material: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.evidenceOnly -Expected $true -Message "Valid manifest included file is evidence-only: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsRawLogs -Expected $false -Message "Valid manifest included file excludes raw logs: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsReviewerCommands -Expected $false -Message "Valid manifest included file excludes reviewer commands: $($includedFile.path)"
+    }
+
+    $validExclusions = (@($validManifest.excludedPatterns) -join "`n")
+    foreach ($requiredExclusion in @("product", ".env", "node_modules", "dist", "build", "raw locks", "unknown zip", "live worker", "secrets", "auth", "payment", "deploy", "migration")) {
+        Assert-True -Condition ($validExclusions -match [regex]::Escape($requiredExclusion)) -Message "Valid manifest excludedPatterns names $requiredExclusion"
+    }
+
+    Assert-Equal -Actual $rejectedManifest.expectedValidity -Expected "rejected" -Message "Rejected manifest declares rejected expected validity"
+    Assert-Equal -Actual $rejectedManifest.rejectionReason -Expected "contains_forbidden_package_material" -Message "Rejected manifest names forbidden material reason"
+    $rejectedPaths = (@($rejectedManifest.includedFiles | ForEach-Object { $_.path }) -join "`n")
+    $rejectedReviewerText = (@($rejectedManifest.includedFiles | ForEach-Object { $_.reviewerOutputSnippet }) -join "`n")
+    Assert-True -Condition ($rejectedPaths -match "product-repo") -Message "Rejected manifest contains product repo marker"
+    Assert-True -Condition ($rejectedPaths -match "\.env") -Message "Rejected manifest contains env file marker"
+    Assert-True -Condition ($rejectedPaths -match "node_modules") -Message "Rejected manifest contains dependency folder marker"
+    Assert-True -Condition ($rejectedPaths -match "locks") -Message "Rejected manifest contains raw locks marker"
+    Assert-True -Condition ($rejectedPaths -match "unknown\.zip") -Message "Rejected manifest contains unknown zip marker"
+    Assert-True -Condition ($rejectedPaths -match "live-worker-state") -Message "Rejected manifest contains live worker state marker"
+    Assert-True -Condition ($rejectedReviewerText -match $commandLikePattern) -Message "Rejected manifest contains command-like reviewer output marker"
+    Assert-True -Condition (@($rejectedManifest.includedFiles | Where-Object { $_.containsReviewerCommands -eq $true }).Count -ge 1) -Message "Rejected manifest exposes reviewer command marker"
+    Assert-True -Condition ($rejectedManifest.noAuthorityNotice -match "cannot approve") -Message "Rejected manifest still carries no-authority notice"
+
+    Assert-Equal -Actual $controlledManifest.expectedValidity -Expected "valid" -Message "Controlled-hardening manifest declares valid expected validity"
+    Assert-Equal -Actual $controlledManifest.sourceRepo -Expected "codex-fleet-harness" -Message "Controlled-hardening manifest source is the harness repo"
+    Assert-Equal -Actual $controlledManifest.packageCreationStatus -Expected "not_created" -Message "Controlled-hardening manifest records package not created"
+    Assert-Equal -Actual $controlledManifest.noSendStatus -Expected $true -Message "Controlled-hardening manifest keeps package sending disabled"
+    Assert-Equal -Actual $controlledManifest.noProductRepos -Expected $true -Message "Controlled-hardening manifest excludes product repos"
+    Assert-True -Condition ($controlledManifest.packageId -match "controlled-hardening") -Message "Controlled-hardening manifest identifies controlled hardening scope"
+    Assert-True -Condition ($controlledManifest.evidenceOnlyNotice -match "local evidence only") -Message "Controlled-hardening manifest carries local evidence-only notice"
+    Assert-True -Condition ($controlledManifest.noAuthorityNotice -match "cannot approve package creation") -Message "Controlled-hardening manifest cannot approve package creation"
+    Assert-True -Condition ($controlledManifest.noAuthorityNotice -match "future authority") -Message "Controlled-hardening manifest cannot grant future authority"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($controlledManifest.forbiddenScopeDenials) -contains $denial) -Message "Controlled-hardening manifest lists forbidden-scope denial: $denial"
+    }
+
+    foreach ($includedFile in @($controlledManifest.includedFiles)) {
+        Assert-False -Condition ($includedFile.path -match $forbiddenPathPattern) -Message "Controlled-hardening manifest included path avoids forbidden material: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.evidenceOnly -Expected $true -Message "Controlled-hardening manifest included file is evidence-only: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsRawLogs -Expected $false -Message "Controlled-hardening manifest included file excludes raw logs: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsReviewerCommands -Expected $false -Message "Controlled-hardening manifest included file excludes reviewer commands: $($includedFile.path)"
+    }
+
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.expectedValidity -Expected "valid" -Message "Read-only demo follow-up manifest declares valid expected validity"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.sourceRepo -Expected "codex-fleet-harness" -Message "Read-only demo follow-up manifest source is the harness repo"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.packageCreationStatus -Expected "not_created" -Message "Read-only demo follow-up manifest records package not created"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.noSendStatus -Expected $true -Message "Read-only demo follow-up manifest keeps package sending disabled"
+    Assert-Equal -Actual $readOnlyDemoFollowupManifest.noProductRepos -Expected $true -Message "Read-only demo follow-up manifest excludes product repos"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.packageId -match "read-only-demo-followup") -Message "Read-only demo follow-up manifest identifies read-only demo follow-up scope"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.evidenceOnlyNotice -match "local evidence only") -Message "Read-only demo follow-up manifest carries local evidence-only notice"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.noAuthorityNotice -match "cannot approve package creation") -Message "Read-only demo follow-up manifest cannot approve package creation"
+    Assert-True -Condition ($readOnlyDemoFollowupManifest.noAuthorityNotice -match "future authority") -Message "Read-only demo follow-up manifest cannot grant future authority"
+    Assert-True -Condition (@($readOnlyDemoFollowupManifest.includedFiles | Where-Object { [string]$_.path -eq "docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md" }).Count -eq 1) -Message "Read-only demo follow-up manifest includes GREEN audit record evidence"
+    Assert-True -Condition (@($readOnlyDemoFollowupManifest.includedFiles | Where-Object { [string]$_.path -eq "tests/fixtures/fleet/read-only-demo/read-only-demo.reused-approval-denied.json" }).Count -eq 1) -Message "Read-only demo follow-up manifest includes reused approval denial fixture evidence"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($readOnlyDemoFollowupManifest.forbiddenScopeDenials) -contains $denial) -Message "Read-only demo follow-up manifest lists forbidden-scope denial: $denial"
+    }
+
+    foreach ($includedFile in @($readOnlyDemoFollowupManifest.includedFiles)) {
+        Assert-False -Condition ($includedFile.path -match $forbiddenPathPattern) -Message "Read-only demo follow-up manifest included path avoids forbidden material: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.evidenceOnly -Expected $true -Message "Read-only demo follow-up manifest included file is evidence-only: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsRawLogs -Expected $false -Message "Read-only demo follow-up manifest included file excludes raw logs: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsReviewerCommands -Expected $false -Message "Read-only demo follow-up manifest included file excludes reviewer commands: $($includedFile.path)"
+    }
+
+    Assert-Equal -Actual $readOnlyDemoCombinedManifest.expectedValidity -Expected "valid" -Message "Combined read-only demo manifest declares valid expected validity"
+    Assert-Equal -Actual $readOnlyDemoCombinedManifest.sourceRepo -Expected "codex-fleet-harness" -Message "Combined read-only demo manifest source is the harness repo"
+    Assert-Equal -Actual $readOnlyDemoCombinedManifest.packageCreationStatus -Expected "not_created" -Message "Combined read-only demo manifest records package not created"
+    Assert-Equal -Actual $readOnlyDemoCombinedManifest.noSendStatus -Expected $true -Message "Combined read-only demo manifest keeps package sending disabled"
+    Assert-Equal -Actual $readOnlyDemoCombinedManifest.noProductRepos -Expected $true -Message "Combined read-only demo manifest excludes product repos"
+    Assert-True -Condition ($readOnlyDemoCombinedManifest.packageId -match "read-only-demo-combined") -Message "Combined read-only demo manifest identifies combined audit scope"
+    Assert-True -Condition ($readOnlyDemoCombinedManifest.evidenceOnlyNotice -match "local evidence only") -Message "Combined read-only demo manifest carries local evidence-only notice"
+    Assert-True -Condition ($readOnlyDemoCombinedManifest.noAuthorityNotice -match "cannot approve package creation") -Message "Combined read-only demo manifest cannot approve package creation"
+    Assert-True -Condition ($readOnlyDemoCombinedManifest.noAuthorityNotice -match "future authority") -Message "Combined read-only demo manifest cannot grant future authority"
+    Assert-True -Condition (@($readOnlyDemoCombinedManifest.includedFiles | Where-Object { [string]$_.path -eq "docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md" }).Count -eq 1) -Message "Combined read-only demo manifest includes overnight-safe GREEN audit record evidence"
+    Assert-True -Condition (@($readOnlyDemoCombinedManifest.includedFiles | Where-Object { [string]$_.path -eq "docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md" }).Count -eq 1) -Message "Combined read-only demo manifest includes combined audit scope evidence"
+    Assert-True -Condition (@($readOnlyDemoCombinedManifest.includedFiles | Where-Object { [string]$_.path -eq "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md" }).Count -eq 1) -Message "Combined read-only demo manifest includes gate rehearsal plan evidence"
+    Assert-True -Condition (@($readOnlyDemoCombinedManifest.includedFiles | Where-Object { [string]$_.path -eq "tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json" }).Count -eq 1) -Message "Combined read-only demo manifest includes valid gate fixture evidence"
+    Assert-True -Condition (@($readOnlyDemoCombinedManifest.includedFiles | Where-Object { [string]$_.path -eq "tests/fixtures/fleet/read-only-gates/selected-project-read-only.package-sending-denied.json" }).Count -eq 1) -Message "Combined read-only demo manifest includes package-sending denial fixture evidence"
+    Assert-True -Condition (@($readOnlyDemoCombinedManifest.includedFiles | Where-Object { [string]$_.path -eq "tests/fixtures/fleet/read-only-gates/selected-project-read-only.phone-only-denied.json" }).Count -eq 1) -Message "Combined read-only demo manifest includes phone-only denial fixture evidence"
+
+    foreach ($denial in @(
+        "deny_product_repo_access",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_phone_approval",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_migrations_secrets",
+        "deny_lock_deletion_permission_widening",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition (@($readOnlyDemoCombinedManifest.forbiddenScopeDenials) -contains $denial) -Message "Combined read-only demo manifest lists forbidden-scope denial: $denial"
+    }
+
+    foreach ($includedFile in @($readOnlyDemoCombinedManifest.includedFiles)) {
+        Assert-False -Condition ($includedFile.path -match $forbiddenPathPattern) -Message "Combined read-only demo manifest included path avoids forbidden material: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.evidenceOnly -Expected $true -Message "Combined read-only demo manifest included file is evidence-only: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsRawLogs -Expected $false -Message "Combined read-only demo manifest included file excludes raw logs: $($includedFile.path)"
+        Assert-Equal -Actual $includedFile.containsReviewerCommands -Expected $false -Message "Combined read-only demo manifest included file excludes reviewer commands: $($includedFile.path)"
+    }
+
+    $auditPrompt = Get-Content -LiteralPath $auditPromptPath -Raw
+    $batchTemplate = Get-Content -LiteralPath $batchTemplatePath -Raw
+    $allowlistRunbookPath = Join-Path $fleetRoot "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+    $allowlistRunbook = Get-Content -LiteralPath $allowlistRunbookPath -Raw
+    foreach ($doc in @($auditPrompt, $batchTemplate)) {
+        Assert-True -Condition ($doc -match "external-audit-package-manifest-schema\.json") -Message "External audit docs reference manifest schema"
+        Assert-True -Condition ($doc -match "includedFiles") -Message "External audit docs name includedFiles manifest field"
+        Assert-True -Condition ($doc -match "excludedPatterns") -Message "External audit docs name excludedPatterns manifest field"
+        Assert-True -Condition ($doc -match "noProductRepos") -Message "External audit docs name noProductRepos manifest field"
+        Assert-True -Condition ($doc -match "noAuthorityNotice") -Message "External audit docs name noAuthorityNotice manifest field"
+        Assert-True -Condition ($doc -match "evidence only") -Message "External audit docs keep manifest evidence-only"
+    }
+
+    foreach ($phrase in @(
+        "sourceCommit",
+        "reviewerPromptRef",
+        "forbiddenScopeDenials",
+        "packageCreationStatus",
+        "noSendStatus",
+        "not_created",
+        "Manifest Status Clarification",
+        "created_for_local_user_request_not_sent",
+        "applies to local manifest fixtures used for validation evidence",
+        "local delivery manifest status",
+        "created after an explicit user request for local review",
+        "The package was created locally and not sent",
+        "does not make package sending allowed",
+        "does not change any fixture with",
+        "Both statuses remain evidence only",
+        "Neither status can execute work",
+        "run an overnight runner",
+        "package sending is a separate exact human approval",
+        "external-audit-package-manifest.controlled-hardening.json",
+        "external-audit-package-manifest.read-only-demo-followup.json",
+        "external-audit-package-manifest.read-only-demo-combined.json",
+        "no-product-repos, no-send, evidence-only",
+        "read-only demo follow-up audit scope",
+        "combined audit target",
+        "overnight-safe GREEN milestone",
+        "controlled read-only demo gate rehearsal evidence",
+        "packageCreationStatus",
+        "Fixture parsing cannot create a package",
+        "Parsing or reviewing this fixture cannot create a package",
+        "product-repo access",
+        "runtime command binding",
+        "evidence-as-authority"
+    )) {
+        Assert-True -Condition ($allowlistRunbook -match [regex]::Escape($phrase)) -Message "Allowlist runbook documents manifest discipline phrase: $phrase"
+    }
+
+    Assert-False -Condition ($allowlistRunbook -match "(?i)(manifest|runbook).{0,80}(approves|authorizes|permits).{0,80}(package sending|package creation|execution|product-repo access)") -Message "Allowlist runbook does not make manifest approval authority"
+}
+
+function Test-ThinTaskPacketWorkflowEnforcement {
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $tokenModelPath = Join-Path $fleetRoot "docs\fleet\TOKEN_CONTROL_OPERATING_MODEL.md"
+    $capsulePath = Join-Path $fleetRoot "docs\fleet\STABLE_CONTEXT_CAPSULE.md"
+    $missingStopIfPath = Join-Path $fleetRoot "tests\fixtures\fleet\thin-task-packets\hq-090-missing-stopif.rejected.json"
+    $broadCommandPath = Join-Path $fleetRoot "tests\fixtures\fleet\thin-task-packets\hq-090-broad-command.rejected.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $missingStopIfPath) -Message "Thin packet rejected fixture for missing stopIf exists"
+    Assert-True -Condition (Test-Path -LiteralPath $broadCommandPath) -Message "Thin packet rejected fixture for broad command exists"
+
+    $missingStopIf = Get-Content -LiteralPath $missingStopIfPath -Raw | ConvertFrom-Json
+    $broadCommand = Get-Content -LiteralPath $broadCommandPath -Raw | ConvertFrom-Json
+
+    Assert-False -Condition ($missingStopIf.PSObject.Properties.Name -contains "stopIf") -Message "Rejected thin packet fixture omits stopIf"
+    Assert-True -Condition ((@($broadCommand.validationCommands) -join "`n") -match "run-fleet.ps1") -Message "Rejected thin packet fixture contains broad command pattern"
+
+    $queue = Get-Content -LiteralPath $queuePath -Raw
+    Assert-True -Condition ($queue -match "Future Thin-Packet Authoring Rule") -Message "HQ queue records future thin-packet authoring rule"
+    Assert-True -Condition ($queue -match "Stable Context Capsule plus one thin task packet") -Message "HQ queue requires capsule plus thin packet by default"
+    Assert-True -Condition ($queue -match "maxFilesToOpen") -Message "HQ queue names maxFilesToOpen cap"
+    Assert-True -Condition ($queue -match "maxPatchSize") -Message "HQ queue names maxPatchSize cap"
+    Assert-True -Condition ($queue -match "maxDebugLoops") -Message "HQ queue names maxDebugLoops cap"
+    Assert-True -Condition ($queue -match "exploration-only exception") -Message "HQ queue names exploration-only exception"
+
+    $tokenModel = Get-Content -LiteralPath $tokenModelPath -Raw
+    Assert-True -Condition ($tokenModel -match "Thin Task Packet Authoring Rule") -Message "Token model documents thin task packet authoring rule"
+    Assert-True -Condition ($tokenModel -match "maxFilesToOpen") -Message "Token model documents maxFilesToOpen"
+    Assert-True -Condition ($tokenModel -match "maxPatchSize") -Message "Token model documents maxPatchSize"
+    Assert-True -Condition ($tokenModel -match "maxDebugLoops") -Message "Token model documents maxDebugLoops"
+    Assert-True -Condition ($tokenModel -match "exploration-only exception") -Message "Token model documents exploration-only exception"
+
+    $capsule = Get-Content -LiteralPath $capsulePath -Raw
+    Assert-True -Condition ($capsule -match "thin task packet by default") -Message "Stable context capsule names thin packet default"
+    Assert-True -Condition ($capsule -match "one-task boundary") -Message "Stable context capsule keeps one-task boundary with thin packets"
+}
+
+function Test-FleetConsoleControlPolicyDocs {
+    $handoffPath = Join-Path $fleetRoot "docs\fleet\NEW_CHAT_HANDOFF_PACKET.md"
+    $buttonPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
+    $unstuckPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_UNSTUCK_WORKFLOW.md"
+    $remotePath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+    $promptAuditPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md"
+
+    foreach ($path in @($handoffPath, $buttonPath, $unstuckPath, $remotePath, $promptAuditPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console control policy doc exists: $([System.IO.Path]::GetFileName($path))"
+    }
+
+    $handoff = Get-Content -LiteralPath $handoffPath -Raw
+    $buttonPolicy = Get-Content -LiteralPath $buttonPath -Raw
+    $unstuck = Get-Content -LiteralPath $unstuckPath -Raw
+    $remote = Get-Content -LiteralPath $remotePath -Raw
+    $promptAudit = Get-Content -LiteralPath $promptAuditPath -Raw
+    $combined = @($buttonPolicy, $unstuck, $remote, $promptAudit) -join "`n"
+
+    foreach ($docRef in @(
+        "FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+        "FLEET_CONSOLE_UNSTUCK_WORKFLOW.md",
+        "FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md",
+        "FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md"
+    )) {
+        Assert-True -Condition ($handoff -match [regex]::Escape($docRef)) -Message "Handoff references Fleet Console control doc $docRef"
+    }
+    Assert-True -Condition ($handoff -match "evidence-only planning inputs") -Message "Handoff marks Fleet Console control docs as evidence-only planning inputs"
+    Assert-True -Condition ($handoff -match "They do not approve UI code") -Message "Handoff denies approval authority for Fleet Console planning docs"
+
+    foreach ($phrase in @(
+        "evidence only",
+        "cannot approve or execute",
+        "does not implement UI code",
+        "start Codex",
+        "does not implement automatic retries",
+        "does not implement remote access",
+        "do not launch work automatically"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($phrase)) -Message "Fleet Console control docs preserve non-authority phrase: $phrase"
+    }
+
+    Assert-True -Condition ($buttonPolicy -match "Forbidden Button List") -Message "Button policy keeps forbidden button list"
+    foreach ($forbidden in @(
+        "launch product ship",
+        "run all fleet",
+        "deploy, publish, merge, push, or stage files",
+        "install packages or run migrations",
+        "touch secrets/auth/payments/deploy material",
+        "delete locks or bypass leases",
+        "widen permissions",
+        "mutate product repos",
+        "approve from phone for risky actions in v1",
+        "auto-run work-on-something-else"
+    )) {
+        Assert-True -Condition ($buttonPolicy -match [regex]::Escape($forbidden)) -Message "Button policy preserves forbidden boundary: $forbidden"
+    }
+
+    Assert-True -Condition ($unstuck -match "diagnosis, summarization, and repacketization only") -Message "Unstuck remains diagnosis/summarization/repacketization only"
+    Assert-True -Condition ($unstuck -match "It is never extra autonomy") -Message "Unstuck denies extra autonomy"
+    Assert-True -Condition ($unstuck -match "takes over leases or deletes locks") -Message "Unstuck forbids lease takeover and lock deletion"
+    Assert-True -Condition ($unstuck -match "runtime mutation logic") -Message "Unstuck stop conditions reject runtime mutation logic"
+
+    Assert-True -Condition ($remote -match "Risky phone approvals are not allowed in v1") -Message "Remote approval policy forbids risky phone approvals in v1"
+    Assert-True -Condition ($remote -match "Future phone approvals are denied by default") -Message "Remote approval policy denies future phone approvals by default"
+    foreach ($approvalRule in @(
+        "exact-action-bound",
+        "expiring",
+        "one selected project or ship",
+        "no broad or reusable approval",
+        "A phone tap cannot bypass validation"
+    )) {
+        Assert-True -Condition ($remote -match [regex]::Escape($approvalRule)) -Message "Remote approval policy preserves rule: $approvalRule"
+    }
+
+    Assert-True -Condition ($promptAudit -match "The Prompt Builder, External Audit Builder, Evidence Locker, and Token Budget panels") -Message "Prompt/audit/token design keeps required panels"
+    Assert-True -Condition ($promptAudit -match "Returned audits import only as digest evidence") -Message "Prompt/audit/token design keeps digest-only audit intake"
+    Assert-True -Condition ($promptAudit -match "Idea capture is non-authoritative") -Message "Prompt/audit/token design keeps ideas non-authoritative"
+    Assert-True -Condition ($promptAudit -match [regex]::Escape('`Work On Something Else` is a task-selection aid, not an auto-runner')) -Message "Prompt/audit/token design keeps task switcher non-executing"
+    foreach ($tokenSignal in @("promptSize", "readFirstCount", "allowedFilesCount", "validationRerunCount", "debugLoopCount", "sessionAge")) {
+        Assert-True -Condition ($promptAudit -match $tokenSignal) -Message "Prompt/audit/token design preserves token signal $tokenSignal"
+    }
+}
+
+function Test-HqRemoteSecurityPlanRegressionTests {
+    $planPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md"
+    $remotePath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $planPath) -Message "Remote security plan exists"
+    Assert-True -Condition (Test-Path -LiteralPath $remotePath) -Message "Remote access approval boundary doc exists"
+
+    $plan = Get-Content -LiteralPath $planPath -Raw
+    $remote = Get-Content -LiteralPath $remotePath -Raw
+    $combined = @($plan, $remote) -join "`n"
+
+    foreach ($phrase in @(
+        "V1 default is local desktop only",
+        "Authenticated public web is rejected for V1",
+        "Unauthenticated public web is forbidden",
+        "V1 rejects public internet exposure",
+        "Do not use public exposure as a shortcut for phone access"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($phrase)) -Message "Remote security posture preserves public exposure rejection: $phrase"
+    }
+
+    foreach ($phoneBoundary in @(
+        "Phone mode, if later approved, starts read-mostly",
+        "must not execute commands",
+        "Future phone approvals are denied by default",
+        "A phone tap cannot bypass validation",
+        "phone UI would execute commands",
+        "phone-only"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($phoneBoundary)) -Message "Remote security posture preserves phone boundary: $phoneBoundary"
+    }
+
+    foreach ($requiredSection in @(
+        "## Authentication And Authorization",
+        "## Session Expiration",
+        "## Network Boundary",
+        "## CSRF And Clickjacking",
+        "## Evidence Redaction And Export Controls",
+        "## Audit Logging",
+        "## No-Command UI Surfaces"
+    )) {
+        Assert-True -Condition ($plan -match [regex]::Escape($requiredSection)) -Message "Remote security plan keeps section: $requiredSection"
+    }
+
+    foreach ($nonAuthorityPhrase in @(
+        "security planning evidence only",
+        "does not implement remote access",
+        "cannot approve or execute work",
+        "remote access not approved"
+    )) {
+        Assert-True -Condition ($plan -match [regex]::Escape($nonAuthorityPhrase)) -Message "Remote security plan preserves non-authority phrase: $nonAuthorityPhrase"
+    }
+
+    foreach ($forbiddenControl in @(
+        "run all fleet",
+        "launch ship",
+        "freeform terminal",
+        "deploy",
+        "install package",
+        "run migration",
+        "touch secrets/auth/payments/deploy material",
+        "delete locks",
+        "widen permissions",
+        "stage, commit, push, merge, or revert"
+    )) {
+        Assert-True -Condition ($plan -match [regex]::Escape($forbiddenControl)) -Message "Remote security plan keeps forbidden control: $forbiddenControl"
+    }
+}
+
+function Test-HqGreenExternalAuditRecordRegressionGuard {
+    $recordPath = Join-Path $fleetRoot "docs\fleet\GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $recordPath) -Message "GREEN external audit record exists"
+
+    $record = Get-Content -LiteralPath $recordPath -Raw
+    foreach ($phrase in @(
+        "external audit returned ``GREEN``",
+        "evidence only",
+        "does not approve execution",
+        "product-repo access",
+        "runtime command binding",
+        "package sending",
+        "staging, commit, push, deploy",
+        "future authority",
+        "Reviewer output, DOCX reports, audit packages",
+        "cannot approve, execute",
+        "demo trials",
+        "UI implementation"
+    )) {
+        Assert-True -Condition ($record -match [regex]::Escape($phrase)) -Message "GREEN audit record preserves non-authority language: $phrase"
+    }
+
+    foreach ($finding in @("F1", "F2", "F3", "F4", "F5")) {
+        Assert-True -Condition ($record -match "$finding[\s\S]+GREEN / resolved") -Message "GREEN audit record marks $finding resolved"
+    }
+
+    foreach ($forbiddenImplication in @(
+        "reviewer output approves",
+        "reviewer output authorizes",
+        "reviewer output grants",
+        "DOCX reports approve",
+        "audit packages approve",
+        "approves execution",
+        "approves demo trials",
+        "approves product mutation",
+        "approves UI implementation",
+        "grants future permission"
+    )) {
+        Assert-False -Condition ($record -match [regex]::Escape($forbiddenImplication)) -Message "GREEN audit record does not imply authority: $forbiddenImplication"
+    }
+}
+
+function Test-HqFleetConsolePrototypePacketSchemaAndFixtures {
+    $schemaPath = Join-Path $fleetRoot "templates\fleet-console-prototype-packet-schema.json"
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\ui-control"
+    $validPath = Join-Path $fixtureDir "fleet-console-prototype-packet.valid-local-mock.json"
+    $rejectedPath = Join-Path $fixtureDir "fleet-console-prototype-packet.rejected-remote-command.json"
+    $transitionPath = Join-Path $fleetRoot "docs\fleet\NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md"
+    $prototypeGatePath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md"
+
+    foreach ($requiredPath in @($schemaPath, $fixtureDir, $validPath, $rejectedPath, $transitionPath, $prototypeGatePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $requiredPath) -Message "Fleet Console prototype packet input exists: $requiredPath"
+    }
+
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+    foreach ($requiredField in @(
+        "localOnly",
+        "evidenceOnly",
+        "allowedFiles",
+        "readFirst",
+        "acceptance",
+        "validationCommands",
+        "stopIf",
+        "disabledForbiddenControls",
+        "noCommandBinding",
+        "noRemoteAccess",
+        "noProductRepos",
+        "nonAuthorityNotice"
+    )) {
+        Assert-True -Condition ((@($schema.required) -contains $requiredField) -and ($schemaText -match [regex]::Escape("`"$requiredField`""))) -Message "Prototype packet schema requires $requiredField"
+    }
+
+    foreach ($constFlag in @("localOnly", "evidenceOnly", "noCommandBinding", "noRemoteAccess", "noProductRepos")) {
+        $flagSchema = $schema.properties.PSObject.Properties[$constFlag].Value
+        Assert-True -Condition ([bool]$flagSchema.const) -Message "Prototype packet schema locks $constFlag to true"
+    }
+
+    foreach ($forbiddenControl in @(
+        "product_ship_launch",
+        "all_fleet_execution",
+        "freeform_terminal",
+        "deploy",
+        "package_install",
+        "migration",
+        "secrets_auth_payments_deploy",
+        "lock_deletion",
+        "permission_widening",
+        "stage_commit_push_merge_revert",
+        "remote_access",
+        "command_binding",
+        "product_repo_access",
+        "package_sending",
+        "evidence_execution"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($forbiddenControl)) -Message "Prototype packet schema names disabled forbidden control: $forbiddenControl"
+    }
+
+    foreach ($blockedPattern in @(
+        "run-fleet",
+        "all-fleet",
+        "command",
+        "remote",
+        "product",
+        "git",
+        "install",
+        "deploy",
+        "migration",
+        "secret",
+        "token"
+    )) {
+        Assert-True -Condition ($schemaText -match $blockedPattern) -Message "Prototype packet schema blocks unsafe command/path pattern: $blockedPattern"
+    }
+
+    $valid = Get-Content -LiteralPath $validPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$valid.taskId) -Expected "HQ-123" -Message "Valid prototype packet fixture maps to HQ-123"
+    Assert-Equal -Actual ([string]$valid.expectedValidity) -Expected "valid" -Message "Valid prototype packet fixture is marked valid"
+    Assert-True -Condition ([bool]$valid.localOnly) -Message "Valid prototype packet fixture is local-only"
+    Assert-True -Condition ([bool]$valid.evidenceOnly) -Message "Valid prototype packet fixture is evidence-only"
+    Assert-True -Condition ([bool]$valid.noCommandBinding) -Message "Valid prototype packet fixture has no command binding"
+    Assert-True -Condition ([bool]$valid.noRemoteAccess) -Message "Valid prototype packet fixture has no remote access"
+    Assert-True -Condition ([bool]$valid.noProductRepos) -Message "Valid prototype packet fixture has no product repos"
+    Assert-True -Condition ([string]$valid.nonAuthorityNotice -match "evidence only") -Message "Valid prototype packet fixture carries non-authority notice"
+    foreach ($control in @("remote_access", "command_binding", "product_repo_access", "package_sending")) {
+        Assert-True -Condition (@($valid.disabledForbiddenControls) -contains $control) -Message "Valid prototype packet fixture disables $control"
+    }
+    foreach ($path in @($valid.allowedFiles + $valid.readFirst)) {
+        Assert-False -Condition ([string]$path -match "(?i)(^[A-Za-z]:|^/|(^|[\\/])\\.\\.([\\/]|$)|product-repo|secret|token|credential|private[-_]?key)") -Message "Valid prototype packet path stays local and safe: $path"
+    }
+    foreach ($command in @($valid.validationCommands)) {
+        Assert-False -Condition ([string]$command -match "(?i)(run-fleet\.ps1|all-fleet|command-binding|git\s+(add|commit|push|merge|reset|checkout)|install|deploy|migration|secret|token|product-repo|remote-access)") -Message "Valid prototype packet validation command stays allowed: $command"
+    }
+
+    $rejected = Get-Content -LiteralPath $rejectedPath -Raw | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$rejected.taskId) -Expected "HQ-123" -Message "Rejected prototype packet fixture maps to HQ-123"
+    Assert-Equal -Actual ([string]$rejected.expectedValidity) -Expected "rejected" -Message "Rejected prototype packet fixture is marked rejected"
+    Assert-True -Condition ([string]$rejected.rejectionReason -match "remote_product_repo_command_binding") -Message "Rejected prototype packet fixture names rejection reason"
+    Assert-True -Condition ((-not [bool]$rejected.localOnly) -or (-not [bool]$rejected.evidenceOnly) -or (-not [bool]$rejected.noCommandBinding) -or (-not [bool]$rejected.noRemoteAccess) -or (-not [bool]$rejected.noProductRepos)) -Message "Rejected prototype packet fixture violates a required safety flag"
+    Assert-True -Condition (((@($rejected.allowedFiles) -join "`n") -match "(?i)(^[A-Za-z]:|product-repo)") -or (((@($rejected.validationCommands) -join "`n") -match "(?i)(run-fleet|all-fleet|command-binding)"))) -Message "Rejected prototype packet fixture includes remote/product/command-binding marker"
+    Assert-True -Condition ([string]$rejected.nonAuthorityNotice -match "evidence only") -Message "Rejected prototype packet fixture carries non-authority notice"
+
+    $transition = Get-Content -LiteralPath $transitionPath -Raw
+    foreach ($transitionPhrase in @(
+        "local-only control-plane preparation",
+        "does not approve UI implementation",
+        "Future UI Prototype Gate",
+        "Future Remote Security Gate",
+        "Future External Audit Gate"
+    )) {
+        Assert-True -Condition ($transition -match [regex]::Escape($transitionPhrase)) -Message "Transition doc preserves prototype precondition: $transitionPhrase"
+    }
+
+    $prototypeGate = Get-Content -LiteralPath $prototypeGatePath -Raw
+    foreach ($gatePhrase in @(
+        "does not implement a UI",
+        "no command execution",
+        "no product-repo access",
+        "no package sending",
+        "Remote access is not part of a default prototype",
+        "Current result: prototype not approved"
+    )) {
+        Assert-True -Condition ($prototypeGate -match [regex]::Escape($gatePhrase)) -Message "Prototype gate preserves boundary: $gatePhrase"
+    }
+}
+
+function Test-HqFleetConsoleMockStateSchemaAndFixtures {
+    $schemaPath = Join-Path $fleetRoot "templates\fleet-console-state-schema.json"
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\ui-control"
+    $statusModelPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md"
+    $goalLoopPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md"
+    $promptAuditPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md"
+
+    foreach ($requiredPath in @($schemaPath, $fixtureDir, $statusModelPath, $goalLoopPath, $promptAuditPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $requiredPath) -Message "Fleet Console mock state input exists: $requiredPath"
+    }
+
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+    foreach ($field in @(
+        "fleetPosture",
+        "operationalState",
+        "approvalState",
+        "tokenPressure",
+        "currentTask",
+        "evidenceSummaries",
+        "controlStates",
+        "nonAuthorityNotice"
+    )) {
+        Assert-True -Condition ((@($schema.required) -contains $field) -and ($schemaText -match [regex]::Escape("`"$field`""))) -Message "Fleet Console state schema requires $field"
+    }
+
+    foreach ($constFlag in @("liveWorkerState", "noProductRepos", "noRawCommands", "evidenceOnly")) {
+        $flagSchema = $schema.properties.PSObject.Properties[$constFlag].Value
+        if ($constFlag -eq "liveWorkerState") {
+            Assert-False -Condition ([bool]$flagSchema.const) -Message "Fleet Console state schema locks liveWorkerState to false"
+        } else {
+            Assert-True -Condition ([bool]$flagSchema.const) -Message "Fleet Console state schema locks $constFlag to true"
+        }
+    }
+
+    foreach ($blockedPattern in @(
+        "product-repo",
+        "raw",
+        "live",
+        "secret",
+        "auth",
+        "payments",
+        "deploy",
+        "migration",
+        "token",
+        "private"
+    )) {
+        Assert-True -Condition ($schemaText -match $blockedPattern) -Message "Fleet Console state schema includes unsafe data rejection pattern: $blockedPattern"
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "fleet-console-state.*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-Equal -Actual $fixtures.Count -Expected 4 -Message "Fleet Console mock state fixtures cover four required states"
+
+    foreach ($fixture in $fixtures) {
+        Assert-Equal -Actual ([int]$fixture.schemaVersion) -Expected 1 -Message "Fleet Console state fixture schema version is 1: $($fixture.stateId)"
+        Assert-Equal -Actual ([string]$fixture.hqTaskId) -Expected "HQ-124" -Message "Fleet Console state fixture maps to HQ-124: $($fixture.stateId)"
+        Assert-Equal -Actual ([string]$fixture.generatedFrom) -Expected "local_mock_fixture" -Message "Fleet Console state fixture is local mock only: $($fixture.stateId)"
+        Assert-False -Condition ([bool]$fixture.liveWorkerState) -Message "Fleet Console state fixture does not read live worker state: $($fixture.stateId)"
+        Assert-True -Condition ([bool]$fixture.noProductRepos) -Message "Fleet Console state fixture forbids product repos: $($fixture.stateId)"
+        Assert-True -Condition ([bool]$fixture.noRawCommands) -Message "Fleet Console state fixture forbids raw commands: $($fixture.stateId)"
+        Assert-True -Condition ([bool]$fixture.evidenceOnly) -Message "Fleet Console state fixture stays evidence-only: $($fixture.stateId)"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "evidence only") -Message "Fleet Console state fixture carries non-authority notice: $($fixture.stateId)"
+        Assert-True -Condition (@($fixture.evidenceSummaries).Count -ge 1) -Message "Fleet Console state fixture has compact evidence summaries: $($fixture.stateId)"
+        Assert-True -Condition (@($fixture.controlStates).Count -ge 1) -Message "Fleet Console state fixture has control states: $($fixture.stateId)"
+
+        foreach ($path in @($fixture.currentTask.allowedFiles + $fixture.currentTask.readFirst + @($fixture.evidenceSummaries | ForEach-Object { $_.sourceRef }))) {
+            Assert-False -Condition ([string]$path -match "(?i)(^[A-Za-z]:|^/|(^|[\\/])\\.\\.([\\/]|$)|product-repo|secret|credential|private[-_]?key|live[-_ ]?worker|raw[-_ ]?command)") -Message "Fleet Console state fixture path stays local and mock-safe: $path"
+        }
+
+        foreach ($summary in @($fixture.evidenceSummaries)) {
+            Assert-True -Condition ([string]$summary.nonAuthorityNotice -match "evidence only") -Message "Fleet Console evidence summary carries non-authority notice: $($summary.summaryId)"
+            Assert-False -Condition ([string]$summary.compactSummary -match "(?i)(git\s+(add|commit|push|merge|reset|checkout)|install|deploy|migration|secret|token|product-repo|run-fleet\.ps1|all-fleet)") -Message "Fleet Console evidence summary avoids command-like content: $($summary.summaryId)"
+        }
+
+        foreach ($control in @($fixture.controlStates)) {
+            Assert-False -Condition ([bool]$control.executesCommands) -Message "Fleet Console mock control cannot execute commands: $($control.controlName)"
+            Assert-False -Condition ([bool]$control.canApprove) -Message "Fleet Console mock control cannot approve actions: $($control.controlName)"
+            Assert-False -Condition ([bool]$control.canMutateProductRepos) -Message "Fleet Console mock control cannot mutate product repos: $($control.controlName)"
+            if ([string]$control.controlClass -eq "forbidden") {
+                Assert-False -Condition ([bool]$control.enabled) -Message "Forbidden Fleet Console mock control is disabled: $($control.controlName)"
+                Assert-True -Condition ([bool]$control.hidden) -Message "Forbidden Fleet Console mock control is hidden: $($control.controlName)"
+                Assert-True -Condition ([bool]$control.blocking) -Message "Forbidden Fleet Console mock control is blocking: $($control.controlName)"
+            }
+        }
+    }
+
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.fleetPosture -eq "GREEN" }).Count -ge 1) -Message "Fleet Console mock state fixtures include GREEN local harness state"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.fleetPosture -eq "YELLOW" -and [string]$_.operationalState -eq "blocked" }).Count -ge 1) -Message "Fleet Console mock state fixtures include YELLOW blocked state"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.tokenPressure -eq "token_limited" }).Count -ge 1) -Message "Fleet Console mock state fixtures include token-limited state"
+    Assert-True -Condition (@($fixtures | Where-Object { @($_.controlStates | Where-Object { [string]$_.controlClass -eq "forbidden" }).Count -ge 1 }).Count -ge 1) -Message "Fleet Console mock state fixtures include forbidden-control state"
+
+    $statusModel = Get-Content -LiteralPath $statusModelPath -Raw
+    foreach ($statusPhrase in @("GREEN", "YELLOW", "RED", "UNKNOWN", "operational state", "approval state", "token pressure")) {
+        Assert-True -Condition ($statusModel -match [regex]::Escape($statusPhrase)) -Message "Status model keeps state phrase: $statusPhrase"
+    }
+
+    $goalLoop = Get-Content -LiteralPath $goalLoopPath -Raw
+    foreach ($signalPhrase in @("goal lock", "Progress score", "Loop risk", "Failure Fingerprint", "Next Safe Action")) {
+        Assert-True -Condition ($goalLoop -match [regex]::Escape($signalPhrase)) -Message "Goal/loop signal doc keeps phrase: $signalPhrase"
+    }
+
+    $promptAudit = Get-Content -LiteralPath $promptAuditPath -Raw
+    foreach ($tokenPhrase in @("Token Budget Panel", "token_limited", "raw logs hidden", "Evidence Locker", "This artifact is evidence only")) {
+        Assert-True -Condition ($promptAudit -match [regex]::Escape($tokenPhrase)) -Message "Prompt/audit/token design keeps phrase: $tokenPhrase"
+    }
+}
+
+function Test-HqFleetConsoleStaticPrototypeSafety {
+    $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+    $cssPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.css"
+    $readmePath = Join-Path $fleetRoot "docs\fleet\ui\prototype\README.md"
+    $reviewPacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\LOCAL_PROTOTYPE_REVIEW_PACKET.md"
+    $accessibilityContractPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\STATIC_ACCESSIBILITY_LINT_CONTRACT.md"
+    $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
+
+    foreach ($path in @($htmlPath, $cssPath, $readmePath, $reviewPacketPath, $accessibilityContractPath, $buttonPolicyPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console static prototype safety input exists: $path"
+    }
+
+    $html = Get-Content -LiteralPath $htmlPath -Raw
+    $css = Get-Content -LiteralPath $cssPath -Raw
+    $readme = Get-Content -LiteralPath $readmePath -Raw
+    $reviewPacket = Get-Content -LiteralPath $reviewPacketPath -Raw
+    $accessibilityContract = Get-Content -LiteralPath $accessibilityContractPath -Raw
+    $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
+    $combined = @($html, $readme) -join "`n"
+
+    foreach ($requiredPhrase in @(
+        "Evidence only",
+        "Local mock console",
+        "No product repos",
+        "No remote access",
+        "No package sending",
+        "No command binding",
+        "not an operational console",
+        "cannot approve work",
+        "cannot approve or execute work",
+        "no script",
+        "no form action",
+        "no network fetch",
+        "no live state import",
+        "no command binding",
+        "no package-send behavior",
+        "Copy-only draft text",
+        "Evidence views, not operational controls"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($requiredPhrase)) -Message "Static prototype preserves required safety phrase: $requiredPhrase"
+    }
+
+    foreach ($requiredSurface in @(
+        "Prompt Builder",
+        "Audit Builder",
+        "Evidence Locker",
+        "Idea Inbox",
+        "Unstuck",
+        "Approval Cards"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($requiredSurface)) -Message "Static prototype represents evidence-only surface: $requiredSurface"
+    }
+
+    foreach ($safeState in @(
+        "safe display",
+        "future-only display",
+        "template-only display",
+        "forbidden",
+        "unavailable safety boundaries"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($safeState)) -Message "Static prototype labels control state as non-operational: $safeState"
+    }
+
+    foreach ($forbiddenBoundary in @(
+        "Launch",
+        "all-fleet",
+        "deploy",
+        "install",
+        "migrate",
+        "stage",
+        "commit",
+        "push",
+        "merge",
+        "Remote access",
+        "package sending",
+        "product repo selection"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($forbiddenBoundary)) -Message "Static prototype names forbidden boundary as unavailable: $forbiddenBoundary"
+    }
+
+    foreach ($forbiddenHook in @(
+        "<script",
+        "<iframe",
+        "<object",
+        "<embed",
+        "<form",
+        " action=",
+        "<button",
+        "<input",
+        "onclick=",
+        "onSubmit=",
+        "fetch(",
+        "XMLHttpRequest",
+        "http://",
+        "https://",
+        "powershell",
+        "pwsh",
+        "Start-Process",
+        "run-fleet.ps1",
+        "launch-",
+        "git add",
+        "git commit",
+        "git push",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($html -match [regex]::Escape($forbiddenHook)) -Message "Static prototype HTML omits forbidden operational hook: $forbiddenHook"
+    }
+
+    foreach ($forbiddenHtmlPattern in @(
+        '(?i)<\s*(script|iframe|object|embed)\b',
+        '(?i)\son[a-z]+\s*=',
+        '(?i)javascript\s*:',
+        '(?i)<\s*link\b[^>]+\bhref\s*=\s*["'']?\s*(https?:|//)',
+        '(?i)<\s*script\b[^>]+\bsrc\s*=\s*["'']?\s*(https?:|//)'
+    )) {
+        Assert-False -Condition ($html -match $forbiddenHtmlPattern) -Message "Static prototype HTML rejects forbidden hook pattern: $forbiddenHtmlPattern"
+    }
+
+    foreach ($forbiddenCssPattern in @(
+        '(?i)@import',
+        '(?i)url\(\s*["'']?\s*(https?:|//)',
+        '(?i)https?://',
+        '(?i)javascript\s*:'
+    )) {
+        Assert-False -Condition ($css -match $forbiddenCssPattern) -Message "Static prototype CSS rejects external or executable reference pattern: $forbiddenCssPattern"
+    }
+
+    foreach ($forbiddenReadmeHook in @(
+        "http://",
+        "https://",
+        "powershell",
+        "pwsh",
+        "Start-Process",
+        "run-fleet.ps1",
+        "git add",
+        "git commit",
+        "git push",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($readme -match [regex]::Escape($forbiddenReadmeHook)) -Message "Static prototype README omits command-like hook: $forbiddenReadmeHook"
+    }
+
+    foreach ($readmePhrase in @(
+        "static safety checks",
+        "inline event-handler attributes",
+        "iframe",
+        "external font",
+        "runtime command binding"
+    )) {
+        Assert-True -Condition ($readme -match [regex]::Escape($readmePhrase)) -Message "Static prototype README documents forbidden-hook regression coverage: $readmePhrase"
+    }
+
+    foreach ($accessibilityPhrase in @(
+        '<a class="skip-link" href="#main-content">',
+        '<main id="main-content" class="layout" aria-label="Static mock console content" tabindex="-1">',
+        'aria-labelledby="dashboard-title"',
+        'aria-label="Mock console sections"',
+        'aria-label="Static mock console panels"',
+        'aria-describedby="unstuck-boundary"',
+        'aria-describedby="approval-cards-boundary"',
+        'aria-describedby="forbidden-publication-boundary"',
+        'aria-describedby="forbidden-remote-boundary"',
+        'id="unstuck-boundary"',
+        'id="approval-cards-boundary"',
+        'id="forbidden-publication-boundary"',
+        'id="forbidden-remote-boundary"'
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($accessibilityPhrase)) -Message "Static prototype preserves accessibility attribute: $accessibilityPhrase"
+    }
+
+    foreach ($accessibilityCssPhrase in @(
+        "a:focus-visible",
+        "#main-content:focus-visible",
+        ".skip-link:focus"
+    )) {
+        Assert-True -Condition ($css -match [regex]::Escape($accessibilityCssPhrase)) -Message "Static prototype CSS preserves focus-visible or skip-link styling: $accessibilityCssPhrase"
+    }
+
+    foreach ($accessibilityReadmePhrase in @(
+        "skip link to the main landmark",
+        "focus-visible treatment",
+        "aria-describedby",
+        "disabled/mock controls"
+    )) {
+        Assert-True -Condition ($readme -match [regex]::Escape($accessibilityReadmePhrase)) -Message "Static prototype README documents accessibility attribute pass: $accessibilityReadmePhrase"
+    }
+
+    foreach ($accessibilityContractPhrase in @(
+        "Skip link",
+        "Landmarks",
+        "Heading order",
+        "Labels and states",
+        "Focus-visible CSS",
+        "Narrow-screen readability",
+        "CSS-disabled readability",
+        "Evidence-only safety copy",
+        "local, dependency-approved, non-networked",
+        "separately queued"
+    )) {
+        Assert-True -Condition ($accessibilityContract -match [regex]::Escape($accessibilityContractPhrase)) -Message "Static accessibility lint contract preserves check: $accessibilityContractPhrase"
+    }
+
+    foreach ($accessibilityContractDenial in @(
+        "does not approve scripts",
+        "package installs",
+        "browser automation",
+        "live UI execution",
+        "remote access",
+        "product-repo access",
+        "package sending",
+        "runtime command binding",
+        "future authority"
+    )) {
+        Assert-True -Condition ($accessibilityContract -match [regex]::Escape($accessibilityContractDenial)) -Message "Static accessibility lint contract denies expansion: $accessibilityContractDenial"
+    }
+
+    foreach ($reviewPacketPhrase in @(
+        "STATIC_ACCESSIBILITY_LINT_CONTRACT.md",
+        "local static checks only",
+        "does not add tooling",
+        "install packages",
+        "launch a browser",
+        "read live state",
+        "bind commands",
+        "send packages",
+        "touch product repos"
+    )) {
+        Assert-True -Condition ($reviewPacket -match [regex]::Escape($reviewPacketPhrase)) -Message "Prototype review packet references static accessibility lint boundary: $reviewPacketPhrase"
+    }
+
+    foreach ($policyPhrase in @(
+        "UI labels, notifications, buttons, prompts",
+        "They cannot approve or execute work",
+        "Do not present as an available control",
+        "No button may become live command binding merely because it appears in this policy"
+    )) {
+        Assert-True -Condition ($buttonPolicy -match [regex]::Escape($policyPhrase)) -Message "Button policy supports static prototype safety test: $policyPhrase"
+    }
+}
+
+function Test-HqPhoneModeStaticMockSafety {
+    $phonePacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\PHONE_MODE_STATIC_MOCK_PACKET.md"
+    $decisionPacketPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md"
+    $remoteBoundaryPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+
+    foreach ($path in @($phonePacketPath, $decisionPacketPath, $remoteBoundaryPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Phone-mode markdown safety input exists: $path"
+    }
+
+    $phonePacket = Get-Content -LiteralPath $phonePacketPath -Raw
+    $decisionPacket = Get-Content -LiteralPath $decisionPacketPath -Raw
+    $remoteBoundary = Get-Content -LiteralPath $remoteBoundaryPath -Raw
+    $combinedPhoneDocs = @($phonePacket, $decisionPacket, $remoteBoundary) -join "`n"
+
+    foreach ($requiredPhrase in @(
+        "markdown-only",
+        "local",
+        "read-mostly",
+        "read-only",
+        "design-only",
+        "evidence only",
+        "no phone approvals",
+        "no remote commands",
+        "no package sending",
+        "no product-repo selection",
+        "phone mode cannot execute commands",
+        "A phone tap cannot bypass validation",
+        "Future phone approvals are denied by default",
+        "approval/run/send/package language presented as available controls"
+    )) {
+        Assert-True -Condition ($combinedPhoneDocs -match [regex]::Escape($requiredPhrase)) -Message "Phone-mode docs preserve markdown safety phrase: $requiredPhrase"
+    }
+
+    foreach ($forbiddenMarkdownPattern in @(
+        '(?is)<\s*/?\s*[a-z][^>]*>',
+        '!\[[^\]]*\]\(',
+        '(?i)(https?://|www\.|//)',
+        '(?i)\b(powershell|pwsh|Start-Process|run-fleet\.ps1)\b',
+        '(?i)\bgit\s+(add|commit|push|merge|reset|checkout)\b',
+        '(?i)\b(npm|pnpm|yarn)\s+install\b'
+    )) {
+        Assert-False -Condition ($phonePacket -match $forbiddenMarkdownPattern) -Message "Phone-mode markdown packet rejects forbidden pattern: $forbiddenMarkdownPattern"
+    }
+
+    foreach ($availableControlPattern in @(
+        '(?i)\bapprove\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\brun\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bsend\s+package\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bremote\s+access\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bproduct\s+repo\b.{0,80}\b(available|enabled|allowed)\b',
+        '(?i)\bphone\s+approval\b.{0,80}\b(available|enabled|allowed)\b'
+    )) {
+        Assert-False -Condition ($phonePacket -match $availableControlPattern) -Message "Phone-mode markdown does not present forbidden control as available: $availableControlPattern"
+    }
+
+    foreach ($unavailablePhrase in @(
+        "Approve | unavailable",
+        "Run | unavailable",
+        "Send package | unavailable",
+        "Remote access | unavailable",
+        "Product repo | unavailable",
+        "phone approvals are denied by default",
+        "package creation/sending is separate and not approved",
+        "no product-repo access is approved"
+    )) {
+        Assert-True -Condition ($phonePacket -match [regex]::Escape($unavailablePhrase)) -Message "Phone-mode markdown keeps forbidden control unavailable: $unavailablePhrase"
+    }
+
+    foreach ($decisionPhrase in @(
+        "Static Markdown Safety Tests",
+        "disallowed HTML tags",
+        "markdown image embeds",
+        "remote URLs",
+        "command-like snippets",
+        "presented as available controls",
+        "do not approve phone UI implementation"
+    )) {
+        Assert-True -Condition ($decisionPacket -match [regex]::Escape($decisionPhrase)) -Message "Phone-mode decision packet documents markdown safety test boundary: $decisionPhrase"
+    }
+}
+
+function Test-HqUiSafetyFixtureMatrix {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\ui-control"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "UI safety fixture directory exists"
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | Where-Object { ($_.Name -notlike "fleet-console-prototype-packet.*.json") -and ($_.Name -notlike "fleet-console-state.*.json") } | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+
+    Assert-True -Condition ($fixtures.Count -ge 5) -Message "UI safety fixture matrix has at least five fixtures"
+
+    foreach ($fixture in $fixtures) {
+        Assert-Equal -Actual ([string]$fixture.hqTaskId) -Expected "HQ-118" -Message "UI safety fixture maps to HQ-118: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.implementsUiCode) -Message "UI safety fixture does not implement UI code: $($fixture.fixtureId)"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "evidence only") -Message "UI safety fixture carries evidence-only notice: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.executesCommands) -Message "UI safety fixture cannot execute commands: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canApprove) -Message "UI safety fixture cannot approve actions: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canMutateProductRepos) -Message "UI safety fixture cannot mutate product repos: $($fixture.fixtureId)"
+    }
+
+    foreach ($class in @("safe", "caution", "approval-required", "future-only", "forbidden")) {
+        Assert-True -Condition (@($fixtures | Where-Object { [string]$_.controlClass -eq $class }).Count -ge 1) -Message "UI safety fixture matrix covers control class $class"
+    }
+
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.signals.loopRisk -eq "high" }).Count -ge 1) -Message "UI safety fixture matrix covers loop risk high"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.signals.tokenPressure -eq "token_limited" }).Count -ge 1) -Message "UI safety fixture matrix covers token_limited"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.signals.stuckState -eq "stuck_scope" }).Count -ge 1) -Message "UI safety fixture matrix covers stuck_scope"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.signals.stuckState -eq "stuck_authority" }).Count -ge 1) -Message "UI safety fixture matrix covers stuck_authority"
+    Assert-True -Condition (@($fixtures | Where-Object { [bool]$_.signals.riskyPhoneApproval }).Count -ge 1) -Message "UI safety fixture matrix covers risky phone approval"
+
+    $safeFixture = @($fixtures | Where-Object { [string]$_.controlClass -eq "safe" })[0]
+    Assert-True -Condition ([bool]$safeFixture.expectedPosture.enabled) -Message "Safe UI fixture may be display-enabled"
+    Assert-False -Condition ([bool]$safeFixture.expectedPosture.blocking) -Message "Safe UI fixture is not blocking"
+
+    $cautionToken = @($fixtures | Where-Object { [string]$_.signals.tokenPressure -eq "token_limited" })[0]
+    Assert-False -Condition ([bool]$cautionToken.expectedPosture.enabled) -Message "Token-limited caution fixture is disabled"
+    Assert-True -Condition ([bool]$cautionToken.expectedPosture.blocking) -Message "Token-limited caution fixture is blocking"
+    Assert-Equal -Actual ([string]$cautionToken.nextSafeAction) -Expected "pause_and_write_ledger" -Message "Token-limited fixture pauses to ledger"
+
+    $stuckScope = @($fixtures | Where-Object { [string]$_.signals.stuckState -eq "stuck_scope" })[0]
+    Assert-Equal -Actual ([string]$stuckScope.nextSafeAction) -Expected "request_repacketization" -Message "Stuck-scope fixture requests repacketization"
+    Assert-True -Condition ([bool]$stuckScope.expectedPosture.blocking) -Message "Stuck-scope fixture is blocking"
+
+    $riskyPhone = @($fixtures | Where-Object { [bool]$_.signals.riskyPhoneApproval })[0]
+    Assert-Equal -Actual ([string]$riskyPhone.controlClass) -Expected "forbidden" -Message "Risky phone approval fixture is forbidden"
+    Assert-True -Condition ([bool]$riskyPhone.expectedPosture.hidden) -Message "Risky phone approval fixture is hidden"
+    Assert-True -Condition ([bool]$riskyPhone.expectedPosture.blocking) -Message "Risky phone approval fixture is blocking"
+    Assert-Equal -Actual ([string]$riskyPhone.signals.approvalState) -Expected "not_approvable" -Message "Risky phone approval fixture is not approvable"
+}
+
+function Test-HqUiSafetyEnforcementTests {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\ui-control"
+    $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
+    $unstuckPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_UNSTUCK_WORKFLOW.md"
+    $promptAuditPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md"
+
+    foreach ($requiredPath in @($fixtureDir, $buttonPolicyPath, $unstuckPath, $promptAuditPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $requiredPath) -Message "UI safety enforcement input exists: $requiredPath"
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | Where-Object { ($_.Name -notlike "fleet-console-prototype-packet.*.json") -and ($_.Name -notlike "fleet-console-state.*.json") } | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-True -Condition ($fixtures.Count -ge 5) -Message "UI safety enforcement has fixture coverage"
+
+    $forbiddenFixtures = @($fixtures | Where-Object { [string]$_.controlClass -eq "forbidden" })
+    Assert-True -Condition ($forbiddenFixtures.Count -ge 1) -Message "UI safety enforcement covers forbidden controls"
+    foreach ($fixture in $forbiddenFixtures) {
+        Assert-False -Condition ([bool]$fixture.expectedPosture.enabled) -Message "Forbidden UI control is not enabled: $($fixture.fixtureId)"
+        Assert-True -Condition ([bool]$fixture.expectedPosture.hidden) -Message "Forbidden UI control is hidden: $($fixture.fixtureId)"
+        Assert-True -Condition ([bool]$fixture.expectedPosture.blocking) -Message "Forbidden UI control is blocking: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.executesCommands) -Message "Forbidden UI control cannot execute commands: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canApprove) -Message "Forbidden UI control cannot approve actions: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canMutateProductRepos) -Message "Forbidden UI control cannot mutate product repos: $($fixture.fixtureId)"
+    }
+
+    $approvalFixtures = @($fixtures | Where-Object { [string]$_.controlClass -eq "approval-required" })
+    Assert-True -Condition ($approvalFixtures.Count -ge 1) -Message "UI safety enforcement covers approval-required controls"
+    foreach ($fixture in $approvalFixtures) {
+        Assert-False -Condition ([bool]$fixture.expectedPosture.enabled) -Message "Approval-required control is disabled without exact approval: $($fixture.fixtureId)"
+        Assert-True -Condition ([bool]$fixture.expectedPosture.blocking) -Message "Approval-required control blocks without exact approval: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.executesCommands) -Message "Approval-required control cannot execute without exact approval: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canApprove) -Message "Approval-required fixture cannot self-approve: $($fixture.fixtureId)"
+        Assert-False -Condition ([string]$fixture.signals.approvalState -eq "approved_exact_action") -Message "Approval-required fixture is not represented as exact-approved: $($fixture.fixtureId)"
+    }
+
+    $unstuckFixtures = @($fixtures | Where-Object {
+        ([string]$_.fixtureId -match "unstuck") -or
+        ([string]$_.controlName -match "Unstuck") -or
+        ([string]$_.signals.stuckState -match "stuck_")
+    })
+    Assert-True -Condition ($unstuckFixtures.Count -ge 1) -Message "UI safety enforcement covers unstuck/stuck controls"
+    foreach ($fixture in $unstuckFixtures) {
+        Assert-False -Condition ([bool]$fixture.expectedPosture.executesCommands) -Message "Unstuck/stuck fixture cannot execute commands: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canApprove) -Message "Unstuck/stuck fixture cannot approve actions: $($fixture.fixtureId)"
+        Assert-False -Condition ([bool]$fixture.expectedPosture.canMutateProductRepos) -Message "Unstuck/stuck fixture cannot mutate product repos: $($fixture.fixtureId)"
+        Assert-True -Condition ([bool]$fixture.expectedPosture.blocking) -Message "Unstuck/stuck fixture blocks instead of mutating runtime state: $($fixture.fixtureId)"
+        Assert-False -Condition (([string]$fixture.nextSafeAction) -in @("auto_retry", "automatic_retry", "lease_takeover", "delete_locks", "runtime_mutation", "execute_commands")) -Message "Unstuck/stuck fixture does not point to automatic retry or mutation: $($fixture.fixtureId)"
+    }
+
+    $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
+    foreach ($forbiddenPolicyPhrase in @(
+        "Forbidden Button List",
+        "Do not present as an available control",
+        "run all fleet",
+        "delete locks or bypass leases",
+        "mutate product repos",
+        "approve from phone for risky actions in v1",
+        "reuse, inherit, refresh, or broaden approvals",
+        "auto-run work-on-something-else"
+    )) {
+        Assert-True -Condition ($buttonPolicy -match [regex]::Escape($forbiddenPolicyPhrase)) -Message "Button policy preserves forbidden-control enforcement phrase: $forbiddenPolicyPhrase"
+    }
+
+    $unstuck = Get-Content -LiteralPath $unstuckPath -Raw
+    foreach ($unstuckBoundary in @(
+        "reruns commands automatically",
+        "takes over leases or deletes locks",
+        "runtime mutation logic",
+        "It is never extra autonomy",
+        "v1 must not auto-retry"
+    )) {
+        Assert-True -Condition ($unstuck -match [regex]::Escape($unstuckBoundary)) -Message "Unstuck workflow preserves non-executing boundary: $unstuckBoundary"
+    }
+
+    $promptAudit = Get-Content -LiteralPath $promptAuditPath -Raw
+    foreach ($disabledControl in @(
+        "start Codex",
+        "run task",
+        "execute findings",
+        "approve from evidence",
+        "convert and run",
+        "auto-run task"
+    )) {
+        Assert-True -Condition ($promptAudit -match [regex]::Escape($disabledControl)) -Message "Prompt/audit/token design keeps executable UI control disabled or hidden: $disabledControl"
+    }
+}
+
+function Test-HqAntiLoopFixtureMatrix {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\anti-loop"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Anti-loop fixture directory exists"
+
+    $expectedCases = @{
+        "repeated-fingerprint.same-hypothesis.json" = @{
+            terminalState = "needsRepacketization"
+            stopReason = "same-fingerprint-same-hypothesis"
+        }
+        "doc-churn.wording-only.json" = @{
+            terminalState = "abandonedDueToNoProgress"
+            stopReason = "wording-only-no-acceptance-mapping"
+        }
+        "no-op-edit.status-without-validation.json" = @{
+            terminalState = "failedValidation"
+            stopReason = "queue-status-without-validation"
+        }
+        "file-open-overrun.unrelated-docs.json" = @{
+            terminalState = "needsRepacketization"
+            stopReason = "unrelated-read-overrun-after-scope-lock"
+        }
+        "goal-change.mid-run-ui-design.json" = @{
+            terminalState = "deferredDueToChangedGoal"
+            stopReason = "human-goal-changed-without-repacketization"
+        }
+        "ambiguous-acceptance.make-it-perfect.json" = @{
+            terminalState = "blocked"
+            stopReason = "ambiguous-acceptance-missing-allowed-files-and-validation"
+        }
+        "repeated-unstuck.no-new-packet.json" = @{
+            terminalState = "blocked"
+            stopReason = "repeated-unstuck-without-new-packet"
+        }
+        "evidence-as-authority.external-report.json" = @{
+            terminalState = "blocked"
+            stopReason = "evidence-treated-as-authority"
+        }
+    }
+
+    foreach ($fixtureName in $expectedCases.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Anti-loop fixture exists: $fixtureName"
+        $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $fixture.schemaVersion -Expected 1 -Message "Anti-loop fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual $fixture.findingId -Expected "F1" -Message "Anti-loop fixture maps to audit finding F1: $fixtureName"
+        Assert-Equal -Actual $fixture.expected.terminalState -Expected $expectedCases[$fixtureName].terminalState -Message "Anti-loop fixture terminal state matches: $fixtureName"
+        Assert-Equal -Actual $fixture.expected.stopReason -Expected $expectedCases[$fixtureName].stopReason -Message "Anti-loop fixture stop reason matches: $fixtureName"
+        Assert-True -Condition ([bool]$fixture.safety.noProductRepos) -Message "Anti-loop fixture is not product-repo backed: $fixtureName"
+        Assert-True -Condition ([bool]$fixture.safety.evidenceOnly) -Message "Anti-loop fixture remains evidence only: $fixtureName"
+        Assert-True -Condition ([string]$fixture.safety.nonAuthorityNotice -match "cannot approve") -Message "Anti-loop fixture carries non-authority notice: $fixtureName"
+    }
+}
+
+function Test-HqAntiLoopEnforcementRules {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\anti-loop"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Anti-loop enforcement fixture directory exists"
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-True -Condition ($fixtures.Count -ge 8) -Message "Anti-loop enforcement has fixture coverage for audit finding F1"
+
+    $repeatedFingerprint = @($fixtures | Where-Object { [string]$_.caseId -eq "repeated-fingerprint.same-hypothesis" })[0]
+    Assert-True -Condition ($null -ne $repeatedFingerprint) -Message "Anti-loop enforcement includes repeated fingerprint case"
+    $allowedRepeatedFingerprintStops = @("blocked", "needsRepacketization", "abandonedDueToNoProgress")
+    Assert-True -Condition ($allowedRepeatedFingerprintStops -contains [string]$repeatedFingerprint.expected.terminalState) -Message "Repeated fingerprint fixture stops instead of blind retry"
+    Assert-False -Condition ([string]$repeatedFingerprint.expected.terminalState -eq "done") -Message "Repeated fingerprint fixture cannot resolve as done"
+
+    $mustNotResolveDone = @(
+        "doc-churn.wording-only",
+        "no-op-edit.status-without-validation",
+        "file-open-overrun.unrelated-docs",
+        "goal-change.mid-run-ui-design",
+        "ambiguous-acceptance.make-it-perfect",
+        "repeated-unstuck.no-new-packet",
+        "evidence-as-authority.external-report"
+    )
+
+    foreach ($caseId in $mustNotResolveDone) {
+        $fixture = @($fixtures | Where-Object { [string]$_.caseId -eq $caseId })[0]
+        Assert-True -Condition ($null -ne $fixture) -Message "Anti-loop enforcement fixture exists for $caseId"
+        Assert-False -Condition ([string]$fixture.expected.terminalState -eq "done") -Message "Anti-loop drift/no-progress case does not resolve as done: $caseId"
+        Assert-True -Condition ([string]$fixture.expected.stopReason -ne "") -Message "Anti-loop drift/no-progress case names stop reason: $caseId"
+        Assert-True -Condition ([bool]$fixture.safety.evidenceOnly) -Message "Anti-loop drift/no-progress case remains fixture-only evidence: $caseId"
+    }
+
+    $forbiddenAuthorityCase = @($fixtures | Where-Object { [string]$_.caseId -eq "evidence-as-authority.external-report" })[0]
+    Assert-Equal -Actual $forbiddenAuthorityCase.expected.terminalState -Expected "blocked" -Message "Evidence-as-authority fixture blocks"
+    Assert-True -Condition ([string]$forbiddenAuthorityCase.expected.stopReason -match "evidence-treated-as-authority") -Message "Evidence-as-authority fixture names authority stop reason"
+
+    $goalChangeCase = @($fixtures | Where-Object { [string]$_.caseId -eq "goal-change.mid-run-ui-design" })[0]
+    Assert-Equal -Actual $goalChangeCase.expected.terminalState -Expected "deferredDueToChangedGoal" -Message "Goal-change fixture defers instead of blending goals"
+
+    $noOpCase = @($fixtures | Where-Object { [string]$_.caseId -eq "no-op-edit.status-without-validation" })[0]
+    Assert-Equal -Actual $noOpCase.expected.terminalState -Expected "failedValidation" -Message "No-op status fixture requires validation before done"
+}
+
+function Test-HqProgressLedgerSchemaAndFixtures {
+    $schemaPath = Join-Path $fleetRoot "templates\progress-ledger-schema.json"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Progress ledger schema exists"
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Progress ledger schema is versioned"
+
+    foreach ($field in @(
+        "intendedGoal",
+        "filesOpened",
+        "filesEdited",
+        "validationCommandsRun",
+        "validationResult",
+        "failureFingerprint",
+        "progressClaim",
+        "evidenceForProgress",
+        "remainingGap",
+        "nextSafeAction",
+        "goalChanged",
+        "humanInputRequired"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Progress ledger schema requires $field"
+        Assert-True -Condition ($null -ne $schema.properties.PSObject.Properties[$field]) -Message "Progress ledger schema defines $field"
+    }
+
+    Assert-True -Condition ($schemaText -match "safeValidationCommand") -Message "Progress ledger schema defines safe validation command guard"
+    Assert-True -Condition ($schemaText -match "forbiddenEvidence") -Message "Progress ledger schema defines forbidden evidence channel"
+    Assert-True -Condition ($schemaText.Contains("git\\s+(add|commit|merge|push")) -Message "Progress ledger schema rejects dangerous git commands in validationCommandsRun"
+    Assert-True -Condition ($schemaText.Contains("product[-_ ]?repo")) -Message "Progress ledger schema rejects product repo path evidence fields"
+
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\anti-loop"
+    $expectedLedgers = @{
+        "progress-ledger.valid-pass.json" = @{
+            validationResult = "pass"
+            nextSafeAction = "mark_done"
+        }
+        "progress-ledger.repeated-fingerprint-stop.json" = @{
+            validationResult = "fail"
+            nextSafeAction = "needs_repacketization"
+        }
+        "progress-ledger.drift-repacketization.json" = @{
+            validationResult = "blocked"
+            nextSafeAction = "needs_repacketization"
+        }
+        "progress-ledger.forbidden-evidence.json" = @{
+            validationResult = "blocked"
+            nextSafeAction = "mark_blocked"
+        }
+    }
+
+    foreach ($fixtureName in $expectedLedgers.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Progress ledger fixture exists: $fixtureName"
+        $ledger = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $ledger.schemaVersion -Expected 1 -Message "Progress ledger fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual $ledger.taskId -Expected "HQ-113" -Message "Progress ledger fixture maps to HQ-113: $fixtureName"
+        Assert-Equal -Actual $ledger.validationResult -Expected $expectedLedgers[$fixtureName].validationResult -Message "Progress ledger fixture validation result matches: $fixtureName"
+        Assert-Equal -Actual $ledger.nextSafeAction -Expected $expectedLedgers[$fixtureName].nextSafeAction -Message "Progress ledger fixture next safe action matches: $fixtureName"
+        Assert-True -Condition ([string]$ledger.nonAuthorityNotice -match "cannot approve") -Message "Progress ledger fixture carries non-authority notice: $fixtureName"
+    }
+
+    $validLedger = Get-Content -LiteralPath (Join-Path $fixtureDir "progress-ledger.valid-pass.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $validLedger.failureFingerprint -Expected $null -Message "Progress ledger passing fixture has no failure fingerprint"
+    Assert-False -Condition ([bool]$validLedger.goalChanged) -Message "Progress ledger passing fixture keeps goalChanged false"
+    Assert-False -Condition ([bool]$validLedger.humanInputRequired) -Message "Progress ledger passing fixture does not require human input"
+
+    $repeatedLedger = Get-Content -LiteralPath (Join-Path $fixtureDir "progress-ledger.repeated-fingerprint-stop.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $repeatedLedger.failureFingerprint.kind -Expected "validation" -Message "Progress ledger repeated fingerprint records validation fingerprint"
+    Assert-True -Condition ([string]$repeatedLedger.failureFingerprint.primarySignal -match "same") -Message "Progress ledger repeated fingerprint records stable primary signal"
+
+    $driftLedger = Get-Content -LiteralPath (Join-Path $fixtureDir "progress-ledger.drift-repacketization.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $driftLedger.failureFingerprint.kind -Expected "scope" -Message "Progress ledger drift fixture records scope fingerprint"
+    Assert-Equal -Actual $driftLedger.nextSafeAction -Expected "needs_repacketization" -Message "Progress ledger drift fixture repacketizes"
+
+    $forbiddenLedger = Get-Content -LiteralPath (Join-Path $fixtureDir "progress-ledger.forbidden-evidence.json") -Raw | ConvertFrom-Json
+    Assert-True -Condition (@($forbiddenLedger.validationCommandsRun).Count -eq 0) -Message "Progress ledger forbidden fixture keeps dangerous prose out of validationCommandsRun"
+    Assert-True -Condition ((@($forbiddenLedger.forbiddenEvidence | Where-Object { [string]$_.contentClassification -eq "forbidden_command" }).Count) -eq 1) -Message "Progress ledger forbidden fixture classifies forbidden command evidence"
+    Assert-True -Condition ((@($forbiddenLedger.forbiddenEvidence | Where-Object { [string]$_.contentClassification -eq "product_repo_request" }).Count) -eq 1) -Message "Progress ledger forbidden fixture classifies product repo request evidence"
+    Assert-True -Condition ([bool]$forbiddenLedger.humanInputRequired) -Message "Progress ledger forbidden fixture requires human input"
+}
+
+function Test-HqApprovalRecordSchemaAndFixtures {
+    $schemaPath = Join-Path $fleetRoot "templates\approval-record-schema.json"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Approval record schema exists"
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Approval record schema is versioned"
+
+    foreach ($field in @(
+        "owner",
+        "selectedTarget",
+        "repoPath",
+        "entrypoint",
+        "action",
+        "commandList",
+        "expectedOutput",
+        "approvedAt",
+        "expiresAt",
+        "stopConditions",
+        "nonAuthorityNotice"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Approval record schema requires $field"
+        Assert-True -Condition ($null -ne $schema.properties.PSObject.Properties[$field]) -Message "Approval record schema defines $field"
+    }
+
+    Assert-True -Condition ($schemaText.Contains("git\\s+(add|commit|merge|push")) -Message "Approval record schema rejects dangerous git commands"
+    Assert-True -Condition ($schemaText.Contains("fleet-supervisor")) -Message "Approval record schema rejects broad legacy entrypoints"
+    Assert-True -Condition ($schemaText.Contains("phone_read_only_request")) -Message "Approval record schema represents phone requests as a distinct channel"
+
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\approvals"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Approval record fixture directory exists"
+    $expectedApprovals = @{
+        "approval-record.valid-exact-action.json" = @{
+            decision = "valid_exact_action"
+            state = "approved_exact_action"
+        }
+        "approval-record.rejected-missing-owner.json" = @{
+            decision = "deny_missing_fields"
+            state = "denied"
+        }
+        "approval-record.rejected-broad-target.json" = @{
+            decision = "deny_broad_scope"
+            state = "denied"
+        }
+        "approval-record.rejected-wildcard-target.json" = @{
+            decision = "deny_broad_scope"
+            state = "denied"
+        }
+        "approval-record.rejected-expired.json" = @{
+            decision = "deny_expired_or_reused"
+            state = "expired"
+        }
+        "approval-record.rejected-reused.json" = @{
+            decision = "deny_expired_or_reused"
+            state = "reused"
+        }
+        "approval-record.rejected-write-capable.json" = @{
+            decision = "deny_write_or_external_effect"
+            state = "not_approvable"
+        }
+        "approval-record.rejected-phone-only.json" = @{
+            decision = "deny_phone_only_approval"
+            state = "denied"
+        }
+    }
+
+    foreach ($fixtureName in $expectedApprovals.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Approval record fixture exists: $fixtureName"
+        $approval = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $approval.schemaVersion -Expected 1 -Message "Approval record fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual $approval.taskId -Expected "HQ-114" -Message "Approval record fixture maps to HQ-114: $fixtureName"
+        Assert-Equal -Actual $approval.validationDecision -Expected $expectedApprovals[$fixtureName].decision -Message "Approval record fixture decision matches: $fixtureName"
+        Assert-Equal -Actual $approval.approvalState -Expected $expectedApprovals[$fixtureName].state -Message "Approval record fixture state matches: $fixtureName"
+        Assert-True -Condition ([string]$approval.nonAuthorityNotice -match "cannot approve") -Message "Approval record fixture carries non-authority notice: $fixtureName"
+    }
+
+    $validApproval = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.valid-exact-action.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $validApproval.owner -Expected "Captain" -Message "Valid approval names an owner"
+    Assert-True -Condition ([bool]$validApproval.selectedTarget.singleTargetOnly) -Message "Valid approval is single-target"
+    Assert-True -Condition ([string]$validApproval.repoPath -match "^C:\\") -Message "Valid approval records exact absolute repo path"
+    Assert-True -Condition ((@($validApproval.commandList | Where-Object { [string]$_ -match "(?i)(git\s+push|deploy|migration|secrets?|payments?|all-fleet)" }).Count) -eq 0) -Message "Valid approval command list avoids forbidden operations"
+    Assert-Equal -Actual $validApproval.reuseStatus -Expected "fresh" -Message "Valid approval is fresh"
+
+    $missingOwner = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-missing-owner.json") -Raw | ConvertFrom-Json
+    Assert-True -Condition ([string]::IsNullOrWhiteSpace([string]$missingOwner.owner)) -Message "Missing owner fixture keeps owner blank"
+    Assert-Equal -Actual $missingOwner.validationDecision -Expected "deny_missing_fields" -Message "Missing owner fixture is denied"
+
+    $broadTarget = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-broad-target.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $broadTarget.selectedTarget.targetId -Expected "all" -Message "Broad target fixture records all target"
+    Assert-False -Condition ([bool]$broadTarget.selectedTarget.singleTargetOnly) -Message "Broad target fixture is not single-target"
+    Assert-Equal -Actual $broadTarget.validationDecision -Expected "deny_broad_scope" -Message "Broad target fixture is denied"
+
+    $wildcardTarget = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-wildcard-target.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $wildcardTarget.selectedTarget.targetId -Expected "*" -Message "Wildcard target fixture records wildcard"
+    Assert-Equal -Actual $wildcardTarget.validationDecision -Expected "deny_broad_scope" -Message "Wildcard target fixture is denied"
+
+    $expired = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-expired.json") -Raw | ConvertFrom-Json
+    Assert-True -Condition ([datetime]$expired.expiresAt -lt [datetime]$expired.approvedAt) -Message "Expired approval fixture has invalid timestamp order"
+    Assert-Equal -Actual $expired.validationDecision -Expected "deny_expired_or_reused" -Message "Expired approval fixture is denied"
+
+    $reused = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-reused.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $reused.reuseStatus -Expected "copied_or_reused" -Message "Reused approval fixture records reuse"
+    Assert-Equal -Actual $reused.validationDecision -Expected "deny_expired_or_reused" -Message "Reused approval fixture is denied"
+
+    $writeCapable = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-write-capable.json") -Raw | ConvertFrom-Json
+    Assert-True -Condition ([string]$writeCapable.action -match "write") -Message "Write-capable fixture records unsafe action"
+    Assert-Equal -Actual $writeCapable.validationDecision -Expected "deny_write_or_external_effect" -Message "Write-capable approval fixture is denied"
+
+    $phoneOnly = Get-Content -LiteralPath (Join-Path $fixtureDir "approval-record.rejected-phone-only.json") -Raw | ConvertFrom-Json
+    Assert-Equal -Actual $phoneOnly.approvalChannel -Expected "phone_read_only_request" -Message "Phone-only fixture records phone request channel"
+    Assert-Equal -Actual $phoneOnly.validationDecision -Expected "deny_phone_only_approval" -Message "Phone-only approval fixture is denied"
+}
+
+function Test-HqApprovalBoundaryEnforcementTests {
+    $schemaPath = Join-Path $fleetRoot "templates\approval-record-schema.json"
+    $boundaryDocPath = Join-Path $fleetRoot "docs\fleet\REMOTE_APPROVAL_BOUNDARY.md"
+    $remoteDocPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+    $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\approvals"
+
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Approval boundary enforcement has schema"
+    Assert-True -Condition (Test-Path -LiteralPath $boundaryDocPath) -Message "Approval boundary enforcement has remote boundary doc"
+    Assert-True -Condition (Test-Path -LiteralPath $remoteDocPath) -Message "Approval boundary enforcement has remote approval doc"
+    Assert-True -Condition (Test-Path -LiteralPath $buttonPolicyPath) -Message "Approval boundary enforcement has button policy doc"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Approval boundary enforcement has fixture directory"
+
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $boundaryDoc = Get-Content -LiteralPath $boundaryDocPath -Raw
+    $remoteDoc = Get-Content -LiteralPath $remoteDocPath -Raw
+    $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
+    $combinedApprovalDocs = "$boundaryDoc`n$remoteDoc`n$buttonPolicy"
+
+    foreach ($phrase in @(
+        "exact-action-bound",
+        "future-only",
+        "expiration timestamp",
+        "single target",
+        "deny",
+        "cannot be inherited",
+        "Risky phone approvals are not allowed",
+        "A phone tap cannot bypass local validation",
+        "evidence only"
+    )) {
+        Assert-True -Condition ($combinedApprovalDocs -match [regex]::Escape($phrase)) -Message "Approval boundary docs preserve phrase: $phrase"
+    }
+
+    foreach ($field in @(
+        "owner",
+        "selectedTarget",
+        "repoPath",
+        "entrypoint",
+        "action",
+        "commandList",
+        "expectedOutput",
+        "approvedAt",
+        "expiresAt",
+        "stopConditions",
+        "nonAuthorityNotice"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($field)) -Message "Approval boundary schema preserves field: $field"
+    }
+
+    foreach ($decision in @(
+        "deny_missing_fields",
+        "deny_expired_or_reused",
+        "deny_broad_scope",
+        "deny_write_or_external_effect",
+        "deny_forbidden_operation",
+        "deny_phone_only_approval",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($decision)) -Message "Approval boundary schema preserves denial decision: $decision"
+    }
+
+    foreach ($case in @(
+        "phone-only-approval-denied",
+        "approve-all-broad-target-denied",
+        "wildcard-target-denied",
+        "missing-owner-denied",
+        "stale-expired-approval-denied",
+        "reused-approval-denied",
+        "write-capable-approval-denied",
+        "forbidden-operation-denied",
+        "evidence-as-authority-denied"
+    )) {
+        Assert-True -Condition ($boundaryDoc -match [regex]::Escape($case)) -Message "Remote approval boundary preserves denial matrix case: $case"
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "approval-record*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-True -Condition ($fixtures.Count -ge 8) -Message "Approval boundary enforcement has valid and rejected fixtures"
+
+    $validFixtures = @($fixtures | Where-Object { [string]$_.validationDecision -eq "valid_exact_action" })
+    $rejectedFixtures = @($fixtures | Where-Object { [string]$_.validationDecision -ne "valid_exact_action" })
+    Assert-Equal -Actual $validFixtures.Count -Expected 1 -Message "Only one approval fixture is valid"
+    Assert-True -Condition ($rejectedFixtures.Count -ge 7) -Message "Approval boundary has rejected fixture coverage"
+
+    foreach ($approval in $rejectedFixtures) {
+        Assert-True -Condition ([string]$approval.approvalState -ne "approved_exact_action") -Message "Rejected approval fixture is not treated as approved: $($approval.recordId)"
+        Assert-True -Condition ([string]$approval.validationDecision -match "^deny_") -Message "Rejected approval fixture has deny decision: $($approval.recordId)"
+        Assert-True -Condition ([string]$approval.denialReason -ne "") -Message "Rejected approval fixture carries denial reason: $($approval.recordId)"
+        Assert-True -Condition ([string]$approval.nonAuthorityNotice -match "cannot approve") -Message "Rejected approval fixture stays non-authority: $($approval.recordId)"
+    }
+
+    $validApproval = $validFixtures[0]
+    Assert-True -Condition ([bool]$validApproval.selectedTarget.singleTargetOnly) -Message "Valid approval remains single-target"
+    Assert-Equal -Actual $validApproval.reuseStatus -Expected "fresh" -Message "Valid approval is not reused"
+    Assert-True -Condition ([datetime]$validApproval.expiresAt -gt [datetime]$validApproval.approvedAt) -Message "Valid approval expires after approval timestamp"
+    Assert-True -Condition ([string]$validApproval.approvalChannel -ne "phone_read_only_request") -Message "Valid approval is not phone-only"
+
+    $phoneOnly = @($fixtures | Where-Object { [string]$_.approvalChannel -eq "phone_read_only_request" })[0]
+    Assert-Equal -Actual $phoneOnly.validationDecision -Expected "deny_phone_only_approval" -Message "Phone-only approval-looking fixture remains denied"
+    Assert-True -Condition ([string]$buttonPolicy -match 'Approve Exact Action \| `future-only`') -Message "Button policy keeps approve exact action future-only"
+    Assert-True -Condition ([string]$buttonPolicy -match 'Approve All Similar \| `forbidden`') -Message "Button policy forbids approve-all"
+    Assert-True -Condition ([string]$buttonPolicy -match "exact-action-bound, future-only, single-target, expiring, and non-executable") -Message "Button policy preserves future approve control boundary"
+    Assert-True -Condition ([string]$remoteDoc -match "A phone tap cannot bypass validation") -Message "Remote approval doc denies phone validation bypass"
+}
+
+function Test-HqReadOnlyDemoApprovalPacketTemplate {
+    $packetPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_APPROVAL_PACKET.md"
+    $schemaPath = Join-Path $fleetRoot "templates\read-only-demo-approval-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $packetPath) -Message "Read-only demo approval packet template exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Read-only demo approval schema exists"
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Read-only demo approval schema is versioned"
+
+    foreach ($field in @(
+        "humanOwner",
+        "selectedTarget",
+        "readOnlyOrNoOpActions",
+        "repoFingerprintRef",
+        "expiresAt",
+        "stopSigns",
+        "evidenceRefs",
+        "validationCommands",
+        "nonAuthorityNotice"
+    )) {
+        Assert-True -Condition (@($schema.required) -contains $field) -Message "Read-only demo approval schema requires $field"
+        Assert-True -Condition ($null -ne $schema.properties.PSObject.Properties[$field]) -Message "Read-only demo approval schema defines $field"
+        Assert-True -Condition ($packetText -match [regex]::Escape($field)) -Message "Read-only demo approval packet documents $field"
+    }
+
+    foreach ($capability in @(
+        "productRepoAccess",
+        "demoExecution",
+        "productMutation",
+        "packageSending",
+        "remoteAccess",
+        "runtimeCommandBinding",
+        "phoneApproval",
+        "allFleetExecution",
+        "futureAuthority"
+    )) {
+        Assert-True -Condition ($null -ne $schema.properties.forbiddenCapabilities.properties.PSObject.Properties[$capability]) -Message "Read-only demo approval schema defines forbidden capability $capability"
+        Assert-False -Condition ([bool]$schema.properties.forbiddenCapabilities.properties.$capability.const -ne $false) -Message "Read-only demo approval schema keeps $capability false"
+        Assert-True -Condition ($packetText -match [regex]::Escape($capability)) -Message "Read-only demo approval packet documents forbidden capability $capability"
+    }
+
+    foreach ($decision in @(
+        "deny_blank_target",
+        "deny_all_target",
+        "deny_wildcard_target",
+        "deny_multi_target",
+        "deny_missing_owner",
+        "deny_stale_fingerprint",
+        "deny_phone_only_approval",
+        "deny_reused_approval",
+        "deny_write_capable_action",
+        "deny_package_sending",
+        "deny_command_binding",
+        "deny_remote_access",
+        "deny_evidence_as_authority"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($decision)) -Message "Read-only demo approval schema preserves denial decision $decision"
+        Assert-True -Condition ($packetText -match [regex]::Escape($decision)) -Message "Read-only demo approval packet preserves denial decision $decision"
+    }
+
+    foreach ($phrase in @(
+        "unfilled template",
+        "does not approve product-repo access",
+        "does not approve product-repo access, demo execution",
+        "cannot fill this packet",
+        "cannot approve runtime command binding",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope."
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Read-only demo approval packet preserves phrase: $phrase"
+    }
+
+    foreach ($allowedAction in @(
+        "READ_STATUS",
+        "READ_REPO_FINGERPRINT",
+        "READ_VALIDATION_SUMMARY",
+        "READ_AUDIT_EVIDENCE",
+        "READ_DRY_RUN_EVIDENCE",
+        "READ_CONTROL_ROOM_SNAPSHOT",
+        "NO_OP_READINESS_CHECK"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($allowedAction)) -Message "Read-only demo approval schema allows planning action label $allowedAction"
+    }
+
+    Assert-True -Condition ($schemaText.Contains("git\\s+(add|commit|merge|push")) -Message "Read-only demo approval schema rejects dangerous git validation commands"
+    Assert-True -Condition ($schemaText.Contains("send\\s+package")) -Message "Read-only demo approval schema rejects package sending"
+    Assert-True -Condition ($schemaText.Contains("remote\\s+access")) -Message "Read-only demo approval schema rejects remote access"
+}
+
+function Test-HqReadOnlyDemoCommandVocabulary {
+    $docPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_COMMAND_VOCABULARY.md"
+    $schemaPath = Join-Path $fleetRoot "templates\read-only-demo-command-schema.json"
+
+    Assert-True -Condition (Test-Path -LiteralPath $docPath) -Message "Read-only demo command vocabulary doc exists"
+    Assert-True -Condition (Test-Path -LiteralPath $schemaPath) -Message "Read-only demo command vocabulary schema exists"
+
+    $docText = Get-Content -LiteralPath $docPath -Raw
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw
+    $schema = $schemaText | ConvertFrom-Json
+
+    Assert-Equal -Actual $schema.properties.schemaVersion.const -Expected 1 -Message "Read-only demo command vocabulary schema is versioned"
+    Assert-True -Condition (@($schema.required) -contains "allowedLabels") -Message "Read-only demo command vocabulary schema requires allowedLabels"
+    Assert-True -Condition (@($schema.required) -contains "deniedLabels") -Message "Read-only demo command vocabulary schema requires deniedLabels"
+    Assert-True -Condition (@($schema.required) -contains "forbiddenCapabilities") -Message "Read-only demo command vocabulary schema requires forbiddenCapabilities"
+
+    foreach ($allowedLabel in @(
+        "READ_STATUS",
+        "READ_REPO_FINGERPRINT",
+        "READ_VALIDATION_SUMMARY",
+        "READ_AUDIT_EVIDENCE",
+        "READ_DRY_RUN_EVIDENCE",
+        "READ_CONTROL_ROOM_SNAPSHOT",
+        "READ_SCHEMA",
+        "READ_FIXTURE",
+        "NO_OP_READINESS_CHECK"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($allowedLabel)) -Message "Read-only demo command vocabulary schema allows label $allowedLabel"
+        Assert-True -Condition ($docText -match [regex]::Escape($allowedLabel)) -Message "Read-only demo command vocabulary doc explains label $allowedLabel"
+    }
+
+    foreach ($deniedLabel in @(
+        "WRITE_PRODUCT_REPO",
+        "MUTATE_PRODUCT_REPO",
+        "CREATE_PACKAGE",
+        "SEND_PACKAGE",
+        "BIND_RUNTIME_COMMAND",
+        "REMOTE_ACCESS",
+        "APPROVE_BY_PHONE",
+        "RUN_ALL_FLEET",
+        "STAGE_COMMIT_PUSH_DEPLOY",
+        "INSTALL_OR_MIGRATE",
+        "TOUCH_SECRETS_AUTH_PAYMENTS_DEPLOY",
+        "DELETE_LOCKS_OR_WIDEN_PERMISSIONS",
+        "EXECUTE_DEMO",
+        "GRANT_FUTURE_AUTHORITY"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($deniedLabel)) -Message "Read-only demo command vocabulary schema denies label $deniedLabel"
+        Assert-True -Condition ($docText -match [regex]::Escape($deniedLabel)) -Message "Read-only demo command vocabulary doc denies label $deniedLabel"
+    }
+
+    foreach ($decision in @(
+        "deny_write_capable_commands",
+        "deny_product_mutation",
+        "deny_package_sending",
+        "deny_runtime_command_binding",
+        "deny_remote_access",
+        "deny_all_fleet_execution",
+        "deny_staging_commit_push_deploy",
+        "deny_installs_or_migrations",
+        "deny_secrets_auth_payments_deploy_work",
+        "deny_lock_deletion_or_permission_widening",
+        "deny_phone_approvals",
+        "deny_demo_execution",
+        "deny_future_authority"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($decision)) -Message "Read-only demo command vocabulary schema preserves denial decision $decision"
+    }
+
+    foreach ($phrase in @(
+        "These labels describe evidence that may be reviewed.",
+        "They are not shell commands, runtime commands, launcher inputs, button actions, phone approvals, package steps, or product-repo operations.",
+        "does not bind commands",
+        "cannot become a command input",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope."
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($phrase)) -Message "Read-only demo command vocabulary preserves phrase: $phrase"
+    }
+}
+
+function Test-HqReadOnlyDemoStopSignsAndEvidenceCapture {
+    $stopSignsPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_STOP_SIGNS.md"
+    $evidencePath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_EVIDENCE_CAPTURE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $stopSignsPath) -Message "Read-only demo stop signs doc exists"
+    Assert-True -Condition (Test-Path -LiteralPath $evidencePath) -Message "Read-only demo evidence capture doc exists"
+
+    $stopSignsText = Get-Content -LiteralPath $stopSignsPath -Raw
+    $evidenceText = Get-Content -LiteralPath $evidencePath -Raw
+    $combinedText = "$stopSignsText`n$evidenceText"
+
+    foreach ($stopSign in @(
+        "missing-approval-packet",
+        "missing-owner",
+        "blank-target",
+        "all-target",
+        "wildcard-target",
+        "multi-target",
+        "stale-fingerprint",
+        "write-capable-action",
+        "package-sending",
+        "remote-access",
+        "phone-only-approval",
+        "all-fleet-execution",
+        "command-binding",
+        "evidence-as-authority"
+    )) {
+        Assert-True -Condition ($stopSignsText -match [regex]::Escape($stopSign)) -Message "Read-only demo stop signs doc preserves stop sign $stopSign"
+    }
+
+    foreach ($evidenceField in @(
+        "exact selected target reference",
+        "exact human owner reference",
+        "exact approval packet reference",
+        "exact read-only/no-op action labels",
+        "current repo fingerprint reference",
+        "source docs",
+        "stop signs reviewed",
+        "compact summaries",
+        "exact validation command refs",
+        "evidence refs",
+        "validation result",
+        "non-authority notice",
+        "no raw logs by default"
+    )) {
+        Assert-True -Condition ($evidenceText -match [regex]::Escape($evidenceField)) -Message "Read-only demo evidence capture requires field: $evidenceField"
+    }
+
+    foreach ($sourceDoc in @(
+        "docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+        "docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md",
+        "docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+        "docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md",
+        "docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md"
+    )) {
+        Assert-True -Condition ($evidenceText -match [regex]::Escape($sourceDoc)) -Message "Read-only demo evidence capture cites source doc $sourceDoc"
+    }
+
+    foreach ($phrase in @(
+        "compact summaries instead of raw logs by default",
+        "Raw logs are excluded by default",
+        "Validation command refs must be exact strings",
+        "cannot be broadened into all-fleet commands",
+        "does not approve demo execution",
+        "does not approve product-repo access",
+        "Runtime command binding is not approved",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope."
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Read-only demo stop/evidence docs preserve phrase: $phrase"
+    }
+}
+
+function Test-HqReadOnlyDemoReadinessFixtureMatrix {
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-demo"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureDir) -Message "Read-only demo readiness fixture directory exists"
+
+    $expectedCases = @{
+        "read-only-demo.valid-planning.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "planning_only_ready"
+            validationDecision = "valid_planning_only"
+            approvalState = "human_packet_present"
+            denialReason = $null
+            singleTargetOnly = $true
+        }
+        "read-only-demo.missing-approval-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_missing_approval_packet"
+            approvalState = "missing_approval_packet"
+            denialReason = "missing-approval-packet"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.stale-fingerprint-deferred.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "deferred"
+            validationDecision = "defer_stale_fingerprint"
+            approvalState = "human_packet_present"
+            denialReason = "stale-fingerprint"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.write-capable-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_write_capable_action"
+            approvalState = "human_packet_present"
+            denialReason = "write-capable-action"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.package-sending-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_package_sending"
+            approvalState = "human_packet_present"
+            denialReason = "package-sending"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.phone-only-denied.json" = @{
+            hqTaskId = "HQ-171"
+            planningStatus = "denied"
+            validationDecision = "deny_phone_only_approval"
+            approvalState = "phone_only_approval"
+            denialReason = "phone-only-approval"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.expired-approval-denied.json" = @{
+            hqTaskId = "HQ-178"
+            planningStatus = "denied"
+            validationDecision = "deny_expired_approval"
+            approvalState = "expired_approval"
+            denialReason = "expired-approval"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.missing-owner-denied.json" = @{
+            hqTaskId = "HQ-179"
+            planningStatus = "denied"
+            validationDecision = "deny_missing_owner"
+            approvalState = "missing_owner"
+            denialReason = "missing-owner"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.reused-approval-denied.json" = @{
+            hqTaskId = "HQ-180"
+            planningStatus = "denied"
+            validationDecision = "deny_reused_approval"
+            approvalState = "reused_approval"
+            denialReason = "reused-approval"
+            singleTargetOnly = $true
+        }
+        "read-only-demo.multi-target-denied.json" = @{
+            hqTaskId = "HQ-174"
+            planningStatus = "denied"
+            validationDecision = "deny_multi_target"
+            approvalState = "human_packet_present"
+            denialReason = "multi-target"
+            singleTargetOnly = $false
+        }
+        "read-only-demo.wildcard-target-denied.json" = @{
+            hqTaskId = "HQ-174"
+            planningStatus = "denied"
+            validationDecision = "deny_wildcard_target"
+            approvalState = "human_packet_present"
+            denialReason = "wildcard-target"
+            singleTargetOnly = $false
+        }
+    }
+
+    foreach ($fixtureName in $expectedCases.Keys) {
+        $fixturePath = Join-Path $fixtureDir $fixtureName
+        Assert-True -Condition (Test-Path -LiteralPath $fixturePath) -Message "Read-only demo readiness fixture exists: $fixtureName"
+
+        $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+        $expected = $expectedCases[$fixtureName]
+
+        Assert-Equal -Actual ([int]$fixture.schemaVersion) -Expected 1 -Message "Read-only demo readiness fixture schema version is 1: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.hqTaskId) -Expected $expected.hqTaskId -Message "Read-only demo readiness fixture maps to expected HQ task: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.fixtureKind) -Expected "read_only_demo_readiness_planning" -Message "Read-only demo readiness fixture names fixture kind: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.planningStatus) -Expected $expected.planningStatus -Message "Read-only demo readiness fixture planning status matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.validationDecision) -Expected $expected.validationDecision -Message "Read-only demo readiness fixture decision matches: $fixtureName"
+        Assert-Equal -Actual ([string]$fixture.approvalState) -Expected $expected.approvalState -Message "Read-only demo readiness fixture approval state matches: $fixtureName"
+        Assert-Equal -Actual ([bool]$fixture.selectedTarget.singleTargetOnly) -Expected $expected.singleTargetOnly -Message "Read-only demo readiness fixture target scope matches expectation: $fixtureName"
+        Assert-True -Condition ([string]$fixture.repoFingerprintRef -match "fixtures/repo-fingerprints/") -Message "Read-only demo readiness fixture uses local repo fingerprint ref: $fixtureName"
+        Assert-True -Condition (@($fixture.evidenceRefs).Count -ge 2) -Message "Read-only demo readiness fixture carries evidence refs: $fixtureName"
+        Assert-True -Condition (@($fixture.validationCommands).Count -ge 1) -Message "Read-only demo readiness fixture carries validation command refs: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "evidence only") -Message "Read-only demo readiness fixture is evidence only: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match "cannot approve") -Message "Read-only demo readiness fixture cannot approve: $fixtureName"
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match [regex]::Escape("Evidence only; not executable authority or approval.")) -Message "Read-only demo readiness fixture preserves canonical non-authority notice: $fixtureName"
+
+        if ($null -ne $expected.denialReason) {
+            Assert-True -Condition (@($fixture.denialReasons) -contains $expected.denialReason) -Message "Read-only demo readiness fixture names denial/defer reason: $fixtureName"
+            Assert-True -Condition (@($fixture.stopSignsReviewed) -contains $expected.denialReason) -Message "Read-only demo readiness fixture reviews stop sign: $fixtureName"
+        } else {
+            Assert-Equal -Actual @($fixture.denialReasons).Count -Expected 0 -Message "Valid read-only demo readiness fixture has no denial reasons"
+        }
+
+        foreach ($capability in @(
+            "productRepoAccess",
+            "productMutation",
+            "packageSending",
+            "remoteAccess",
+            "runtimeCommandBinding",
+            "phoneApprovals",
+            "allFleetExecution",
+            "demoExecution",
+            "futureAuthority"
+        )) {
+            Assert-False -Condition ([bool]$fixture.forbiddenCapabilities.$capability) -Message "Read-only demo readiness fixture keeps $capability false: $fixtureName"
+        }
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" | ForEach-Object {
+        Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+    })
+    Assert-Equal -Actual $fixtures.Count -Expected 11 -Message "Read-only demo readiness matrix has exactly eleven fixtures"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.planningStatus -eq "planning_only_ready" }).Count -eq 1) -Message "Read-only demo readiness matrix has one valid planning-only fixture"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.planningStatus -eq "denied" }).Count -eq 9) -Message "Read-only demo readiness matrix covers nine denied fixtures"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.planningStatus -eq "deferred" }).Count -eq 1) -Message "Read-only demo readiness matrix covers one deferred fixture"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_multi_target" }).Count -eq 1) -Message "Read-only demo readiness matrix covers multi-target denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_wildcard_target" }).Count -eq 1) -Message "Read-only demo readiness matrix covers wildcard-target denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_expired_approval" }).Count -eq 1) -Message "Read-only demo readiness matrix covers expired approval denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_missing_owner" }).Count -eq 1) -Message "Read-only demo readiness matrix covers missing owner denial"
+    Assert-True -Condition (@($fixtures | Where-Object { [string]$_.validationDecision -eq "deny_reused_approval" }).Count -eq 1) -Message "Read-only demo readiness matrix covers reused approval denial"
+}
+
+function Test-HqReadOnlyDemoNonAuthorityWordingConsistency {
+    $canonicalNotice = "Evidence only; not executable authority or approval."
+    $docPaths = @(
+        "docs\fleet\READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+        "docs\fleet\READ_ONLY_DEMO_APPROVAL_PACKET.md",
+        "docs\fleet\READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+        "docs\fleet\READ_ONLY_DEMO_STOP_SIGNS.md",
+        "docs\fleet\READ_ONLY_DEMO_EVIDENCE_CAPTURE.md",
+        "docs\fleet\READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+        "docs\fleet\FIXTURE_READABILITY_INVENTORY.md",
+        "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+    )
+
+    foreach ($relativePath in $docPaths) {
+        $docPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $docPath) -Message "Read-only demo non-authority wording doc exists: $relativePath"
+        $docText = Get-Content -LiteralPath $docPath -Raw
+        Assert-True -Condition ($docText -match [regex]::Escape($canonicalNotice)) -Message "Read-only demo doc preserves canonical non-authority notice: $relativePath"
+    }
+
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-demo"
+    foreach ($fixturePath in Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json") {
+        $fixture = Get-Content -LiteralPath $fixturePath.FullName -Raw | ConvertFrom-Json
+        Assert-True -Condition ([string]$fixture.nonAuthorityNotice -match [regex]::Escape($canonicalNotice)) -Message "Read-only demo fixture preserves canonical non-authority notice: $($fixturePath.Name)"
+    }
+}
+
+function Test-HqReadOnlyDemoReadinessExternalAuditPrompt {
+    $promptPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md"
+    $nextPromptPath = Join-Path $fleetRoot "docs\fleet\HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md"
+    $runbookPath = Join-Path $fleetRoot "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+
+    foreach ($path in @($promptPath, $nextPromptPath, $runbookPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Read-only demo audit prompt artifact exists: $([System.IO.Path]::GetFileName($path))"
+    }
+
+    $promptText = Get-Content -LiteralPath $promptPath -Raw
+    $nextPromptText = Get-Content -LiteralPath $nextPromptPath -Raw
+    $runbookText = Get-Content -LiteralPath $runbookPath -Raw
+    $combinedText = @($promptText, $nextPromptText, $runbookText) -join "`n"
+
+    foreach ($phrase in @(
+        "Read-Only Demo Readiness External Audit Prompt",
+        "Does the read-only demo readiness planning lane remain evidence-only and safe for review",
+        "does not create or send a package",
+        "approve product-repo access",
+        "approve demo execution",
+        "bind runtime commands",
+        "approve remote access",
+        "approve phone actions",
+        "grant future authority",
+        "local harness/docs/tests/schema/fixture evidence",
+        "no raw logs by default",
+        "Suggested follow-up tasks only as non-executable queue candidates",
+        "Compact digest for each actionable finding",
+        "Do not provide executable instructions"
+    )) {
+        Assert-True -Condition ($promptText -match [regex]::Escape($phrase)) -Message "Read-only demo audit prompt preserves phrase: $phrase"
+    }
+
+    foreach ($includePath in @(
+        "docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md",
+        "docs/fleet/READ_ONLY_DEMO_APPROVAL_PACKET.md",
+        "docs/fleet/READ_ONLY_DEMO_COMMAND_VOCABULARY.md",
+        "docs/fleet/READ_ONLY_DEMO_STOP_SIGNS.md",
+        "docs/fleet/READ_ONLY_DEMO_EVIDENCE_CAPTURE.md",
+        "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+        "templates/read-only-demo-approval-schema.json",
+        "templates/read-only-demo-command-schema.json",
+        "tests/fixtures/fleet/read-only-demo/*.json",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($includePath)) -Message "Read-only demo audit planning names include path: $includePath"
+    }
+
+    foreach ($excludePhrase in @(
+        "product repos",
+        ".git",
+        ".env",
+        "dependency folders",
+        "node_modules",
+        "dist",
+        "build",
+        "raw logs",
+        "secrets",
+        "auth/payments/deploy/migration material",
+        "package-install material",
+        "staging/commit/push/merge material",
+        "lock-deletion material",
+        "runtime-execution material",
+        "approval material for real product work"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($excludePhrase)) -Message "Read-only demo audit planning preserves exclusion: $excludePhrase"
+    }
+
+    foreach ($phrase in @(
+        "Read-Only Demo Readiness Planning Audit Request",
+        "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+        "read-only-demo-readiness-planning-audit",
+        "Package creation and package sending remain separate exact human-approved actions",
+        'This runbook section and `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` do not create or send a package.'
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Read-only demo next prompt/runbook preserves phrase: $phrase"
+    }
+
+    Assert-False -Condition ($combinedText -match "(?i)(prompt|runbook).{0,80}(approves|authorizes|permits).{0,80}(product-repo access|demo execution|package sending|runtime command binding|future authority)") -Message "Read-only demo audit planning does not make prompt/runbook approval authority"
+}
+
+function Test-HqCombinedApprovalReconciliationFixturePlan {
+    $planPath = Join-Path $fleetRoot "docs\fleet\COMBINED_APPROVAL_RECONCILIATION_FIXTURE_PLAN.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $planPath) -Message "Combined approval reconciliation fixture plan exists"
+
+    $planText = Get-Content -LiteralPath $planPath -Raw
+
+    foreach ($sourceContract in @(
+        "docs/fleet/REMOTE_APPROVAL_BOUNDARY.md",
+        "docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md",
+        "docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md",
+        "docs/fleet/CONTROL_ROOM_RECONCILIATION_CONTRACT.md",
+        "docs/fleet/SELECTED_PROJECT_READ_ONLY_GATE.md"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($sourceContract)) -Message "Combined approval reconciliation plan cites source contract: $sourceContract"
+    }
+
+    foreach ($caseName in @(
+        "valid-exact-action-read-only-evidence",
+        "phone-only-denied",
+        "broad-target-denied",
+        "reused-approval-denied",
+        "write-capable-denied",
+        "failure-fingerprint-safe-pause",
+        "reconciliation-unknown"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($caseName)) -Message "Combined approval reconciliation plan defines case: $caseName"
+    }
+
+    foreach ($vocabulary in @(
+        "deny_phone_only_approval",
+        "deny_broad_scope",
+        "deny_expired_or_reused",
+        "deny_write_or_external_effect",
+        "deny_forbidden_operation",
+        "deny_evidence_as_authority",
+        "missing-approval",
+        "forbidden-scope",
+        "policy-denial",
+        "non-retriable-policy-denial",
+        "safe-pause",
+        "blind-retry-forbidden",
+        "UNKNOWN"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($vocabulary)) -Message "Combined approval reconciliation plan preserves vocabulary: $vocabulary"
+    }
+
+    foreach ($safetyField in @(
+        "executesProductActions",
+        "mutatesProductRepos",
+        "readsProductRepos",
+        "bindsRuntimeCommands",
+        "createsOrSendsPackages",
+        "runsAllFleet",
+        "canApproveFutureRuns",
+        "commandInput"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($safetyField)) -Message "Combined approval reconciliation plan requires safety field false: $safetyField"
+    }
+
+    foreach ($phrase in @(
+        "evidence only",
+        "cannot approve or execute work",
+        "does not implement runtime behavior",
+        "does not inspect product repositories",
+        "does not approve execution",
+        "package creation or sending",
+        "runtime command binding",
+        "product-repo access",
+        "future authority",
+        "Stop and repacketize"
+    )) {
+        Assert-True -Condition ($planText -match [regex]::Escape($phrase)) -Message "Combined approval reconciliation plan preserves non-authority phrase: $phrase"
+    }
+}
+
+function Test-HqNonAuthorityWordingConsistency {
+    $docPaths = @(
+        "docs\fleet\STABLE_CONTEXT_CAPSULE.md",
+        "docs\fleet\NEW_CHAT_HANDOFF_PACKET.md",
+        "docs\fleet\CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md",
+        "docs\fleet\CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md",
+        "docs\fleet\RUNTIME_DRY_RUN_EVIDENCE_CONTRACT.md",
+        "docs\fleet\SELECTED_PROJECT_READ_ONLY_GATE.md",
+        "docs\fleet\CONTROL_ROOM_RECONCILIATION_CONTRACT.md",
+        "docs\fleet\FAILURE_FINGERPRINT_CONTRACT.md",
+        "docs\fleet\REMOTE_APPROVAL_BOUNDARY.md",
+        "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+        "docs\fleet\ui\FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md"
+    )
+
+    $commonPhrases = @(
+        "Common Non-Authority Phrase Set",
+        "Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.",
+        "They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.",
+        "GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority."
+    )
+
+    foreach ($relativePath in $docPaths) {
+        $docPath = Join-Path $fleetRoot $relativePath
+        Assert-True -Condition (Test-Path -LiteralPath $docPath) -Message "Non-authority wording selected doc exists: $relativePath"
+
+        $docText = Get-Content -LiteralPath $docPath -Raw
+        foreach ($phrase in $commonPhrases) {
+            Assert-True -Condition ($docText -match [regex]::Escape($phrase)) -Message "Non-authority wording doc preserves common phrase: $relativePath :: $phrase"
+        }
+    }
+
+    $combinedDocs = ($docPaths | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $fleetRoot $_) -Raw
+    }) -join "`n"
+
+    foreach ($artifactType in @(
+        "reviewer output",
+        "DOCX reports",
+        "mobile requests",
+        "task packets",
+        "audit packages",
+        "generated evidence",
+        "UI labels",
+        "notifications",
+        "buttons",
+        "approvals",
+        "prompts",
+        "validation summaries",
+        "manifests",
+        "dry-run records",
+        "queue prose"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($artifactType)) -Message "Non-authority wording covers artifact type: $artifactType"
+    }
+
+    foreach ($forbiddenAuthority in @(
+        "approve or execute work",
+        "grant future authority",
+        "bypass validation",
+        "select product repos",
+        "send packages",
+        "bind runtime commands",
+        "approve phone actions",
+        "approve demos",
+        "import tasks",
+        "fill approval packets",
+        "broaden scope"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($forbiddenAuthority)) -Message "Non-authority wording denies authority path: $forbiddenAuthority"
+    }
+}
+
+function Test-HqFixtureReadabilityInventory {
+    $inventoryRelativePath = "docs\fleet\FIXTURE_READABILITY_INVENTORY.md"
+    $inventoryPath = Join-Path $fleetRoot $inventoryRelativePath
+    $fixtureRoot = Join-Path $fleetRoot "tests\fixtures\fleet"
+    $requiredFixtureDirs = @(
+        "anti-loop",
+        "approvals",
+        "evidence",
+        "read-only-demo",
+        "read-only-gates"
+    )
+    $futureCapableFixtureDirs = @(
+        "thin-task-packets",
+        "ui-control"
+    )
+
+    Assert-True -Condition (Test-Path -LiteralPath $inventoryPath) -Message "Fixture readability inventory exists"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureRoot) -Message "Fleet fixture root exists"
+
+    $inventoryText = Get-Content -LiteralPath $inventoryPath -Raw -ErrorAction Stop
+    foreach ($phrase in @(
+        "local read-only fixture accessibility check",
+        "tests/fixtures/fleet",
+        "JSON/Markdown evidence",
+        "does not change ACLs",
+        "chmod permissions",
+        "ownership",
+        "package-builder behavior",
+        "product repos",
+        "generated package contents",
+        "reported as validation failure evidence",
+        "not fixed by widening permissions",
+        "read-only demo fixture package-inclusion check",
+        "tests/fixtures/fleet/read-only-demo/*.json",
+        "currently present directory list",
+        "future-capable",
+        "checked only when the directory exists",
+        "must not create a missing future-capable directory",
+        "approval material for real product work"
+    )) {
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($phrase)) -Message "Fixture readability inventory preserves required phrase: $phrase"
+    }
+
+    foreach ($dirName in $requiredFixtureDirs) {
+        $relativeDir = "tests/fixtures/fleet/$dirName"
+        $dirPath = Join-Path $fixtureRoot $dirName
+        Assert-True -Condition (Test-Path -LiteralPath $dirPath) -Message "Required fixture directory exists: $relativeDir"
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($relativeDir)) -Message "Fixture readability inventory lists required directory: $relativeDir"
+
+        $dirFiles = @(Get-ChildItem -LiteralPath $dirPath -File -ErrorAction Stop)
+        Assert-True -Condition ($dirFiles.Count -gt 0) -Message "Required fixture directory can be enumerated and has files: $relativeDir"
+    }
+
+    $readOnlyDemoDir = Join-Path $fixtureRoot "read-only-demo"
+    $readOnlyDemoFixtures = @(Get-ChildItem -LiteralPath $readOnlyDemoDir -Filter "*.json" -File -ErrorAction Stop)
+    Assert-Equal -Actual $readOnlyDemoFixtures.Count -Expected 11 -Message "Read-only demo fixture directory has eleven JSON fixtures"
+    foreach ($fixture in $readOnlyDemoFixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $fixtureText = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop
+        $parsedFixture = $fixtureText | ConvertFrom-Json -ErrorAction Stop
+        Assert-True -Condition ($null -ne $parsedFixture) -Message "Read-only demo fixture is readable and JSON-parseable: $relativePath"
+        Assert-True -Condition ([string]$parsedFixture.fixtureKind -eq "read_only_demo_readiness_planning") -Message "Read-only demo fixture remains planning evidence: $relativePath"
+        Assert-True -Condition ([string]$parsedFixture.nonAuthorityNotice -match "Evidence only; not executable authority or approval.") -Message "Read-only demo fixture carries canonical non-authority notice: $relativePath"
+    }
+
+    foreach ($dirName in $futureCapableFixtureDirs) {
+        $relativeDir = "tests/fixtures/fleet/$dirName"
+        $dirPath = Join-Path $fixtureRoot $dirName
+        Assert-True -Condition ($inventoryText -match [regex]::Escape($relativeDir)) -Message "Fixture readability inventory lists future-capable directory: $relativeDir"
+
+        if (Test-Path -LiteralPath $dirPath) {
+            $dirFiles = @(Get-ChildItem -LiteralPath $dirPath -File -ErrorAction Stop)
+            Assert-True -Condition ($dirFiles.Count -gt 0) -Message "Present future-capable fixture directory can be enumerated and has files: $relativeDir"
+        } else {
+            Assert-True -Condition ($inventoryText -match "future-capable") -Message "Absent future-capable fixture directory is documented without being required: $relativeDir"
+        }
+    }
+
+    $jsonFixtures = @(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -Filter "*.json" -File -ErrorAction Stop)
+    Assert-True -Condition ($jsonFixtures.Count -ge 40) -Message "Fleet JSON fixtures can be enumerated"
+    foreach ($fixture in $jsonFixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $jsonText = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop
+        $parsedFixture = $jsonText | ConvertFrom-Json -ErrorAction Stop
+        Assert-True -Condition ($null -ne $parsedFixture) -Message "Fleet JSON fixture parses: $relativePath"
+    }
+
+    $markdownFixtures = @(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -Include "*.md", "*.markdown" -File -ErrorAction Stop)
+    foreach ($fixture in $markdownFixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $markdownText = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop
+        Assert-True -Condition ($null -ne $markdownText) -Message "Fleet Markdown fixture is readable: $relativePath"
+    }
+}
+
+function Test-HqReadOnlyDemoFixturePackageInclusionCheck {
+    $runbookPath = Join-Path $fleetRoot "docs\fleet\EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md"
+    $runbookText = Get-Content -LiteralPath $runbookPath -Raw -ErrorAction Stop
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\read-only-demo"
+
+    foreach ($phrase in @(
+        "Read-only demo fixture inclusion check",
+        "tests/fixtures/fleet/read-only-demo/*.json",
+        "present, readable, JSON-parseable",
+        "local fixture evidence only",
+        "does not create a package",
+        "send a package",
+        "approve demo execution",
+        "approve product-repo access",
+        "change ACLs",
+        "change ownership",
+        "widen permissions",
+        "bind runtime commands",
+        "approval material into authority"
+    )) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($phrase)) -Message "Read-only demo fixture package-inclusion check preserves phrase: $phrase"
+    }
+
+    $fixtures = @(Get-ChildItem -LiteralPath $fixtureDir -Filter "*.json" -File -ErrorAction Stop)
+    Assert-Equal -Actual $fixtures.Count -Expected 11 -Message "Read-only demo package-inclusion check sees eleven JSON fixtures"
+    foreach ($fixture in $fixtures) {
+        $relativePath = $fixture.FullName.Substring($fleetRoot.Length + 1).Replace("\", "/")
+        $parsedFixture = Get-Content -LiteralPath $fixture.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        Assert-True -Condition ($null -ne $parsedFixture) -Message "Read-only demo package-inclusion fixture parses locally: $relativePath"
+        Assert-False -Condition ([bool]$parsedFixture.forbiddenCapabilities.productRepoAccess) -Message "Read-only demo fixture package-inclusion keeps product repo access false: $relativePath"
+        Assert-False -Condition ([bool]$parsedFixture.forbiddenCapabilities.packageSending) -Message "Read-only demo fixture package-inclusion keeps package sending false: $relativePath"
+        Assert-False -Condition ([bool]$parsedFixture.forbiddenCapabilities.runtimeCommandBinding) -Message "Read-only demo fixture package-inclusion keeps runtime command binding false: $relativePath"
+    }
+}
+
+function Test-HqReadOnlyDemoFollowupGreenAuditRecord {
+    $recordPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md"
+    $overnightRecordPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md"
+    $rehearsalPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md"
+    $combinedScopePath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md"
+    $combinedPreflightPath = Join-Path $fleetRoot "docs\fleet\READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md"
+    $handoffPath = Join-Path $fleetRoot "docs\fleet\NEW_CHAT_HANDOFF_PACKET.md"
+    $stableCapsulePath = Join-Path $fleetRoot "docs\fleet\STABLE_CONTEXT_CAPSULE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $recordPath) -Message "Read-only demo follow-up GREEN audit record exists"
+    Assert-True -Condition (Test-Path -LiteralPath $overnightRecordPath) -Message "Read-only demo overnight-safe follow-up GREEN audit record exists"
+    Assert-True -Condition (Test-Path -LiteralPath $rehearsalPath) -Message "Read-only demo gate rehearsal plan exists"
+    Assert-True -Condition (Test-Path -LiteralPath $combinedScopePath) -Message "Read-only demo combined audit scope record exists"
+    Assert-True -Condition (Test-Path -LiteralPath $combinedPreflightPath) -Message "Read-only demo combined audit preflight checklist exists"
+    Assert-True -Condition (Test-Path -LiteralPath $handoffPath) -Message "Read-only demo follow-up handoff source exists"
+    Assert-True -Condition (Test-Path -LiteralPath $stableCapsulePath) -Message "Stable context capsule exists"
+
+    $recordText = Get-Content -LiteralPath $recordPath -Raw -ErrorAction Stop
+    $overnightRecordText = Get-Content -LiteralPath $overnightRecordPath -Raw -ErrorAction Stop
+    $rehearsalText = Get-Content -LiteralPath $rehearsalPath -Raw -ErrorAction Stop
+    $combinedScopeText = Get-Content -LiteralPath $combinedScopePath -Raw -ErrorAction Stop
+    $combinedPreflightText = Get-Content -LiteralPath $combinedPreflightPath -Raw -ErrorAction Stop
+    $handoffText = Get-Content -LiteralPath $handoffPath -Raw -ErrorAction Stop
+    $stableCapsuleText = Get-Content -LiteralPath $stableCapsulePath -Raw -ErrorAction Stop
+
+    foreach ($phrase in @(
+        "Codex Fleet Audit (5).docx",
+        "Verdict: GREEN.",
+        "HQ-173",
+        "HQ-174",
+        "HQ-175",
+        "Evidence only; not executable authority or approval.",
+        "INFO only",
+        "no hidden operations or scope expansion",
+        "product-repo access",
+        "demo execution",
+        "package sending",
+        "runtime command binding",
+        "all-fleet execution",
+        "future authority",
+        "queue candidates only"
+    )) {
+        Assert-True -Condition ($recordText -match [regex]::Escape($phrase)) -Message "Read-only demo follow-up GREEN audit record preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "HQ-176 through HQ-182",
+        "Verdict: GREEN.",
+        "Evidence only; not executable authority or approval.",
+        "created_for_local_user_request_not_sent",
+        "not_created",
+        "accepted as a documentation clarity point only",
+        "product-repo access",
+        "demo execution",
+        "package creation",
+        "package sending",
+        "runtime command binding",
+        "all-fleet execution",
+        "running an overnight runner",
+        "future authority",
+        "controlled read-only demo gate rehearsal"
+    )) {
+        Assert-True -Condition ($overnightRecordText -match [regex]::Escape($phrase)) -Message "Read-only demo overnight-safe GREEN audit record preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+        "READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+        "Codex Fleet Audit (5).docx",
+        "returned GREEN for HQ-173 through HQ-175",
+        "HQ-176 through HQ-182 returned GREEN",
+        "evidence only",
+        "product-repo access",
+        "demo execution",
+        "package creation/sending",
+        "runtime command binding",
+        "all-fleet execution",
+        "running an overnight runner",
+        "future authority",
+        "READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+        "tests/fixtures/fleet/read-only-gates/*.json",
+        "combined external audit readiness",
+        "not a real demo",
+        "READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md",
+        "READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md",
+        "explicitly requested external audit package"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($phrase)) -Message "Read-only demo follow-up handoff preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Read-Only Demo Combined Audit Scope",
+        "Evidence only; not executable authority or approval.",
+        "combined external audit target",
+        "overnight-safe GREEN milestone",
+        "controlled read-only demo gate rehearsal evidence",
+        "READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+        "READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+        "tests/fixtures/fleet/read-only-gates/*.json",
+        "does not create a package",
+        "does not send a package",
+        "does not approve product-repo access",
+        "does not approve demo execution",
+        "bind runtime commands",
+        "run all-fleet commands",
+        "run an overnight runner",
+        "future authority",
+        "not a real read-only demo"
+    )) {
+        Assert-True -Condition ($combinedScopeText -match [regex]::Escape($phrase)) -Message "Read-only demo combined audit scope preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Read-Only Demo Combined Audit Preflight",
+        "Evidence only; not executable authority or approval.",
+        "does not create a package",
+        "send a package",
+        "does not approve product-repo access",
+        "approve demo execution",
+        "bind runtime commands",
+        "run all-fleet commands",
+        "run an overnight runner",
+        "future authority",
+        "explicit package request",
+        "explicitly requested external audit package, not a real demo",
+        "docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+        "docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md",
+        "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+        "tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json",
+        "tests/fixtures/fleet/read-only-gates/*.json",
+        "tests/run-fleet-tests.ps1",
+        "scrubbed compact validation summary",
+        "product repos",
+        "raw logs",
+        ".git",
+        ".env",
+        "dependency folders",
+        "build outputs",
+        "approval secrets",
+        "runtime command bindings",
+        "package send operations",
+        "packageCreationStatus: not_created",
+        "noSendStatus: true",
+        "noProductRepos: true"
+    )) {
+        Assert-True -Condition ($combinedPreflightText -match [regex]::Escape($phrase)) -Message "Read-only demo combined audit preflight preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Controlled read-only demo gate rehearsal evidence",
+        "READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+        "tests/fixtures/fleet/read-only-gates/*.json",
+        "evidence only",
+        "do not select a real project",
+        "inspect product repos",
+        "execute demos",
+        "create or send packages",
+        "bind runtime commands",
+        "run all-fleet commands",
+        "run an overnight runner",
+        "future authority",
+        "combined external audit readiness",
+        "not a real demo"
+    )) {
+        Assert-True -Condition ($stableCapsuleText -match [regex]::Escape($phrase)) -Message "Stable capsule preserves gate rehearsal boundary phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Evidence only; not executable authority or approval.",
+        "does not select a real project",
+        "does not approve real-project work",
+        "fixtures do not inspect product repositories",
+        "fixtures do not bind runtime commands",
+        "fixtures do not create or send packages",
+        "fixtures do not run all-fleet commands",
+        "fixtures do not run an overnight runner",
+        "fixtures do not approve phone actions",
+        "fixtures do not grant future authority"
+    )) {
+        Assert-True -Condition ($rehearsalText -match [regex]::Escape($phrase)) -Message "Read-only demo gate rehearsal plan preserves evidence-only boundary phrase: $phrase"
+    }
+
+    Assert-False -Condition ($recordText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo follow-up record does not grant forbidden authority"
+    Assert-False -Condition ($overnightRecordText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo overnight-safe follow-up record does not grant forbidden authority"
+    Assert-False -Condition ($combinedScopeText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo combined audit scope does not grant forbidden authority"
+    Assert-False -Condition ($combinedPreflightText -match "(?is)(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo combined audit preflight does not grant forbidden authority"
+    Assert-False -Condition ($handoffText -match "(?is)(READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo follow-up handoff does not grant forbidden authority"
+    Assert-False -Condition ($handoffText -match "(?is)(READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo overnight-safe follow-up handoff does not grant forbidden authority"
+    Assert-False -Condition ($handoffText -match "(?is)(READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo combined audit handoff does not grant forbidden authority"
+    Assert-False -Condition ($handoffText -match "(?is)(READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Read-only demo combined preflight handoff does not grant forbidden authority"
+    Assert-False -Condition ($stableCapsuleText -match "(?is)(READ_ONLY_DEMO_GATE_REHEARSAL_PLAN\.md.{0,240})(approves|authorizes|grants|permits).{0,120}(product-repo access|demo execution|package sending|runtime command binding|all-fleet execution|future authority)") -Message "Stable capsule gate rehearsal pointer does not grant forbidden authority"
+}
+
+Set-Location $fleetRoot
+Write-Host "Running Codex Fleet tests..." -ForegroundColor Cyan
+
+Test-PowerShellParsing
+Test-TaskParsing
+Test-RuntimeHelpers
+Test-FixtureGeneration
+Test-PhaseZeroIntakeSupport
+Test-PhaseOneArchitectureSupport
+Test-PhaseTwoScaffoldSupport
+Test-PhaseThreeTaskContractSupport
+Test-ProductTruthGateSupport
+Test-PhaseFourMigrationSupport
+Test-PhaseFiveSensitiveSystemsSupport
+Test-PhaseSixRuntimeVerificationSupport
+Test-PhaseSevenReleaseSupport
+Test-PhaseEightMaintenanceSupport
+Test-PhaseNineAutopilotSupport
+Test-PhaseTenSpecialistReviewers
+Test-PhaseElevenAccessibilityReview
+Test-PhaseTwelvePerformanceReview
+Test-PhaseThirteenExperimentRunner
+Test-PhaseFourteenStagingDeploySupport
+Test-ConfigResolution
+Test-DoctorAndReadiness
+Test-MaintenanceDirtySkip
+Test-MaintenanceQueueWriter
+Test-DebugCheckpoint
+Test-SafeStaging
+Test-ReadOnlyDirtyGuard
+Test-RecoveryIncludesStagedFiles
+Test-CheckpointGateOrder
+Test-TaskQuarantineSupport
+Test-DuplicateRunGuard
+Test-SafeStopSupport
+Test-LaunchControlSupport
+Test-FleetVisualQaLaneSupport
+Test-JoeyStorageRules
+Test-RobinCopySmokeSupport
+Test-DebuggerReportFileAllowance
+Test-ShipPreviewRefreshSupport
+Test-MagicRunSupport
+Test-PhaseLoopSupport
+Test-LongRunSupervisorSupport
+Test-SophisticatedSoftwareModeSupport
+Test-ProductAdmissionGateSupport
+Test-GoldenGameplanStageOneToFourSupport
+Test-GoldenGameplanStageFiveSupport
+Test-GoldenGameplanStageSixSupport
+Test-GoldenGameplanStageSevenSupport
+Test-GoldenGameplanStageEightSupport
+Test-GoldenGameplanStageNineSupport
+Test-GoldenGameplanStageTenSupport
+Test-GoldenGameplanStageElevenSupport
+Test-GoldenGameplanStageElevenFiveSupport
+Test-GoldenGameplanStageTwelveSupport
+Test-GoldenGameplanStageThirteenSupport
+Test-GoldenGameplanStageFourteenSupport
+Test-PostGoldenHardeningQuickStart
+Test-PostGoldenHardeningControlledUseRehearsal
+Test-HqControlledUseRehearsalExpansion
+Test-HqRepairBatchAuditTemplate
+Test-HqQueueReconciliationProof
+Test-HqCommitReadinessInventory
+Test-PostGoldenHardeningProductLaunchChecklist
+Test-EntrypointSafetyInventory
+Test-HqHumanApprovalGateDocumentation
+Test-HqHighRiskEntrypointSentinelSweep
+Test-RepoFingerprintContract
+Test-RepoFingerprintBuilderFixtureHelper
+Test-WorktreeIsolationContract
+Test-WorktreeBoundaryValidatorFixtureHelper
+Test-FailureFingerprintContract
+Test-FailureFingerprintNormalizerFixtureHelper
+Test-LeaseHeartbeatContract
+Test-LeaseHeartbeatFixtureClassifier
+Test-ControlRoomReconciliationContract
+Test-ControlRoomReconciliationFixtureHelper
+Test-BudgetSafePauseContract
+Test-ArtifactIndexContract
+Test-ArtifactIndexFixtureWriter
+Test-RuntimePolicyDecisionContract
+Test-RuntimePolicyDryRunEvaluator
+Test-RuntimeDryRunEvidenceContract
+Test-SelectedProjectReadOnlyGateContract
+Test-SelectedProjectReadOnlyEndToEndFixtureMatrix
+Test-RuntimePolicyDryRunFixtureMatrix
+Test-RuntimePilotWrapperDryRunContract
+Test-HqRepairQueueContract
+Test-HqRepairExternalAuditPackage
+Test-HqControlPlaneSpineDecision
+Test-HqFleetCoreMvpProposal
+Test-HqStage16ScopeClarification
+Test-HqReviewerFeedbackExamples
+Test-HqFailClosedContractSweep
+Test-HqSchemaStrictnessSweep
+Test-HqSchemaFailClosedNegativeFixtures
+Test-HqSchemaExampleFixtures
+Test-HqOtherProjectTestReadinessGate
+Test-HqNextExternalAuditPrompt
+Test-HqFixtureOnlyDemoRehearsalRunbook
+Test-HqDemoTrialApprovalPacket
+Test-HqDemoTrialEvidenceTemplate
+Test-HqDemoTrialStopSignsChecklist
+Test-HqDemoReadyTrialGoNoGoSummary
+Test-HqExternalAuditRefreshEvidenceRecord
+Test-HqRuntimeEnforcementDeferralBoundary
+Test-HqRuntimeEnforcementImplementationPlan
+Test-HqPostRemediationAuditRepeatPackagePlan
+Test-HqRuntimePilotExternalAuditPackagePlan
+Test-HqLatestExternalAuditFindingsLedgerRefresh
+Test-HqCommitScopeStagingGuardPlan
+Test-HqCommitScopeDemoEvidenceSeparationRefresh
+Test-HqCommitScopeDryRunInventoryCommandSpec
+Test-ReviewPacketContract
+Test-SelectedShipLedgerContract
+Test-ThinTaskPacketSchemaAndExample
+Test-CompactEvidenceDigestSchemas
+Test-HqEvidenceDigestRegressionFixtures
+Test-HqEvidenceDigestShapeEnforcement
+Test-HqExternalAuditPackageManifestSchemaAndFixtures
+Test-ThinTaskPacketWorkflowEnforcement
+Test-FleetConsoleControlPolicyDocs
+Test-HqRemoteSecurityPlanRegressionTests
+Test-HqGreenExternalAuditRecordRegressionGuard
+Test-HqFleetConsolePrototypePacketSchemaAndFixtures
+Test-HqFleetConsoleMockStateSchemaAndFixtures
+Test-HqFleetConsoleStaticPrototypeSafety
+Test-HqPhoneModeStaticMockSafety
+Test-HqUiSafetyFixtureMatrix
+Test-HqUiSafetyEnforcementTests
+Test-HqAntiLoopFixtureMatrix
+Test-HqAntiLoopEnforcementRules
+Test-HqProgressLedgerSchemaAndFixtures
+Test-HqApprovalRecordSchemaAndFixtures
+Test-HqApprovalBoundaryEnforcementTests
+Test-HqReadOnlyDemoApprovalPacketTemplate
+Test-HqReadOnlyDemoCommandVocabulary
+Test-HqReadOnlyDemoStopSignsAndEvidenceCapture
+Test-HqReadOnlyDemoReadinessFixtureMatrix
+Test-HqReadOnlyDemoReadinessExternalAuditPrompt
+Test-HqCombinedApprovalReconciliationFixturePlan
+Test-HqNonAuthorityWordingConsistency
+Test-HqFixtureReadabilityInventory
+Test-HqReadOnlyDemoFixturePackageInclusionCheck
+Test-HqReadOnlyDemoFollowupGreenAuditRecord
+Test-GoldenGameplanStageSixteenSupport
+
+if (!$KeepFixtures -and (Test-Path $fixtureRoot)) {
+    $fixtureFullPath = [System.IO.Path]::GetFullPath($fixtureRoot)
+    $allowedRoot = [System.IO.Path]::GetFullPath((Join-Path $fleetRoot ".codex-local\fixtures"))
+    if ($fixtureFullPath.StartsWith($allowedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $fixtureFullPath -Recurse -Force
+    }
+}
+
+if ($script:Failures.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Codex Fleet tests failed: $($script:Failures.Count)" -ForegroundColor Red
+    foreach ($failure in $script:Failures) {
+        Write-Host "- $failure" -ForegroundColor Red
+    }
+    exit 1
+}
+
+Write-Host ""
+Write-Host "Codex Fleet tests passed." -ForegroundColor Green
+exit 0
+

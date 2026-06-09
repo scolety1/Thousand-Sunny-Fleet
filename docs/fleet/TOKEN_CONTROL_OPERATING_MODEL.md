@@ -23,6 +23,8 @@ Default bounded-run caps:
 - Do not rerun validation more than the task requires, except to confirm a fix caused by that same task.
 - Do not enter repeated debugging loops. If the same failure fingerprint appears twice, stop and repacketize.
 
+Use `tools/codex-fleet-token-projection.ps1` before unusually long one-task prompts, read-heavy queue entries, validation-heavy tasks, or Service Sync Studio spike/review runs. The helper returns GREEN/YELLOW/RED pressure evidence only; it does not prove billing, verify model availability, approve execution, or permit skipping required source files.
+
 Full source docs are mandatory when:
 
 - the task names the file in `readFirst`
@@ -180,6 +182,7 @@ If a task cannot satisfy these caps, it needs an `exploration-only exception`. E
 - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
 - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
 - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md`
 - `docs/fleet/HQ_IMPORT_RECON.md`
 - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
 - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`

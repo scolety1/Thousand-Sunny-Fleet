@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-fleet.local/schemas/external-audit-intake-digest-schema.json",
+  "title": "External Audit Intake Digest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "digestId",
+    "findingId",
+    "severity",
+    "affectedArtifact",
+    "boundedDisposition",
+    "suggestedLocalFollowup",
+    "unresolvedAssumptions",
+    "nonAuthorityNotice"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "digestId": {
+      "type": "string",
+      "pattern": "^audit-digest-[A-Za-z0-9._-]+$"
+    },
+    "findingId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "GREEN",
+        "YELLOW",
+        "RED",
+        "INFO"
+      ]
+    },
+    "affectedArtifact": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "not": {
+        "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(secret|token|credential|private-key|node_modules|dist|build|product repo)"
+      }
+    },
+    "boundedDisposition": {
+      "type": "string",
+      "enum": [
+        "no_action",
+        "accepted_limitation",
+        "queue_candidate",
+        "blocked_needs_human",
+        "red_stop"
+      ]
+    },
+    "suggestedLocalFollowup": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "goal",
+        "allowedFiles",
+        "validationIdeas",
+        "stopIf"
+      ],
+      "properties": {
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "allowedFiles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 220,
+            "not": {
+              "pattern": "(^|[\\\\/])\\.git([\\\\/]|$)|(^|[\\\\/])\\.env($|[\\\\/])|\\.\\.|(?i)(secret|token|credential|private-key|node_modules|dist|build|auth|payment|deploy|migration)"
+            }
+          }
+        },
+        "validationIdeas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240,
+            "not": {
+              "pattern": "(?i)(git\\s+(add|commit|push|merge|reset|checkout)|npm\\s+install|pnpm\\s+install|yarn\\s+install|deploy|migration|secret|token|credential|private-key|run-fleet\\.ps1|all-fleet)"
+            }
+          }
+        },
+        "stopIf": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    },
+    "unresolvedAssumptions": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "nonAuthorityNotice": {
+      "type": "string",
+      "minLength": 50,
+      "maxLength": 600
+    }
+  }
+}

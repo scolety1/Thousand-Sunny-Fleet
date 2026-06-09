@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "hqTaskId": "HQ-158",
+  "fixtureId": "selected-project-read-only.stale-fingerprint-deferred",
+  "caseId": "stale-fingerprint-deferred",
+  "combinedMatrixKind": "selected_project_read_only_end_to_end",
+  "selectedProjectGate": {
+    "validationStatus": "deferred",
+    "validationDecision": "defer_stale_fingerprint",
+    "owner": "captain-fixture-owner",
+    "selectedTarget": {
+      "targetType": "fixture_project",
+      "targetId": "fixture-project-alpha",
+      "singleTargetOnly": true
+    },
+    "repoFingerprintRef": "repo-fingerprint.fixture-alpha.stale",
+    "readOnlyActions": [
+      "READ_REPO_FINGERPRINT",
+      "READ_DRY_RUN_EVIDENCE"
+    ],
+    "approvalEvidence": "fixture-exact-read-only-review",
+    "productRepoInspected": false
+  },
+  "repoFingerprint": {
+    "fingerprintState": "stale-head",
+    "matchesSelectedTarget": true,
+    "productRepoInspected": false
+  },
+  "runtimePolicyDecision": {
+    "decision": "DEFER",
+    "dryRunResult": "DEFER_NEEDS_HUMAN",
+    "denialReason": "stale-fingerprint",
+    "approvalRequirement": "captain_selected_project"
+  },
+  "dryRunEvidence": {
+    "actualDryRunResult": "DEFER_NEEDS_HUMAN",
+    "decision": "DEFER",
+    "expectedAction": "READ_ONLY_RECONCILE",
+    "denialReasons": [],
+    "deferReasons": [
+      "stale-fingerprint"
+    ],
+    "safety": {
+      "executesProductActions": false,
+      "mutatesProductRepos": false,
+      "readsProductRepos": false,
+      "bindsRuntimeCommands": false,
+      "createsOrSendsPackages": false,
+      "canApproveFutureRuns": false,
+      "commandInput": false
+    }
+  },
+  "reconciliation": {
+    "reconciliationStatus": "UNKNOWN",
+    "displayStatus": "UNKNOWN",
+    "mismatchReasons": [
+      "repo-fingerprint-drift"
+    ]
+  },
+  "expectedOutcome": {
+    "category": "defer_stale_fingerprint",
+    "blocksLiveExecution": true,
+    "requiresHumanReview": true
+  },
+  "safety": {
+    "evidenceOnly": true,
+    "executesProductActions": false,
+    "mutatesProductRepos": false,
+    "readsProductRepos": false,
+    "bindsRuntimeCommands": false,
+    "createsOrSendsPackages": false,
+    "runsAllFleet": false,
+    "canApproveFutureRuns": false
+  },
+  "nonAuthorityNotice": "This fixture is evidence only and cannot approve or execute work."
+}

@@ -45,6 +45,8 @@ Capture compact summaries instead of raw logs by default. A compact summary shou
 
 Raw logs are excluded by default. If a later human-approved task requires raw log excerpts, the task must explicitly list the allowed file, reason, maximum excerpt size, and redaction expectations. Raw logs cannot contain secrets, auth/payments/deploy material, product-repo paths, command tokens, package-sending instructions, or approval material.
 
+For future audit-package preparation, use `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md` as the scrubbed compact validation summary template. The template captures source docs, exact validation command refs, validation result, first failure fingerprint when needed, evidence refs, omissions, and a non-authority notice. It excludes raw logs by default, product repo paths, secrets, command-like remediation scripts, package directories, and reviewer prose dumps.
+
 ## Source Docs
 
 Future evidence records should reference source docs by path instead of pasting broad prose:
@@ -56,6 +58,7 @@ Future evidence records should reference source docs by path instead of pasting 
 - `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md`
 - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
 - `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md`
 
 ## Validation Command References
 

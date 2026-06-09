@@ -1,0 +1,358 @@
+# New Chat Handoff Packet
+
+Use this file to move Codex Fleet / Thousand Sunny Fleet work into a fresh Codex chat without losing the value from the audits and Deep Research reports.
+
+## Current Bounded Handoff Path
+
+For active implementation work, prefer the compact path below instead of pasting the full historical handoff into every Codex run:
+
+1. Read `docs/fleet/STABLE_CONTEXT_CAPSULE.md`.
+2. Read only the active queue section in `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`.
+3. Read the selected task's `readFirst` files.
+4. If a thin task packet exists for the selected task, read that packet instead of broad historical prose.
+5. Use compact validation summaries and external-audit intake digests instead of raw logs, DOCX reports, full audit prose, or generated evidence dumps.
+6. For anti-loop runs, use `docs/fleet/anti-loop/CODEX_PROMPT_AND_POST_RUN_CHECKLIST.md` as the latest prompt and post-run checklist, `docs/fleet/anti-loop/PROGRESS_LEDGER_AND_LOOP_FINGERPRINTS.md` as the latest ledger/fingerprint reference, and `docs/fleet/anti-loop/DRIFT_STOP_AND_REPACKETIZATION.md` as the latest stop/repacketization rule.
+7. For Fleet Console planning, treat `docs/fleet/ui/FLEET_CONSOLE_PRODUCT_BRIEF.md`, `docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md`, `docs/fleet/ui/FLEET_CONSOLE_GOAL_LOOP_SIGNALS.md`, `docs/fleet/ui/FLEET_CONSOLE_WIREFRAMES.md`, `docs/fleet/ui/FLEET_CONSOLE_PROMPT_AUDIT_TOKEN_DESIGN.md`, `docs/fleet/ui/FLEET_CONSOLE_REMOTE_ACCESS_AND_APPROVALS.md`, `docs/fleet/ui/FLEET_CONSOLE_REMOTE_SECURITY_PLAN.md`, `docs/fleet/ui/FLEET_CONSOLE_UNSTUCK_WORKFLOW.md`, `docs/fleet/ui/FLEET_CONSOLE_FUTURE_PROTOTYPE_GATE.md`, and `docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md` as evidence-only planning inputs. They do not approve UI code, server setup, package installation, authentication, remote exposure, runtime command binding, product-repo access, or future implementation.
+8. For next-phase local control-plane preparation, use `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md` as the transition decision record. It is evidence only and does not approve UI implementation, remote access, package sending, runtime command binding, product-repo work, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+9. For future external audit package preparation, use `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md` with `templates/external-audit-package-manifest-schema.json`. The runbook and manifest are evidence only; they do not create or send packages, approve execution, inspect product repos, or grant future authority.
+10. For the post-fix-up GREEN external audit milestone, use `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md` as evidence only. It records that `Audit Guidelines Review (1).docx` returned GREEN for the included local harness/docs/tests/schema package; it does not approve execution, UI implementation, remote access, package sending, product repos, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, runtime command binding, demo trials, or future authority.
+11. For post-prototype polish and controlled hardening, use the `Post-GREEN Prototype Polish And Controlled Hardening Queue 2026-06-03` section in `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`. The source audit is `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx`, which returned GREEN and suggested only low/info follow-ups. The queue does not approve product-repo access, product mutation, remote access, package sending, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+12. For the post-polish GREEN external audit milestone, use `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md` as evidence only. It records that the post-polish package returned GREEN with no YELLOW or RED findings. It closes the current static prototype polish lane but does not approve product-repo access, product mutation, remote access, package sending, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+13. For controlled local control-plane hardening, use `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md` as the phase boundary. It is evidence only and permits only bounded local docs/tests/schema/fixture/dry-run hardening tasks. It does not approve product-repo access, product mutation, remote console implementation, package creation, package sending, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, or future authority.
+14. For the controlled-hardening GREEN external audit milestone, use `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md` as evidence only. It records that the controlled local control-plane hardening package returned GREEN with INFO-only follow-ups. It does not approve product-repo access, product mutation, package creation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+15. For post-controlled-hardening next-phase decisions, use `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md` as evidence only. It describes safe options to continue local fixture hardening, prepare another external audit, or plan a separately approved read-only demo readiness lane. It does not approve product-repo access, product mutation, package creation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+16. For the post-controlled-hardening follow-up GREEN audit milestone, use `docs/fleet/POST_CONTROLLED_HARDENING_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_03.md` as evidence only. It records that `C:\Users\codex-agent\Downloads\Codex Fleet Audit (2).docx` returned GREEN for the completed HQ-157 through HQ-162 follow-up package and suggested optional non-executable queue candidates only. It does not approve product-repo access, product mutation, package creation, package sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+17. For the read-only demo readiness planning lane, use `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md` as evidence only. It permits only docs, schemas, fixtures, approval templates, stop signs, no-op/read-only vocabulary, evidence capture guidance, and external audit preparation. It does not approve product-repo access, live demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+18. For the read-only demo follow-up GREEN audit milestone, use `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` as evidence only. It records that `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx` returned GREEN for HQ-173 through HQ-175 and suggested optional INFO-only local queue candidates. It does not approve product-repo access, demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, running an overnight runner, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+19. For the read-only demo overnight-safe follow-up GREEN audit milestone, use `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` as evidence only. It records that the external audit of HQ-176 through HQ-182 returned GREEN with INFO-only follow-ups and one accepted manifest-status wording limitation. It does not approve product-repo access, demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, running an overnight runner, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+20. For completed controlled read-only demo gate rehearsal evidence, use `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` and `tests/fixtures/fleet/read-only-gates/*.json` as evidence only. The fixture matrix proves local selected-project read-only gate scenarios only; it does not select a real project, inspect product repos, execute a demo, create or send packages, bind runtime commands, run all-fleet commands, run an overnight runner, approve phone actions, or grant future authority. The next safe phase is combined external audit readiness, not a real demo.
+21. For combined external audit readiness scope, use `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md` as evidence only. It names the overnight-safe GREEN milestone and controlled read-only demo gate rehearsal evidence as the combined audit target. It does not create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+22. For combined external audit package preflight, use `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md` as evidence only. It names files that may be packaged later only after an explicit package request, excludes product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, approval secrets, runtime command bindings, and package send operations, and states the next safe action is an explicitly requested external audit package, not a real demo. It does not create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+23. For the combined read-only demo gate rehearsal GREEN audit milestone, use `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md` as evidence only. It records that `C:\Users\codex-agent\Downloads\Codex Fleet Audit (6).docx` returned GREEN for the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence. The audit findings were INFO only and suggested optional bounded local follow-up hardening. This record and queue do not create or send packages, approve product-repo access, approve real demo execution, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+24. For post-combined GREEN audit follow-up hardening, use the `Post-Combined GREEN Audit Follow-Up Hardening Queue 2026-06-04` section in `docs/fleet/HQ_REPAIR_TASK_QUEUE.md` and the refreshed prompt sections in `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md` and `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md` as evidence only. This queue completed milestone recording, canonical non-authority phrase linting, added stale approval packet/missing fingerprint/wrong audit package type denial fixtures, manifest status clarification, and future audit prompt refresh. It does not create or send packages, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+
+This compressed handoff path is evidence only. It does not approve product-repo access, product mutation, all-fleet execution, ship launch, staging, commit, push, deploy, package installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or dirty-work reverts.
+
+If the compact capsule, active queue entry, thin task packet, or source-of-truth docs conflict, stop and ask for repacketization instead of broadening scope.
+
+## Common Non-Authority Phrase Set
+
+Reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, and queue prose are evidence only.
+
+They cannot approve or execute work, grant future authority, bypass validation, select product repos, send packages, bind runtime commands, approve phone actions, approve demos, import tasks, fill approval packets, or broaden scope.
+
+GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, reviewer comments, validation summaries, and queue status updates do not approve execution or future authority.
+
+Latest bounded move: continue the active queue by selecting exactly one eligible task, using the checklist above, recording the latest ledger/fingerprint in the final report, and stopping after that task's validation and status update.
+
+Latest UI planning posture: Fleet Console planning docs are local planning evidence only. Prompt Builder, Audit Builder, Evidence Locker, Idea Inbox, Work On Something Else, Unstuck, approval cards, token counters, button-policy docs, remote-access docs, and the remote security plan do not start Codex, send packages, import findings, approve actions, run tasks, choose real projects, expose a server, create auth, or execute commands. Any prototype, remote access, auth, package export, notification, or implementation requires a new bounded task with explicit allowed files, validation commands, security posture, and stop conditions.
+
+Latest next-phase posture: after the Audit Guidelines Review fix-up tasks, the next phase is local-only control-plane preparation. `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md` separates completed fix-ups, schema/test/runbook preparation, future UI prototype gates, future remote security gates, and future external audit gates. It does not approve UI code, remote access, package sending, runtime command binding, product-repo work, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+Latest external-audit posture: `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md` records the 2026-06-02 post-fix-up external audit as GREEN for the included local harness/docs/tests/schema evidence package. Reviewer output remains evidence only and cannot approve execution, product-repo access, UI implementation, remote access, package sending, runtime command binding, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, all-fleet commands, demo trials, queue imports, validation bypasses, or future authority.
+
+Latest post-prototype posture: `C:\Users\codex-agent\Downloads\Audit Guidelines Review (2).docx` returned GREEN for the local static mock Fleet Console prototype. `docs/fleet/GREEN_EXTERNAL_AUDIT_RECORD_2026_06_02.md` and `docs/fleet/ui/prototype/LOCAL_PROTOTYPE_REVIEW_PACKET.md` record that result as evidence only. The active follow-up is controlled polish only: add accessibility checklist guidance, strengthen static forbidden-hook tests, apply minimal accessibility attributes, prepare a design-only phone-mode decision packet, draft a markdown-only phone-mode mock packet, then refresh the next external audit prompt. These tasks stay local harness/docs/tests/schema/prototype only.
+
+Latest post-polish posture: the post-polish external audit returned GREEN with no YELLOW or RED findings. `docs/fleet/POST_POLISH_GREEN_AUDIT_RECORD_2026_06_03.md` records this milestone as evidence only. Optional INFO follow-ups remain non-executable until separately queued: static accessibility lint, phone-mode markdown tests, and broader non-authority wording review. The recommended next phase is controlled local control-plane hardening, not product-repo mutation, remote console implementation, phone approvals, package sending, or runtime command binding.
+
+Latest controlled-hardening posture: `docs/fleet/CONTROLLED_LOCAL_CONTROL_PLANE_HARDENING_CHARTER.md` defines the active next phase as local control-plane evidence hardening only. Future work may prepare dry-run evidence records, fixture matrices, manifest discipline, selected-project read-only gate readiness, UNKNOWN reconciliation evidence, and failure-loop breaker evidence. It remains evidence-only and does not approve real-project execution, UI command binding, remote access, phone approvals, package sending, or broader autonomy.
+
+Latest controlled-hardening audit posture: the controlled local control-plane hardening external audit returned GREEN with INFO-only follow-ups. `docs/fleet/CONTROLLED_HARDENING_GREEN_AUDIT_RECORD_2026_06_03.md` records this milestone as evidence only. Optional follow-ups remain non-executable until separately queued: combined selected-project read-only gate fixtures, non-authority wording consistency, fixture readability checks, controlled-hardening manifest fixture evidence, and a next-phase decision packet.
+
+Latest post-controlled-hardening decision posture: `docs/fleet/POST_CONTROLLED_HARDENING_NEXT_PHASE_DECISION.md` records the safe next-phase options after GREEN controlled hardening and INFO follow-ups. The allowed next moves are another bounded local fixture-hardening queue, another external audit preparation pass, or a docs/tests/schema/fixture-only read-only demo readiness planning lane. This does not approve product-repo access, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+
+Latest post-controlled-hardening follow-up audit posture: `docs/fleet/POST_CONTROLLED_HARDENING_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_03.md` records that `Codex Fleet Audit (2).docx` returned GREEN for the completed HQ-157 through HQ-162 follow-up package. Optional reviewer suggestions remain non-executable until separately queued. The active next queue may resolve optional local fixture/readability items and then plan a read-only demo readiness lane as docs/tests/schema/fixtures only; this does not approve product-repo access, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, demo trials, non-mock UI implementation, or future authority.
+
+Latest read-only demo planning posture: `docs/fleet/READ_ONLY_DEMO_READINESS_PLANNING_CHARTER.md` defines the future lane as planning evidence only: docs, schemas, fixtures, approval templates, stop signs, no-op/read-only vocabulary, evidence capture guidance, and external audit preparation. It does not approve product-repo access, live demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+
+Latest read-only demo follow-up audit posture: `docs/fleet/READ_ONLY_DEMO_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` records that `C:\Users\codex-agent\Downloads\Codex Fleet Audit (5).docx` returned GREEN for HQ-173 through HQ-175. The record is evidence only and does not approve product-repo access, demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, running an overnight runner, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+
+Latest read-only demo overnight-safe follow-up audit posture: `docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md` records that the external audit of HQ-176 through HQ-182 returned GREEN. The audit accepted the manifest-status wording difference between local package delivery evidence and manifest fixtures as a clarity point only. The record is evidence only and does not approve product-repo access, demo execution, product mutation, package creation/sending, remote access, runtime command binding, phone approvals, all-fleet execution, running an overnight runner, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, demo trials, or future authority.
+
+Latest controlled gate rehearsal posture: `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md` and `tests/fixtures/fleet/read-only-gates/*.json` are complete local fixture evidence for the selected-project read-only gate rehearsal. The next safe phase is combined external audit readiness for the overnight-safe GREEN milestone plus gate rehearsal evidence, not a real demo. This does not approve product-repo access, demo execution, package creation/sending, runtime command binding, all-fleet execution, running an overnight runner, phone approvals, remote access, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+
+Latest combined audit scope posture: `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md` records the combined audit target for the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence. The record is evidence only; it does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+
+Latest combined audit preflight posture: `docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_PREFLIGHT_2026_06_04.md` records the future package preflight checklist for the combined audit scope. It names files that may be packaged later only after an explicit package request, excludes product repos, raw logs, `.git`, `.env`, dependency folders, build outputs, approval secrets, runtime command bindings, and package send operations, and states the next safe action is an explicitly requested external audit package, not a real demo. The checklist is evidence only; it does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, or grant future authority.
+
+Latest combined GREEN audit posture: `docs/fleet/READ_ONLY_DEMO_COMBINED_GREEN_AUDIT_RECORD_2026_06_04.md` records that `C:\Users\codex-agent\Downloads\Codex Fleet Audit (6).docx` returned GREEN for the overnight-safe GREEN milestone plus controlled read-only demo gate rehearsal evidence. The record is evidence only and identifies the next bounded local phase as INFO-only post-combined GREEN audit follow-up hardening, not a real demo. It does not create or send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote or phone actions, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, or grant future authority.
+
+Latest post-combined follow-up posture: the post-combined GREEN audit follow-up hardening queue completed local evidence-only prompt/test/doc/fixture hardening through HQ-196. The refreshed prompts ask reviewers to audit the combined GREEN audit record plus completed INFO-only follow-up hardening, but they do not create or send a package. The next safe action after this queue is an explicitly requested external audit package, not a real demo, product-repo access, demo execution, package sending, runtime command binding, remote access, phone approval action, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, non-mock UI implementation, or future authority.
+
+## Current Repo Status
+
+- Repo: `C:\Dev\codex-fleet`
+- Date prepared: 2026-05-30
+- Current working tree: dirty, intentionally.
+- Product repos: do not touch by default.
+- All-fleet commands: do not run.
+- Stable context capsule: `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- Token-control operating model: `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- Next-phase local control-plane transition: `docs/fleet/NEXT_PHASE_LOCAL_CONTROL_PLANE_TRANSITION.md`
+- Thin task packet schema: `templates/thin-task-packet-schema.json`
+- Compact validation summary schema: `templates/validation-output-summary-schema.json`
+- External audit intake digest schema: `templates/external-audit-intake-digest-schema.json`
+- External audit package manifest schema: `templates/external-audit-package-manifest-schema.json`
+- External audit package allowlist runbook: `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- Latest known full test evidence: `docs/codex/test-summary.md`
+- Latest HQ recon: `docs/fleet/HQ_IMPORT_RECON.md`
+- HQ packet source of truth: `C:\Users\codex-agent\Documents\When Low on Rate Limits\codex_fleet_repair_hq\Codex_Fleet_Codex_Ready_Next_Cycle`
+
+Important git status note:
+
+- The repo currently has many modified and untracked harness/docs/tests files from Golden Gameplan work.
+- This includes scripts such as `invoke-autonomy-wrapper.ps1`, `invoke-overnight-mode.ps1`, `invoke-mobile-console.ps1`, `new-audit-package.ps1`, `ingest-task-packet.ps1`, `tests/run-fleet-tests.ps1`, `tools/codex-fleet-*.ps1`, `docs/golden-gameplan/`, `docs/codex/`, `templates/`, and `fleet/status/`.
+- Treat those as current project state. Do not revert them.
+- Before a long new repair cycle, create a checkpoint branch/commit or at least an audit package so the state is not lost.
+
+## Implemented Work Summary
+
+### Golden Gameplan baseline
+
+The Golden Gameplan has been written and implemented through Stage 14, then extended with post-Golden hardening and optional audit-loop mode.
+
+Implemented themes:
+
+- Stage 1-4.5: stability, standard evidence, audit package V2, and task-packet validation.
+- Stage 5-6: state machine and decision-engine support.
+- Stage 7: product-quality contracts, first-screen contracts, lane-specific quality evidence.
+- Stage 8-8.5: autonomy wrapper and hardening, bounded action mapping, packet-evidence requirements.
+- Stage 9-9.5: external-agent workflow and reliability patch.
+- Stage 10: overnight mode, rate governor, safe landing, weekly reset preview pause, heartbeat/lease recovery.
+- Stage 11: specialized lanes for hospitality websites, manager/internal tools, analytical software, backend-sensitive work, and maintenance.
+- Stage 12: dashboard/control-room reporting.
+- Stage 13: mobile captain console, request-only model, safe remote requests, idea intake, phone-readable digest, generated-plan approval docs.
+- Stage 14: final hardening, readiness scoring, fixture stress scenarios.
+- Stage 15: post-Golden hardening, quick start, controlled-use rehearsal, product-launch checklist, edge-case fixture expansion.
+- Stage 16: optional audit-loop mode based on the HouseOS/customer-website external audit pattern.
+
+### Key implemented safety patterns
+
+- Stage 8/10 wrappers require explicit `-Ship` or `-Preset`; default `MaxShips = 1`.
+- Mobile commands are request records only and report `executes = false`.
+- External agents are reviewers/requesters only, not executors.
+- Task packets validate before import.
+- Audit packages include standard run artifacts and dirty repo evidence.
+- Weekly budget at about 5 percent can trigger `WEEKLY_PREVIEW_PAUSE` and a review-note path.
+- Low budget blocks implementation actions and prioritizes evidence/safe landing.
+- Controlled-use rehearsal exists for fixture-only readiness checks.
+
+## Report-To-Task Crosswalk
+
+| Source report/research | Main finding | What was already converted into work | Current status |
+| --- | --- | --- | --- |
+| Early external audit on Stages 1-4 | Audit package was too thin; `RUN_RESULT.json` was hollow; task-packet validation not evidenced. | Stage 4.5 Evidence Repair and Audit Package V2. Added non-empty checks/evidence, validation fixtures, runtime scope policy, changed-source/diff packaging. | Implemented and externally re-audited GREEN. |
+| Stage 7 audit | Package omitted required product-quality templates and lane profiles. | Stage 7 repair tasks in `docs/codex/TASK_QUEUE.md`: rebuilt package, regenerated evidence, reconciled files, added Stage 8 handoff mapping, closure note. | Implemented; later audit GREEN. |
+| Stage 8/9 audit | Autonomy wrapper needed hardening before external workflow expansion. | Stage 8.5 and Stage 9.5: packet-evidence hardening, failure containment, phone-readable reports, external response reliability. | Implemented. |
+| Stage 8.5-11 audit | Needed more polish before dashboard/control room. | Stage 11.5: concise test summary, low-token docs, backend-sensitive and maintenance examples, rate-governor defaults, audit evidence note. | Implemented. |
+| Final Golden Gameplan audit | System ready for controlled use, with minor follow-ups: summarized tests, quick start, edge fixtures, low-token clarity, product launch checklist. | Post-Golden Hardening queue. Added `test-summary.md`, quick start, controlled-use rehearsal, product launch checklist, and edge-case fixtures. | Implemented through visible queue. |
+| Deep Research batch while rate-limited | Need a stronger local control-plane spine: ship selection, policy gates, leases, heartbeats, worktrees, repo fingerprints, failure fingerprints, queue/DB, artifact index. | HQ packet created outside repo and imported via recon. `docs/fleet/HQ_IMPORT_RECON.md` compares HQ recommendations to current implementation. | Recon complete. Next patch should start HQ import safely. |
+| HouseOS/customer-website audit-loop case study | External audit loop is useful but should be optional, metadata-driven, and not globalized. | Stage 16 temporary audit-loop mode queue: spec, metadata schema/docs, external audit prompt template, task queue template/schema, package builder, queue converter, one-task runner, stop/continue rules. | Implemented. |
+| Weekly reset/rate-limit concern | At low weekly budget, pause unfinished work, preserve preview, let captain write bugs/errors until reset. | Stage 10 weekly reset preview pause: `WeeklyResetPauseThresholdPercent = 5`, `WEEKLY_PREVIEW_PAUSE`, preview plan, review note path. | Implemented as harness support; provider-side automatic detection still deferred. |
+
+## Remaining Open Findings
+
+These are the important unfinished items from the audits/research. Do not try to do all of them at once.
+
+Current bounded-run orientation should start from `docs/fleet/STABLE_CONTEXT_CAPSULE.md` plus the active task packet or active queue entry. The capsule is compact evidence only; it does not override source docs, approve product-repo work, or authorize execution.
+
+External reports and audit outputs should be reduced to bounded intake digests before queue authoring. Suggested tasks from reviewers remain non-executable until converted into local queue entries with `allowedFiles`, `validationCommands`, `stopIf`, and status update rules.
+
+1. Entrypoint safety inventory is missing.
+   - Risk: future agents may accidentally use older broad scripts instead of the safer Stage 8+ wrappers.
+   - Current recommendation: first HQ patch.
+
+2. Repo fingerprinting is only partial.
+   - Current state helpers record repo root, branch, head, and dirty files.
+   - HQ wants a stable repo fingerprint tied to selected ship, packet import, resume, and worktree boundary.
+
+3. Worktree isolation is not fully implemented.
+   - Existing harness has worktree-related cleanup tests, but no obvious dedicated per-run `git worktree` manager or durable worktree ledger.
+
+4. Durable lease/heartbeat model is partial.
+   - Heartbeat/lease recovery classification exists.
+   - HQ wants owner/fence-token leases, durable queue claim/release, and stale recovery classification, likely backed by SQLite or an equivalent local store.
+
+5. Failure fingerprinting is partial.
+   - Docs/tests mention failure classes and anti-loop rules.
+   - A durable normalized failure-fingerprint ledger still needs schemas/fixtures before runtime integration.
+
+6. Dashboard reconciliation is partial.
+   - Control-room snapshots and reports exist.
+   - HQ wants reconciliation against DB + Git + run artifacts, showing UNKNOWN on mismatch.
+
+7. Rate-limit automation is manual.
+   - Current mode supports manual budget/rate signals and weekly preview pause.
+   - Provider-side automatic rate-limit/reset detection remains deferred.
+
+8. Product repos are not cleared for broad autonomy.
+   - Controlled use is allowed only with explicit selected safe scope, product-specific checklist, audit evidence, budget, rollback plan, and captain approval.
+
+## Next Recommended Task Queue
+
+Work these in order. Each item should be one patch, tested, documented, then stopped.
+
+### Task 1: Entrypoint Safety Inventory
+
+Goal: classify major fleet scripts before any architecture/runtime changes.
+
+Files likely touched:
+
+- `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
+- `templates/entrypoint-safety-schema.json`
+- `tests/run-fleet-tests.ps1`
+
+Acceptance:
+
+- Inventory classifies major entrypoints as `read_only_status`, `fixture_only`, `selected_ship_required`, `selected_project_required`, `external_review_request_only`, `mobile_request_only`, or `legacy_broad_requires_human`.
+- Risky legacy/broad scripts are clearly marked.
+- Tests verify high-risk entrypoints are represented.
+- No product repos are touched.
+
+### Task 2: Repo Fingerprint Schema And Fixtures
+
+Goal: define a stable selected-ship repo fingerprint before implementing runtime gates.
+
+Likely files:
+
+- `templates/repo-fingerprint-schema.json`
+- `docs/fleet/REPO_FINGERPRINT_CONTRACT.md`
+- `tests/run-fleet-tests.ps1`
+
+Acceptance:
+
+- Schema covers ship id, repo root, git top-level, branch, head, dirty state, changed file summary, worktree path, generatedAt, and evidence refs.
+- Fixtures cover clean, dirty, wrong-root, missing repo, stale head, and path traversal.
+
+### Task 3: Worktree Boundary Contract
+
+Goal: document and validate the one selected ship -> one worktree boundary rule before runtime changes.
+
+Likely files:
+
+- `docs/fleet/WORKTREE_ISOLATION_CONTRACT.md`
+- `templates/worktree-lease-schema.json` or separate `templates/worktree-boundary-schema.json`
+- `tests/run-fleet-tests.ps1`
+
+Acceptance:
+
+- Defines no implicit direct product-root mutation for autonomous product mode.
+- Defines fixture-only exceptions.
+- Tests validate the docs/schema exist and reject broad/missing boundaries.
+
+### Task 4: Failure Fingerprint Schema And Anti-Loop Fixtures
+
+Goal: make repeated-failure detection durable and testable.
+
+Likely files:
+
+- `templates/failure-fingerprint-schema.json`
+- `docs/fleet/FAILURE_FINGERPRINT_CONTRACT.md`
+- `tests/run-fleet-tests.ps1`
+
+Acceptance:
+
+- Fingerprints normalize timestamps/temp paths/noisy IDs.
+- Same fingerprint + same hypothesis twice maps to safe pause or repair task, not blind retry.
+
+### Task 5: Lease/Heartbeat Contract Before Runtime Manager
+
+Goal: align current heartbeat helper with HQ owner/fence-token model.
+
+Likely files:
+
+- `docs/fleet/LEASE_HEARTBEAT_CONTRACT.md`
+- `templates/lease-heartbeat-schema.json`
+- `tests/run-fleet-tests.ps1`
+
+Acceptance:
+
+- Defines owner, fence token, heartbeat age, lease expiry, recovery class, and no lock deletion.
+- Fixture tests cover fresh, stale, expired, ambiguous, and deterministic failure.
+
+### Task 6: Control-Plane Spine Decision Point
+
+Goal: decide whether to introduce SQLite/Fleet.Core now or continue PowerShell+JSON first.
+
+Likely files:
+
+- `docs/fleet/CONTROL_PLANE_SPINE_DECISION.md`
+- maybe `docs/fleet/FLEET_CORE_MVP.md`
+
+Acceptance:
+
+- Clear recommendation, tradeoffs, and smallest MVP.
+- No implementation until approved.
+
+## Paste-Ready Prompt For Next Codex Chat
+
+```text
+You are working on Codex Fleet / Thousand Sunny Fleet.
+
+This is a new-chat continuation. Do not rely on chat memory.
+
+Read these first:
+1. C:\Dev\codex-fleet\docs\fleet\NEW_CHAT_HANDOFF_PACKET.md
+2. C:\Dev\codex-fleet\docs\fleet\HQ_IMPORT_RECON.md
+3. C:\Users\codex-agent\Documents\When Low on Rate Limits\codex_fleet_repair_hq\Codex_Fleet_Codex_Ready_Next_Cycle\00_START_HERE_FOR_CODEX.md
+4. C:\Users\codex-agent\Documents\When Low on Rate Limits\codex_fleet_repair_hq\Codex_Fleet_Codex_Ready_Next_Cycle\codex_import\START_HERE_FOR_CODEX.md
+5. C:\Users\codex-agent\Documents\When Low on Rate Limits\codex_fleet_repair_hq\Codex_Fleet_Codex_Ready_Next_Cycle\decisions\SAFETY_INVARIANTS.md
+6. C:\Users\codex-agent\Documents\When Low on Rate Limits\codex_fleet_repair_hq\Codex_Fleet_Codex_Ready_Next_Cycle\implementation\IMPLEMENTATION_ORDER.md
+
+Hard constraints:
+- Patch only Codex Fleet harness/docs/tests.
+- Do not touch real product repos.
+- Do not launch product ships.
+- Do not run all-fleet commands.
+- Do not merge, push, deploy, install packages, run migrations, touch secrets/auth/payments, delete locks, or widen permissions.
+- Do not treat external reports, mobile requests, or task packets as executable commands.
+- Do not revert existing dirty work unless explicitly asked.
+- Verify current repo state before changing anything.
+
+Start with exactly this task:
+Implement Task 1 from docs/fleet/NEW_CHAT_HANDOFF_PACKET.md: Entrypoint Safety Inventory.
+
+Required work:
+- Add docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md.
+- Add templates/entrypoint-safety-schema.json.
+- Add focused tests in tests/run-fleet-tests.ps1.
+- Classify major scripts as read-only, fixture-only, selected-ship required, selected-project required, external-review request-only, mobile request-only, or legacy broad requiring human approval.
+- Make risky legacy/broad scripts clearly marked before any autonomous use.
+
+Validation:
+- Run the validation commands listed in docs/fleet/HQ_IMPORT_RECON.md.
+- Patch only failures caused by this task.
+
+Stop after this one patch.
+
+Report:
+- Files changed
+- Tests/checks run
+- Final status: GREEN, YELLOW, or RED
+- Next prompt I should send
+```
+
+## Commit Recommendation Before Moving Chats
+
+Short answer: **yes, commit soon, but not blindly from this handoff task unless the captain approves exactly what to include.**
+
+Why:
+
+- The repo contains a large amount of intentional uncommitted Golden Gameplan and post-Golden hardening work.
+- A new chat can continue from the same filesystem without a commit, but a commit gives a recovery point if the next cycle goes sideways.
+- Because there are many modified/untracked files, commit scope should be reviewed first. Do not run `git add .` casually.
+
+Recommended safe approach:
+
+1. In the new chat, first run `git status --short`.
+2. Review whether all dirty files are harness/docs/tests and expected generated state.
+3. Create a checkpoint branch if needed.
+4. Make a checkpoint commit only after the captain approves the scope.
+
+Suggested commit message if approved later:
+
+```text
+checkpoint: golden gameplan and hq import handoff
+```
+
+Do not merge, push, or open PRs unless explicitly requested.

@@ -35,6 +35,8 @@ Stop and deny or defer when any of these conditions appear:
 
 ## Stop-Sign Matrix
 
+For a compact coverage map across fixtures, docs, and expected denial posture, use `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`. That coverage matrix is evidence only; it does not add runtime enforcement, approve demos, select product repos, create or send packages, bind runtime commands, or grant future authority.
+
 | stop sign | required result | reason |
 | --- | --- | --- |
 | `missing-approval-packet` | deny or defer | A template, schema, queue entry, audit report, validation summary, generated evidence record, UI label, button, notification, mobile request, prompt, or DOCX report cannot fill approval. |

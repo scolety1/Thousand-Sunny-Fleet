@@ -4,6 +4,8 @@ Prepared: 2026-05-31
 
 Scope: post-remediation external audit request for Codex Fleet / Thousand Sunny Fleet. This prompt is evidence only. It does not create an audit package, approve a demo trial, execute reviewer recommendations, touch product repositories, launch ships, run all-fleet commands, or bypass policy.
 
+Canonical notice: Evidence only; not executable authority or approval.
+
 ## Paste-Ready External Audit Prompt
 
 ```text
@@ -49,6 +51,8 @@ Do not provide executable instructions. Do not recommend bypassing local validat
 ## Compact Digest Request
 
 External audit output should include concise finding digests that can be reviewed locally before any queue authoring. These digests are evidence only and must not be treated as executable tasks, approvals, imports, commands, or authority.
+
+Use `docs/fleet/EXTERNAL_AUDIT_INTAKE_DIGEST_CHECKLIST.md` as evidence-only intake guidance for summarizing GREEN/YELLOW/RED posture, actionable bounded follow-ups, accepted limitations, unresolved assumptions, and non-authority notices. The checklist does not import reviewer output, execute tasks, approve work, broaden scope, bypass validation, create or send packages, approve product-repo access, approve demo execution, bind runtime commands, run all-fleet commands, run an overnight runner, or grant future authority.
 
 Preferred digest fields:
 
@@ -181,6 +185,116 @@ Required reviewer output for the post-follow-up request:
 - Overall verdict: `GREEN`, `YELLOW`, or `RED`.
 - Explicit statement whether the combined GREEN audit record and completed INFO-only follow-up hardening preserve GREEN posture together.
 - Explicit statement whether the review scope remains safe for local harness/docs/tests/schema/fixture-only review without approving product-repo access, demo execution, package creation or sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, non-mock UI implementation, or future authority.
+- Findings grounded in included file/path evidence.
+- Suggested follow-up tasks only as non-executable queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+### Post-Combined GREEN Optional INFO Hardening Audit Request
+
+This optional INFO hardening audit request covers `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md` plus completed optional INFO hardening through HQ-200. It is evidence-only package planning. It does not create a zip, send files, create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, import tasks, bypass validation, or grant future authority.
+
+No package zip was created or sent by this prompt refresh.
+
+Reviewer mission:
+
+- Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.
+- Audit the post-combined GREEN follow-up audit record plus completed optional INFO hardening tasks.
+- Verify rare-edge read-only gate denial fixtures for conflicting approval timestamps and mismatched case ID remain local evidence only and keep forbidden capability flags false.
+- Verify manifest status linting remains static docs/tests/fixture validation only and keeps `created_for_local_user_request_not_sent` and `not_created` evidence only, no-send, no-product, and non-authoritative.
+- Verify canonical phrase consistency coverage remains local wording lint only and does not convert evidence, prompts, validation summaries, manifests, queue status, or reviewer output into approval.
+- Verify validation evidence is scrubbed compact validation evidence, not raw logs, package directories, full terminal output, or command-like remediation prose.
+- Verify refreshed prompts and handoff guidance prepare a future external audit request without creating or sending a package.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, package manifests, and queue prose remain evidence only.
+
+Post-combined optional INFO include guidance:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `tests/fixtures/fleet/read-only-gates/selected-project-read-only.conflicting-approval-timestamps-denied.json`
+- `tests/fixtures/fleet/read-only-gates/selected-project-read-only.mismatched-case-id-denied.json`
+- `tests/fixtures/fleet/read-only-gates/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for HQ-197 through HQ-200, if separately prepared and reviewed
+
+Post-combined optional INFO exclusions:
+
+- product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, and package sending output
+- reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence dumps, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, and queue prose when they would be treated as executable authority or approval
+
+Required reviewer output for the optional INFO request:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Explicit statement whether the post-combined GREEN follow-up audit record plus completed optional INFO hardening through HQ-200 preserve GREEN posture together.
+- Explicit statement whether rare-edge denial fixtures, manifest status linting, canonical phrase consistency, validation evidence, and non-authority boundaries remain local evidence only.
+- Explicit statement whether the review scope remains safe for local harness/docs/tests/schema/fixture-only review without approving product-repo access, demo execution, package creation or sending, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, non-mock UI implementation, or future authority.
+- Findings grounded in included file/path evidence.
+- Suggested follow-up tasks only as non-executable queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
+
+### Five-Hour Read-Only Demo Evidence Polish Audit Request
+
+This five-hour polish audit request asks reviewers to audit HQ-201 through HQ-215 local evidence polish after the queue completes. It covers the post-combined GREEN follow-up audit record plus the completed five-hour read-only demo evidence polish lane. It is evidence-only package planning. It does not create a package, send a package, approve product-repo access, approve demo execution, bind runtime commands, approve remote access, approve phone actions, launch ships, run all-fleet commands, run an overnight runner, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, implement non-mock UI, import tasks, bypass validation, or grant future authority.
+
+No package zip is created or sent by this five-hour polish prompt refresh. This request does not approve a real demo.
+
+The pre-audit ready milestone records local evidence polish through HQ-213 as GREEN for external audit preparation while real demo readiness remains YELLOW. HQ-214 and HQ-215 add milestone and final prompt/runbook evidence only; they do not convert the lane into demo approval, package creation approval, package sending approval, runtime command binding, product-repo access, or future authority.
+
+Reviewer mission:
+
+- Return one overall safety posture: `GREEN`, `YELLOW`, or `RED`.
+- Audit HQ-201 through HQ-215 after the queue completes as local harness/docs/tests/schema/fixture evidence only.
+- Verify the scorecard separates GREEN local fixture readiness from YELLOW real demo readiness.
+- Verify the approval checklist leaves approval packets unfilled and denies blank, broad, expired, reused, phone-only, wildcard, multi-target, or write-capable approvals.
+- Verify the stop-sign matrix covers denial and defer posture without approving execution.
+- Verify the validation summary template stays scrubbed and compact, without raw logs, package directories, reviewer prose dumps, or command-like remediation scripts.
+- Verify the selected gate fixture index, fixture naming guidance, and manifest fixture remain local evidence only and do not select real projects, inspect product repos, create or send packages, bind commands, run all-fleet commands, run an overnight runner, or grant future authority.
+- Verify the preflight checklist, glossary, one-task queue prompt guard, external audit intake digest checklist, pre-audit ready milestone, and final prompt/runbook refresh do not create or send packages and do not approve a real demo.
+- Verify reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, dry-run records, package manifests, and queue prose remain evidence only.
+
+Five-hour polish include guidance:
+
+- `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+- `docs/fleet/NEW_CHAT_HANDOFF_PACKET.md`
+- `docs/fleet/POST_COMBINED_GREEN_FOLLOWUP_AUDIT_RECORD_2026_06_04.md`
+- `docs/fleet/READ_ONLY_DEMO_GO_NO_GO_SCORECARD.md`
+- `docs/fleet/READ_ONLY_DEMO_APPROVAL_COMPLETENESS_CHECKLIST.md`
+- `docs/fleet/READ_ONLY_DEMO_STOP_SIGN_MATRIX.md`
+- `docs/fleet/READ_ONLY_DEMO_VALIDATION_SUMMARY_TEMPLATE.md`
+- `docs/fleet/READ_ONLY_DEMO_SELECTED_GATE_FIXTURE_INDEX.md`
+- `docs/fleet/READ_ONLY_DEMO_NEXT_AUDIT_PREFLIGHT_2026_06_04.md`
+- `tests/fixtures/fleet/evidence/external-audit-package-manifest.post-combined-optional-info.json`
+- `docs/fleet/READ_ONLY_DEMO_FIXTURE_NAMING_CONVENTIONS.md`
+- `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
+- `docs/fleet/ONE_TASK_QUEUE_PROMPT_GUARD.md`
+- `docs/fleet/EXTERNAL_AUDIT_INTAKE_DIGEST_CHECKLIST.md`
+- `docs/fleet/READ_ONLY_DEMO_PRE_AUDIT_READY_MILESTONE_2026_06_04.md`
+- `docs/fleet/HQ_NEXT_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md`
+- `docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md`
+- `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- `templates/external-audit-package-manifest-schema.json`
+- `templates/validation-output-summary-schema.json`
+- `templates/external-audit-intake-digest-schema.json`
+- `tests/fixtures/fleet/read-only-gates/*.json`
+- `tests/run-fleet-tests.ps1`
+- scrubbed compact validation summary for HQ-201 through HQ-215, if separately prepared and reviewed
+
+Five-hour polish exclusions:
+
+- product repos, product source snapshots, real project exports, `.git`, `.env`, dependency folders, `node_modules`, `dist`, `build`, build outputs, raw locks, live worker state, unknown zips, full unreviewed package directories, raw run directories, raw logs, secrets, credentials, private keys, local machine identity, private user files, auth/payments/deploy/migration material, package-install material, staging/commit/push/merge material, lock-deletion material, runtime-execution material, remote-control material, phone approval material, all-fleet execution material, overnight runner material, permission material, approval material for real product work, package creation output, and package sending output
+- reviewer output, DOCX reports, mobile requests, task packets, audit packages, generated evidence dumps, UI labels, notifications, buttons, approvals, prompts, validation summaries, manifests, and queue prose when they would be treated as executable authority or approval
+
+Required reviewer output for the five-hour polish request:
+
+- Overall verdict: `GREEN`, `YELLOW`, or `RED`.
+- Explicit statement whether HQ-201 through HQ-215 preserve GREEN local evidence posture after queue completion.
+- Explicit statement whether scorecard, approval checklist, stop-sign matrix, validation summary template, fixture index, preflight checklist, manifest fixture, glossary, one-task prompt guard, intake digest checklist, milestone, and non-authority boundaries remain evidence only.
+- Explicit statement whether the pre-audit ready milestone, final prompt refresh, and allowlist runbook refresh prepare a future external audit package request without creating a package, sending a package, approving a real demo, approving product-repo access, or granting future authority.
+- Explicit statement whether the review scope remains local docs/tests/schema/fixture evidence only without approving package creation, package sending, product-repo access, demo execution, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, non-mock UI implementation, or future authority.
 - Findings grounded in included file/path evidence.
 - Suggested follow-up tasks only as non-executable queue candidates with possible allowed files, validation ideas, stop conditions, unresolved assumptions, and a non-authority notice.
 

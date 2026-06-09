@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "packageId": "external-audit-package-read-only-demo-combined-2026-06-04",
+  "preparedAt": "2026-06-04T00:00:00Z",
+  "sourceRepo": "codex-fleet-harness",
+  "sourceCommit": "pending-checkpoint-2026-06-04",
+  "packagePurpose": "harness-docs-tests-external-audit",
+  "includedFiles": [
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "GREEN audit record for HQ-176 through HQ-182."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_COMBINED_AUDIT_SCOPE_2026_06_04.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Combined audit target scope record; does not create or send packages."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_GATE_REHEARSAL_PLAN.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Controlled read-only gate rehearsal plan evidence only."
+    },
+    {
+      "path": "docs/fleet/EXTERNAL_AUDIT_PACKAGE_ALLOWLIST_RUNBOOK.md",
+      "kind": "doc",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manual allowlist guidance; does not create or send packages."
+    },
+    {
+      "path": "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+      "kind": "prompt",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Reviewer prompt evidence only; not executable authority."
+    },
+    {
+      "path": "templates/external-audit-package-manifest-schema.json",
+      "kind": "schema",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Manifest schema used for local validation."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.valid-fixture.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate valid planning fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.stale-fingerprint-deferred.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate deferred fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.invalid-fingerprint-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.missing-owner-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.ambiguous-approval-unknown.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate unknown fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.multi-target-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.wildcard-target-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.write-capable-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.expired-approval-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.reused-approval-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.package-sending-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/read-only-gates/selected-project-read-only.phone-only-denied.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Selected-project read-only gate denial fixture."
+    },
+    {
+      "path": "tests/fixtures/fleet/evidence/external-audit-package-manifest.read-only-demo-combined.json",
+      "kind": "fixture",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "This manifest fixture is local validation evidence only."
+    },
+    {
+      "path": "tests/run-fleet-tests.ps1",
+      "kind": "test",
+      "evidenceOnly": true,
+      "containsRawLogs": false,
+      "containsReviewerCommands": false,
+      "notes": "Focused local validation checks for combined audit manifest discipline."
+    }
+  ],
+  "excludedPatterns": [
+    ".git",
+    ".env",
+    "product repositories",
+    "product source snapshots",
+    "node_modules",
+    "dist",
+    "build",
+    "raw logs",
+    "raw locks",
+    "unknown zip files",
+    "live worker state",
+    "secrets",
+    "credentials",
+    "private keys",
+    "auth material",
+    "payment material",
+    "deploy material",
+    "migration material",
+    "package-install material",
+    "staging material",
+    "commit material",
+    "push material",
+    "merge material",
+    "lock-deletion material",
+    "runtime-execution material",
+    "remote access material",
+    "phone approval material",
+    "permission widening material",
+    "all-fleet execution material",
+    "overnight runner material",
+    "approval material for real product work"
+  ],
+  "validationSummaryRef": "docs/fleet/READ_ONLY_DEMO_OVERNIGHT_SAFE_FOLLOWUP_GREEN_AUDIT_RECORD_2026_06_04.md",
+  "reviewerPromptRef": "docs/fleet/READ_ONLY_DEMO_READINESS_EXTERNAL_AUDIT_PROMPT.md",
+  "externalAuditDigestSchemaRef": "templates/external-audit-intake-digest-schema.json",
+  "forbiddenScopeDenials": [
+    "deny_product_repo_access",
+    "deny_product_mutation",
+    "deny_package_sending",
+    "deny_runtime_command_binding",
+    "deny_remote_access",
+    "deny_phone_approval",
+    "deny_all_fleet_execution",
+    "deny_staging_commit_push_deploy",
+    "deny_installs_migrations_secrets",
+    "deny_lock_deletion_permission_widening",
+    "deny_evidence_as_authority"
+  ],
+  "evidenceOnlyNotice": "This combined read-only demo audit manifest fixture is local evidence only. It does not create, send, approve, execute, import, package, authorize product repository access, bind runtime commands, approve remote access, approve phone actions, run all-fleet commands, run an overnight runner, launch ships, or grant future authority.",
+  "packageCreationStatus": "not_created",
+  "noSendStatus": true,
+  "noProductRepos": true,
+  "noAuthorityNotice": "This combined read-only demo audit manifest fixture cannot approve package creation, package sending, execution, demo approval, product repository access, runtime command binding, remote access, phone approvals, all-fleet execution, overnight runner execution, validation bypasses, or future authority.",
+  "expectedValidity": "valid"
+}
