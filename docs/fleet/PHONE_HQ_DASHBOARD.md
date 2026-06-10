@@ -2,6 +2,8 @@
 
 Status: first phone-accessible control surface.
 
+Hosted dashboard: [Thousand Sunny Fleet HQ](../../index.html)
+
 Use this page from your phone while traveling. It is a GitHub-rendered dashboard, not a live web app. It does not run code, configure remote access, expose ports, approve product work, or grant extra authority.
 
 ## Open First
@@ -69,4 +71,3 @@ Stop and classify:
 - GREEN: status is readable and no stop signs appear.
 - YELLOW: status is stale, unclear, or needs laptop/desktop verification.
 - RED: a path would require secrets, public RDP, router changes, product repo mutation, all-fleet, overnight, deploy, staging, commit, push, migrations, lock deletion, permission widening, or remote command binding.
-

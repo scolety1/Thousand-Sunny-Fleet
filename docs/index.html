@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>Thousand Sunny Fleet HQ</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #111827;
+      --muted: #5f6673;
+      --line: #d9dee8;
+      --accent: #0f766e;
+      --accent-dark: #115e59;
+      --warn: #a16207;
+      --red: #b91c1c;
+      --blue: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    header {
+      background: #111827;
+      color: #fff;
+      padding: 18px 16px 16px;
+    }
+
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      margin: 0 0 6px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 1rem;
+      margin: 0 0 10px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 10px;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    .subhead {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      max-width: 52rem;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 10px;
+      min-height: 62px;
+    }
+
+    .pill strong {
+      display: block;
+      font-size: 0.76rem;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .pill span {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin: 12px 0;
+      box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05);
+    }
+
+    .actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .button {
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f9fafb;
+      color: var(--ink);
+      padding: 11px 12px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .button.primary {
+      background: var(--accent);
+      border-color: var(--accent-dark);
+      color: #fff;
+    }
+
+    .button.danger {
+      color: var(--red);
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+
+    .summary {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 0.92rem;
+      background: #f9fafb;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 460px;
+      overflow: auto;
+    }
+
+    .notice {
+      border-left: 4px solid var(--warn);
+      background: #fffbeb;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #513c06;
+    }
+
+    .ok {
+      color: var(--accent-dark);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .list {
+      padding-left: 18px;
+      margin: 0;
+    }
+
+    .list li {
+      margin: 5px 0;
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 18px 14px 28px;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 10px;
+      }
+
+      .status-row {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Thousand Sunny Fleet HQ</h1>
+    <p class="subhead">Phone dashboard for checking Fleet status while traveling. This page is read-only unless you open GitHub and edit a control file yourself.</p>
+  </header>
+
+  <main>
+    <section class="status-row" aria-label="Fleet posture">
+      <div class="pill">
+        <strong>Dashboard</strong>
+        <span id="dashboardStatus">Loading</span>
+      </div>
+      <div class="pill">
+        <strong>Fleet Mode</strong>
+        <span id="fleetMode">Unknown</span>
+      </div>
+      <div class="pill">
+        <strong>Updated</strong>
+        <span id="updatedAt">Unknown</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Open First</h2>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md">Latest Captain Status</a>
+        <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md">Today Log</a>
+        <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md">Travel Codex Prompt Packet</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Captain Summary</h2>
+      <div id="captainSummary" class="summary">Loading latest GitHub status...</div>
+      <p class="muted" id="fetchNote"></p>
+    </section>
+
+    <section class="card">
+      <h2>Phone Controls</h2>
+      <div class="actions">
+        <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Edit Quick Mission Request</a>
+        <a class="button danger" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md">Request Emergency Stop</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Rules</h2>
+      <div class="notice">
+        Phone edits are requests, not execution authority. Remote access does not grant extra authority.
+      </div>
+      <ul class="list">
+        <li>Safe: read status, capture a narrow idea, submit a bounded quick mission request.</li>
+        <li>Use laptop or desktop for Codex, terminal checks, local validation, commits, pushes, or code changes.</li>
+        <li>Do not approve deploys, installs, migrations, secrets, all-fleet, overnight runners, lock deletion, permission widening, or runtime command binding from phone text.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    Static GitHub Pages dashboard. If live status does not load, use the Latest Captain Status link.
+  </footer>
+
+  <script>
+    const statusUrl = "https://raw.githubusercontent.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/current.md";
+    const dashboardStatus = document.getElementById("dashboardStatus");
+    const fleetMode = document.getElementById("fleetMode");
+    const updatedAt = document.getElementById("updatedAt");
+    const captainSummary = document.getElementById("captainSummary");
+    const fetchNote = document.getElementById("fetchNote");
+
+    function matchLine(markdown, label) {
+      const pattern = new RegExp("^- " + escapeRegExp(label) + ":\\s*(.+)$", "mi");
+      const match = markdown.match(pattern);
+      return match ? match[1].trim() : "";
+    }
+
+    function section(markdown, heading) {
+      const escaped = escapeRegExp(heading);
+      const pattern = new RegExp("^## " + escaped + "\\s*\\n([\\s\\S]*?)(?=^## |\\s*$)", "m");
+      const match = markdown.match(pattern);
+      return match ? match[1].trim() : "";
+    }
+
+    function escapeRegExp(value) {
+      return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch(statusUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+        const markdown = await response.text();
+        dashboardStatus.textContent = "Online";
+        dashboardStatus.className = "ok";
+        fleetMode.textContent = matchLine(markdown, "Fleet mode") || "Unknown";
+        updatedAt.textContent = matchLine(markdown, "Updated") || "Unknown";
+        captainSummary.textContent = section(markdown, "Captain Summary") || markdown.slice(0, 1200);
+        fetchNote.textContent = "Loaded from GitHub raw status.";
+      } catch (error) {
+        dashboardStatus.textContent = "Status link only";
+        fleetMode.textContent = "Unknown";
+        updatedAt.textContent = "Unknown";
+        captainSummary.textContent = "Live status fetch failed. Open the Latest Captain Status link above.";
+        fetchNote.textContent = String(error && error.message ? error.message : error);
+      }
+    }
+
+    loadStatus();
+  </script>
+</body>
+</html>
