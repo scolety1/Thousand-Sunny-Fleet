@@ -387,6 +387,29 @@
         "previewPort":  5303
     },
     {
+        "name":  "PrivateLens",
+        "repo":  "C:\\Users\\codex-agent\\Documents\\Codex\\2026-06-10\\build-a-polished-mvp-called-privatelens\\outputs\\privatelens",
+        "rounds":  8,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  ".",
+        "buildCommand":  "npm.cmd run build",
+        "profile":  "experimental-prototype",
+        "projectType":  "ai-workflow",
+        "riskTier":  "local-only",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         }
+    },
+    {
         "name":  "RestaurantDemo",
         "repo":  "C:\\Dev\\restaurant-automation-demo",
         "rounds":  99,

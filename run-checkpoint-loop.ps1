@@ -2319,7 +2319,7 @@ function Invoke-CodexExec {
                 Remove-Item $ResponsePath -Force -ErrorAction SilentlyContinue
             }
 
-            $codexArgs = @("exec", "--full-auto")
+            $codexArgs = @("exec", "--full-auto", "-c", 'service_tier="fast"')
             if (![string]::IsNullOrWhiteSpace($model)) {
                 $codexArgs += @("-m", $model)
             }

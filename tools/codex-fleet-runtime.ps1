@@ -613,6 +613,7 @@ function Invoke-FleetCodexReadOnly {
             }
 
             $codexArgs = @($CodexBaseArguments)
+            $codexArgs += @("-c", 'service_tier="fast"')
             if (![string]::IsNullOrWhiteSpace($model)) {
                 $codexArgs += @("-m", $model)
             }
