@@ -815,6 +815,176 @@ function Test-HqRemoteTravelGoNoGoPocketSummary {
     Assert-False -Condition ($summaryText -match "(?is)(approves|authorizes|grants|permits).{0,180}(remote command execution|phone approval|product-repo access|all-fleet execution|overnight runner|future authority)") -Message "Remote travel go/no-go summary does not grant forbidden authority"
 }
 
+function Test-HqPhoneDashboardSecurityModel {
+    $indexPath = Join-Path $fleetRoot "docs\index.html"
+    $cssPath = Join-Path $fleetRoot "docs\assets\phone-hq.css"
+    $jsPath = Join-Path $fleetRoot "docs\assets\phone-hq.js"
+    $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
+    $securityPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_SECURITY_MODEL.md"
+    $readmePath = Join-Path $fleetRoot "README.md"
+
+    foreach ($path in @($indexPath, $cssPath, $jsPath, $dashboardPath, $securityPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Phone HQ static file exists: $path"
+    }
+
+    $indexText = Get-Content -LiteralPath $indexPath -Raw -ErrorAction Stop
+    $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
+    $securityText = Get-Content -LiteralPath $securityPath -Raw -ErrorAction Stop
+    $readmeText = Get-Content -LiteralPath $readmePath -Raw -ErrorAction Stop
+    $combinedText = @($indexText, $dashboardText, $securityText) -join "`n"
+
+    foreach ($phrase in @(
+        "This public dashboard is request-only. It does not execute Codex, approve deployments, or grant authority.",
+        "Fleet status",
+        "Travel readiness",
+        "Today Log",
+        "Quick Mission Request",
+        "Emergency Stop Request",
+        "Safe From Phone",
+        "Not Safe From Phone",
+        "Travel Codex Prompt Packet",
+        "Request-only",
+        "View-only",
+        "Forbidden from phone"
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($phrase)) -Message "Phone HQ dashboard preserves mobile/security phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "GitHub Pages serves static files",
+        "request-only",
+        "does not execute Codex",
+        "browser must never store GitHub personal access tokens",
+        "browser must never directly execute shell commands",
+        "future mobile control plane must be separate",
+        "Remote access and phone access grant no extra authority",
+        "Product repo access must be separately scoped"
+    )) {
+        Assert-True -Condition ($securityText -match [regex]::Escape($phrase)) -Message "Phone HQ security model preserves boundary: $phrase"
+    }
+
+    foreach ($pattern in @(
+        "(?i)ghp_[A-Za-z0-9_]{20,}",
+        "(?i)github_pat_[A-Za-z0-9_]{20,}",
+        "(?i)sk-[A-Za-z0-9]{20,}",
+        "BEGIN [A-Z ]*PRIVATE KEY",
+        "(?i)access_token\s*=",
+        "(?i)client_secret\s*=",
+        "(?i)password\s*="
+    )) {
+        Assert-False -Condition ($combinedText -match $pattern) -Message "Phone HQ docs do not contain token-like secret pattern: $pattern"
+    }
+
+    Assert-False -Condition ($indexText -match '<script\s+src="https?://') -Message "Phone HQ has no external script src"
+    Assert-False -Condition ($indexText -match '<link[^>]+href="https?://') -Message "Phone HQ has no external stylesheet or font link"
+    Assert-True -Condition ($indexText -match 'href="\./assets/phone-hq\.css"' -and $indexText -match 'src="\./assets/phone-hq\.js"') -Message "Phone HQ uses local CSS and JS assets"
+    Assert-False -Condition ($indexText -match 'target="_blank"(?![^>]+rel="noopener noreferrer")') -Message "Phone HQ new-tab links use noopener noreferrer when present"
+
+    foreach ($forbiddenBoundary in @(
+        "No public RDP or router port forwarding.",
+        "No all-fleet or overnight runners.",
+        "No runtime command binding or phone approval authority.",
+        "No product-repo mutation.",
+        "No deploys, commits, pushes, staging, installs, or migrations."
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($forbiddenBoundary)) -Message "Phone HQ dashboard preserves forbidden boundary: $forbiddenBoundary"
+    }
+
+    Assert-True -Condition ($dashboardText -match "Hosted dashboard: \[Thousand Sunny Fleet HQ\]\(https://scolety1.github.io/Thousand-Sunny-Fleet/\)") -Message "Phone HQ dashboard doc links hosted URL"
+    Assert-True -Condition ($dashboardText -match "PHONE_HQ_SECURITY_MODEL.md") -Message "Phone HQ dashboard doc references security model"
+    Assert-True -Condition ($readmeText -match "PHONE_HQ_SECURITY_MODEL.md") -Message "README references Phone HQ security model"
+}
+
+function Test-HqMobileControlPlaneArchitecture {
+    $architecturePath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md"
+    $threatPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_THREAT_MODEL.md"
+    $roadmapPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_ROADMAP.md"
+    $schemaPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md"
+
+    foreach ($path in @($architecturePath, $threatPath, $roadmapPath, $schemaPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Mobile control plane architecture doc exists: $path"
+    }
+
+    $architectureText = Get-Content -LiteralPath $architecturePath -Raw -ErrorAction Stop
+    $threatText = Get-Content -LiteralPath $threatPath -Raw -ErrorAction Stop
+    $roadmapText = Get-Content -LiteralPath $roadmapPath -Raw -ErrorAction Stop
+    $schemaText = Get-Content -LiteralPath $schemaPath -Raw -ErrorAction Stop
+    $combinedText = @($architectureText, $threatText, $roadmapText, $schemaText) -join "`n"
+
+    foreach ($phrase in @(
+        "public static dashboard",
+        "authenticated user",
+        "request object",
+        "policy classification",
+        "model routing / cost-quality recommendation",
+        "allowedFiles",
+        "validationCommands",
+        "stopIf",
+        "human/HQ approval where required",
+        "runner-side execution gate",
+        "audit log",
+        "Product repo access is denied by default",
+        "Mobile actions create signed or otherwise recorded requests",
+        "Emergency stop must never become arbitrary command execution"
+    )) {
+        Assert-True -Condition ($architectureText -match [regex]::Escape($phrase)) -Message "Mobile architecture preserves requirement: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Browser stores no GitHub PATs",
+        "Browser never executes shell",
+        "Phone approval is not execution authority",
+        "Every executable request requires allowedFiles, validationCommands, stopIf, and one-task boundary",
+        "Model routing / cost-quality recommendation",
+        "Emergency stop is limited to audited stop signaling",
+        "GitHub Actions misuse",
+        "Least-privilege tokens"
+    )) {
+        Assert-True -Condition ($threatText -match [regex]::Escape($phrase)) -Message "Mobile threat model preserves requirement: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Phase 0: Public Static HQ",
+        "Phase 1: Polished Static Request Dashboard",
+        "Phase 2: Authenticated Request Intake",
+        "Phase 3: Policy Gate And Model Router",
+        "Phase 4: Controlled Runner Integration",
+        "Phase 5: Audited Project Control",
+        "no public command buttons",
+        "no client-side secrets",
+        "no broad repo access",
+        "no phone approval as execution authority",
+        "no all-fleet from mobile",
+        "no deploys from public dashboard"
+    )) {
+        Assert-True -Condition ($roadmapText -match [regex]::Escape($phrase)) -Message "Mobile roadmap preserves requirement: $phrase"
+    }
+
+    foreach ($field in @(
+        "requestId",
+        "createdAt",
+        "requester",
+        "project",
+        "taskSummary",
+        "qualityMode",
+        "requestedModelTier",
+        "filesRequested",
+        "forbiddenOperations",
+        "validationRequested",
+        "approvalRequired",
+        "emergencyStop",
+        "status",
+        "auditNotes"
+    )) {
+        Assert-True -Condition ($schemaText -match [regex]::Escape($field)) -Message "Mobile request schema includes field: $field"
+    }
+
+    Assert-True -Condition ($schemaText -match "best_value" -and $schemaText -match "perfection") -Message "Mobile request schema supports best_value and perfection quality modes"
+    Assert-True -Condition ($schemaText -match "one-task boundary" -and $schemaText -match "allowedFiles" -and $schemaText -match "validationCommands" -and $schemaText -match "stopIf") -Message "Mobile request schema preserves executable task contract"
+    Assert-True -Condition ($combinedText -match "no direct browser command execution" -or $combinedText -match "direct browser command execution") -Message "Mobile control plane rejects direct browser command execution"
+    Assert-True -Condition ($combinedText -match "no client-side secrets" -or $combinedText -match "browser must never store") -Message "Mobile control plane rejects client-side secrets"
+}
+
 function Test-FixtureGeneration {
     $generator = Join-Path $fleetRoot "tests\new-fixture-ships.ps1"
     $generatorText = Get-Content $generator -Raw
@@ -15416,6 +15586,8 @@ Test-HqRemoteTravelAntiLoopCapsule
 Test-HqRemoteTravelChromeRemoteDesktopTriage
 Test-HqRemoteTravelPowerUpdateSafety
 Test-HqRemoteTravelGoNoGoPocketSummary
+Test-HqPhoneDashboardSecurityModel
+Test-HqMobileControlPlaneArchitecture
 Test-FixtureGeneration
 Test-PhaseZeroIntakeSupport
 Test-PhaseOneArchitectureSupport

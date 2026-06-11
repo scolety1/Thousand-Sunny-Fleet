@@ -1,10 +1,12 @@
 # Thousand Sunny Fleet Phone HQ
 
-Status: first phone-accessible control surface.
+Status: static public phone-accessible dashboard.
 
-Hosted dashboard: [Thousand Sunny Fleet HQ](../../index.html)
+Hosted dashboard: [Thousand Sunny Fleet HQ](https://scolety1.github.io/Thousand-Sunny-Fleet/)
 
-Use this page from your phone while traveling. It is a GitHub-rendered dashboard, not a live web app. It does not run code, configure remote access, expose ports, approve product work, or grant extra authority.
+Use this page from your phone while traveling. It is a static GitHub Pages dashboard, not a live command/control app. It does not run code, configure remote access, expose ports, approve product work, trigger GitHub Actions, execute Codex, or grant extra authority.
+
+Security model: [PHONE_HQ_SECURITY_MODEL.md](PHONE_HQ_SECURITY_MODEL.md)
 
 ## Open First
 
@@ -23,7 +25,7 @@ Use this page from your phone while traveling. It is a GitHub-rendered dashboard
 4. Set `Status: SUBMIT` only after the goal, priority, target project, and next checkpoint are clear.
 5. Wait for a desktop/local remote-control cycle to apply the request.
 
-Phone edits are requests. They are not execution authority.
+Phone edits are requests. They are not execution authority, approval, deploy permission, product-repo permission, or runtime command binding.
 
 ## Safe From Phone
 
@@ -48,6 +50,9 @@ Do not use phone text or GitHub edits to approve:
 - permission widening
 - remote access configuration
 - runtime command binding
+- GitHub Actions execution
+- direct Codex command execution
+- public dashboard command buttons
 
 ## Laptop Or Desktop Required
 

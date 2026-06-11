@@ -3,314 +3,136 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" content="#101820" />
   <title>Thousand Sunny Fleet HQ</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f7f8fb;
-      --panel: #ffffff;
-      --ink: #111827;
-      --muted: #5f6673;
-      --line: #d9dee8;
-      --accent: #0f766e;
-      --accent-dark: #115e59;
-      --warn: #a16207;
-      --red: #b91c1c;
-      --blue: #1d4ed8;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.45;
-    }
-
-    header {
-      background: #111827;
-      color: #fff;
-      padding: 18px 16px 16px;
-    }
-
-    main {
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 14px;
-    }
-
-    h1 {
-      font-size: 1.35rem;
-      margin: 0 0 6px;
-      letter-spacing: 0;
-    }
-
-    h2 {
-      font-size: 1rem;
-      margin: 0 0 10px;
-      letter-spacing: 0;
-    }
-
-    p {
-      margin: 0 0 10px;
-    }
-
-    a {
-      color: var(--blue);
-      text-decoration-thickness: 1px;
-      text-underline-offset: 2px;
-    }
-
-    .subhead {
-      color: #cbd5e1;
-      font-size: 0.95rem;
-      max-width: 52rem;
-    }
-
-    .status-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin: 12px 0;
-    }
-
-    .pill {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      padding: 10px;
-      min-height: 62px;
-    }
-
-    .pill strong {
-      display: block;
-      font-size: 0.76rem;
-      color: var(--muted);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 4px;
-    }
-
-    .pill span {
-      display: block;
-      font-size: 0.95rem;
-      font-weight: 700;
-      overflow-wrap: anywhere;
-    }
-
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 14px;
-      margin: 12px 0;
-      box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05);
-    }
-
-    .actions {
-      display: grid;
-      gap: 8px;
-    }
-
-    .button {
-      display: block;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #f9fafb;
-      color: var(--ink);
-      padding: 11px 12px;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .button.primary {
-      background: var(--accent);
-      border-color: var(--accent-dark);
-      color: #fff;
-    }
-
-    .button.danger {
-      color: var(--red);
-      border-color: #fecaca;
-      background: #fff7f7;
-    }
-
-    .summary {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      font-size: 0.92rem;
-      background: #f9fafb;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      max-height: 460px;
-      overflow: auto;
-    }
-
-    .notice {
-      border-left: 4px solid var(--warn);
-      background: #fffbeb;
-      padding: 10px 12px;
-      border-radius: 8px;
-      color: #513c06;
-    }
-
-    .ok {
-      color: var(--accent-dark);
-    }
-
-    .muted {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .list {
-      padding-left: 18px;
-      margin: 0;
-    }
-
-    .list li {
-      margin: 5px 0;
-    }
-
-    footer {
-      color: var(--muted);
-      font-size: 0.82rem;
-      padding: 18px 14px 28px;
-      text-align: center;
-    }
-
-    @media (max-width: 640px) {
-      main {
-        padding: 10px;
-      }
-
-      .status-row {
-        grid-template-columns: 1fr;
-      }
-
-      .card {
-        padding: 12px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./assets/phone-hq.css" />
+  <script src="./assets/phone-hq.js" defer></script>
 </head>
 <body>
-  <header>
-    <h1>Thousand Sunny Fleet HQ</h1>
-    <p class="subhead">Phone dashboard for checking Fleet status while traveling. This page is read-only unless you open GitHub and edit a control file yourself.</p>
+  <header class="hero">
+    <div class="hero__inner">
+      <p class="eyebrow">Phone-first public cockpit</p>
+      <h1>Thousand Sunny Fleet HQ</h1>
+      <p class="subhead">A travel dashboard for status, safe request links, and the next bounded Codex prompt. This public page is not the command engine.</p>
+      <div class="security-banner" role="note">
+        This public dashboard is request-only. It does not execute Codex, approve deployments, or grant authority.
+      </div>
+    </div>
   </header>
 
   <main>
-    <section class="status-row" aria-label="Fleet posture">
-      <div class="pill">
-        <strong>Dashboard</strong>
-        <span id="dashboardStatus">Loading</span>
-      </div>
-      <div class="pill">
-        <strong>Fleet Mode</strong>
-        <span id="fleetMode">Unknown</span>
-      </div>
-      <div class="pill">
-        <strong>Updated</strong>
-        <span id="updatedAt">Unknown</span>
-      </div>
+    <section class="status-grid" aria-label="Fleet status">
+      <article class="status-card status-card--view">
+        <span class="label">Fleet status</span>
+        <strong id="dashboardStatus">Loading</strong>
+        <small>View-only GitHub Pages status</small>
+      </article>
+      <article class="status-card status-card--view">
+        <span class="label">Fleet mode</span>
+        <strong id="fleetMode">Unknown</strong>
+        <small>Loaded from public status when available</small>
+      </article>
+      <article class="status-card status-card--warn">
+        <span class="label">Travel readiness</span>
+        <strong>YELLOW</strong>
+        <small>Until Tuesday off-network evidence is recorded</small>
+      </article>
+      <article class="status-card status-card--view">
+        <span class="label">Updated</span>
+        <strong id="updatedAt">Unknown</strong>
+        <small>Latest public status timestamp</small>
+      </article>
     </section>
 
-    <section class="card">
-      <h2>Open First</h2>
-      <div class="actions">
-        <a class="button primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md">Latest Captain Status</a>
-        <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md">Today Log</a>
-        <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md">Travel Codex Prompt Packet</a>
+    <section class="panel panel--summary" aria-labelledby="captainSummaryHeading">
+      <div class="section-heading">
+        <p class="kicker">View-only</p>
+        <h2 id="captainSummaryHeading">Captain Summary</h2>
       </div>
-    </section>
-
-    <section class="card">
-      <h2>Captain Summary</h2>
       <div id="captainSummary" class="summary">Loading latest GitHub status...</div>
       <p class="muted" id="fetchNote"></p>
     </section>
 
-    <section class="card">
-      <h2>Phone Controls</h2>
-      <div class="actions">
-        <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Edit Quick Mission Request</a>
-        <a class="button danger" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md">Request Emergency Stop</a>
+    <section class="panel" aria-labelledby="todayLogHeading">
+      <div class="section-heading">
+        <p class="kicker">View-only</p>
+        <h2 id="todayLogHeading">Today Log</h2>
+      </div>
+      <div class="action-list">
+        <a class="action action--primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md">Open latest captain status</a>
+        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md">Open today log</a>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Rules</h2>
-      <div class="notice">
-        Phone edits are requests, not execution authority. Remote access does not grant extra authority.
+    <section class="panel" aria-labelledby="missionHeading">
+      <div class="section-heading">
+        <p class="kicker">Request-only</p>
+        <h2 id="missionHeading">Quick Mission Request</h2>
       </div>
-      <ul class="list">
-        <li>Safe: read status, capture a narrow idea, submit a bounded quick mission request.</li>
-        <li>Use laptop or desktop for Codex, terminal checks, local validation, commits, pushes, or code changes.</li>
-        <li>Do not approve deploys, installs, migrations, secrets, all-fleet, overnight runners, lock deletion, permission widening, or runtime command binding from phone text.</li>
-      </ul>
+      <p class="panel-text">Use this only to leave a narrow request for later HQ/Codex review. A phone edit is not approval and does not start work.</p>
+      <div class="action-list">
+        <a class="action action--request" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Edit quick mission request</a>
+        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/control/mission.md">Read mission control file</a>
+      </div>
+    </section>
+
+    <section class="panel panel--danger" aria-labelledby="stopHeading">
+      <div class="section-heading">
+        <p class="kicker">Request-only signal</p>
+        <h2 id="stopHeading">Emergency Stop Request</h2>
+      </div>
+      <p class="panel-text">This creates a high-priority stop signal for later review. It is not arbitrary command execution and cannot approve phone actions.</p>
+      <div class="action-list">
+        <a class="action action--danger" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md">Edit emergency stop request</a>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="promptHeading">
+      <div class="section-heading">
+        <p class="kicker">Travel packet</p>
+        <h2 id="promptHeading">Travel Codex Prompt Packet</h2>
+      </div>
+      <p class="panel-text">Use this from laptop or remote desktop when a human-controlled Codex session is already open.</p>
+      <div class="action-list">
+        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md">Open travel prompt packet</a>
+        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/PHONE_HQ_SECURITY_MODEL.md">Read static HQ security model</a>
+      </div>
+    </section>
+
+    <section class="split">
+      <article class="panel panel--safe" aria-labelledby="safeHeading">
+        <div class="section-heading">
+          <p class="kicker">Allowed from phone</p>
+          <h2 id="safeHeading">Safe From Phone</h2>
+        </div>
+        <ul class="check-list">
+          <li>Read public-safe status.</li>
+          <li>Read today log.</li>
+          <li>Capture a narrow idea.</li>
+          <li>Submit a bounded quick mission request.</li>
+          <li>Request a cooperative emergency stop for later review.</li>
+        </ul>
+      </article>
+
+      <article class="panel panel--blocked" aria-labelledby="notSafeHeading">
+        <div class="section-heading">
+          <p class="kicker">Forbidden from phone</p>
+          <h2 id="notSafeHeading">Not Safe From Phone</h2>
+        </div>
+        <ul class="check-list">
+          <li>No product-repo mutation.</li>
+          <li>No public RDP or router port forwarding.</li>
+          <li>No deploys, commits, pushes, staging, installs, or migrations.</li>
+          <li>No all-fleet or overnight runners.</li>
+          <li>No runtime command binding or phone approval authority.</li>
+          <li>No secrets, credentials, keys, tokens, PINs, passwords, MFA, or recovery codes.</li>
+        </ul>
+      </article>
     </section>
   </main>
 
   <footer>
     Static GitHub Pages dashboard. If live status does not load, use the Latest Captain Status link.
   </footer>
-
-  <script>
-    const statusUrl = "https://raw.githubusercontent.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/current.md";
-    const dashboardStatus = document.getElementById("dashboardStatus");
-    const fleetMode = document.getElementById("fleetMode");
-    const updatedAt = document.getElementById("updatedAt");
-    const captainSummary = document.getElementById("captainSummary");
-    const fetchNote = document.getElementById("fetchNote");
-
-    function matchLine(markdown, label) {
-      const pattern = new RegExp("^- " + escapeRegExp(label) + ":\\s*(.+)$", "mi");
-      const match = markdown.match(pattern);
-      return match ? match[1].trim() : "";
-    }
-
-    function section(markdown, heading) {
-      const escaped = escapeRegExp(heading);
-      const pattern = new RegExp("^## " + escaped + "\\s*\\n([\\s\\S]*?)(?=^## |\\s*$)", "m");
-      const match = markdown.match(pattern);
-      return match ? match[1].trim() : "";
-    }
-
-    function escapeRegExp(value) {
-      return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-
-    async function loadStatus() {
-      try {
-        const response = await fetch(statusUrl, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
-        const markdown = await response.text();
-        dashboardStatus.textContent = "Online";
-        dashboardStatus.className = "ok";
-        fleetMode.textContent = matchLine(markdown, "Fleet mode") || "Unknown";
-        updatedAt.textContent = matchLine(markdown, "Updated") || "Unknown";
-        captainSummary.textContent = section(markdown, "Captain Summary") || markdown.slice(0, 1200);
-        fetchNote.textContent = "Loaded from GitHub raw status.";
-      } catch (error) {
-        dashboardStatus.textContent = "Status link only";
-        fleetMode.textContent = "Unknown";
-        updatedAt.textContent = "Unknown";
-        captainSummary.textContent = "Live status fetch failed. Open the Latest Captain Status link above.";
-        fetchNote.textContent = String(error && error.message ? error.message : error);
-      }
-    }
-
-    loadStatus();
-  </script>
 </body>
 </html>
