@@ -30,7 +30,7 @@
       <article class="status-card status-card--view">
         <span class="label">Fleet mode</span>
         <strong id="fleetMode">Unknown</strong>
-        <small>Loaded from public status when available</small>
+        <small>Loaded as view-only public status, not authority</small>
       </article>
       <article class="status-card status-card--warn">
         <span class="label">Travel readiness</span>
@@ -48,6 +48,9 @@
       <div class="section-heading">
         <p class="kicker">View-only</p>
         <h2 id="captainSummaryHeading">Captain Summary</h2>
+      </div>
+      <div id="statusCaution" class="status-caution" hidden>
+        Loaded status is stale, contradictory, or active-looking. Treat it as caution-only and follow request-only rules.
       </div>
       <div id="captainSummary" class="summary">Loading latest GitHub status...</div>
       <p class="muted" id="fetchNote"></p>

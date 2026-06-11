@@ -30,11 +30,17 @@ The dashboard must not contain or expose:
 - customer data
 - product data
 
+Loaded public status is view-only and never authority. If it appears stale, contradictory, or active-looking, the dashboard must show caution-only handling and point back to request-only rules instead of suggesting workarounds.
+
 ## Request-Only Actions
 
 Phone edits and phone links are requests or signals only. They do not start Codex, approve work, run shell commands, trigger GitHub Actions, deploy software, commit changes, push branches, mutate product repos, run all-fleet commands, run overnight runners, bind runtime commands, or create future authority.
 
 Emergency stop is a high-priority cooperative stop request. It must never become arbitrary command execution.
+
+Emergency stop requests may contain only non-secret request fields. They must not request or reveal PINs, passwords, MFA material, recovery codes, keys, tokens, credentials, private screenshots, private device identifiers, customer data, or product data.
+
+Emergency stop does not approve product-repo mutation, all-fleet execution, overnight runner execution, deploys, staging, commits, pushes, installs, migrations, lock deletion, permission widening, runtime command binding, phone approval, remote access configuration, process killing, or shell/Codex command execution.
 
 ## Browser Boundary
 
@@ -43,6 +49,10 @@ The browser must never store GitHub personal access tokens, Codex tokens, SSH ke
 The browser must never directly execute shell commands, Codex commands, deploy commands, GitHub Actions workflows, product-repo tasks, or approval flows.
 
 All scripts and styles for the static dashboard must be local files under `docs/assets`. Do not add analytics, trackers, ad scripts, external script CDNs, or external font CDNs.
+
+The public dashboard must not load third-party scripts, third-party stylesheets, external images, iframes, trackers, analytics, ad scripts, or external font CDNs. Required Phone HQ links are navigation only and must remain static/read-only or request-only.
+
+Dashboard JavaScript may read public-safe status only. It must not write to GitHub, trigger GitHub Actions, call a command backend, store credentials, execute shell/Codex commands, approve phone actions, or mutate product repos.
 
 ## Future Control Plane Boundary
 

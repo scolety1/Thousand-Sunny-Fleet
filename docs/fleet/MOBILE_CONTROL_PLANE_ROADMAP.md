@@ -16,6 +16,10 @@ Improve mobile layout, request-only wording, local assets, safe fallbacks, secur
 
 Add a separate authenticated service for private project views and request submission. Requests become structured records with requester, project, task summary, quality mode, files requested, forbidden operations, validation requested, approval requirements, status, and audit notes.
 
+Phase 2 cannot start from roadmap language alone. Before implementation, HQ must issue a separate one-task packet that defines authentication design, secret storage boundary, request integrity, policy gate, allowedFiles, validationCommands, stopIf, model routing / cost-quality recommendation, runner refusal behavior, audit logs, and human approval rules.
+
+Until that packet exists and passes validation, Phase 2 remains YELLOW: designed, not approved for backend/auth/execution work.
+
 ## Phase 3: Policy Gate And Model Router
 
 Classify each request before execution. Require one-task boundary, allowedFiles, validationCommands, stopIf, model routing / cost-quality recommendation, and explicit approval requirements.
@@ -23,6 +27,8 @@ Classify each request before execution. Require one-task boundary, allowedFiles,
 ## Phase 4: Controlled Runner Integration
 
 Connect policy-approved requests to a local or controlled runner that refuses missing contracts, forbidden operations, product repo access by default, all-fleet commands, overnight runners, deploys, staging, commits, pushes, installs, migrations, lock deletion, permission widening, runtime command binding, and secret handling.
+
+Runner integration requires its own later exact implementation packet. This roadmap does not approve a runner, GitHub Actions trigger, shell command path, Codex execution path, product-repo path, or unattended automation.
 
 ## Phase 5: Audited Project Control
 
@@ -40,3 +46,5 @@ Allow carefully scoped project work only after authentication, request records, 
 - no GitHub Actions triggers from public dashboard
 - no product/customer data on public pages
 - no authentication or backend implementation in this architecture task
+- no backend/auth/execution/GitHub Actions implementation approved by architecture docs alone
+- no runner integration until runner refusal behavior and audit logs are separately validated

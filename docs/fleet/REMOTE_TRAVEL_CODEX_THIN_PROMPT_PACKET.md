@@ -12,6 +12,8 @@ This packet is intentionally bounded to avoid full-handoff context bloat and tra
 
 Operational travel readiness remains YELLOW until Tuesday's off-network test is performed and recorded.
 
+Before starting a travel-mode Codex task after landing, use `docs/fleet/REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md` to confirm phone-only status/request actions are separated from laptop/desktop Codex work, repo cleanliness is known, request-only posture is clear, stop signs are inactive, and validation is available.
+
 ## Copy/Paste Prompt
 
 ```text

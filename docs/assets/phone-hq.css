@@ -168,6 +168,17 @@ main {
   font-size: 0.93rem;
 }
 
+.status-caution {
+  margin: 0 0 10px;
+  border: 1px solid #f59e0b;
+  border-left: 5px solid #d97706;
+  border-radius: 8px;
+  background: var(--amber-bg);
+  color: #713f12;
+  padding: 10px 11px;
+  font-weight: 800;
+}
+
 .muted {
   margin: 10px 0 0;
   color: var(--muted);

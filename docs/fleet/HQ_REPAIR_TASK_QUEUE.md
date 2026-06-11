@@ -6708,7 +6708,7 @@ This queue section is evidence only. It does not approve HouseOS repo access, pr
 
 ### HQ-221 Service Sync Studio Standalone Sandbox Spike
 
-- status: pending
+- status: done
 - phase: Service Sync Studio standalone sandbox spike
 - goal: Build a standalone local static prototype of Service Sync Studio using only synthetic fixture scenarios and the model contract.
 - prerequisites:
@@ -6740,7 +6740,7 @@ This queue section is evidence only. It does not approve HouseOS repo access, pr
 
 ### HQ-222 Service Sync Studio Post-Spike Review Gate
 
-- status: pending
+- status: done
 - phase: Service Sync Studio standalone sandbox review
 - goal: Review the HQ-221 standalone sandbox spike and recommend the next phase without approving HouseOS or product-repo work.
 - prerequisites:
@@ -7142,3 +7142,332 @@ This queue section is evidence only. It does not perform the actual off-network 
   - Requires files outside allowedFiles, the actual off-network test, configuring remote access, installing/updating software, changing OS/router/firewall/RDP/Tailscale/Chrome Remote Desktop settings, storing secrets, touching product repos, all-fleet execution, overnight execution, staging, commit, push, deploy, migrations, lock deletion, permission widening, phone approval, runtime command binding, broader authority, or a repeated unresolved uncertainty.
 - repeatablePrompt:
   - `Take exactly HQ-232 Tuesday Tabletop Rehearsal Hardening. Patch only HQ-232 allowedFiles. Do not run the actual off-network test or configure remote access. Run only HQ-232 validationCommands. Stop after HQ-232 and report GREEN/YELLOW/RED.`
+
+## Phone HQ Travel Hardening Queue 2026-06-10
+
+Purpose: convert the current Phone HQ and travel-facing Fleet control surface from a useful public cockpit into a cleaner request-only travel workflow. This queue is evidence-only planning and does not approve product work, runtime command binding, remote access configuration, all-fleet execution, overnight runner execution, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, or future authority.
+
+This section is intentionally ordered. Each run takes exactly the first pending task, patches only that task's allowed files, runs only that task's validation commands, updates only that task status in this queue after validation, and stops.
+
+### HQ-233 Travel Control Request-Only Freeze
+
+- status: done
+- phase: Phone HQ travel hardening
+- goal: Neutralize stale ACTIVE / EasyLife / push / overnight language in the phone-linked Fleet status and control files so travel use is clearly request-only.
+- prerequisites:
+  - Phone HQ hardening local diff reviewed as publish-safe
+- allowedFiles:
+  - `fleet/status/current.md`
+  - `fleet/status/today.md`
+  - `fleet/control/quick-mission.md`
+  - `fleet/control/emergency.md`
+  - `fleet/control/mission.md`
+  - `fleet/control/run-mode.json`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `fleet/status/current.md`
+  - `fleet/status/today.md`
+  - `fleet/control/quick-mission.md`
+  - `fleet/control/emergency.md`
+  - `fleet/control/mission.md`
+  - `fleet/control/run-mode.json`
+- acceptance:
+  - Phone-linked status/control files state travel posture is request-only or parked until an exact human-approved local run starts.
+  - Stale `Fleet mode: ACTIVE`, `push=True`, `up to 12 hours`, `bounded overnight`, and automatic "next cycle" language is removed or reframed as inactive historical context.
+  - Quick mission remains a request file and does not imply automatic execution.
+  - Emergency stop remains a cooperative request/signal and does not become arbitrary command execution.
+  - No product repo, all-fleet, overnight runner, stage, commit, push, deploy, install, migration, secret, lock deletion, permission widening, remote access configuration, phone approval, or runtime command binding authority is granted.
+  - Tests assert the request-only travel posture for the edited status/control files.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- evidence:
+  - Emergency stop template now defines `none` and `REQUEST_STOP` plus non-secret requester, timestamp, affected-surface, reason, and urgency fields.
+  - Emergency stop is documented as a high-priority cooperative request/signal for later safe handling, not arbitrary command execution, process killing, phone approval, runtime binding, all-fleet, overnight, product-repo mutation, deploy, stage, commit, push, install, migration, lock deletion, permission widening, or secret-handling authority.
+  - Phone HQ, security model, mobile architecture, and threat model docs now preserve the emergency stop request-only boundary and abuse-case controls.
+  - Tests assert emergency stop fields, no-secret language, forbidden-operation boundaries, no old command-like `STOP_ALL` label, and HQ-236 queue coverage.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- stopIf:
+  - Requires launching or stopping a real runner, touching product repos, changing remote access, storing secrets, all-fleet execution, overnight execution, staging, commit, push, deploy, installs, migrations, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Updated phone-linked status/control files to `REQUEST_ONLY_TRAVEL` with no active projects, no automatic next-cycle language, and no stale EasyLife/push/overnight direction.
+  - Preserved quick mission as a request-only template and emergency stop as a cooperative request/signal, not command execution or authority.
+  - Added focused fleet test coverage for request-only travel posture, stale active wording removal, no form-feed status link, empty active projects, and forbidden-operation boundaries.
+  - Validation passed: `git diff --check`; `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-233 Travel Control Request-Only Freeze. Patch only HQ-233 allowedFiles. Do not run or stop real runners. Run only HQ-233 validationCommands. Stop after HQ-233 and report GREEN/YELLOW/RED.`
+
+### HQ-234 Phone HQ Stale Status Guard
+
+- status: done
+- phase: Phone HQ travel hardening
+- goal: Make the static dashboard visibly safe when the public status feed is stale, contradictory, or reports an active-looking mode.
+- prerequisites:
+  - HQ-233 done
+- allowedFiles:
+  - `docs/index.html`
+  - `docs/assets/phone-hq.css`
+  - `docs/assets/phone-hq.js`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/index.html`
+  - `docs/assets/phone-hq.js`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+- acceptance:
+  - Dashboard clearly labels loaded status as view-only public status, not authority.
+  - If the loaded status says `ACTIVE`, `push=True`, all-fleet, overnight, deploy, or similar unsafe-looking text, the dashboard shows a safe caution and points to request-only rules.
+  - If status loading fails, the fallback remains safe and does not suggest unsafe workarounds.
+  - JavaScript stays local and read-only; it does not write to GitHub, trigger actions, execute commands, store credentials, or call a backend.
+  - Tests assert stale/active-looking status is treated as caution-only and request-only.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires authentication, a backend, GitHub tokens, command execution, GitHub Actions triggers, product repos, remote access changes, staging, commit, push, deploy, installs, migrations, secrets, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added a visible `statusCaution` dashboard surface that treats stale, contradictory, or active-looking loaded status as caution-only public status.
+  - Updated local dashboard JavaScript to flag `ACTIVE`, `push=True`, all-fleet, overnight, deploy/stage/commit/push/install/migration, runtime command binding, and phone approval language without writing to GitHub, triggering Actions, calling a command backend, storing credentials, or executing commands.
+  - Updated Phone HQ dashboard/security docs to state loaded public status is view-only, failures must use safe fallback links, and unsafe workarounds remain forbidden.
+  - Added focused fleet test assertions for stale/active-looking status caution handling, safe fetch failure wording, local-only assets, no browser storage, no command backend, no Actions trigger, and request-only boundaries.
+  - Validation passed: `git diff --check`; `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-234 Phone HQ Stale Status Guard. Patch only HQ-234 allowedFiles. Keep the dashboard static/read-only. Run only HQ-234 validationCommands. Stop after HQ-234 and report GREEN/YELLOW/RED.`
+
+### HQ-235 Quick Mission Request Contract
+
+- status: done
+- phase: Phone HQ travel hardening
+- goal: Tighten the quick mission request template so phone-submitted work is structured, bounded, and clearly non-executing.
+- prerequisites:
+  - HQ-233 done
+- allowedFiles:
+  - `fleet/control/quick-mission.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `fleet/control/quick-mission.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+- acceptance:
+  - Quick mission template distinguishes draft/requested/blocked/completed states without implying automatic execution.
+  - Template captures one task, desired project, files requested, forbidden operations, validation requested, quality mode, and checkpoint.
+  - Template says phone requests require later HQ/Codex review and cannot approve work.
+  - Template forbids product-repo mutation, all-fleet, overnight, deploy, stage, commit, push, installs, migrations, secrets, lock deletion, permission widening, runtime binding, phone approval, and remote access configuration by default.
+  - Tests assert the quick mission template preserves request-only and one-task boundaries.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing request intake, authenticating users, storing secrets, executing a request, product repo access, all-fleet execution, overnight execution, staging, commit, push, deploy, installs, migrations, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Tightened `fleet/control/quick-mission.md` into a one-task request template with `draft`, `requested`, `blocked`, and `completed` states, desired project, quality mode, requested model tier, requested files, requested validation, forbidden operations, stop conditions, and later HQ/Codex derivation fields.
+  - Updated `docs/fleet/MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md` with quick mission mapping into request object fields while preserving request-only, no-execution, no-product-repo-by-default, and no-future-authority boundaries.
+  - Updated `docs/fleet/PHONE_HQ_DASHBOARD.md` so phone workflow uses `draft` to `requested` and requires later one-task repacketization with `readFirst`, `allowedFiles`, `validationCommands`, `stopIf`, and report format.
+  - Added focused fleet test coverage for quick mission status vocabulary, one-task boundary, requested files/checks, quality mode, model routing/cost-quality recommendation, forbidden defaults, schema mapping, and dashboard workflow language.
+  - Validation passed: `git diff --check`; `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-235 Quick Mission Request Contract. Patch only HQ-235 allowedFiles. Do not implement execution or auth. Run only HQ-235 validationCommands. Stop after HQ-235 and report GREEN/YELLOW/RED.`
+
+### HQ-236 Emergency Stop Request Contract
+
+- status: done
+- phase: Phone HQ travel hardening
+- goal: Make the emergency stop path clear, safe, and non-secret without turning it into arbitrary command execution.
+- prerequisites:
+  - HQ-233 done
+- allowedFiles:
+  - `fleet/control/emergency.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_THREAT_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `fleet/control/emergency.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_THREAT_MODEL.md`
+- acceptance:
+  - Emergency stop template defines allowed values and non-secret fields without requesting credentials, PINs, MFA, keys, tokens, or private screenshots.
+  - Emergency stop is described as a high-priority request/signal for later safe handling, not arbitrary shell/Codex execution.
+  - Emergency stop does not approve product-repo mutation, all-fleet, overnight, deploy, stage, commit, push, installs, migrations, lock deletion, permission widening, runtime binding, or phone approval.
+  - Tests assert emergency stop remains a request/signal and preserves forbidden-operation boundaries.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- evidence:
+  - Emergency stop template defines `none` and `REQUEST_STOP` plus non-secret requester, timestamp, affected-surface, reason, and urgency fields.
+  - Emergency stop is documented as a high-priority cooperative request/signal for later safe handling, not arbitrary command execution, process killing, phone approval, runtime binding, all-fleet, overnight, product-repo mutation, deploy, stage, commit, push, install, migration, lock deletion, permission widening, or secret-handling authority.
+  - Phone HQ dashboard, security model, mobile architecture, and threat model preserve the emergency stop request-only boundary and abuse-case controls.
+  - Tests assert emergency stop fields, no-secret language, forbidden-operation boundaries, no old command-like `STOP_ALL` label, and HQ-236 queue coverage.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- stopIf:
+  - Requires actually stopping processes, configuring remote access, handling secrets, executing commands, product repo access, all-fleet execution, overnight execution, staging, commit, push, deploy, installs, migrations, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-236 Emergency Stop Request Contract. Patch only HQ-236 allowedFiles. Do not execute stop commands. Run only HQ-236 validationCommands. Stop after HQ-236 and report GREEN/YELLOW/RED.`
+
+### HQ-237 Mobile Control Plane Implementation Cutline
+
+- status: done
+- phase: Mobile control-plane planning
+- goal: Add a sharper go/no-go cutline before any authenticated control-plane implementation can begin.
+- prerequisites:
+  - Phone HQ security model exists
+  - Mobile control-plane architecture docs exist
+- allowedFiles:
+  - `docs/fleet/MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_THREAT_MODEL.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_THREAT_MODEL.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md`
+- acceptance:
+  - Docs define explicit preconditions for moving from public static HQ to authenticated request intake.
+  - Preconditions include auth design, secret storage boundary, request integrity, policy gate, allowedFiles, validationCommands, stopIf, model routing/cost-quality, runner refusal behavior, audit logs, and human approval rules.
+  - Docs state that no backend/auth/execution/GitHub Actions implementation is approved by the architecture docs alone.
+  - Tests assert implementation cutline and non-goal language.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- evidence:
+  - Added an implementation cutline to the mobile control-plane architecture stating architecture docs do not approve authenticated request intake, backend services, GitHub Actions wiring, command execution, runner integration, product-repo access, staging, commit, push, deploy, installs, migrations, lock deletion, permission widening, or secret handling.
+  - Documented required preconditions before moving from public static HQ to authenticated request intake: authentication design, secret storage boundary, request integrity, policy gate, allowedFiles, validationCommands, stopIf, model routing / cost-quality recommendation, runner refusal behavior, audit logs, and human approval rules.
+  - Updated roadmap, request schema, and threat model to preserve the Phase 2 cutline, premature-implementation abuse cases, explicit non-goals, and YELLOW posture until a later exact one-task implementation packet exists.
+  - Added focused fleet test coverage for implementation cutline language, non-goals, premature implementation threat coverage, request schema intake cutline, and HQ-237 queue coverage.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- stopIf:
+  - Requires backend implementation, authentication code, GitHub tokens, command execution, GitHub Actions triggers, product repo access, staging, commit, push, deploy, installs, migrations, secrets, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-237 Mobile Control Plane Implementation Cutline. Patch only HQ-237 allowedFiles. Do not implement backend/auth/execution. Run only HQ-237 validationCommands. Stop after HQ-237 and report GREEN/YELLOW/RED.`
+
+### HQ-238 Phone HQ Link And Asset Integrity Regression
+
+- status: done
+- phase: Phone HQ travel hardening
+- goal: Add focused regression coverage for public Phone HQ links, local assets, and no-third-party-loading boundaries.
+- prerequisites:
+  - Phone HQ hardening local diff reviewed as publish-safe
+- allowedFiles:
+  - `docs/index.html`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/index.html`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+- acceptance:
+  - Tests assert required Phone HQ links exist for latest status, today log, quick mission request, emergency stop request, mission control, travel packet, and security model.
+  - Tests assert local CSS/JS asset paths exist and no external scripts, stylesheets, analytics, trackers, ad scripts, external font CDNs, or external images are loaded.
+  - Tests assert external new-tab links use `rel="noopener noreferrer"` if any are introduced.
+  - Tests assert public dashboard remains static and request-only.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- evidence:
+  - Added Phone HQ dashboard link/asset integrity guidance for latest status, today log, quick mission request, emergency stop request, mission control, travel prompt packet, and security model.
+  - Updated the security model to forbid third-party scripts, third-party stylesheets, external images, iframes, trackers, analytics, ad scripts, external font CDNs, command backends, and browser-held credentials.
+  - Added focused fleet test coverage for required Phone HQ links, local CSS/JS asset paths, no external scripts/styles/images/imports/iframes/trackers, new-tab `rel="noopener noreferrer"` handling, and static/read-only/request-only boundaries.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- stopIf:
+  - Requires adding third-party assets, backend services, authentication, GitHub tokens, command execution, product repo access, staging, commit, push, deploy, installs, migrations, secrets, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-238 Phone HQ Link And Asset Integrity Regression. Patch only HQ-238 allowedFiles. Run only HQ-238 validationCommands. Stop after HQ-238 and report GREEN/YELLOW/RED.`
+
+### HQ-239 Travel Landing Checklist
+
+- status: done
+- phase: Remote travel readiness hardening
+- goal: Add a compact landing checklist for using the Fleet safely from phone/laptop after travel resumes.
+- prerequisites:
+  - HQ-233 done
+- allowedFiles:
+  - `docs/fleet/REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/REMOTE_TRAVEL_GO_NO_GO_POCKET_SUMMARY_2026_06_10.md`
+- acceptance:
+  - Checklist separates phone-only status/request actions from laptop/desktop Codex work.
+  - Checklist requires checking repo cleanliness, latest status, request-only posture, stop signs, and validation before any task run.
+  - Checklist says remote access grants no extra authority and phone edits are not approvals.
+  - Checklist forbids product repos, all-fleet, overnight, deploy, stage, commit, push, installs, migrations, secrets, lock deletion, permission widening, phone approval, and runtime binding unless a separate exact approval exists.
+  - Tests assert landing checklist exists and preserves safety boundaries.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- evidence:
+  - Added `docs/fleet/REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md` to separate phone-only status/request actions from laptop or desktop Codex work after travel resumes.
+  - Checklist requires repo cleanliness, `STABLE_CONTEXT_CAPSULE.md`, selected one-task queue contract, request-only posture, inactive stop signs, and task-specific validation before any travel-mode task run.
+  - Checklist preserves that remote access grants no extra authority and phone edits are not approvals.
+  - Phone HQ dashboard and travel thin prompt packet now link to the landing checklist before travel-mode Codex work.
+  - Tests assert checklist existence, phone-only actions, laptop/desktop preflight, GREEN/YELLOW/RED meanings, request-only posture, forbidden-operation boundaries, Phone HQ link coverage, and no extra authority.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- stopIf:
+  - Requires configuring remote access, running the off-network test, executing Codex work, product repo access, all-fleet execution, overnight execution, staging, commit, push, deploy, installs, migrations, secrets, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-239 Travel Landing Checklist. Patch only HQ-239 allowedFiles. Do not configure or execute remote work. Run only HQ-239 validationCommands. Stop after HQ-239 and report GREEN/YELLOW/RED.`
+
+### HQ-240 Phone HQ Post-Publish Verification Packet
+
+- status: done
+- phase: Phone HQ travel hardening
+- goal: Create a post-publish verification packet for when Tim separately approves staging, committing, pushing, and checking GitHub Pages.
+- prerequisites:
+  - Phone HQ hardening local diff reviewed as publish-safe
+- allowedFiles:
+  - `docs/fleet/PHONE_HQ_POST_PUBLISH_VERIFICATION.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+- acceptance:
+  - Packet is a checklist only and does not itself approve staging, commit, push, or deployment.
+  - Packet lists the exact files expected in the Phone HQ/security publish set.
+  - Packet includes pre-push checks, GitHub Pages URL check, phone smoke check, no-secret check, no-external-script check, and rollback note.
+  - Packet states publishing the static dashboard does not approve product work, command execution, phone approval, remote access configuration, all-fleet, overnight, deploys, installs, migrations, secrets, lock deletion, permission widening, or future authority.
+  - Tests assert the packet exists and preserves non-authority boundaries.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- evidence:
+  - Added `docs/fleet/PHONE_HQ_POST_PUBLISH_VERIFICATION.md` as a checklist-only packet for use after Tim separately and explicitly approves staging, committing, pushing, and checking the public GitHub Pages dashboard.
+  - Packet lists the expected static Phone HQ/security publish set, pre-push checks, hosted GitHub Pages URL check, phone smoke check, no-secret check, no-external-script check, and rollback/repair note.
+  - Packet preserves that publishing the static dashboard does not approve product work, command execution, phone approval, remote access configuration, all-fleet execution, overnight runner execution, deploys, installs, migrations, secrets, lock deletion, permission widening, or future authority.
+  - Phone HQ dashboard now links the post-publish verification packet.
+  - Tests assert packet existence, expected publish set, pre-push checks, hosted URL smoke checks, no-secret/no-external-script checks, request-only phone action boundaries, non-authority wording, and HQ-240 queue coverage.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- stopIf:
+  - Requires actually staging, committing, pushing, deploying, configuring Pages, product repo access, all-fleet execution, overnight execution, installs, migrations, secrets, lock deletion, permission widening, or files outside allowedFiles.
+- repeatablePrompt:
+  - `Take exactly HQ-240 Phone HQ Post-Publish Verification Packet. Patch only HQ-240 allowedFiles. Do not stage, commit, push, or deploy. Run only HQ-240 validationCommands. Stop after HQ-240 and report GREEN/YELLOW/RED.`

@@ -1,26 +1,27 @@
 # Fleet Mission
 
+Evidence only; not executable authority or approval.
+
 ## Fleet Mode
-ACTIVE
+
+REQUEST_ONLY_TRAVEL
 
 ## Active Projects
-- EasyLife
+
+None for automatic phone-triggered work.
 
 ## Mission
-Resume EasyLife only under Task Contract V2. Continue the AI personal assistant reset with small, visible frontend slices that cut clutter and push the product toward a slick, technical, calm command surface.
+
+Keep Thousand Sunny Fleet safe and understandable while traveling. The Phone HQ is a public static cockpit for status, quick mission requests, and emergency stop requests only.
 
 ## Priority
-Finish the assistant reset in many small slices. First screen should feel like a Today/assistant command surface, not feature inventory. Core model: Today, Inbox/Capture, Plan, Notes, More. Prefer cutting, tightening, and making the existing app feel techy/slick over adding new modules.
 
-## Product Direction
-Keep HQ/Today, EasyList capture and task review, Calendar/day plan, Notes, and Settings. Hide workout, projects, pipeline/jobs, contacts, statistics, school, and fun/drinks under More. Remove or hide from the HQ first path: Useful ideas without crowding today, Semester layer, Quiet tools under the surface, install card, presentation/demo language, and extra stats grids.
+Protect boundaries first: no product-repo work, no all-fleet commands, no overnight runners, no deploys, no installs, no migrations, no staging, no commits, no pushes, no secret handling, no lock deletion, no permission widening, no remote access configuration, no phone approval, and no runtime command binding from phone text or dashboard UI.
 
-## Do Not Do
-- Do not deploy.
-- Do not create a new dashboard.
-- Do not edit backend, auth, payments, APIs, analytics, dependencies, deployment config, release config, generated output, secrets, or project remotes.
-- Do not overwrite user-owned work.
-- Do not edit any repo except EasyLife and the fleet status/control files needed to run EasyLife.
+## Request Handling Rule
+
+Any phone request must be repacketized into one bounded Codex task before work starts. The task packet must name readFirst files, allowedFiles, validationCommands, stopIf conditions, and the report format.
 
 ## Next Checkpoint
-Run EasyLife with batch size 1 under Task Contract V2 for up to 12 hours. Every UI task must remove or simplify one confusing element and use `npm.cmd run build` from app-vNext.
+
+Before any work starts, confirm the repo state, read the relevant task packet, run only the named validation commands, and stop after one task.

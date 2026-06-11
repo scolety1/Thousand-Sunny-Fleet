@@ -1,16 +1,16 @@
 {
-  "fleetMode": "ACTIVE",
-  "activeProjects": [
-    "EasyLife"
-  ],
+  "fleetMode": "REQUEST_ONLY_TRAVEL",
+  "activeProjects": [],
+  "travelPosture": "phone_status_and_request_only",
   "quietHours": {
     "timeZone": "Pacific Standard Time",
-    "missionUpdatesPausedFrom": "03:00",
-    "missionUpdatesResumeAt": "07:00"
+    "missionUpdatesPausedFrom": "00:00",
+    "missionUpdatesResumeAt": "00:00"
   },
   "reportCadence": {
-    "publishWindow": "07:00-02:00",
-    "noChangeReports": "skip unless ForceReport is used"
+    "publishWindow": "manual_review_only",
+    "noChangeReports": "skip unless a later exact human-approved task packet requests a report"
   },
-  "emergency": "Set Emergency: STOP_ALL in fleet/control/emergency.md to request safe stops at any hour."
+  "requestHandling": "Phone edits create requests only. They do not execute Codex, approve work, update mission files automatically, touch product repos, run all-fleet commands, run overnight runners, stage, commit, push, deploy, install packages, run migrations, handle secrets, delete locks, widen permissions, configure remote access, approve phone actions, or bind runtime commands.",
+  "emergency": "Set Emergency: REQUEST_STOP in fleet/control/emergency.md to request a cooperative stop signal for later safe handling. This is not arbitrary command execution."
 }

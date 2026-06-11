@@ -815,6 +815,73 @@ function Test-HqRemoteTravelGoNoGoPocketSummary {
     Assert-False -Condition ($summaryText -match "(?is)(approves|authorizes|grants|permits).{0,180}(remote command execution|phone approval|product-repo access|all-fleet execution|overnight runner|future authority)") -Message "Remote travel go/no-go summary does not grant forbidden authority"
 }
 
+function Test-HqRemoteTravelLandingChecklist {
+    $checklistPath = Join-Path $fleetRoot "docs\fleet\REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md"
+    $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
+    $packetPath = Join-Path $fleetRoot "docs\fleet\REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($checklistPath, $dashboardPath, $packetPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Remote travel landing checklist artifact exists: $path"
+    }
+
+    $checklistText = Get-Content -LiteralPath $checklistPath -Raw -ErrorAction Stop
+    $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
+    $packetText = Get-Content -LiteralPath $packetPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+
+    foreach ($phrase in @(
+        "Remote Travel Landing Checklist",
+        "Evidence only; not executable authority or approval.",
+        "Phone-Only Status And Request Actions",
+        "Laptop Or Desktop Codex Work",
+        "Remote access grants no extra authority. Phone edits are not approvals.",
+        "Open the hosted Phone HQ dashboard.",
+        "Read latest Fleet status.",
+        "Read today log.",
+        "Capture one narrow idea in the quick mission request file.",
+        "Request a cooperative emergency stop with non-secret fields only.",
+        'Confirm you are in `C:\Dev\codex-fleet`.',
+        'Check repo cleanliness with `git status --short`.',
+        'Read `docs/fleet/STABLE_CONTEXT_CAPSULE.md`.',
+        'Confirm the selected task has `readFirst`, `allowedFiles`, `validationCommands`, `stopIf`, and report format.',
+        "Confirm the current Phone HQ posture is request-only.",
+        "Confirm stop signs are inactive.",
+        "Run only the selected task's validation commands.",
+        "stop and ask HQ for repacketization",
+        "GREEN means status is readable",
+        "YELLOW means status is stale",
+        "RED means the path requires secrets"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($phrase)) -Message "Remote travel landing checklist preserves phrase: $phrase"
+    }
+
+    foreach ($forbidden in @(
+        "product repos",
+        "all-fleet",
+        "overnight",
+        "deploy",
+        "stage",
+        "commit",
+        "push",
+        "installs",
+        "migrations",
+        "secrets",
+        "lock deletion",
+        "permission widening",
+        "phone approval",
+        "runtime binding",
+        "remote access configuration"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($forbidden)) -Message "Remote travel landing checklist preserves forbidden boundary: $forbidden"
+    }
+
+    Assert-True -Condition ($dashboardText -match "REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md") -Message "Phone HQ dashboard links travel landing checklist"
+    Assert-True -Condition ($packetText -match "REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md") -Message "Remote travel thin prompt references landing checklist"
+    Assert-True -Condition ($queueText -match "HQ-239 Travel Landing Checklist") -Message "HQ queue records travel landing checklist task"
+    Assert-False -Condition ($checklistText -match "(?is)(approves|authorizes|grants|permits).{0,180}(remote command execution|phone approval|product-repo access|all-fleet execution|overnight runner|future authority)") -Message "Remote travel landing checklist does not grant forbidden authority"
+}
+
 function Test-HqPhoneDashboardSecurityModel {
     $indexPath = Join-Path $fleetRoot "docs\index.html"
     $cssPath = Join-Path $fleetRoot "docs\assets\phone-hq.css"
@@ -828,10 +895,21 @@ function Test-HqPhoneDashboardSecurityModel {
     }
 
     $indexText = Get-Content -LiteralPath $indexPath -Raw -ErrorAction Stop
+    $cssText = Get-Content -LiteralPath $cssPath -Raw -ErrorAction Stop
+    $jsText = Get-Content -LiteralPath $jsPath -Raw -ErrorAction Stop
     $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
     $securityText = Get-Content -LiteralPath $securityPath -Raw -ErrorAction Stop
     $readmeText = Get-Content -LiteralPath $readmePath -Raw -ErrorAction Stop
     $combinedText = @($indexText, $dashboardText, $securityText) -join "`n"
+    $requiredPhoneHqLinks = @(
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md",
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md",
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/control/mission.md",
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md",
+        "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/PHONE_HQ_SECURITY_MODEL.md"
+    )
 
     foreach ($phrase in @(
         "This public dashboard is request-only. It does not execute Codex, approve deployments, or grant authority.",
@@ -845,7 +923,9 @@ function Test-HqPhoneDashboardSecurityModel {
         "Travel Codex Prompt Packet",
         "Request-only",
         "View-only",
-        "Forbidden from phone"
+        "Forbidden from phone",
+        "statusCaution",
+        "caution-only"
     )) {
         Assert-True -Condition ($indexText -match [regex]::Escape($phrase)) -Message "Phone HQ dashboard preserves mobile/security phrase: $phrase"
     }
@@ -858,7 +938,9 @@ function Test-HqPhoneDashboardSecurityModel {
         "browser must never directly execute shell commands",
         "future mobile control plane must be separate",
         "Remote access and phone access grant no extra authority",
-        "Product repo access must be separately scoped"
+        "Product repo access must be separately scoped",
+        "Loaded public status is view-only and never authority",
+        "Dashboard JavaScript may read public-safe status only"
     )) {
         Assert-True -Condition ($securityText -match [regex]::Escape($phrase)) -Message "Phone HQ security model preserves boundary: $phrase"
     }
@@ -878,7 +960,87 @@ function Test-HqPhoneDashboardSecurityModel {
     Assert-False -Condition ($indexText -match '<script\s+src="https?://') -Message "Phone HQ has no external script src"
     Assert-False -Condition ($indexText -match '<link[^>]+href="https?://') -Message "Phone HQ has no external stylesheet or font link"
     Assert-True -Condition ($indexText -match 'href="\./assets/phone-hq\.css"' -and $indexText -match 'src="\./assets/phone-hq\.js"') -Message "Phone HQ uses local CSS and JS assets"
+    Assert-True -Condition (Test-Path -LiteralPath $cssPath) -Message "Phone HQ local CSS asset path exists"
+    Assert-True -Condition (Test-Path -LiteralPath $jsPath) -Message "Phone HQ local JS asset path exists"
+    Assert-False -Condition ($indexText -match '<img[^>]+src="https?://') -Message "Phone HQ has no external image src"
+    Assert-False -Condition ($indexText -match '<iframe\b') -Message "Phone HQ has no iframe embeds"
+    Assert-False -Condition ($indexText -match '(?i)(analytics|gtag|googletagmanager|google-analytics|plausible|segment|mixpanel|hotjar|adservice|doubleclick)') -Message "Phone HQ has no analytics, trackers, or ad scripts"
+    Assert-False -Condition ($cssText -match '@import|url\(\s*["'']?https?://') -Message "Phone HQ CSS has no external imports, images, fonts, or styles"
     Assert-False -Condition ($indexText -match 'target="_blank"(?![^>]+rel="noopener noreferrer")') -Message "Phone HQ new-tab links use noopener noreferrer when present"
+    Assert-False -Condition ($jsText -match '\b(localStorage|sessionStorage)\b') -Message "Phone HQ JS does not store browser credentials or state"
+    Assert-False -Condition ($jsText -match '\bPOST\b|method\s*:|github\.com/.*/actions|workflow_dispatch') -Message "Phone HQ JS does not write, trigger Actions, or submit commands"
+    Assert-False -Condition ($jsText -match 'https://(?!raw\.githubusercontent\.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/current\.md)') -Message "Phone HQ JS does not call external command backends"
+    Assert-True -Condition ($cssText -match "status-caution") -Message "Phone HQ CSS styles the caution-only status guard"
+
+    foreach ($href in $requiredPhoneHqLinks) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($href)) -Message "Phone HQ public dashboard preserves required link: $href"
+    }
+
+    foreach ($phrase in @(
+        "Link And Asset Integrity",
+        "latest status",
+        "today log",
+        "quick mission request",
+        "emergency stop request",
+        "mission control",
+        "travel Codex prompt packet",
+        "security model",
+        'Static assets must stay local under `docs/assets`',
+        "Do not add external scripts",
+        'If a future external link opens in a new tab, it must use `rel="noopener noreferrer"`',
+        "Link presence is navigation only"
+    )) {
+        Assert-True -Condition ($dashboardText -match [regex]::Escape($phrase)) -Message "Phone HQ dashboard docs preserve link/asset integrity rule: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "must not load third-party scripts",
+        "third-party stylesheets",
+        "external images",
+        "iframes",
+        "trackers",
+        "analytics",
+        "ad scripts",
+        "external font CDNs",
+        "Required Phone HQ links are navigation only"
+    )) {
+        Assert-True -Condition ($securityText -match [regex]::Escape($phrase)) -Message "Phone HQ security model preserves no-third-party-loading rule: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "unsafeStatusPatterns",
+        "statusNeedsCaution",
+        "Loaded status contains active-looking or execution-looking language",
+        "Caution-only; phone actions remain requests",
+        "Live status did not load",
+        "do not execute from phone",
+        "request-only rules"
+    )) {
+        Assert-True -Condition ($jsText -match [regex]::Escape($phrase)) -Message "Phone HQ JS preserves stale status guard phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "\bACTIVE\b",
+        "push\s*=\s*true",
+        "\ball-fleet\b",
+        "\bovernight\b",
+        "\bdeploy\b",
+        "runtime command binding",
+        "phone approval"
+    )) {
+        Assert-True -Condition ($jsText -match [regex]::Escape($phrase)) -Message "Phone HQ JS treats active-looking status as caution-only: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Stale Or Active-Looking Status",
+        "view-only public status, not authority",
+        "treat it as caution-only and follow request-only rules",
+        "If live status loading fails",
+        "do not trigger GitHub Actions",
+        "do not execute Codex from phone text"
+    )) {
+        Assert-True -Condition ($dashboardText -match [regex]::Escape($phrase)) -Message "Phone HQ dashboard doc preserves stale status guard: $phrase"
+    }
 
     foreach ($forbiddenBoundary in @(
         "No public RDP or router port forwarding.",
@@ -895,13 +1057,465 @@ function Test-HqPhoneDashboardSecurityModel {
     Assert-True -Condition ($readmeText -match "PHONE_HQ_SECURITY_MODEL.md") -Message "README references Phone HQ security model"
 }
 
+function Test-HqPhonePostPublishVerificationPacket {
+    $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
+    $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($packetPath, $dashboardPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Phone HQ post-publish verification file exists: $path"
+    }
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw -ErrorAction Stop
+    $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $combinedText = @($packetText, $dashboardText) -join "`n"
+
+    foreach ($phrase in @(
+        "Phone HQ Post-Publish Verification Packet",
+        "Evidence only; not executable authority or approval.",
+        "Use this packet only after Tim separately and explicitly approves staging, committing, pushing, and checking the public GitHub Pages dashboard.",
+        "This packet is a checklist only.",
+        "does not itself approve staging, commit, push, deploy, GitHub Pages configuration",
+        "public static request/status cockpit",
+        "Expected Static Publish Set",
+        "Pre-Push Verification",
+        "GitHub Pages URL Check",
+        "Phone Smoke Check",
+        "Rollback Note",
+        "GREEN means",
+        "YELLOW means",
+        "RED means"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Phone HQ post-publish packet preserves checklist boundary: $phrase"
+    }
+
+    foreach ($fileName in @(
+        "README.md",
+        "docs/index.html",
+        "docs/assets/phone-hq.css",
+        "docs/assets/phone-hq.js",
+        "docs/fleet/PHONE_HQ_DASHBOARD.md",
+        "docs/fleet/PHONE_HQ_SECURITY_MODEL.md",
+        "docs/fleet/MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md",
+        "docs/fleet/MOBILE_CONTROL_PLANE_THREAT_MODEL.md",
+        "docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md",
+        "docs/fleet/MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md",
+        "tests/run-fleet-tests.ps1"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($fileName)) -Message "Phone HQ post-publish packet lists expected publish file: $fileName"
+    }
+
+    foreach ($phrase in @(
+        "git diff --check",
+        'powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1',
+        "no secrets, tokens, PINs, passwords, MFA material, recovery codes, keys, credentials",
+        "no client-side GitHub personal access token",
+        "no direct Codex command execution from the browser",
+        "no GitHub Actions trigger",
+        "no command backend",
+        "no external scripts",
+        "no external stylesheets",
+        "trackers, analytics, ad scripts, external font CDNs, external images, or iframes",
+        'rel="noopener noreferrer"',
+        "phone links and dashboard buttons remain request-only",
+        "emergency stop remains a cooperative request/signal"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Phone HQ post-publish packet preserves safety check: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "https://scolety1.github.io/Thousand-Sunny-Fleet/",
+        "security banner is visible",
+        "status loading is view-only",
+        "stale or active-looking status is caution-only",
+        "latest status link works",
+        "today log link works",
+        "quick mission request link opens the request file",
+        "emergency stop request link opens the request file",
+        "travel Codex prompt packet link works",
+        "security model link works"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Phone HQ post-publish packet preserves hosted smoke check: $phrase"
+    }
+
+    foreach ($forbiddenBoundary in @(
+        "product work",
+        "command execution",
+        "phone approval",
+        "remote access configuration",
+        "all-fleet execution",
+        "overnight runner execution",
+        "installs",
+        "migrations",
+        "secrets",
+        "lock deletion",
+        "permission widening",
+        "future authority",
+        "runtime command binding"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($forbiddenBoundary)) -Message "Phone HQ post-publish packet preserves forbidden boundary: $forbiddenBoundary"
+    }
+
+    Assert-True -Condition ($dashboardText -match "PHONE_HQ_POST_PUBLISH_VERIFICATION.md") -Message "Phone HQ dashboard links post-publish verification packet"
+    Assert-True -Condition ($queueText -match "HQ-240 Phone HQ Post-Publish Verification Packet") -Message "HQ queue records post-publish verification task"
+    foreach ($badGrant in @(
+        "this packet approves staging",
+        "this packet approves commit",
+        "this packet approves push",
+        "this packet approves deploy",
+        "this packet approves GitHub Pages configuration",
+        "this verification packet approves product work",
+        "this verification packet authorizes command execution",
+        "this packet permits phone approval",
+        "this packet grants future authority"
+    )) {
+        Assert-False -Condition ($combinedText -match [regex]::Escape($badGrant)) -Message "Phone HQ post-publish packet avoids forbidden grant phrase: $badGrant"
+    }
+
+    foreach ($badExecution in @(
+        "run Codex commands from the public page",
+        "execute shell commands from the browser",
+        "trigger GitHub Actions workflow from phone",
+        "run command execution from phone"
+    )) {
+        Assert-False -Condition ($combinedText -match [regex]::Escape($badExecution)) -Message "Phone HQ post-publish packet avoids browser or phone command execution phrase: $badExecution"
+    }
+}
+
+function Test-HqPhoneTravelRequestOnlyFreeze {
+    $currentPath = Join-Path $fleetRoot "fleet\status\current.md"
+    $todayPath = Join-Path $fleetRoot "fleet\status\today.md"
+    $quickMissionPath = Join-Path $fleetRoot "fleet\control\quick-mission.md"
+    $emergencyPath = Join-Path $fleetRoot "fleet\control\emergency.md"
+    $missionPath = Join-Path $fleetRoot "fleet\control\mission.md"
+    $runModePath = Join-Path $fleetRoot "fleet\control\run-mode.json"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($currentPath, $todayPath, $quickMissionPath, $emergencyPath, $missionPath, $runModePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Phone travel request-only file exists: $path"
+    }
+
+    $currentText = Get-Content -LiteralPath $currentPath -Raw -ErrorAction Stop
+    $todayText = Get-Content -LiteralPath $todayPath -Raw -ErrorAction Stop
+    $quickMissionText = Get-Content -LiteralPath $quickMissionPath -Raw -ErrorAction Stop
+    $emergencyText = Get-Content -LiteralPath $emergencyPath -Raw -ErrorAction Stop
+    $missionText = Get-Content -LiteralPath $missionPath -Raw -ErrorAction Stop
+    $runModeText = Get-Content -LiteralPath $runModePath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $combinedText = @($currentText, $todayText, $quickMissionText, $emergencyText, $missionText, $runModeText) -join "`n"
+    $runMode = $runModeText | ConvertFrom-Json
+
+    foreach ($phrase in @(
+        "REQUEST_ONLY_TRAVEL",
+        "phone status and request cockpit only",
+        "Phone edits are not approval",
+        "does not run Codex",
+        "REQUEST_STOP",
+        "not arbitrary command execution",
+        "readFirst files",
+        "allowedFiles",
+        "validationCommands",
+        "stopIf"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Phone travel request-only files preserve phrase: $phrase"
+    }
+
+    foreach ($forbiddenPattern in @(
+        "(?m)^- Fleet mode: ACTIVE$",
+        "(?m)^Fleet Mode: ACTIVE$",
+        "push=True",
+        "up to 12 hours",
+        "bounded overnight",
+        "next remote-control cycle",
+        "the next cycle will update",
+        "Resume EasyLife",
+        "(?m)^- EasyLife$"
+    )) {
+        Assert-False -Condition ($combinedText -match $forbiddenPattern) -Message "Phone travel request-only files remove stale active pattern: $forbiddenPattern"
+    }
+
+    foreach ($forbiddenBoundary in @(
+        "product-repo",
+        "all-fleet",
+        "overnight",
+        "deploy",
+        "stage",
+        "commit",
+        "push",
+        "install",
+        "migration",
+        "secret",
+        "lock deletion",
+        "permission widening",
+        "remote access configuration",
+        "phone approval",
+        "runtime command binding"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($forbiddenBoundary)) -Message "Phone travel request-only files preserve forbidden boundary: $forbiddenBoundary"
+    }
+
+    Assert-Equal -Actual ([string]$runMode.fleetMode) -Expected "REQUEST_ONLY_TRAVEL" -Message "Run mode is request-only for travel"
+    Assert-Equal -Actual (@($runMode.activeProjects).Count) -Expected 0 -Message "Run mode has no active projects for phone-triggered work"
+    Assert-True -Condition ([string]$runMode.requestHandling -match "Phone edits create requests only") -Message "Run mode records phone request-only handling"
+    Assert-True -Condition ($todayText -notmatch [char]0x0c) -Message "Today log has no form-feed control character in status link"
+    Assert-True -Condition ($queueText -match "HQ-233 Travel Control Request-Only Freeze") -Message "HQ queue records travel control request-only freeze task"
+}
+
+function Test-HqQuickMissionRequestContract {
+    $quickMissionPath = Join-Path $fleetRoot "fleet\control\quick-mission.md"
+    $requestSchemaPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md"
+    $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($quickMissionPath, $requestSchemaPath, $dashboardPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Quick mission contract file exists: $path"
+    }
+
+    $quickMissionText = Get-Content -LiteralPath $quickMissionPath -Raw -ErrorAction Stop
+    $requestSchemaText = Get-Content -LiteralPath $requestSchemaPath -Raw -ErrorAction Stop
+    $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $combinedText = @($quickMissionText, $requestSchemaText, $dashboardText) -join "`n"
+
+    foreach ($phrase in @(
+        "Status: draft",
+        "Allowed Status Values",
+        '`draft`: still being written',
+        '`requested`: ready for later HQ/Codex review',
+        '`blocked`: missing context or unsafe as written',
+        '`completed`: later review handled the request',
+        "No status value executes Codex",
+        "One Task",
+        "Desired Project",
+        "Quality Mode",
+        "best_value",
+        "perfection",
+        "Requested Model Tier",
+        "Requested Files",
+        "Validation Requested",
+        "Forbidden Operations",
+        "Stop If",
+        "Later HQ/Codex Review Must Produce"
+    )) {
+        Assert-True -Condition ($quickMissionText -match [regex]::Escape($phrase)) -Message "Quick mission template preserves request field: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "readFirst files",
+        "allowedFiles",
+        "validationCommands",
+        "stopIf conditions",
+        "report format",
+        "policy classification",
+        "model routing / cost-quality recommendation",
+        "audit notes without secrets"
+    )) {
+        Assert-True -Condition ($quickMissionText -match [regex]::Escape($phrase)) -Message "Quick mission template requires later task packet field: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "no product-repo mutation",
+        "no all-fleet commands",
+        "no overnight runner",
+        "no deploy",
+        "no stage",
+        "no commit",
+        "no push",
+        "no installs",
+        "no migrations",
+        "no secrets",
+        "no lock deletion",
+        "no permission widening",
+        "no runtime command binding",
+        "no phone approval",
+        "no remote access configuration",
+        "no GitHub Actions trigger",
+        "no direct Codex command execution"
+    )) {
+        Assert-True -Condition ($quickMissionText -match [regex]::Escape($phrase)) -Message "Quick mission template preserves forbidden default: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Quick Mission Request Mapping",
+        "public phone quick mission file is a request template only",
+        '`Status` maps to request intake state',
+        '`One Task` maps to `taskSummary`',
+        '`Desired Project` maps to `project`',
+        '`Quality Mode` maps to `qualityMode`',
+        '`Requested Files` maps to `filesRequested`; it is not `allowedFiles` until HQ/Codex review',
+        '`Validation Requested` maps to `validationRequested`; it is not `validationCommands` until HQ/Codex review',
+        '`Stop If` maps to later `stopIf` conditions',
+        "Phone requests cannot approve work, execute Codex, trigger GitHub Actions, bind runtime commands, touch product repos, or grant future authority."
+    )) {
+        Assert-True -Condition ($requestSchemaText -match [regex]::Escape($phrase)) -Message "Mobile request schema maps quick mission field: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Status: draft",
+        "Status: requested",
+        "one task, desired project, requested files, validation requested, forbidden operations, and next checkpoint",
+        'one-task packet with `readFirst`, `allowedFiles`, `validationCommands`, `stopIf`, and report format',
+        "best_value",
+        "perfection",
+        "model routing and cost-quality recommendations still happen later"
+    )) {
+        Assert-True -Condition ($dashboardText -match [regex]::Escape($phrase)) -Message "Phone HQ dashboard explains quick mission request flow: $phrase"
+    }
+
+    Assert-False -Condition ($combinedText -match "Status:\s*SUBMIT") -Message "Quick mission no longer uses SUBMIT as execution-looking state"
+    Assert-False -Condition ($combinedText -match "automatic execution") -Message "Quick mission contract avoids automatic execution language except denials"
+    Assert-True -Condition ($combinedText -match "does not execute this request automatically" -or $combinedText -match "not execute anything") -Message "Quick mission contract explicitly denies automatic execution"
+    Assert-True -Condition ($queueText -match "HQ-235 Quick Mission Request Contract") -Message "HQ queue records quick mission request contract task"
+}
+
+function Test-HqEmergencyStopRequestContract {
+    $emergencyPath = Join-Path $fleetRoot "fleet\control\emergency.md"
+    $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
+    $securityPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_SECURITY_MODEL.md"
+    $architecturePath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md"
+    $threatPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_THREAT_MODEL.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($emergencyPath, $dashboardPath, $securityPath, $architecturePath, $threatPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Emergency stop contract file exists: $path"
+    }
+
+    $emergencyText = Get-Content -LiteralPath $emergencyPath -Raw -ErrorAction Stop
+    $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
+    $securityText = Get-Content -LiteralPath $securityPath -Raw -ErrorAction Stop
+    $architectureText = Get-Content -LiteralPath $architecturePath -Raw -ErrorAction Stop
+    $threatText = Get-Content -LiteralPath $threatPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $combinedText = @($emergencyText, $dashboardText, $securityText, $architectureText, $threatText) -join "`n"
+
+    foreach ($phrase in @(
+        "Emergency: none",
+        "Allowed Values",
+        '`none`',
+        '`REQUEST_STOP`',
+        "Request Fields",
+        'Requested by: non-secret name or `unknown`',
+        'Created at: non-secret timestamp or `unknown`',
+        'Affected surface: `Codex Fleet`, `Phone HQ`, `selected future runner`, or `unknown`',
+        "Non-secret reason: short plain-language reason only",
+        'Urgency: `low`, `normal`, or `high`',
+        "high-priority cooperative stop request/signal",
+        "not arbitrary shell execution",
+        "not arbitrary command execution",
+        "Later Handling",
+        'blocked` for HQ repacketization'
+    )) {
+        Assert-True -Condition ($emergencyText -match [regex]::Escape($phrase)) -Message "Emergency stop template preserves field/boundary: $phrase"
+    }
+
+    foreach ($secretPhrase in @(
+        "PINs",
+        "passwords",
+        "MFA codes",
+        "recovery codes",
+        "keys",
+        "tokens",
+        "credentials",
+        "private screenshots",
+        "private device identifiers",
+        "customer data",
+        "product data"
+    )) {
+        Assert-True -Condition ($emergencyText -match [regex]::Escape($secretPhrase)) -Message "Emergency stop template rejects secret/sensitive field: $secretPhrase"
+    }
+
+    foreach ($forbidden in @(
+        "process killing",
+        "remote access configuration",
+        "phone approval",
+        "runtime command binding",
+        "all-fleet",
+        "overnight",
+        "product-repo mutation",
+        "deploy",
+        "staging",
+        "commit",
+        "push",
+        "install",
+        "migration",
+        "lock deletion",
+        "permission widening",
+        "secret-handling"
+    )) {
+        Assert-True -Condition ($emergencyText -match [regex]::Escape($forbidden)) -Message "Emergency stop template denies forbidden authority: $forbidden"
+    }
+
+    foreach ($phrase in @(
+        'Emergency stop requests use `Emergency: REQUEST_STOP` and non-secret fields only',
+        "not command execution, process killing, phone approval, runtime command binding, or product-repo authority",
+        "Emergency Stop Request Rules",
+        'Use `REQUEST_STOP` only as a cooperative request/signal',
+        "Do not include PINs, passwords, MFA, recovery codes, keys, tokens, credentials",
+        "A later HQ/Codex review must repacketize any stop handling into one bounded task before work starts."
+    )) {
+        Assert-True -Condition ($dashboardText -match [regex]::Escape($phrase)) -Message "Phone HQ dashboard preserves emergency stop rule: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Emergency stop requests may contain only non-secret request fields",
+        "Emergency stop does not approve product-repo mutation",
+        "process killing",
+        "shell/Codex command execution"
+    )) {
+        Assert-True -Condition ($securityText -match [regex]::Escape($phrase)) -Message "Phone HQ security model preserves emergency stop boundary: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Emergency stop requests must carry only non-secret fields",
+        "must be repacketized before any runner-side behavior",
+        "do not approve process killing",
+        "remote access configuration",
+        "runtime command binding"
+    )) {
+        Assert-True -Condition ($architectureText -match [regex]::Escape($phrase)) -Message "Mobile architecture preserves emergency stop boundary: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Emergency Stop Abuse Cases",
+        '`REQUEST_STOP` text treated as a shell command',
+        "emergency request used to kill processes from the public dashboard",
+        "emergency request used to configure remote access",
+        "emergency request used as phone approval",
+        "emergency request containing PINs, passwords, MFA, recovery codes, keys, tokens, credentials",
+        "Required control: emergency stop remains a high-priority request/signal"
+    )) {
+        Assert-True -Condition ($threatText -match [regex]::Escape($phrase)) -Message "Mobile threat model preserves emergency stop abuse case: $phrase"
+    }
+
+    foreach ($redPhrase in @(
+        "run all-fleet",
+        "run overnight",
+        "deploy",
+        "stage",
+        "commit",
+        "push",
+        "install",
+        "migrate",
+        "delete locks",
+        "widen permissions",
+        "trigger GitHub Actions"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($redPhrase)) -Message "Emergency stop docs preserve RED forbidden path: $redPhrase"
+    }
+
+    Assert-False -Condition ($combinedText -match "STOP_ALL") -Message "Emergency stop contract avoids old STOP_ALL command-like label"
+    Assert-True -Condition ($queueText -match "HQ-236 Emergency Stop Request Contract") -Message "HQ queue records emergency stop request contract task"
+}
+
 function Test-HqMobileControlPlaneArchitecture {
     $architecturePath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_SECURITY_ARCHITECTURE.md"
     $threatPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_THREAT_MODEL.md"
     $roadmapPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_ROADMAP.md"
     $schemaPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_REQUEST_SCHEMA.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
 
-    foreach ($path in @($architecturePath, $threatPath, $roadmapPath, $schemaPath)) {
+    foreach ($path in @($architecturePath, $threatPath, $roadmapPath, $schemaPath, $queuePath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Mobile control plane architecture doc exists: $path"
     }
 
@@ -909,6 +1523,7 @@ function Test-HqMobileControlPlaneArchitecture {
     $threatText = Get-Content -LiteralPath $threatPath -Raw -ErrorAction Stop
     $roadmapText = Get-Content -LiteralPath $roadmapPath -Raw -ErrorAction Stop
     $schemaText = Get-Content -LiteralPath $schemaPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
     $combinedText = @($architectureText, $threatText, $roadmapText, $schemaText) -join "`n"
 
     foreach ($phrase in @(
@@ -983,6 +1598,38 @@ function Test-HqMobileControlPlaneArchitecture {
     Assert-True -Condition ($schemaText -match "one-task boundary" -and $schemaText -match "allowedFiles" -and $schemaText -match "validationCommands" -and $schemaText -match "stopIf") -Message "Mobile request schema preserves executable task contract"
     Assert-True -Condition ($combinedText -match "no direct browser command execution" -or $combinedText -match "direct browser command execution") -Message "Mobile control plane rejects direct browser command execution"
     Assert-True -Condition ($combinedText -match "no client-side secrets" -or $combinedText -match "browser must never store") -Message "Mobile control plane rejects client-side secrets"
+
+    foreach ($phrase in @(
+        "Implementation Cutline",
+        "not approval to begin authenticated request intake",
+        "authentication design",
+        "secret storage boundary",
+        "request integrity",
+        "policy gate",
+        "allowedFiles",
+        "validationCommands",
+        "stopIf",
+        "model routing / cost-quality recommendation",
+        "runner refusal behavior",
+        "audit logs",
+        "human approval rules",
+        "does not approve backend/auth/execution/GitHub Actions implementation",
+        "separate one-task implementation packet"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Mobile control plane preserves implementation cutline: $phrase"
+    }
+
+    foreach ($nonGoal in @(
+        "no authentication or backend implementation in this architecture task",
+        "no backend/auth/execution/GitHub Actions implementation approved by architecture docs alone",
+        "no runner integration until runner refusal behavior and audit logs are separately validated"
+    )) {
+        Assert-True -Condition ($roadmapText -match [regex]::Escape($nonGoal)) -Message "Mobile roadmap preserves implementation non-goal: $nonGoal"
+    }
+
+    Assert-True -Condition ($threatText -match "Premature control-plane implementation") -Message "Mobile threat model covers premature implementation"
+    Assert-True -Condition ($schemaText -match "Authenticated Intake Cutline") -Message "Mobile request schema preserves authenticated intake cutline"
+    Assert-True -Condition ($queueText -match "HQ-237 Mobile Control Plane Implementation Cutline") -Message "HQ queue records mobile control plane implementation cutline task"
 }
 
 function Test-FixtureGeneration {
@@ -15586,7 +16233,12 @@ Test-HqRemoteTravelAntiLoopCapsule
 Test-HqRemoteTravelChromeRemoteDesktopTriage
 Test-HqRemoteTravelPowerUpdateSafety
 Test-HqRemoteTravelGoNoGoPocketSummary
+Test-HqRemoteTravelLandingChecklist
 Test-HqPhoneDashboardSecurityModel
+Test-HqPhonePostPublishVerificationPacket
+Test-HqPhoneTravelRequestOnlyFreeze
+Test-HqQuickMissionRequestContract
+Test-HqEmergencyStopRequestContract
 Test-HqMobileControlPlaneArchitecture
 Test-FixtureGeneration
 Test-PhaseZeroIntakeSupport

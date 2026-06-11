@@ -35,6 +35,27 @@ Unsafe shape:
 - browser-held Codex token
 - broad product-repo access from mobile
 
+## Implementation Cutline
+
+This architecture is not approval to begin authenticated request intake, backend services, GitHub Actions wiring, command execution, runner integration, product-repo access, staging, commit, push, deploy, installs, migrations, lock deletion, permission widening, or secret handling.
+
+Before moving from the public static HQ to authenticated request intake, a separate one-task implementation packet must define and pass these preconditions:
+
+- authentication design
+- secret storage boundary
+- request integrity and replay resistance
+- policy gate
+- one-task boundary
+- allowedFiles
+- validationCommands
+- stopIf
+- model routing / cost-quality recommendation
+- runner refusal behavior
+- audit logs
+- human approval rules
+
+If any precondition is missing, ambiguous, or untested, implementation remains YELLOW and must stop for HQ repacketization. Passing documentation tests for this architecture does not approve backend/auth/execution/GitHub Actions implementation.
+
 ## Browser Rules
 
 The browser must never store GitHub PATs, Codex tokens, SSH keys, deploy keys, MFA codes, passwords, repo secrets, runner credentials, or project secrets.
@@ -56,6 +77,8 @@ Public static dashboard:
 Authenticated request intake:
 
 - real authentication before private project views or request submission
+- separate approval packet before implementation
+- no browser-held secrets or client-side GitHub tokens
 - request schema validation
 - request IDs and timestamps
 - replay-resistant request handling
@@ -81,6 +104,7 @@ Controlled runner:
 
 - receives only policy-approved request objects
 - refuses missing allowedFiles, validationCommands, or stopIf
+- refuses implementation packets that lack request integrity, model routing / cost-quality recommendation, audit logs, or human approval rules
 - refuses product repos unless separately scoped and approved
 - refuses public dashboard commands
 - writes an audit log for every decision and run
@@ -96,6 +120,8 @@ The mobile app must not grant broad repo access, all-fleet authority, deployment
 Emergency stop is high-priority and safe. It may create a stop request, raise visibility, or ask a controlled runner to pause through a narrow audited stop path.
 
 Emergency stop must never become arbitrary command execution, secret handling, product-repo mutation, deploy authority, all-fleet authority, or phone approval authority.
+
+Emergency stop requests must carry only non-secret fields and must be repacketized before any runner-side behavior. They do not approve process killing, remote access configuration, runtime command binding, staging, commit, push, install, migration, lock deletion, permission widening, or broader authority.
 
 ## GREEN / YELLOW / RED
 
