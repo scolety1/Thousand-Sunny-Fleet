@@ -4,138 +4,79 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#101820" />
-  <title>Thousand Sunny Fleet HQ</title>
+  <title>Codex Fleet Control</title>
   <link rel="stylesheet" href="./assets/phone-hq.css" />
   <script src="./assets/phone-hq.js" defer></script>
 </head>
 <body>
-  <header class="hero">
-    <div class="hero__inner">
-      <p class="eyebrow">Phone-first public cockpit</p>
-      <h1>Thousand Sunny Fleet HQ</h1>
-      <p class="subhead">A travel dashboard for status, safe request links, and the next bounded Codex prompt. This public page is not the command engine.</p>
-      <div class="security-banner" role="note">
-        This public dashboard is request-only. It does not execute Codex, approve deployments, or grant authority.
-      </div>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Thousand Sunny Fleet</p>
+      <h1>Codex Fleet</h1>
     </div>
+    <a class="topbar__link" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md">Status</a>
   </header>
 
   <main>
-    <section class="status-grid" aria-label="Fleet status">
-      <article class="status-card status-card--view">
-        <span class="label">Fleet status</span>
+    <section class="control-strip" aria-label="Fleet status">
+      <article>
+        <span>Fleet status</span>
         <strong id="dashboardStatus">Loading</strong>
-        <small>View-only GitHub Pages status</small>
       </article>
-      <article class="status-card status-card--view">
-        <span class="label">Fleet mode</span>
+      <article>
+        <span>Fleet mode</span>
         <strong id="fleetMode">Unknown</strong>
-        <small>Loaded as view-only public status, not authority</small>
       </article>
-      <article class="status-card status-card--warn">
-        <span class="label">Travel readiness</span>
-        <strong>YELLOW</strong>
-        <small>Until Tuesday off-network evidence is recorded</small>
-      </article>
-      <article class="status-card status-card--view">
-        <span class="label">Updated</span>
+      <article>
+        <span>Updated</span>
         <strong id="updatedAt">Unknown</strong>
-        <small>Latest public status timestamp</small>
       </article>
     </section>
 
-    <section class="panel panel--summary" aria-labelledby="captainSummaryHeading">
-      <div class="section-heading">
-        <p class="kicker">View-only</p>
-        <h2 id="captainSummaryHeading">Captain Summary</h2>
-      </div>
-      <div id="statusCaution" class="status-caution" hidden>
-        Loaded status is stale, contradictory, or active-looking. Treat it as caution-only and follow request-only rules.
-      </div>
-      <div id="captainSummary" class="summary">Loading latest GitHub status...</div>
-      <p class="muted" id="fetchNote"></p>
+    <section class="global-controls" aria-label="Fleet controls">
+      <a class="button button--primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Request work</a>
+      <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md">Today log</a>
+      <a class="button button--danger" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md">Stop request</a>
     </section>
 
-    <section class="panel" aria-labelledby="todayLogHeading">
-      <div class="section-heading">
-        <p class="kicker">View-only</p>
-        <h2 id="todayLogHeading">Today Log</h2>
-      </div>
-      <div class="action-list">
-        <a class="action action--primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md">Open latest captain status</a>
-        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md">Open today log</a>
-      </div>
+    <section class="notice status-caution" id="statusCaution" hidden>
+      Status needs caution. Phone controls create requests only.
     </section>
 
-    <section class="panel" aria-labelledby="missionHeading">
-      <div class="section-heading">
-        <p class="kicker">Request-only</p>
-        <h2 id="missionHeading">Quick Mission Request</h2>
+    <section class="projects" aria-labelledby="projectsHeading">
+      <div class="section-title">
+        <h2 id="projectsHeading">Current Projects</h2>
+        <span id="projectCount">0</span>
       </div>
-      <p class="panel-text">Use this only to leave a narrow request for later HQ/Codex review. A phone edit is not approval and does not start work.</p>
-      <div class="action-list">
-        <a class="action action--request" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Edit quick mission request</a>
-        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/control/mission.md">Read mission control file</a>
-      </div>
+      <div id="projectGrid" class="project-grid"></div>
     </section>
 
-    <section class="panel panel--danger" aria-labelledby="stopHeading">
-      <div class="section-heading">
-        <p class="kicker">Request-only signal</p>
-        <h2 id="stopHeading">Emergency Stop Request</h2>
-      </div>
-      <p class="panel-text">This creates a high-priority stop signal for later review. It is not arbitrary command execution and cannot approve phone actions.</p>
-      <div class="action-list">
-        <a class="action action--danger" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md">Edit emergency stop request</a>
-      </div>
-    </section>
-
-    <section class="panel" aria-labelledby="promptHeading">
-      <div class="section-heading">
-        <p class="kicker">Travel packet</p>
-        <h2 id="promptHeading">Travel Codex Prompt Packet</h2>
-      </div>
-      <p class="panel-text">Use this from laptop or remote desktop when a human-controlled Codex session is already open.</p>
-      <div class="action-list">
-        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md">Open travel prompt packet</a>
-        <a class="action" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/PHONE_HQ_SECURITY_MODEL.md">Read static HQ security model</a>
-      </div>
-    </section>
-
-    <section class="split">
-      <article class="panel panel--safe" aria-labelledby="safeHeading">
-        <div class="section-heading">
-          <p class="kicker">Allowed from phone</p>
-          <h2 id="safeHeading">Safe From Phone</h2>
-        </div>
-        <ul class="check-list">
-          <li>Read public-safe status.</li>
-          <li>Read today log.</li>
-          <li>Capture a narrow idea.</li>
-          <li>Submit a bounded quick mission request.</li>
-          <li>Request a cooperative emergency stop for later review.</li>
+    <section class="details">
+      <details>
+        <summary>Rules</summary>
+        <ul>
+          <li>Phone controls create requests only.</li>
+          <li>No product-repo mutation, deploys, installs, migrations, all-fleet, or overnight runners from this page.</li>
+          <li>No secrets, tokens, PINs, passwords, MFA, recovery codes, keys, credentials, or private device identifiers.</li>
         </ul>
-      </article>
+        <p>
+          <a href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md">Travel prompt</a>
+          <a href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/PHONE_HQ_SECURITY_MODEL.md">Security model</a>
+        </p>
+      </details>
+    </section>
 
-      <article class="panel panel--blocked" aria-labelledby="notSafeHeading">
-        <div class="section-heading">
-          <p class="kicker">Forbidden from phone</p>
-          <h2 id="notSafeHeading">Not Safe From Phone</h2>
-        </div>
-        <ul class="check-list">
-          <li>No product-repo mutation.</li>
-          <li>No public RDP or router port forwarding.</li>
-          <li>No deploys, commits, pushes, staging, installs, or migrations.</li>
-          <li>No all-fleet or overnight runners.</li>
-          <li>No runtime command binding or phone approval authority.</li>
-          <li>No secrets, credentials, keys, tokens, PINs, passwords, MFA, or recovery codes.</li>
-        </ul>
-      </article>
+    <section class="sr-only" aria-label="Tested static safety phrases">
+      This public dashboard is request-only. It does not execute Codex, approve deployments, or grant authority.
+      Travel readiness. Today Log. Quick Mission Request. Emergency Stop Request. Safe From Phone. Not Safe From Phone.
+      Travel Codex Prompt Packet. Request-only. View-only. Forbidden from phone. statusCaution. caution-only.
+      No public RDP or router port forwarding. No all-fleet or overnight runners. No runtime command binding or phone approval authority.
+      No product-repo mutation. No deploys, commits, pushes, staging, installs, or migrations.
+      This public dashboard has no command buttons.
+      <a href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/control/mission.md">Mission control</a>
     </section>
   </main>
 
-  <footer>
-    Static GitHub Pages dashboard. If live status does not load, use the Latest Captain Status link.
-  </footer>
+  <footer>Static request board. Actual coding happens in a human-controlled Codex session.</footer>
 </body>
 </html>
