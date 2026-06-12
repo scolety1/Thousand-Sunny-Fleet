@@ -8,7 +8,7 @@ Status can be stale until `tools/fleet-project-status.ps1` is regenerated and th
 
 | Project | Status | Branch | Clean | Checkpoint | Build | Pending | Next action |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
-| PrivateLens | GREEN | codex/experiment-PrivateLens-20260611-010133 | clean | GREEN | Passed | 0 | Human review next; queue one bounded task when ready. |
+| PrivateLens | GREEN | codex/experiment-PrivateLens-20260611-010133 | clean | GREEN | Passed | 0 | Local proof commit `8084b2c489bf39ce7fb33deb07e9e5d306414855` accepted; push/merge/deploy blocked pending separate approval. |
 | Bottlelight | YELLOW | master | clean | YELLOW | Quarantined | 2 | Request one-project proof run for the next queued task. |
 | CursorPets | YELLOW | codex/cursor-pets-CursorPets-20260425-034126 | clean | YELLOW | Passed | 0 | Review evidence before requesting more work. |
 | EasyLife | YELLOW | codex/product-EasyLife-20260504-231503 | clean | UNKNOWN | Not run; docs-only final handoff with no app code changes. | 6 | Request one-project proof run for the next queued task. |
