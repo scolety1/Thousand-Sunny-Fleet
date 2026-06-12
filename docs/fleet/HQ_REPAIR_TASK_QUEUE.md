@@ -7583,3 +7583,40 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens`, `git diff --check`, and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 - repeatablePrompt:
   - `Take exactly HQ-242 PrivateLens CSV Validation Proof Task Packet. Patch only HQ-242 allowedFiles. Do not modify PrivateLens or run the proof run. Run only HQ-242 validationCommands. Stop after HQ-242 and report GREEN/YELLOW/RED.`
+
+### HQ-243 Model Routing Policy Spec V1
+
+- status: done
+- phase: Phone HQ project-control hardening
+- goal: Add an alias-only model-routing and cost-quality policy spec without wiring it into live execution.
+- allowedFiles:
+  - `docs/fleet/MODEL_ROUTING_POLICY.md`
+  - `docs/fleet/MODEL_ROUTING_FIXTURES.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- qualityModes:
+  - `best_value`
+  - `perfection`
+- modelAliases:
+  - `fast_readonly`
+  - `standard_patch`
+  - `deep_reasoning`
+  - `premium_audit`
+- acceptance:
+  - Policy defines task classifier dimensions for scope, risk, ambiguity, validation strength, token pressure, and failure cost.
+  - Policy defines escalation triggers for repeated uncertainty, validation failed twice, security boundary unclear, high token pressure, product/deploy/secrets boundary, and explicit Tim "perfect" request.
+  - Policy defines blocked conditions regardless of alias for secrets, unauthorized product repo access, deploy/merge/push, all-fleet, overnight runner, and broad authority.
+  - Policy uses aliases only, not hardcoded current model names or current pricing claims.
+  - Policy does not call model APIs or wire routing into live execution.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires real model API lookup, current pricing claims, execution integration, product repo access, secrets, deploy/merge/push, all-fleet execution, overnight runner execution, broader authority, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/MODEL_ROUTING_POLICY.md` and `docs/fleet/MODEL_ROUTING_FIXTURES.md`.
+  - Updated `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md` to keep Phase 3 alias-only until a separate implementation packet approves runner-side policy gate work.
+  - Tests assert the docs exist and preserve aliases, `best_value`/`perfection`, classifier dimensions, escalation triggers, blocked conditions, no current model names, no pricing claims, and no execution integration.
+- repeatablePrompt:
+  - `Take exactly HQ-243 Model Routing Policy Spec V1. Patch only HQ-243 allowedFiles. Do not wire into execution. Run only HQ-243 validationCommands. Stop after HQ-243 and report GREEN/YELLOW/RED.`

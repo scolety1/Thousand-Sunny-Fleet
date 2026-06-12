@@ -2002,6 +2002,71 @@ function Test-HqMobileControlPlaneArchitecture {
     Assert-True -Condition ($queueText -match "HQ-237 Mobile Control Plane Implementation Cutline") -Message "HQ queue records mobile control plane implementation cutline task"
 }
 
+function Test-HqModelRoutingPolicySpec {
+    $policyPath = Join-Path $fleetRoot "docs\fleet\MODEL_ROUTING_POLICY.md"
+    $fixturesPath = Join-Path $fleetRoot "docs\fleet\MODEL_ROUTING_FIXTURES.md"
+    $roadmapPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_ROADMAP.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($policyPath, $fixturesPath, $roadmapPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Model routing policy doc exists: $path"
+    }
+
+    $policyText = Get-Content -LiteralPath $policyPath -Raw -ErrorAction Stop
+    $fixturesText = Get-Content -LiteralPath $fixturesPath -Raw -ErrorAction Stop
+    $roadmapText = Get-Content -LiteralPath $roadmapPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $combinedText = @($policyText, $fixturesText, $roadmapText, $queueText) -join "`n"
+
+    foreach ($phrase in @(
+        "Evidence only; not executable authority or approval.",
+        "best_value",
+        "perfection",
+        "fast_readonly",
+        "standard_patch",
+        "deep_reasoning",
+        "premium_audit",
+        "scope",
+        "risk",
+        "ambiguity",
+        "validation strength",
+        "token pressure",
+        "failure cost"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($phrase)) -Message "Model routing policy preserves phrase: $phrase"
+    }
+
+    foreach ($trigger in @(
+        "repeated uncertainty",
+        "validation failed twice",
+        "security boundary unclear",
+        "high token pressure",
+        "product/deploy/secrets boundary",
+        'explicit Tim "perfect" request'
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($trigger)) -Message "Model routing policy preserves escalation trigger: $trigger"
+    }
+
+    foreach ($blocked in @(
+        "secrets",
+        "unauthorized product repo access",
+        "deploy/merge/push",
+        "all-fleet",
+        "overnight runner",
+        "broad authority"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($blocked)) -Message "Model routing policy preserves blocked condition: $blocked"
+    }
+
+    Assert-True -Condition ($combinedText -match "aliases only" -and $combinedText -match "Do not hardcode current model names") -Message "Model routing policy is alias-only"
+    Assert-True -Condition ($roadmapText -match "Phase 3 model routing starts as an alias-only policy specification") -Message "Mobile roadmap records alias-only model routing cutline"
+    Assert-True -Condition ($queueText -match "HQ-243 Model Routing Policy Spec V1") -Message "HQ queue records model routing policy task"
+    Assert-False -Condition ($policyText -match "(?i)\b(gpt|claude|gemini|llama|mistral|o[0-9])[-A-Za-z0-9.]*\b") -Message "Model routing policy avoids hardcoded current model names"
+    Assert-False -Condition ($fixturesText -match "(?i)\b(gpt|claude|gemini|llama|mistral|o[0-9])[-A-Za-z0-9.]*\b") -Message "Model routing fixtures avoid hardcoded current model names"
+    Assert-False -Condition ($combinedText -match "(?i)(cost per|dollar|usd|\$[0-9])") -Message "Model routing docs avoid current pricing claims"
+    Assert-False -Condition ($combinedText -match "(?i)(call model APIs|wire routing into live execution|approve any Codex run).*(allowed|enabled|implemented)") -Message "Model routing docs do not wire execution"
+}
+
 function Test-FixtureGeneration {
     $generator = Join-Path $fleetRoot "tests\new-fixture-ships.ps1"
     $generatorText = Get-Content $generator -Raw
@@ -16613,6 +16678,7 @@ Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
 Test-HqEmergencyStopRequestContract
 Test-HqMobileControlPlaneArchitecture
+Test-HqModelRoutingPolicySpec
 Test-FixtureGeneration
 Test-PhaseZeroIntakeSupport
 Test-PhaseOneArchitectureSupport

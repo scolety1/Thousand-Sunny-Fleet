@@ -36,6 +36,8 @@ Until that packet exists and passes validation, Phase 2 remains YELLOW: designed
 
 Classify each request before execution. Require one-task boundary, allowedFiles, validationCommands, stopIf, model routing / cost-quality recommendation, and explicit approval requirements.
 
+Phase 3 model routing starts as an alias-only policy specification. Use `fast_readonly`, `standard_patch`, `deep_reasoning`, and `premium_audit` as advisory aliases for `best_value` and `perfection` quality modes. Do not hardcode current model names, claim current pricing, call model APIs, or wire routing into live execution until a separate implementation packet approves and validates a runner-side policy gate.
+
 ## Phase 4: Controlled Runner Integration
 
 Connect policy-approved requests to a local or controlled runner that refuses missing contracts, forbidden operations, product repo access by default, all-fleet commands, overnight runners, deploys, staging, commits, pushes, installs, migrations, lock deletion, permission widening, runtime command binding, and secret handling.
