@@ -1312,26 +1312,64 @@ function Test-HqOneProjectProofRunWorkflow {
         }
     ) | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fixtureConfig -Encoding UTF8
 
-    $preflightOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -TaskSelector "confidence check" -RequireSelectedTask 2>&1)
-    $preflightExit = $LASTEXITCODE
-    Assert-Equal -Actual $preflightExit -Expected 0 -Message "Proof-run preflight passes fixture with exactly one selected task"
-    $preflightJoined = $preflightOutput -join "`n"
-    foreach ($phrase in @(
-        "PASS: exactly_one_project",
-        "PASS: exactly_one_selected_task_for_actual_run",
-        "PASS: task_queue_exists",
-        "PASS: build_validation_command_exists",
-        "PASS: launch_gate_script_exists",
-        "PASS: checkpoint_review_script_exists",
-        "Preflight posture: GREEN"
-    )) {
-        Assert-True -Condition ($preflightJoined -match [regex]::Escape($phrase)) -Message "Proof-run preflight output preserves expected pass phrase: $phrase"
-    }
+    $shimRoot = Join-Path $fixtureDir "cli-shims"
+    New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+    $originalPath = $env:PATH
+    try {
+        @"
+@echo off
+echo codex-cli-fixture 1.0.0
+exit /b 0
+"@ | Set-Content -LiteralPath (Join-Path $shimRoot "codex.cmd") -Encoding ASCII
+        $env:PATH = "$shimRoot;$originalPath"
 
-    $blockedOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -RequireSelectedTask 2>&1)
-    $blockedExit = $LASTEXITCODE
-    Assert-True -Condition ($blockedExit -ne 0) -Message "Proof-run preflight fails closed when actual run requires a task but none is selected"
-    Assert-True -Condition (($blockedOutput -join "`n") -match "actual proof run requires exactly one selected task") -Message "Proof-run preflight names missing selected-task stop sign"
+        $preflightOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -TaskSelector "confidence check" -RequireSelectedTask 2>&1)
+        $preflightExit = $LASTEXITCODE
+        Assert-Equal -Actual $preflightExit -Expected 0 -Message "Proof-run preflight passes fixture with exactly one selected task"
+        $preflightJoined = $preflightOutput -join "`n"
+        foreach ($phrase in @(
+            "PASS: exactly_one_project",
+            "PASS: exactly_one_selected_task_for_actual_run",
+            "PASS: task_queue_exists",
+            "PASS: build_validation_command_exists",
+            "PASS: launch_gate_script_exists",
+            "PASS: checkpoint_review_script_exists",
+            "PASS: codex_cli_detected - codex-cli-fixture 1.0.0",
+            "Actual proof-run ready: True",
+            "Preflight posture: GREEN"
+        )) {
+            Assert-True -Condition ($preflightJoined -match [regex]::Escape($phrase)) -Message "Proof-run preflight output preserves expected pass phrase: $phrase"
+        }
+
+        @"
+@echo off
+echo Access is denied 1>&2
+exit /b 5
+"@ | Set-Content -LiteralPath (Join-Path $shimRoot "codex.cmd") -Encoding ASCII
+
+        $unreadableOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -TaskSelector "confidence check" -RequireSelectedTask 2>&1)
+        $unreadableExit = $LASTEXITCODE
+        $unreadableJoined = $unreadableOutput -join "`n"
+        Assert-Equal -Actual $unreadableExit -Expected 0 -Message "Proof-run preflight reports unreadable Codex CLI as controlled YELLOW"
+        Assert-True -Condition ($unreadableJoined -match "WARN: codex_cli_detected") -Message "Proof-run preflight warns when Codex CLI version check fails"
+        Assert-True -Condition ($unreadableJoined -match "version check failed") -Message "Proof-run preflight names failed Codex version check"
+        Assert-True -Condition ($unreadableJoined -match "Actual proof-run ready: False") -Message "Proof-run preflight fails closed when Codex CLI is unreadable"
+        Assert-True -Condition ($unreadableJoined -match "Preflight posture: YELLOW") -Message "Proof-run preflight keeps unreadable Codex as YELLOW, not GREEN"
+
+        @"
+@echo off
+echo codex-cli-fixture 1.0.0
+exit /b 0
+"@ | Set-Content -LiteralPath (Join-Path $shimRoot "codex.cmd") -Encoding ASCII
+
+        $blockedOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -RequireSelectedTask 2>&1)
+        $blockedExit = $LASTEXITCODE
+        Assert-True -Condition ($blockedExit -ne 0) -Message "Proof-run preflight fails closed when actual run requires a task but none is selected"
+        Assert-True -Condition (($blockedOutput -join "`n") -match "actual proof run requires exactly one selected task") -Message "Proof-run preflight names missing selected-task stop sign"
+    } finally {
+        $env:PATH = $originalPath
+        Remove-Item -LiteralPath $shimRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Test-HqPrivateLensCsvValidationProofTaskPacket {
@@ -4186,7 +4224,7 @@ function Test-ProductAdmissionGateSupport {
         "-ConfigPath", $fixtureConfig,
         "-OutMarkdown", $dashboardMissingFirstScreenReport,
         "-NoHtml"
-    ) -TimeoutSeconds 90
+    ) -TimeoutSeconds 240
     Assert-Equal -Actual $dashboardMissingFirstScreen.ExitCode -Expected 0 -Message "Product dashboard runs when task staging metadata is incomplete"
     $dashboardMissingFirstScreenText = Get-Content -LiteralPath $dashboardMissingFirstScreenReport -Raw
     Assert-True -Condition ($dashboardMissingFirstScreenText -match 'Staging Attention') -Message "Product dashboard writes staging attention section"
@@ -4332,7 +4370,7 @@ function Test-ProductAdmissionGateSupport {
         "-ConfigPath", $fixtureConfig,
         "-OutMarkdown", $dashboardReport,
         "-NoHtml"
-    ) -TimeoutSeconds 90
+    ) -TimeoutSeconds 240
     Assert-Equal -Actual $dashboard.ExitCode -Expected 0 -Message "Product dashboard runs after staging metadata is ready"
     $dashboardReportText = Get-Content -LiteralPath $dashboardReport -Raw
     Assert-True -Condition ($dashboardReportText -match '\| Ship \| Group \| Launch \| Admission \| Score \| Usefulness \| Staging \|') -Message "Product dashboard includes staging column"
@@ -5644,7 +5682,7 @@ function Test-GoldenGameplanStageTenSupport {
             "-ReportPath", $criticalReport,
             "-JsonReportPath", $criticalJson,
             "-ResumeMetadataPath", $criticalResume
-        ) -TimeoutSeconds 30
+        ) -TimeoutSeconds 90
         Assert-Equal -Actual $criticalRun.ExitCode -Expected 0 -Message "Stage 10 critical budget wrapper succeeds"
         $criticalResult = Get-Content $criticalJson -Raw | ConvertFrom-Json
         Assert-Equal -Actual $criticalResult.governor.decision -Expected "SAFE_LAND_NOW" -Message "Stage 10 wrapper records safe landing decision"

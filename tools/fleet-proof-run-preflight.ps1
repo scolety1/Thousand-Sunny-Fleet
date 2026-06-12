@@ -78,6 +78,48 @@ function Test-BuildCommandEvidence {
     return [pscustomobject]@{ ok = $true; detail = "buildCommand present; exact command existence not executed" }
 }
 
+function Get-CodexCliEvidence {
+    $command = Get-Command "codex" -ErrorAction SilentlyContinue
+    if ($null -eq $command) {
+        return [pscustomobject]@{
+            ok = $false
+            version = ""
+            detail = "codex command missing or unreadable"
+        }
+    }
+
+    try {
+        $versionOutput = @(codex --version 2>&1)
+        $exitCode = $LASTEXITCODE
+        $versionText = ($versionOutput -join " ").Trim()
+        if ($exitCode -eq 0 -and ![string]::IsNullOrWhiteSpace($versionText)) {
+            return [pscustomobject]@{
+                ok = $true
+                version = $versionText
+                detail = $versionText
+            }
+        }
+
+        $detail = if (![string]::IsNullOrWhiteSpace($versionText)) {
+            "codex command found but version check failed: $versionText"
+        } else {
+            "codex command found but version check failed"
+        }
+        return [pscustomobject]@{
+            ok = $false
+            version = ""
+            detail = $detail
+        }
+    } catch {
+        $message = ($_.Exception.Message -replace "\s+", " ").Trim()
+        return [pscustomobject]@{
+            ok = $false
+            version = ""
+            detail = "codex command found but not executable: $message"
+        }
+    }
+}
+
 Set-Location $fleetRoot
 $checks = [System.Collections.Generic.List[object]]::new()
 $stopSigns = [System.Collections.Generic.List[string]]::new()
@@ -151,13 +193,9 @@ Add-Check -Checks $checks -Name "launch_gate_script_exists" -Ok (Test-Path -Lite
 $checkpointReviewPath = Join-Path $fleetRoot "checkpoint-review.ps1"
 Add-Check -Checks $checks -Name "checkpoint_review_script_exists" -Ok (Test-Path -LiteralPath $checkpointReviewPath) -Detail "checkpoint review required after Codex edits"
 
-$codexCommand = Get-Command "codex" -ErrorAction SilentlyContinue
-$codexVersion = ""
-if ($codexCommand) {
-    $versionOutput = @(codex --version 2>&1)
-    $codexVersion = ($versionOutput -join " ").Trim()
-}
-Add-Check -Checks $checks -Name "codex_cli_detected" -Ok ($null -ne $codexCommand -and ![string]::IsNullOrWhiteSpace($codexVersion)) -Detail $(if ($codexVersion) { $codexVersion } else { "codex command missing or unreadable" })
+$codexEvidence = Get-CodexCliEvidence
+$codexVersion = [string]$codexEvidence.version
+Add-Check -Checks $checks -Name "codex_cli_detected" -Ok ([bool]$codexEvidence.ok) -Detail ([string]$codexEvidence.detail)
 
 $runtimePath = Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1"
 $runtimeText = if (Test-Path -LiteralPath $runtimePath) { Get-Content -LiteralPath $runtimePath -Raw } else { "" }
@@ -187,7 +225,8 @@ foreach ($check in $checks) {
 Write-Output ""
 Write-Output "Project: $ProjectId"
 Write-Output "Task queue unchecked count: $($uncheckedTasks.Count)"
-Write-Output "Actual proof-run ready: $($hasExactlyOneSelectedTask -and $stopSigns.Count -eq 0)"
+$failedCheckCount = @($checks | Where-Object { -not $_.ok }).Count
+Write-Output "Actual proof-run ready: $($hasExactlyOneSelectedTask -and $stopSigns.Count -eq 0 -and $failedCheckCount -eq 0)"
 Write-Output "Phone/dashboard controls: request/status only"
 Write-Output "Forbidden operations remain blocked: secrets, backend/auth/payments/deploy, installs, migrations, remote access, all-fleet, overnight runner, merge, push, deploy, broader authority"
 
@@ -198,7 +237,7 @@ if ($stopSigns.Count -gt 0) {
     exit 1
 }
 
-if (@($checks | Where-Object { -not $_.ok }).Count -gt 0) {
+if ($failedCheckCount -gt 0) {
     Write-Output ""
     Write-Output "Preflight posture: YELLOW"
     exit 0
