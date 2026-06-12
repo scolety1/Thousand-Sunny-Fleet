@@ -16,6 +16,14 @@ Phase 1 may include generated public-safe project status snapshots from local ev
 
 Snapshot status can be stale until regenerated and separately published. Stale status does not approve Codex execution or product-repo work.
 
+## Phase 1.5: One-Project Proof-Run Workflow
+
+Make the successful PrivateLens proof path repeatable as a local Fleet workflow before authenticated control-plane work begins.
+
+Phase 1.5 requires exactly one registered project, exactly one selected task, launch gate before Codex, Codex CLI/service_tier compatibility preflight, known repo clean/dirty state, task queue presence, build/validation command presence, checkpoint review after Codex edits, and human review before merge, push, deploy, or any second task.
+
+The workflow remains local and evidence-only until a separate exact task packet approves an actual project run. Phone/dashboard controls remain request-only and cannot execute Codex, approve product work, merge, push, deploy, run all-fleet, run overnight, or grant broader authority.
+
 ## Phase 2: Authenticated Request Intake
 
 Add a separate authenticated service for private project views and request submission. Requests become structured records with requester, project, task summary, quality mode, files requested, forbidden operations, validation requested, approval requirements, status, and audit notes.

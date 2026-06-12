@@ -1166,6 +1166,174 @@ function Test-HqPhoneProjectStatusDashboard {
     }
 }
 
+function Test-HqOneProjectProofRunWorkflow {
+    $workflowPath = Join-Path $fleetRoot "docs\fleet\ONE_PROJECT_PROOF_RUN_WORKFLOW.md"
+    $examplePath = Join-Path $fleetRoot "docs\fleet\ONE_PROJECT_PROOF_RUN_PRIVATE_LENS_EXAMPLE.md"
+    $roadmapPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_ROADMAP.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $preflightPath = Join-Path $fleetRoot "tools\fleet-proof-run-preflight.ps1"
+
+    foreach ($path in @($workflowPath, $examplePath, $roadmapPath, $queuePath, $preflightPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "One-project proof-run file exists: $path"
+    }
+
+    $workflowText = Get-Content -LiteralPath $workflowPath -Raw -ErrorAction Stop
+    $exampleText = Get-Content -LiteralPath $examplePath -Raw -ErrorAction Stop
+    $roadmapText = Get-Content -LiteralPath $roadmapPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $preflightText = Get-Content -LiteralPath $preflightPath -Raw -ErrorAction Stop
+    $combinedText = @($workflowText, $exampleText, $roadmapText, $queueText, $preflightText) -join "`n"
+
+    foreach ($phrase in @(
+        "One-Project Proof Run Workflow",
+        "Evidence only; not executable authority or approval.",
+        "exactly one registered project",
+        "exactly one selected task",
+        "launch gate before Codex",
+        "Codex CLI/service_tier compatibility",
+        "repo clean/dirty state",
+        "task queue presence",
+        "build/validation command presence",
+        "checkpoint review after Codex edits",
+        "stop for human review",
+        "Phone/dashboard controls are request-only",
+        'service_tier="fast"',
+        'service_tier="default"',
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens"
+    )) {
+        Assert-True -Condition ($workflowText -match [regex]::Escape($phrase)) -Message "One-project workflow preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "PrivateLens proved the v1 one-project proof-run pattern",
+        'selected project only: `PrivateLens`',
+        "one bounded task only",
+        'configured build check passed: `npm.cmd run build`',
+        'checkpoint review returned `GREEN`',
+        "Fleet stopped for human review",
+        "no merge, push, deploy",
+        "The current PrivateLens task queue is empty after the successful proof"
+    )) {
+        Assert-True -Condition ($exampleText -match [regex]::Escape($phrase)) -Message "PrivateLens proof example preserves phrase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "Phase 1.5: One-Project Proof-Run Workflow",
+        "exactly one registered project",
+        "exactly one selected task",
+        "launch gate before Codex",
+        "checkpoint review after Codex edits",
+        "human review before merge, push, deploy",
+        "Phone/dashboard controls remain request-only"
+    )) {
+        Assert-True -Condition ($roadmapText -match [regex]::Escape($phrase)) -Message "Roadmap preserves one-project proof-run phase: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "HQ-241 One-Project Proof-Run Workflow V1",
+        "status: done",
+        "docs/fleet/ONE_PROJECT_PROOF_RUN_WORKFLOW.md",
+        "docs/fleet/ONE_PROJECT_PROOF_RUN_PRIVATE_LENS_EXAMPLE.md",
+        "tools/fleet-proof-run-preflight.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens",
+        "Do not modify product repos"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records one-project proof-run workflow: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "exactly_one_project",
+        "exactly_one_selected_task_for_actual_run",
+        "repo_state_known",
+        "task_queue_exists",
+        "build_validation_command_exists",
+        "launch_gate_script_exists",
+        "checkpoint_review_script_exists",
+        "codex_cli_detected",
+        "service_tier_supported",
+        "RequireSelectedTask",
+        "Phone/dashboard controls: request/status only",
+        "Forbidden operations remain blocked"
+    )) {
+        Assert-True -Condition ($preflightText -match [regex]::Escape($phrase)) -Message "Proof-run preflight checks boundary: $phrase"
+    }
+
+    foreach ($forbiddenBoundary in @(
+        "secrets",
+        "backend/auth/payments/deploy",
+        "package installs",
+        "migrations",
+        "remote access",
+        "all-fleet",
+        "overnight runner",
+        "merge, push, deploy",
+        "broader authority",
+        "phone/dashboard UI treated as execution authority"
+    )) {
+        Assert-True -Condition ($combinedText -match [regex]::Escape($forbiddenBoundary)) -Message "One-project proof-run docs preserve forbidden boundary: $forbiddenBoundary"
+    }
+
+    Assert-False -Condition ($workflowText -match "(?is)(approves|authorizes|grants|permits).{0,140}(merge|push|deploy|all-fleet|overnight|future authority|product-repo authority)") -Message "One-project proof-run workflow does not grant forbidden authority"
+    Assert-False -Condition ($exampleText -match "(?is)(approves|authorizes|grants|permits).{0,140}(PrivateLens|product-repo|merge|push|deploy|future authority)") -Message "PrivateLens proof example does not grant future product authority"
+
+    $fixtureDir = Join-Path $fixtureRoot "one-project-proof-run"
+    $fixtureRepo = Join-Path $fixtureDir "privatelens-fixture"
+    $fixtureConfig = Join-Path $fixtureDir "projects.json"
+    New-Item -ItemType Directory -Force -Path (Join-Path $fixtureRepo "docs\codex") | Out-Null
+    Push-Location $fixtureRepo
+    try {
+        git init *> $null
+        git config user.email "codex@example.local"
+        git config user.name "Codex Test"
+        @"
+{
+  "scripts": {
+    "build": "echo build"
+  }
+}
+"@ | Set-Content -LiteralPath "package.json" -Encoding UTF8
+        @"
+# Codex Task Queue
+
+## Tasks
+
+- [ ] User pain: confidence check. Skill: frontend-ui-engineering. Target: src/. Change: add one confidence display. First screen: keep workspace dominant. Guardrails: no backend/auth/payments/deploy/secrets/package installs. Acceptance: build passes. Check: npm.cmd run build [class:feature risk:low mode:single scope:src/]
+"@ | Set-Content -LiteralPath "docs\codex\TASK_QUEUE.md" -Encoding UTF8
+    } finally {
+        Pop-Location
+    }
+
+    @(
+        [pscustomobject]@{
+            name = "PrivateLens"
+            repo = $fixtureRepo
+            buildDirectory = "."
+            buildCommand = "npm.cmd run build"
+        }
+    ) | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fixtureConfig -Encoding UTF8
+
+    $preflightOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -TaskSelector "confidence check" -RequireSelectedTask 2>&1)
+    $preflightExit = $LASTEXITCODE
+    Assert-Equal -Actual $preflightExit -Expected 0 -Message "Proof-run preflight passes fixture with exactly one selected task"
+    $preflightJoined = $preflightOutput -join "`n"
+    foreach ($phrase in @(
+        "PASS: exactly_one_project",
+        "PASS: exactly_one_selected_task_for_actual_run",
+        "PASS: task_queue_exists",
+        "PASS: build_validation_command_exists",
+        "PASS: launch_gate_script_exists",
+        "PASS: checkpoint_review_script_exists",
+        "Preflight posture: GREEN"
+    )) {
+        Assert-True -Condition ($preflightJoined -match [regex]::Escape($phrase)) -Message "Proof-run preflight output preserves expected pass phrase: $phrase"
+    }
+
+    $blockedOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $preflightPath -ConfigPath $fixtureConfig -ProjectId PrivateLens -RequireSelectedTask 2>&1)
+    $blockedExit = $LASTEXITCODE
+    Assert-True -Condition ($blockedExit -ne 0) -Message "Proof-run preflight fails closed when actual run requires a task but none is selected"
+    Assert-True -Condition (($blockedOutput -join "`n") -match "actual proof run requires exactly one selected task") -Message "Proof-run preflight names missing selected-task stop sign"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -16345,6 +16513,7 @@ Test-HqRemoteTravelGoNoGoPocketSummary
 Test-HqRemoteTravelLandingChecklist
 Test-HqPhoneDashboardSecurityModel
 Test-HqPhoneProjectStatusDashboard
+Test-HqOneProjectProofRunWorkflow
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

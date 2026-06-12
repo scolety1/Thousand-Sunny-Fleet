@@ -7471,3 +7471,48 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Requires actually staging, committing, pushing, deploying, configuring Pages, product repo access, all-fleet execution, overnight execution, installs, migrations, secrets, lock deletion, permission widening, or files outside allowedFiles.
 - repeatablePrompt:
   - `Take exactly HQ-240 Phone HQ Post-Publish Verification Packet. Patch only HQ-240 allowedFiles. Do not stage, commit, push, or deploy. Run only HQ-240 validationCommands. Stop after HQ-240 and report GREEN/YELLOW/RED.`
+
+### HQ-241 One-Project Proof-Run Workflow V1
+
+- status: done
+- phase: Phone HQ project-control hardening
+- goal: Make the successful PrivateLens one-project proof path repeatable as a documented and scripted Fleet workflow.
+- prerequisites:
+  - PrivateLens proof run completed with GREEN checkpoint review
+  - Phone HQ project-first dashboard published and verified
+- allowedFiles:
+  - `docs/fleet/ONE_PROJECT_PROOF_RUN_WORKFLOW.md`
+  - `docs/fleet/ONE_PROJECT_PROOF_RUN_PRIVATE_LENS_EXAMPLE.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `tools/fleet-proof-run-preflight.ps1`
+  - `tests/run-fleet-tests.ps1`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+- readFirst:
+  - `projects.json`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/PHONE_HQ_DASHBOARD.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Workflow requires exactly one selected project and exactly one selected task.
+  - Workflow requires launch gate before Codex and checkpoint review after Codex edits.
+  - Preflight verifies project registration, Codex CLI/service_tier compatibility, repo clean/dirty state, task queue presence, build/validation command presence, launch gate script presence, and checkpoint reviewer presence.
+  - Workflow stops for human review before merge, push, deploy, or a second task.
+  - Phone/dashboard controls remain request-only and do not grant execution authority.
+  - Tests assert the workflow, PrivateLens example, preflight script, roadmap, queue entry, and forbidden-operation boundaries.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires modifying PrivateLens or any product repo, executing beyond local Fleet preflight evidence, secrets/auth/backend/payments/deploy work, package installs, migrations, remote access changes, all-fleet execution, overnight execution, staging, commit, push, merge, deploy, lock deletion, permission widening, or files outside allowedFiles.
+- evidence:
+  - Added the one-project proof-run workflow doc and PrivateLens example doc.
+  - Added `tools/fleet-proof-run-preflight.ps1` as a read-only readiness checker with strict selected-task enforcement available for actual proof packets.
+  - Updated the mobile roadmap with Phase 1.5 one-project proof-run workflow.
+  - Added focused fleet test coverage for one-project, one-task, launch gate, Codex CLI/service_tier, repo state, task queue, build command, checkpoint review, human stop, request-only phone controls, and forbidden operations.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-241 One-Project Proof-Run Workflow V1. Patch only HQ-241 allowedFiles. Do not modify product repos. Run only HQ-241 validationCommands. Stop after HQ-241 and report GREEN/YELLOW/RED.`
