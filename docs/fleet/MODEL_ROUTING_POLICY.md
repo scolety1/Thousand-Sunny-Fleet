@@ -88,3 +88,16 @@ blockedRegardlessOfAlias: none
 
 This output remains advisory until a separate runner-side policy gate is
 implemented and validated.
+
+## Local Preflight Helper
+
+`tools/fleet-model-routing-preflight.ps1` is a read-only recommendation helper.
+It reads one task packet, reports an advisory alias, and stops at a public-safe
+local report. It does not call model APIs, check current availability, check
+prices, change Codex config, execute tasks, modify packets, or grant authority.
+
+The helper fails closed with `BLOCKED` when a packet lacks clear `allowedFiles`
+or `validationCommands`, or when active packet language appears to require
+secrets, unauthorized product-repo access, deploy/merge/push, all-fleet,
+overnight runner, or broad authority. Safe stop-sign language remains evidence;
+it is not treated as approval.

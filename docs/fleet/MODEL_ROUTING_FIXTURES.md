@@ -39,3 +39,24 @@ recommendedModelAlias: standard_patch
 reason: narrow patch, low risk, strong validation
 stopIf: secrets, product repo access, deploy/merge/push, all-fleet, overnight runner, broad authority
 ```
+
+## Preflight Helper Fixtures
+
+```text
+packet: docs/fleet/PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md
+qualityMode: best_value
+expectedAlias: standard_patch
+expectedStatus: GREEN
+reason: bounded proof task with explicit allowed files and validation commands
+```
+
+```text
+packet: synthetic blocked request
+qualityMode: best_value
+expectedAlias: none
+expectedStatus: BLOCKED
+reason: active deploy/merge/push, all-fleet, or broad-authority language must not be solved by model escalation
+```
+
+The helper output is recommendation-only. It does not execute tasks, mutate
+task packets, configure Codex, or approve product work.

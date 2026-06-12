@@ -7620,3 +7620,29 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Tests assert the docs exist and preserve aliases, `best_value`/`perfection`, classifier dimensions, escalation triggers, blocked conditions, no current model names, no pricing claims, and no execution integration.
 - repeatablePrompt:
   - `Take exactly HQ-243 Model Routing Policy Spec V1. Patch only HQ-243 allowedFiles. Do not wire into execution. Run only HQ-243 validationCommands. Stop after HQ-243 and report GREEN/YELLOW/RED.`
+
+### HQ-244 Model Routing Preflight Helper V1
+
+- status: done
+- phase: Phone HQ project-control hardening
+- goal: Add a local read-only helper that recommends an alias for one task packet without API calls, config mutation, or execution wiring.
+- allowedFiles:
+  - `tools/fleet-model-routing-preflight.ps1`
+  - `docs/fleet/MODEL_ROUTING_POLICY.md`
+  - `docs/fleet/MODEL_ROUTING_FIXTURES.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-model-routing-preflight.ps1 -TaskPacket docs\fleet\PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md`
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires API access, current model availability lookup, current pricing lookup, Codex config mutation, execution wiring, product-repo edits, secrets, installs, migrations, remote access, push, merge, deploy, all-fleet execution, overnight runner execution, broader authority, or files outside allowedFiles.
+- evidence:
+  - Added `tools/fleet-model-routing-preflight.ps1` as a local read-only model alias recommendation helper.
+  - Helper reads one task packet and reports advisory alias, quality mode, reason, confidence, escalation triggers, blocked conditions, and token-pressure note.
+  - Helper uses aliases only and does not call model APIs, check prices, mutate packets, configure Codex, or execute tasks.
+  - Tests assert the helper exists, runs against the PrivateLens proof packet, uses aliases, recognizes blocked synthetic packets, and remains recommendation-only.
+- repeatablePrompt:
+  - `Take exactly HQ-244 Model Routing Preflight Helper V1. Patch only HQ-244 allowedFiles. Do not wire into execution. Run only HQ-244 validationCommands. Stop after HQ-244 and report GREEN/YELLOW/RED.`

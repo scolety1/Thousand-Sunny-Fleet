@@ -2067,6 +2067,66 @@ function Test-HqModelRoutingPolicySpec {
     Assert-False -Condition ($combinedText -match "(?i)(call model APIs|wire routing into live execution|approve any Codex run).*(allowed|enabled|implemented)") -Message "Model routing docs do not wire execution"
 }
 
+function Test-HqModelRoutingPreflightHelper {
+    $helperPath = Join-Path $fleetRoot "tools\fleet-model-routing-preflight.ps1"
+    $packetPath = Join-Path $fleetRoot "docs\fleet\PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md"
+    $policyPath = Join-Path $fleetRoot "docs\fleet\MODEL_ROUTING_POLICY.md"
+    $fixturesPath = Join-Path $fleetRoot "docs\fleet\MODEL_ROUTING_FIXTURES.md"
+    $roadmapPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_ROADMAP.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($helperPath, $packetPath, $policyPath, $fixturesPath, $roadmapPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Model routing preflight path exists: $path"
+    }
+
+    $result = Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $helperPath, "-TaskPacket", "docs\fleet\PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md")
+    Assert-Equal -Actual $result.exitCode -Expected 0 -Message "Model routing preflight runs against PrivateLens packet"
+    $routing = ($result.output -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    Assert-Equal -Actual $routing.qualityMode -Expected "best_value" -Message "Model routing preflight observes PrivateLens quality mode"
+    Assert-Equal -Actual $routing.recommendationStatus -Expected "GREEN" -Message "Model routing preflight marks PrivateLens packet green"
+    Assert-Equal -Actual $routing.recommendedModelAlias -Expected "standard_patch" -Message "Model routing preflight recommends standard patch for PrivateLens packet"
+    Assert-True -Condition ([bool]$routing.recommendationOnly) -Message "Model routing preflight is recommendation-only"
+    Assert-False -Condition ([bool]$routing.executesTasks) -Message "Model routing preflight does not execute tasks"
+    Assert-False -Condition ([bool]$routing.modifiesTaskPacket) -Message "Model routing preflight does not modify task packets"
+    Assert-False -Condition ([bool]$routing.callsModelApis) -Message "Model routing preflight does not call model APIs"
+    foreach ($alias in @("fast_readonly", "standard_patch", "deep_reasoning", "premium_audit")) {
+        Assert-True -Condition (@($routing.allowedAliases) -contains $alias) -Message "Model routing preflight exposes alias: $alias"
+    }
+
+    $blockedPacketPath = Join-Path $fixtureRoot "model-routing-blocked-packet.md"
+    Set-Content -LiteralPath $blockedPacketPath -Encoding UTF8 -Value @"
+# Blocked Model Routing Packet
+
+qualityMode: best_value
+
+allowedFiles:
+- any product repo file
+
+validationCommands:
+- none
+
+This packet authorizes deploy, merge, push, all-fleet execution, an overnight runner, and broader authority.
+"@
+    $blockedResult = Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $helperPath, "-TaskPacket", $blockedPacketPath)
+    Assert-Equal -Actual $blockedResult.exitCode -Expected 0 -Message "Model routing preflight reports blocked packets without executing"
+    $blockedRouting = ($blockedResult.output -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    Assert-Equal -Actual $blockedRouting.recommendationStatus -Expected "BLOCKED" -Message "Model routing preflight recognizes blocked conditions"
+    Assert-True -Condition ([string]::IsNullOrWhiteSpace([string]$blockedRouting.recommendedModelAlias)) -Message "Blocked model routing packets receive no alias"
+    Assert-True -Condition (((@($blockedRouting.blockedConditionsFound) -join "`n") -match "deploy/merge/push") -and ((@($blockedRouting.blockedConditionsFound) -join "`n") -match "all-fleet")) -Message "Model routing preflight lists blocked condition categories"
+
+    $helperText = Get-Content -LiteralPath $helperPath -Raw -ErrorAction Stop
+    $combinedText = @(
+        $helperText,
+        (Get-Content -LiteralPath $policyPath -Raw -ErrorAction Stop),
+        (Get-Content -LiteralPath $fixturesPath -Raw -ErrorAction Stop),
+        (Get-Content -LiteralPath $roadmapPath -Raw -ErrorAction Stop)
+    ) -join "`n"
+    Assert-False -Condition ($helperText -match "(?i)\b(gpt|claude|gemini|llama|mistral|o[0-9])[-A-Za-z0-9.]*\b") -Message "Model routing preflight avoids hardcoded current model names"
+    Assert-False -Condition ($combinedText -match "(?i)(cost per|dollar|usd|\$[0-9])") -Message "Model routing preflight docs avoid current pricing claims"
+    Assert-False -Condition ($combinedText -match "(?i)(executes tasks|mutate task packets|change Codex config|approve product-repo access).*(true|allowed|enabled)") -Message "Model routing preflight remains recommendation-only"
+    Assert-True -Condition ((Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop) -match "HQ-244 Model Routing Preflight Helper V1") -Message "HQ queue records model routing preflight helper task"
+}
+
 function Test-FixtureGeneration {
     $generator = Join-Path $fleetRoot "tests\new-fixture-ships.ps1"
     $generatorText = Get-Content $generator -Raw
@@ -16679,6 +16739,7 @@ Test-HqQuickMissionRequestContract
 Test-HqEmergencyStopRequestContract
 Test-HqMobileControlPlaneArchitecture
 Test-HqModelRoutingPolicySpec
+Test-HqModelRoutingPreflightHelper
 Test-FixtureGeneration
 Test-PhaseZeroIntakeSupport
 Test-PhaseOneArchitectureSupport

@@ -38,6 +38,12 @@ Classify each request before execution. Require one-task boundary, allowedFiles,
 
 Phase 3 model routing starts as an alias-only policy specification. Use `fast_readonly`, `standard_patch`, `deep_reasoning`, and `premium_audit` as advisory aliases for `best_value` and `perfection` quality modes. Do not hardcode current model names, claim current pricing, call model APIs, or wire routing into live execution until a separate implementation packet approves and validates a runner-side policy gate.
 
+A local preflight helper may read a single task packet and produce a public-safe
+recommendation report, but it remains read-only and advisory. Helper output
+does not execute Codex, mutate task packets, change Codex config, approve
+product-repo access, or bypass one-task `allowedFiles`, `validationCommands`,
+and `stopIf` contracts.
+
 ## Phase 4: Controlled Runner Integration
 
 Connect policy-approved requests to a local or controlled runner that refuses missing contracts, forbidden operations, product repo access by default, all-fleet commands, overnight runners, deploys, staging, commits, pushes, installs, migrations, lock deletion, permission widening, runtime command binding, and secret handling.
