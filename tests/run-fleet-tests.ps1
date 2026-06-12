@@ -1334,6 +1334,99 @@ function Test-HqOneProjectProofRunWorkflow {
     Assert-True -Condition (($blockedOutput -join "`n") -match "actual proof run requires exactly one selected task") -Message "Proof-run preflight names missing selected-task stop sign"
 }
 
+function Test-HqPrivateLensCsvValidationProofTaskPacket {
+    $packetPath = Join-Path $fleetRoot "docs\fleet\PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($packetPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "PrivateLens CSV validation proof packet file exists: $path"
+    }
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw -ErrorAction Stop
+    $queueText = Get-Content -LiteralPath $queuePath -Raw -ErrorAction Stop
+    $combinedText = @($packetText, $queueText) -join "`n"
+
+    foreach ($phrase in @(
+        "PrivateLens CSV Validation Proof Task",
+        "Evidence only; not executable authority or approval.",
+        'ProjectId: `PrivateLens`',
+        'Quality mode: `best_value`',
+        "Selected task: improve CSV validation/import warnings",
+        "Selected task count: exactly one",
+        "Selected project count: exactly one",
+        "No PrivateLens files were modified during packet preparation.",
+        "strict selected-task preflight requires a matching unchecked task in the registered PrivateLens task queue"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "PrivateLens CSV proof packet preserves phrase: $phrase"
+    }
+
+    foreach ($futureFile in @(
+        "docs/codex/TASK_QUEUE.md",
+        "docs/codex/NIGHTLY_REPORT.md",
+        "src/lib/parser.ts",
+        "src/types.ts",
+        "src/App.tsx",
+        "src/App.css"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($futureFile)) -Message "PrivateLens CSV proof packet names future allowed file: $futureFile"
+    }
+
+    foreach ($phrase in @(
+        "warn clearly on malformed CSV",
+        "warn on missing or empty headers",
+        "warn on inconsistent row lengths",
+        "warn on unsupported or empty input",
+        "preserve browser-only/local-first behavior",
+        "preserve no upload/server path",
+        "preserve no network calls",
+        "preserve no persistence, local storage history, secrets, analytics, or tracking",
+        "avoid a broad UI rewrite"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "PrivateLens CSV proof packet preserves expected behavior: $phrase"
+    }
+
+    foreach ($command in @(
+        "npm.cmd run build",
+        "npm.cmd run lint",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens -TaskSelector `"CSV validation/import warnings`" -RequireSelectedTask"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($command)) -Message "PrivateLens CSV proof packet names validation command: $command"
+    }
+
+    foreach ($boundary in @(
+        "secrets",
+        "backend, auth, payments, deploy",
+        "package installs",
+        "migrations",
+        "remote access",
+        "all-fleet",
+        "overnight runner",
+        "broader authority",
+        "merge, push, deploy",
+        "files outside the future PrivateLens allowed files",
+        "unclear scope",
+        "phone/dashboard UI treated as execution authority"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($boundary)) -Message "PrivateLens CSV proof packet preserves stop boundary: $boundary"
+    }
+
+    foreach ($phrase in @(
+        "HQ-242 PrivateLens CSV Validation Proof Task Packet",
+        "status: done",
+        "selectedProject:",
+        "selectedTask:",
+        "CSV validation/import warnings",
+        "futurePrivateLensAllowedFiles:",
+        "futureValidationCommands:",
+        "Do not modify PrivateLens or run the proof run"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records PrivateLens CSV proof packet: $phrase"
+    }
+
+    Assert-False -Condition ($packetText -match "(?is)(approves|authorizes|grants|permits).{0,140}(product-repo mutation|merge|push|deploy|all-fleet|overnight|future authority)") -Message "PrivateLens CSV proof packet does not grant forbidden authority"
+    Assert-False -Condition ($packetText -match "C:\\Users\\") -Message "PrivateLens CSV proof packet avoids local absolute Windows user paths"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -16514,6 +16607,7 @@ Test-HqRemoteTravelLandingChecklist
 Test-HqPhoneDashboardSecurityModel
 Test-HqPhoneProjectStatusDashboard
 Test-HqOneProjectProofRunWorkflow
+Test-HqPrivateLensCsvValidationProofTaskPacket
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

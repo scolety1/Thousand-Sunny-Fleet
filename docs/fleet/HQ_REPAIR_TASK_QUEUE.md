@@ -7516,3 +7516,70 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 - repeatablePrompt:
   - `Take exactly HQ-241 One-Project Proof-Run Workflow V1. Patch only HQ-241 allowedFiles. Do not modify product repos. Run only HQ-241 validationCommands. Stop after HQ-241 and report GREEN/YELLOW/RED.`
+
+### HQ-242 PrivateLens CSV Validation Proof Task Packet
+
+- status: done
+- phase: Phone HQ project-control hardening
+- goal: Prepare exactly one bounded PrivateLens proof-run task packet for CSV validation/import warnings without running the proof run.
+- prerequisites:
+  - HQ-241 published
+  - PrivateLens is registered in `projects.json`
+  - PrivateLens proof path previously returned GREEN
+- selectedProject:
+  - `PrivateLens`
+- selectedTask:
+  - `CSV validation/import warnings`
+- qualityMode:
+  - `best_value`
+- allowedFiles:
+  - `docs/fleet/PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readFirst:
+  - `projects.json`
+  - `docs/fleet/STABLE_CONTEXT_CAPSULE.md`
+  - `docs/fleet/ONE_PROJECT_PROOF_RUN_WORKFLOW.md`
+  - `docs/fleet/ONE_PROJECT_PROOF_RUN_PRIVATE_LENS_EXAMPLE.md`
+  - `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
+  - `docs/fleet/MOBILE_CONTROL_PLANE_ROADMAP.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- readOnlyPrivateLensInspection:
+  - `package.json`
+  - `src/lib/parser.ts`
+  - `src/App.tsx`
+  - `src/types.ts`
+  - `docs/codex/TASK_QUEUE.md`
+- futurePrivateLensAllowedFiles:
+  - `docs/codex/TASK_QUEUE.md`
+  - `docs/codex/NIGHTLY_REPORT.md`
+  - `src/lib/parser.ts`
+  - `src/types.ts`
+  - `src/App.tsx`
+  - `src/App.css`
+- futureValidationCommands:
+  - `npm.cmd run build`
+  - `npm.cmd run lint`
+- acceptance:
+  - Packet names ProjectId `PrivateLens`, quality mode `best_value`, exactly one selected project, and exactly one selected task.
+  - Packet defines future PrivateLens allowed files and future validation commands based on read-only inspection.
+  - Packet expects warnings for malformed CSV, missing/empty headers, inconsistent row lengths, and unsupported/empty input.
+  - Packet preserves browser-only/local-first behavior, no network calls, no persistence/secrets, and no broad UI rewrite.
+  - Packet requires launch gate, validation, checkpoint review, and human review before merge, push, deploy, or another task.
+  - Packet states strict selected-task preflight still needs a matching unchecked PrivateLens task queue entry because this planning task did not modify PrivateLens.
+  - Tests assert packet existence, selected project/task, future allowed files, validation commands, stop conditions, and no product-repo mutation during planning.
+- validationCommands:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens`
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires modifying PrivateLens or any product repo during packet preparation, running the proof run, package installs, backend/auth/payments/deploy work, secrets, migrations, remote access, all-fleet execution, overnight runner execution, staging, commit, push, merge, deploy, lock deletion, permission widening, broader authority, unclear scope, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/PRIVATE_LENS_CSV_VALIDATION_PROOF_TASK.md` as a one-task PrivateLens proof-run packet for CSV validation/import warnings.
+  - Packet future allowed files are limited to exact PrivateLens task queue/report bookkeeping plus `src/lib/parser.ts`, `src/types.ts`, `src/App.tsx`, and `src/App.css`.
+  - Packet future validation commands are `npm.cmd run build` and `npm.cmd run lint`.
+  - PrivateLens was inspected read-only only; no product repo files were modified.
+  - Validation passed with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-preflight.ps1 -ProjectId PrivateLens`, `git diff --check`, and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-242 PrivateLens CSV Validation Proof Task Packet. Patch only HQ-242 allowedFiles. Do not modify PrivateLens or run the proof run. Run only HQ-242 validationCommands. Stop after HQ-242 and report GREEN/YELLOW/RED.`
