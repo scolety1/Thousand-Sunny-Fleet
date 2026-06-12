@@ -1,4 +1,5 @@
 const statusUrl = "https://raw.githubusercontent.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/current.md";
+const projectsUrl = "https://raw.githubusercontent.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/projects.json";
 
 const dashboardStatus = document.getElementById("dashboardStatus");
 const fleetMode = document.getElementById("fleetMode");
@@ -6,28 +7,25 @@ const updatedAt = document.getElementById("updatedAt");
 const statusCaution = document.getElementById("statusCaution");
 const projectGrid = document.getElementById("projectGrid");
 const projectCount = document.getElementById("projectCount");
+const projectSnapshotState = document.getElementById("projectSnapshotState");
 const controlLinks = document.querySelectorAll(".global-controls a");
 const requestUrl = controlLinks[0].href;
 const todayUrl = controlLinks[1].href;
 const stopUrl = controlLinks[2].href;
 
-const projects = [
-  { name: "Bottlelight", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\cellar-beverage-list" },
-  { name: "CursorPets", type: "sandbox-prototype", risk: "sandbox", repo: "C:\\Dev\\cursor-pets" },
-  { name: "EasyLife", type: "full-stack-web", risk: "production-adjacent", repo: "C:\\Dev\\easylifehq.github.io" },
-  { name: "EventBook", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\cellar-private-events" },
-  { name: "FinanceDecisionLab", type: "ai-workflow", risk: "sandbox", repo: "C:\\Dev\\personal-finance-decision-lab" },
-  { name: "ForecastLab", type: "ai-workflow", risk: "sandbox", repo: "C:\\Dev\\forecast-lab" },
-  { name: "LifeCapacity", type: "ai-workflow", risk: "sandbox", repo: "C:\\Dev\\life-capacity-optimizer" },
-  { name: "LineupLab", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\cellar-training-hub" },
-  { name: "NinersWarRoom", type: "full-stack-web", risk: "production-adjacent", repo: "C:\\Dev\\niners-war-room" },
-  { name: "OrderPilot", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\cellar-orderpilot-lite" },
-  { name: "RestaurantDemo", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\restaurant-automation-demo" },
-  { name: "RestaurantProfitLab", type: "ai-workflow", risk: "sandbox", repo: "C:\\Dev\\restaurant-profit-simulator" },
-  { name: "ShiftLedger", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\cellar-manager-brief" },
-  { name: "ShiftPlate", type: "sandbox-prototype", risk: "sandbox", repo: "C:\\Dev\\special-sauce" },
-  { name: "Tree", type: "full-stack-web", risk: "production-adjacent", repo: "C:\\Dev\\Tree" },
-  { name: "UrbanKitchenSite", type: "marketing-site", risk: "local-only", repo: "C:\\Dev\\cellar-urban-kitchen-site" }
+const fallbackProjects = [
+  {
+    id: "privatelens",
+    name: "PrivateLens",
+    statusColor: "UNKNOWN",
+    branch: "unknown",
+    cleanState: "unknown",
+    lastCheckpointVerdict: "UNKNOWN",
+    lastBuildResult: "UNKNOWN",
+    pendingTaskCount: null,
+    nextRecommendedAction: "Open latest status, then request desktop review.",
+    note: "Project snapshot did not load; phone actions remain requests.",
+  },
 ];
 
 const unsafeStatusPatterns = [
@@ -64,46 +62,109 @@ function showCaution(message) {
   statusCaution.textContent = message;
 }
 
-function renderProjects() {
-  projectCount.textContent = String(projects.length);
+function setText(element, value) {
+  element.textContent = value === null || value === undefined || value === "" ? "unknown" : String(value);
+}
+
+function makeFact(label, value) {
+  const item = document.createElement("div");
+  const term = document.createElement("dt");
+  const detail = document.createElement("dd");
+  term.textContent = label;
+  setText(detail, value);
+  item.append(term, detail);
+  return item;
+}
+
+function getStatusClass(statusColor) {
+  const normalized = String(statusColor || "UNKNOWN").toUpperCase();
+  if (normalized === "GREEN") return "status-dot status-dot--green";
+  if (normalized === "YELLOW") return "status-dot status-dot--yellow";
+  if (normalized === "RED") return "status-dot status-dot--red";
+  return "status-dot";
+}
+
+function controlHref(project, key, fallback) {
+  return project.controls && project.controls[key] ? project.controls[key] : fallback;
+}
+
+function renderProjects(projects, snapshotLoaded) {
+  const safeProjects = Array.isArray(projects) && projects.length > 0 ? projects : fallbackProjects;
+  projectCount.textContent = String(safeProjects.length);
+  projectSnapshotState.textContent = snapshotLoaded ? "Generated snapshot" : "Snapshot fallback";
   projectGrid.innerHTML = "";
 
-  for (const project of projects) {
+  for (const project of safeProjects) {
     const card = document.createElement("article");
     card.className = "project-card";
 
-    const title = document.createElement("h3");
-    title.textContent = project.name;
+    const header = document.createElement("div");
+    header.className = "project-card__header";
 
+    const titleWrap = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = project.name || "Unknown project";
     const meta = document.createElement("span");
     meta.className = "meta";
-    meta.textContent = `${project.type} / ${project.risk}`;
+    meta.textContent = project.note || "Public-safe status snapshot.";
+    titleWrap.append(title, meta);
 
-    const repo = document.createElement("span");
-    repo.className = "repo";
-    repo.textContent = project.repo;
+    const status = document.createElement("span");
+    status.className = getStatusClass(project.statusColor);
+    status.textContent = project.statusColor || "UNKNOWN";
+
+    header.append(titleWrap, status);
+
+    const facts = document.createElement("dl");
+    facts.className = "project-facts";
+    facts.append(
+      makeFact("Branch", project.branch),
+      makeFact("Clean", project.cleanState),
+      makeFact("Checkpoint", project.lastCheckpointVerdict),
+      makeFact("Build", project.lastBuildResult),
+      makeFact("Pending", project.pendingTaskCount === null ? "unknown" : project.pendingTaskCount),
+    );
+
+    const nextAction = document.createElement("p");
+    nextAction.className = "next-action";
+    nextAction.textContent = project.nextRecommendedAction || "Review status before requesting work.";
 
     const actions = document.createElement("div");
     actions.className = "project-actions";
 
     const request = document.createElement("a");
     request.className = "button button--primary";
-    request.href = requestUrl;
-    request.textContent = "Request";
-
-    const log = document.createElement("a");
-    log.className = "button";
-    log.href = todayUrl;
-    log.textContent = "Log";
+    request.href = controlHref(project, "requestTask", requestUrl);
+    request.textContent = "Request task";
 
     const stop = document.createElement("a");
     stop.className = "button button--danger";
-    stop.href = stopUrl;
-    stop.textContent = "Stop";
+    stop.href = controlHref(project, "stopRequest", stopUrl);
+    stop.textContent = "Stop request";
 
-    actions.append(request, log, stop);
-    card.append(title, meta, repo, actions);
+    const log = document.createElement("a");
+    log.className = "button";
+    log.href = controlHref(project, "logsStatus", todayUrl);
+    log.textContent = "Open log";
+
+    actions.append(request, stop, log);
+    card.append(header, facts, nextAction, actions);
     projectGrid.append(card);
+  }
+}
+
+async function loadProjects() {
+  try {
+    const response = await fetch(projectsUrl, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const snapshot = await response.json();
+    renderProjects(snapshot.projects, true);
+  } catch (error) {
+    renderProjects(fallbackProjects, false);
+    showCaution("Project snapshot did not load. Use the status links; phone actions remain request-only.");
   }
 }
 
@@ -122,7 +183,7 @@ async function loadStatus() {
     if (caution) {
       showCaution("Loaded status contains active-looking or execution-looking language. Treat it as view-only caution, use request-only rules, and do not execute from phone.");
       // Caution-only; phone actions remain requests.
-    } else {
+    } else if (statusCaution.textContent === "Status needs caution. Phone controls create requests only.") {
       statusCaution.hidden = true;
     }
   } catch (error) {
@@ -134,5 +195,6 @@ async function loadStatus() {
   }
 }
 
-renderProjects();
+renderProjects(fallbackProjects, false);
 loadStatus();
+loadProjects();

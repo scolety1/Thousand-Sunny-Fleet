@@ -9,6 +9,8 @@
   --blue: #2563eb;
   --teal: #0f766e;
   --red: #b91c1c;
+  --green-bg: #ecfdf5;
+  --yellow-bg: #fffbeb;
   --amber-bg: #fff7ed;
   --red-bg: #fff1f2;
 }
@@ -95,6 +97,7 @@ main {
   gap: 8px;
 }
 
+.security-banner,
 .control-strip article,
 .project-card,
 .details,
@@ -103,6 +106,15 @@ main {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+}
+
+.security-banner {
+  margin-bottom: 10px;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+  color: #134e4a;
+  padding: 11px 12px;
+  font-weight: 900;
 }
 
 .control-strip article {
@@ -159,7 +171,15 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   margin-bottom: 8px;
+}
+
+.section-title p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 #projectCount {
@@ -182,15 +202,83 @@ main {
   padding: 12px;
 }
 
+.project-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .project-card h3 {
   margin: 0 0 6px;
   font-size: 1rem;
   letter-spacing: 0;
 }
 
-.repo {
-  margin-top: 8px;
+.status-dot {
+  min-width: 78px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.status-dot--green {
+  border-color: #bbf7d0;
+  background: var(--green-bg);
+  color: #047857;
+}
+
+.status-dot--yellow {
+  border-color: #fde68a;
+  background: var(--yellow-bg);
+  color: #a16207;
+}
+
+.status-dot--red {
+  border-color: #fecdd3;
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.project-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 12px 0 0;
+}
+
+.project-facts div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px;
+  background: #f8fafc;
+}
+
+.project-facts dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.project-facts dd {
+  margin: 3px 0 0;
   overflow-wrap: anywhere;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.next-action {
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .project-actions {
@@ -268,6 +356,10 @@ footer {
   .global-controls,
   .project-grid,
   .project-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .project-facts {
     grid-template-columns: 1fr;
   }
 }

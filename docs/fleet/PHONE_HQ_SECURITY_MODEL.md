@@ -32,6 +32,10 @@ The dashboard must not contain or expose:
 
 Loaded public status is view-only and never authority. If it appears stale, contradictory, or active-looking, the dashboard must show caution-only handling and point back to request-only rules instead of suggesting workarounds.
 
+Project cards are generated public-safe snapshots. They may summarize branch, clean/dirty state, checkpoint verdict, build result, pending task count, and next recommended action, but they must not expose local absolute filesystem paths, secrets, credentials, tokens, private device identifiers, customer data, or product data.
+
+Generated project status can be stale until `tools/fleet-project-status.ps1` is rerun and the result is separately reviewed/published. Stale status is evidence only, not approval to execute work.
+
 ## Request-Only Actions
 
 Phone edits and phone links are requests or signals only. They do not start Codex, approve work, run shell commands, trigger GitHub Actions, deploy software, commit changes, push branches, mutate product repos, run all-fleet commands, run overnight runners, bind runtime commands, or create future authority.
@@ -54,11 +58,15 @@ The public dashboard must not load third-party scripts, third-party stylesheets,
 
 Dashboard JavaScript may read public-safe status only. It must not write to GitHub, trigger GitHub Actions, call a command backend, store credentials, execute shell/Codex commands, approve phone actions, or mutate product repos.
 
+Dashboard JavaScript may read the public-safe generated project snapshot. It must not infer local filesystem paths, request private repo data from the browser, trigger runners, or turn project cards into command buttons.
+
 ## Future Control Plane Boundary
 
 A future mobile control plane must be separate from this public static dashboard. It must require authentication, request records, policy classification, allowed files, validation commands, stop conditions, runner-side execution gates, and audit logs before any executable task can be considered.
 
 Remote access and phone access grant no extra authority. Product repo access must be separately scoped and explicitly approved per project and per task.
+
+Actual Codex execution remains local, bounded, one-project/one-task, and gated by launch checks, build/validation checks, checkpoint review, and human review. The public static dashboard cannot approve merge, push, deploy, all-fleet execution, overnight runner execution, product-repo mutation, runtime command binding, or phone approval authority.
 
 ## GREEN / YELLOW / RED
 

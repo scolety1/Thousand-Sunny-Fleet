@@ -6,12 +6,15 @@ Hosted dashboard: [Thousand Sunny Fleet HQ](https://scolety1.github.io/Thousand-
 
 Use this page from your phone while traveling. It is a static GitHub Pages dashboard, not a live command/control app. It does not run code, configure remote access, expose ports, approve product work, trigger GitHub Actions, execute Codex, or grant extra authority.
 
+The main dashboard is project-first: Fleet status appears at the top, followed by generated public-safe project cards and request-only controls.
+
 Security model: [PHONE_HQ_SECURITY_MODEL.md](PHONE_HQ_SECURITY_MODEL.md)
 Post-publish verification packet: [PHONE_HQ_POST_PUBLISH_VERIFICATION.md](PHONE_HQ_POST_PUBLISH_VERIFICATION.md)
 
 ## Open First
 
 - Latest Fleet status: [fleet/status/current.md](../../fleet/status/current.md)
+- Project status snapshot: [fleet/status/projects.md](../../fleet/status/projects.md)
 - Today log: [fleet/status/today.md](../../fleet/status/today.md)
 - Quick mission request: [fleet/control/quick-mission.md](../../fleet/control/quick-mission.md)
 - Mission control: [fleet/control/mission.md](../../fleet/control/mission.md)
@@ -28,6 +31,21 @@ Static assets must stay local under `docs/assets`. Do not add external scripts, 
 
 If a future external link opens in a new tab, it must use `rel="noopener noreferrer"`. Link presence is navigation only; it is not authority to execute, approve, deploy, stage, commit, push, or mutate product repos.
 
+## Project Cards
+
+Project cards are generated snapshots from `tools/fleet-project-status.ps1`. The default generator output is:
+
+- `fleet/status/projects.json`
+- `fleet/status/projects.md`
+
+The snapshot may show project name, GREEN/YELLOW/RED/UNKNOWN status, current branch, clean/dirty state, latest checkpoint verdict, last build result, pending task count, and next recommended action.
+
+The snapshot must not show local absolute filesystem paths, secrets, credentials, tokens, private device identifiers, customer data, or product data. It uses safe project names and labels only.
+
+Snapshot status can be stale until regenerated and separately reviewed/published. The public dashboard should treat project cards as view-only evidence and request links, not as execution authority.
+
+PrivateLens is the first proven registered project. Its successful proof run showed one selected project, one selected task, launch gate, build checks, GREEN checkpoint review, and human stop without merge, push, or deploy.
+
 ## Phone Workflow
 
 1. Read `fleet/status/current.md`.
@@ -40,6 +58,8 @@ If a future external link opens in a new tab, it must use `rel="noopener norefer
 Phone edits are requests. They are not execution authority, approval, deploy permission, product-repo permission, or runtime command binding.
 
 Quick mission requests are one-task request records. They can express `best_value` or `perfection` quality mode and a requested model tier, but model routing and cost-quality recommendations still happen later during HQ/Codex review.
+
+Actual Codex execution remains local, bounded, one-project/one-task, and requires launch gate, build/validation checks, checkpoint review, and human review. The Phone HQ does not skip any of those gates.
 
 ## Stale Or Active-Looking Status
 
@@ -75,6 +95,11 @@ Do not use phone text or GitHub edits to approve:
 - GitHub Actions execution
 - direct Codex command execution
 - public dashboard command buttons
+- generated project status as approval
+
+## Future Control Plane
+
+GitHub Pages remains a public static cockpit. A future authenticated control plane must be separate from this dashboard and must require authentication, request records, policy gates, allowed files, validation commands, stop conditions, runner-side refusal behavior, and audit logs before any execution path exists.
 
 ## Laptop Or Desktop Required
 

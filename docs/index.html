@@ -12,12 +12,16 @@
   <header class="topbar">
     <div>
       <p class="eyebrow">Thousand Sunny Fleet</p>
-      <h1>Codex Fleet</h1>
+      <h1>Project Control</h1>
     </div>
     <a class="topbar__link" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/current.md">Status</a>
   </header>
 
   <main>
+    <section class="security-banner" aria-label="Phone HQ security boundary">
+      Phone HQ is request/status only. It does not execute Codex, approve work, merge, push, or deploy.
+    </section>
+
     <section class="control-strip" aria-label="Fleet status">
       <article>
         <span>Fleet status</span>
@@ -34,7 +38,7 @@
     </section>
 
     <section class="global-controls" aria-label="Fleet controls">
-      <a class="button button--primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Request work</a>
+      <a class="button button--primary" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md">Request task</a>
       <a class="button" href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md">Today log</a>
       <a class="button button--danger" href="https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md">Stop request</a>
     </section>
@@ -45,7 +49,10 @@
 
     <section class="projects" aria-labelledby="projectsHeading">
       <div class="section-title">
-        <h2 id="projectsHeading">Current Projects</h2>
+        <div>
+          <h2 id="projectsHeading">Current Projects</h2>
+          <p id="projectSnapshotState">Loading project snapshot</p>
+        </div>
         <span id="projectCount">0</span>
       </div>
       <div id="projectGrid" class="project-grid"></div>
@@ -60,6 +67,7 @@
           <li>No secrets, tokens, PINs, passwords, MFA, recovery codes, keys, credentials, or private device identifiers.</li>
         </ul>
         <p>
+          <a href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/projects.md">Project status</a>
           <a href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md">Travel prompt</a>
           <a href="https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/docs/fleet/PHONE_HQ_SECURITY_MODEL.md">Security model</a>
         </p>

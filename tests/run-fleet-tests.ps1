@@ -969,7 +969,7 @@ function Test-HqPhoneDashboardSecurityModel {
     Assert-False -Condition ($indexText -match 'target="_blank"(?![^>]+rel="noopener noreferrer")') -Message "Phone HQ new-tab links use noopener noreferrer when present"
     Assert-False -Condition ($jsText -match '\b(localStorage|sessionStorage)\b') -Message "Phone HQ JS does not store browser credentials or state"
     Assert-False -Condition ($jsText -match '\bPOST\b|method\s*:|github\.com/.*/actions|workflow_dispatch') -Message "Phone HQ JS does not write, trigger Actions, or submit commands"
-    Assert-False -Condition ($jsText -match 'https://(?!raw\.githubusercontent\.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/current\.md)') -Message "Phone HQ JS does not call external command backends"
+    Assert-False -Condition ($jsText -match 'https://(?!raw\.githubusercontent\.com/scolety1/Thousand-Sunny-Fleet/main/fleet/status/(current\.md|projects\.json))') -Message "Phone HQ JS does not call external command backends"
     Assert-True -Condition ($cssText -match "status-caution") -Message "Phone HQ CSS styles the caution-only status guard"
 
     foreach ($href in $requiredPhoneHqLinks) {
@@ -1055,6 +1055,115 @@ function Test-HqPhoneDashboardSecurityModel {
     Assert-True -Condition ($dashboardText -match "Hosted dashboard: \[Thousand Sunny Fleet HQ\]\(https://scolety1.github.io/Thousand-Sunny-Fleet/\)") -Message "Phone HQ dashboard doc links hosted URL"
     Assert-True -Condition ($dashboardText -match "PHONE_HQ_SECURITY_MODEL.md") -Message "Phone HQ dashboard doc references security model"
     Assert-True -Condition ($readmeText -match "PHONE_HQ_SECURITY_MODEL.md") -Message "README references Phone HQ security model"
+}
+
+function Test-HqPhoneProjectStatusDashboard {
+    $indexPath = Join-Path $fleetRoot "docs\index.html"
+    $jsPath = Join-Path $fleetRoot "docs\assets\phone-hq.js"
+    $generatorPath = Join-Path $fleetRoot "tools\fleet-project-status.ps1"
+    $statusJsonPath = Join-Path $fleetRoot "fleet\status\projects.json"
+    $statusMdPath = Join-Path $fleetRoot "fleet\status\projects.md"
+    $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
+    $securityPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_SECURITY_MODEL.md"
+    $roadmapPath = Join-Path $fleetRoot "docs\fleet\MOBILE_CONTROL_PLANE_ROADMAP.md"
+
+    foreach ($path in @($indexPath, $jsPath, $generatorPath, $statusJsonPath, $statusMdPath, $dashboardPath, $securityPath, $roadmapPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Phone HQ project-first file exists: $path"
+    }
+
+    $fixtureDir = Join-Path $fixtureRoot "phone-hq-project-status"
+    $fixtureConfig = Join-Path $fixtureDir "projects.json"
+    $fixtureOutput = Join-Path $fixtureDir "out"
+    New-Item -ItemType Directory -Force -Path $fixtureDir | Out-Null
+    @(
+        [pscustomobject]@{
+            name = "PrivateLens"
+            repo = "C:\Users\codex-agent\PrivateLensSecretFixture"
+            profile = "experimental-prototype"
+            projectType = "ai-workflow"
+            riskTier = "local-only"
+        }
+    ) | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fixtureConfig -Encoding UTF8
+
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $generatorPath -ConfigPath $fixtureConfig -OutputDirectory $fixtureOutput *> $null
+
+    $fixtureJsonPath = Join-Path $fixtureOutput "projects.json"
+    $fixtureMdPath = Join-Path $fixtureOutput "projects.md"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureJsonPath) -Message "Project status generator writes JSON snapshot"
+    Assert-True -Condition (Test-Path -LiteralPath $fixtureMdPath) -Message "Project status generator writes Markdown snapshot"
+
+    $generatedJson = Get-Content -LiteralPath $fixtureJsonPath -Raw -ErrorAction Stop
+    $generatedMd = Get-Content -LiteralPath $fixtureMdPath -Raw -ErrorAction Stop
+    $generated = "$generatedJson`n$generatedMd"
+    $parsed = $generatedJson | ConvertFrom-Json
+
+    Assert-True -Condition ($parsed.statusKind -eq "public-safe-project-status-snapshot") -Message "Project status snapshot has public-safe status kind"
+    Assert-True -Condition (@($parsed.projects).Count -eq 1) -Message "Project status fixture emits one project"
+    Assert-True -Condition ($generated -match "PrivateLens") -Message "Project status generator can represent PrivateLens"
+    Assert-False -Condition ($generated -match "C:\\Users\\|C:/Users/|PrivateLensSecretFixture") -Message "Generated project status omits local absolute Windows user paths"
+    Assert-False -Condition ($generated -match "C:\\Dev\\|C:/Dev/") -Message "Generated project status omits local Dev paths"
+
+    foreach ($pattern in @(
+        "(?i)ghp_[A-Za-z0-9_]{20,}",
+        "(?i)github_pat_[A-Za-z0-9_]{20,}",
+        "(?i)sk-[A-Za-z0-9]{20,}",
+        "BEGIN [A-Z ]*PRIVATE KEY",
+        "(?i)access_token\s*=",
+        "(?i)client_secret\s*=",
+        "(?i)password\s*="
+    )) {
+        Assert-False -Condition ($generated -match $pattern) -Message "Generated project status has no secret-like pattern: $pattern"
+    }
+
+    $realGenerated = (Get-Content -LiteralPath $statusJsonPath -Raw -ErrorAction Stop) + "`n" + (Get-Content -LiteralPath $statusMdPath -Raw -ErrorAction Stop)
+    Assert-False -Condition ($realGenerated -match "C:\\Users\\|C:\\Dev\\|C:/Users/|C:/Dev/") -Message "Real generated project status omits local absolute paths"
+    Assert-False -Condition ($realGenerated -match "(?i)ghp_|github_pat_|sk-|BEGIN [A-Z ]*PRIVATE KEY|access_token\s*=|client_secret\s*=|password\s*=") -Message "Real generated project status has no common secret/token placeholders"
+
+    $indexText = Get-Content -LiteralPath $indexPath -Raw -ErrorAction Stop
+    $jsText = Get-Content -LiteralPath $jsPath -Raw -ErrorAction Stop
+    $dashboardText = Get-Content -LiteralPath $dashboardPath -Raw -ErrorAction Stop
+    $securityText = Get-Content -LiteralPath $securityPath -Raw -ErrorAction Stop
+    $roadmapText = Get-Content -LiteralPath $roadmapPath -Raw -ErrorAction Stop
+    $buttonLabels = @([regex]::Matches($indexText, '<a[^>]+class="[^"]*\bbutton\b[^"]*"[^>]*>([^<]+)</a>') | ForEach-Object { $_.Groups[1].Value })
+    $combinedDocs = "$dashboardText`n$securityText`n$roadmapText"
+
+    foreach ($phrase in @(
+        "Project Control",
+        "Current Projects",
+        "projectSnapshotState",
+        "Phone HQ is request/status only. It does not execute Codex, approve work, merge, push, or deploy."
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($phrase)) -Message "Phone HQ index preserves project-first phrase: $phrase"
+    }
+
+    foreach ($label in @("Request task", "Stop request", "Open log")) {
+        Assert-True -Condition (($indexText -match [regex]::Escape($label)) -or ($jsText -match [regex]::Escape($label))) -Message "Phone HQ controls use request-only wording: $label"
+    }
+
+    foreach ($badLabel in @("Run Codex", "Deploy", "Push", "Merge", "Approve")) {
+        Assert-False -Condition (@($buttonLabels | Where-Object { $_ -match "^$([regex]::Escape($badLabel))$" }).Count -gt 0) -Message "Phone HQ button/control labels avoid direct execution wording: $badLabel"
+    }
+
+    foreach ($phrase in @(
+        "project-first",
+        "generated public-safe project status snapshots",
+        "local absolute paths",
+        "Snapshot status can be stale",
+        "Actual Codex execution remains local, bounded, one-project/one-task",
+        "future authenticated control plane must be separate"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($phrase)) -Message "Phone HQ docs preserve generated project snapshot boundary: $phrase"
+    }
+
+    foreach ($phrase in @(
+        "all-fleet",
+        "overnight",
+        "product-repo mutation",
+        "merge, push, deploy",
+        "phone approval authority"
+    )) {
+        Assert-True -Condition ($combinedDocs -match [regex]::Escape($phrase)) -Message "Phone HQ docs preserve forbidden phone boundary: $phrase"
+    }
 }
 
 function Test-HqPhonePostPublishVerificationPacket {
@@ -16235,6 +16344,7 @@ Test-HqRemoteTravelPowerUpdateSafety
 Test-HqRemoteTravelGoNoGoPocketSummary
 Test-HqRemoteTravelLandingChecklist
 Test-HqPhoneDashboardSecurityModel
+Test-HqPhoneProjectStatusDashboard
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

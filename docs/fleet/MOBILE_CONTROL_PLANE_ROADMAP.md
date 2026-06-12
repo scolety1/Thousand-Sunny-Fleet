@@ -12,6 +12,10 @@ Keep the GitHub Pages dashboard public, static, read-only, and request-only. It 
 
 Improve mobile layout, request-only wording, local assets, safe fallbacks, security model docs, and tests. Do not add authentication, backend services, command execution, GitHub Actions triggers, product-repo access, client-side secrets, or phone approval authority.
 
+Phase 1 may include generated public-safe project status snapshots from local evidence. Those snapshots can show safe project names, GREEN/YELLOW/RED/UNKNOWN status, branch, clean/dirty state, checkpoint/build evidence, pending task count, and next recommended action. They must omit local absolute paths, secrets, credentials, tokens, private device identifiers, product/customer data, and any execution authority.
+
+Snapshot status can be stale until regenerated and separately published. Stale status does not approve Codex execution or product-repo work.
+
 ## Phase 2: Authenticated Request Intake
 
 Add a separate authenticated service for private project views and request submission. Requests become structured records with requester, project, task summary, quality mode, files requested, forbidden operations, validation requested, approval requirements, status, and audit notes.

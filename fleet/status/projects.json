@@ -1,0 +1,296 @@
+﻿{
+    "schemaVersion":  1,
+    "statusKind":  "public-safe-project-status-snapshot",
+    "notice":  "Phone HQ is request/status only. It does not execute Codex, approve work, merge, push, or deploy.",
+    "projects":  [
+                     {
+                         "id":  "privatelens",
+                         "name":  "PrivateLens",
+                         "statusColor":  "GREEN",
+                         "branch":  "codex/experiment-PrivateLens-20260611-010133",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "GREEN",
+                         "lastBuildResult":  "Passed",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Human review next; queue one bounded task when ready.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "bottlelight",
+                         "name":  "Bottlelight",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  2,
+                         "nextRecommendedAction":  "Request one-project proof run for the next queued task.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "cursorpets",
+                         "name":  "CursorPets",
+                         "statusColor":  "YELLOW",
+                         "branch":  "codex/cursor-pets-CursorPets-20260425-034126",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Passed",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "easylife",
+                         "name":  "EasyLife",
+                         "statusColor":  "YELLOW",
+                         "branch":  "codex/product-EasyLife-20260504-231503",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "UNKNOWN",
+                         "lastBuildResult":  "Not run; docs-only final handoff with no app code changes.",
+                         "pendingTaskCount":  6,
+                         "nextRecommendedAction":  "Request one-project proof run for the next queued task.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "eventbook",
+                         "name":  "EventBook",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Passed",
+                         "pendingTaskCount":  4,
+                         "nextRecommendedAction":  "Request one-project proof run for the next queued task.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "financedecisionlab",
+                         "name":  "FinanceDecisionLab",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "forecastlab",
+                         "name":  "ForecastLab",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "lifecapacity",
+                         "name":  "LifeCapacity",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "lineuplab",
+                         "name":  "LineupLab",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  5,
+                         "nextRecommendedAction":  "Request one-project proof run for the next queued task.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "ninerswarroom",
+                         "name":  "NinersWarRoom",
+                         "statusColor":  "RED",
+                         "branch":  "nwr-outcome-build-sprint-1-scoring-labels",
+                         "cleanState":  "dirty",
+                         "lastCheckpointVerdict":  "RED",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review local changes before requesting work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "orderpilot",
+                         "name":  "OrderPilot",
+                         "statusColor":  "RED",
+                         "branch":  "master",
+                         "cleanState":  "dirty",
+                         "lastCheckpointVerdict":  "RED",
+                         "lastBuildResult":  "Blocked",
+                         "pendingTaskCount":  1,
+                         "nextRecommendedAction":  "Review local changes before requesting work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "restaurantdemo",
+                         "name":  "RestaurantDemo",
+                         "statusColor":  "RED",
+                         "branch":  "main",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "RED",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  10,
+                         "nextRecommendedAction":  "Request one-project proof run for the next queued task.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "restaurantprofitlab",
+                         "name":  "RestaurantProfitLab",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "shiftledger",
+                         "name":  "ShiftLedger",
+                         "statusColor":  "YELLOW",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Quarantined",
+                         "pendingTaskCount":  2,
+                         "nextRecommendedAction":  "Request one-project proof run for the next queued task.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "shiftplate",
+                         "name":  "ShiftPlate",
+                         "statusColor":  "RED",
+                         "branch":  "codex/special-sauce-SpecialSauce-20260425-034127",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "RED",
+                         "lastBuildResult":  "Passed",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "tree",
+                         "name":  "Tree",
+                         "statusColor":  "YELLOW",
+                         "branch":  "codex/tree-Tree-20260425-235451",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "YELLOW",
+                         "lastBuildResult":  "Passed",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Review evidence before requesting more work.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     },
+                     {
+                         "id":  "urbankitchensite",
+                         "name":  "UrbanKitchenSite",
+                         "statusColor":  "GREEN",
+                         "branch":  "master",
+                         "cleanState":  "clean",
+                         "lastCheckpointVerdict":  "GREEN",
+                         "lastBuildResult":  "Passed",
+                         "pendingTaskCount":  0,
+                         "nextRecommendedAction":  "Human review next; queue one bounded task when ready.",
+                         "note":  "Read-only local evidence snapshot.",
+                         "controls":  {
+                                          "requestTask":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md",
+                                          "stopRequest":  "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md",
+                                          "logsStatus":  "https://github.com/scolety1/Thousand-Sunny-Fleet/blob/main/fleet/status/today.md"
+                                      }
+                     }
+                 ]
+}
