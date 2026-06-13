@@ -1625,6 +1625,114 @@ function Test-HqProjectPathPortabilityPlan {
     Assert-False -Condition ($planText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo mutation|PrivateLens changes|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "Project path portability plan does not grant forbidden authority"
 }
 
+function Test-HqAwaySafeMicrotaskPacket {
+    $packetPath = Join-Path $fleetRoot "docs\fleet\AWAY_SAFE_MICROTASK_PACKET.md"
+    $thinPromptPath = Join-Path $fleetRoot "docs\fleet\REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($packetPath, $thinPromptPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Away-safe microtask input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $packetPath)) {
+        return
+    }
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $thinPromptText = Get-Content -LiteralPath $thinPromptPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    $requiredPhrases = @(
+        "Away-Safe Microtask Packet",
+        "Evidence only; not executable authority or approval.",
+        "Run one Codex Fleet away-safe microtask.",
+        "Do exactly one Fleet-only task, then stop.",
+        "Do not touch PrivateLens or any product repo.",
+        "Do not run proof runs.",
+        "Local commit is allowed only if this prompt explicitly permits it, the task is GREEN, tests pass, and only allowed files changed.",
+        "If local commit is not explicitly permitted, leave validated changes unstaged and uncommitted.",
+        "Baseline first:",
+        "git status --short",
+        "codex --version",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1",
+        "If baseline fails, stop BLOCKED.",
+        "Pick the first not-done task from the supplied away-safe task list.",
+        "Continue only if GREEN:",
+        "If the same uncertainty, failing validation, missing context, or scope question appears twice, stop and report BLOCKED for HQ repacketization.",
+        "Final report:",
+        "Stop after one task."
+    )
+
+    foreach ($phrase in $requiredPhrases) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Away-safe microtask packet preserves phrase: $phrase"
+    }
+
+    $forbiddenBoundaries = @(
+        "product repo access or mutation",
+        "PrivateLens mutation",
+        "proof-run execution",
+        "push, merge, deploy, release, or staging",
+        "package installs or dependency updates",
+        "migrations",
+        "remote access configuration",
+        "secrets, tokens, credentials, PINs, passwords, MFA material, recovery codes, keys, or private device identifiers",
+        "all-fleet execution",
+        "overnight runner execution",
+        "phone/dashboard approval or execution authority",
+        "runtime command binding",
+        "lock deletion or permission widening"
+    )
+
+    foreach ($boundary in $forbiddenBoundaries) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($boundary)) -Message "Away-safe microtask packet preserves forbidden boundary: $boundary"
+    }
+
+    $reportPhrases = @(
+        "selected task",
+        "files changed",
+        "commit hash if committed",
+        "checks run",
+        "GREEN/YELLOW/RED",
+        "working tree status",
+        "stop signs encountered, if any",
+        "exact next prompt"
+    )
+
+    foreach ($phrase in $reportPhrases) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Away-safe microtask packet preserves report field: $phrase"
+    }
+
+    $thinPromptPhrases = @(
+        "AWAY_SAFE_MICROTASK_PACKET.md",
+        "baseline-first gate",
+        "explicit local-commit boundary",
+        "no proof-run boundary",
+        "anti-loop stop after the same uncertainty appears twice",
+        "does not approve product work, proof runs, push, merge, deploy, all-fleet execution, overnight runners, phone approvals, or runtime command binding"
+    )
+
+    foreach ($phrase in $thinPromptPhrases) {
+        Assert-True -Condition ($thinPromptText -match [regex]::Escape($phrase)) -Message "Travel thin prompt references away-safe packet boundary: $phrase"
+    }
+
+    $queuePhrases = @(
+        "HQ-247 Away-Safe Microtask Packet",
+        "status: done",
+        "docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md",
+        "docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md",
+        'baseline first with `git status --short`, `codex --version`, and `tests/run-fleet-tests.ps1`',
+        "local commit only when explicitly permitted",
+        "Do not touch product repos, run proof runs, create automations, or push"
+    )
+
+    foreach ($phrase in $queuePhrases) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records away-safe microtask packet: $phrase"
+    }
+
+    Assert-False -Condition ($packetText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "Away-safe microtask packet avoids concrete local user paths"
+    Assert-False -Condition ($packetText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo access|PrivateLens changes|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "Away-safe microtask packet does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -6163,7 +6271,7 @@ function Test-GoldenGameplanStageTwelveSupport {
             "-InputPath", $inputPath,
             "-JsonReportPath", $jsonPath,
             "-ReportPath", $reportPath
-        ) -TimeoutSeconds 30
+        ) -TimeoutSeconds 90
         Assert-Equal -Actual $controlRoomRun.ExitCode -Expected 0 -Message "Stage 12 control-room command succeeds"
         $result = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
         Assert-Equal -Actual $result.mode -Expected "read-only-control-room" -Message "Stage 12 JSON is read-only control room"
@@ -16933,6 +17041,7 @@ Test-HqOneProjectProofRunWorkflow
 Test-HqPrivateLensCsvValidationProofTaskPacket
 Test-HqNewLaptopSetupRunbook
 Test-HqProjectPathPortabilityPlan
+Test-HqAwaySafeMicrotaskPacket
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

@@ -7707,3 +7707,36 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 - repeatablePrompt:
   - `Take exactly HQ-246 Project Path Portability Plan. Patch only HQ-246 allowedFiles. Do not implement path overrides, touch product repos, or run proof runs. Run only HQ-246 validationCommands. Stop after HQ-246 and report GREEN/YELLOW/RED.`
+
+### HQ-247 Away-Safe Microtask Packet
+
+- status: done
+- phase: New laptop portability hardening
+- goal: Add a reusable one-task away-safe prompt packet for Tim that keeps Codex Fleet work baseline-first, Fleet-only, GREEN-gated, and bounded while he is away.
+- prerequisites:
+  - HQ-246 done
+- allowedFiles:
+  - `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md`
+  - `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Packet requires baseline first with `git status --short`, `codex --version`, and `tests/run-fleet-tests.ps1`.
+  - Packet requires exactly one Fleet-only task and stop after one task.
+  - Packet allows local commit only when explicitly permitted, GREEN, tests pass, and only allowed files changed.
+  - Packet forbids product repos, PrivateLens mutation, proof runs, push/merge/deploy, installs, migrations, remote access configuration, secrets, all-fleet, overnight, phone approvals, and runtime command binding.
+  - Packet requires stopping for HQ repacketization when the same uncertainty, failing validation, missing context, or scope question appears twice.
+  - Packet defines final report format.
+  - Travel thin prompt references the away-safe packet without granting new authority.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires automation creation, product-repo access, PrivateLens mutation, proof-run execution, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone approval, runtime command binding, push, merge, deploy, broader authority, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md` with baseline-first checks, one-task selection, GREEN-only continuation, explicit local commit boundary, forbidden operations, anti-loop stop, and final report format.
+  - Updated `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md` to point short away-mode work to the away-safe packet while preserving non-authority boundaries.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-247 Away-Safe Microtask Packet. Patch only HQ-247 allowedFiles. Do not touch product repos, run proof runs, create automations, or push. Run only HQ-247 validationCommands. Stop after HQ-247 and report GREEN/YELLOW/RED.`

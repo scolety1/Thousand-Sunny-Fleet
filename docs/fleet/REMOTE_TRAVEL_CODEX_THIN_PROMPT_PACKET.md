@@ -14,6 +14,8 @@ Operational travel readiness remains YELLOW until Tuesday's off-network test is 
 
 Before starting a travel-mode Codex task after landing, use `docs/fleet/REMOTE_TRAVEL_LANDING_CHECKLIST_2026_06_10.md` to confirm phone-only status/request actions are separated from laptop/desktop Codex work, repo cleanliness is known, request-only posture is clear, stop signs are inactive, and validation is available.
 
+For short Fleet-only work while Tim is away, prefer `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md`. That packet adds a baseline-first gate, explicit local-commit boundary, no proof-run boundary, anti-loop stop after the same uncertainty appears twice, and a compact final report format. It is still evidence only and does not approve product work, proof runs, push, merge, deploy, all-fleet execution, overnight runners, phone approvals, or runtime command binding.
+
 ## Copy/Paste Prompt
 
 ```text
