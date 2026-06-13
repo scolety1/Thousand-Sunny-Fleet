@@ -39,6 +39,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\fleet-proof-run-pref
 
 The preflight is evidence only. It verifies project registration, repo state, task queue presence, build/validation command presence, launch-gate script presence, checkpoint reviewer presence, and Codex CLI/service_tier compatibility. It does not run Codex, run a product build, edit product files, stage, commit, push, merge, deploy, install packages, configure remote access, or run all-fleet/overnight work.
 
+On a new laptop, the registered project path may be machine-specific. If the configured path is missing, points at a generated agent output directory from another machine, or cannot be verified as the expected repo, proof-run readiness must remain false. See `docs/fleet/PROJECT_PATH_PORTABILITY_PLAN.md` for the local path portability model. Do not infer a replacement path, scan broad user folders, leak public absolute paths, or treat a phone/dashboard request as permission to remap a project.
+
 ## Proof Run Sequence
 
 1. Confirm exactly one selected project in `projects.json`.

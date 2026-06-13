@@ -7676,3 +7676,34 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 - repeatablePrompt:
   - `Take exactly HQ-245 New Laptop Setup Runbook. Patch only HQ-245 allowedFiles. Do not touch product repos or run proof runs. Run only HQ-245 validationCommands. Stop after HQ-245 and report GREEN/YELLOW/RED.`
+
+### HQ-246 Project Path Portability Plan
+
+- status: done
+- phase: New laptop portability hardening
+- goal: Design local per-machine project path handling so missing or stale registered paths fail closed without leaking public absolute paths or silently selecting product repos.
+- prerequisites:
+  - HQ-245 done
+- allowedFiles:
+  - `docs/fleet/PROJECT_PATH_PORTABILITY_PLAN.md`
+  - `docs/fleet/ONE_PROJECT_PROOF_RUN_WORKFLOW.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Plan defines a future gitignored local override model for per-machine project paths without implementing it.
+  - Plan requires missing configured paths to fail closed and remain not proof-run-ready.
+  - Plan forbids broad directory scanning, inferred replacement paths, product repo mutation, and phone/dashboard execution authority.
+  - Plan requires public outputs to avoid full local absolute user paths.
+  - One-project proof-run workflow points readers to the portability plan and keeps missing-path readiness false.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires implementing path overrides, touching product repos, changing PrivateLens, running proof runs, running product builds, installing dependencies, scanning broad user folders, exposing private paths in public docs, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone approval, runtime command binding, push, merge, deploy, broader authority, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/PROJECT_PATH_PORTABILITY_PLAN.md` with local override design, fail-closed missing-path handling, public output boundaries, safe repair options, and stop conditions.
+  - Updated `docs/fleet/ONE_PROJECT_PROOF_RUN_WORKFLOW.md` to reference the path portability plan and preserve fail-closed new-laptop behavior.
+  - Added focused test coverage for the plan, workflow reference, queue entry, and no public absolute path leakage.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-246 Project Path Portability Plan. Patch only HQ-246 allowedFiles. Do not implement path overrides, touch product repos, or run proof runs. Run only HQ-246 validationCommands. Stop after HQ-246 and report GREEN/YELLOW/RED.`

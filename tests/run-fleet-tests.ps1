@@ -1538,6 +1538,93 @@ function Test-HqNewLaptopSetupRunbook {
     Assert-False -Condition ($runbookText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product work|PrivateLens mutation|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "New laptop setup runbook does not grant forbidden authority"
 }
 
+function Test-HqProjectPathPortabilityPlan {
+    $planPath = Join-Path $fleetRoot "docs\fleet\PROJECT_PATH_PORTABILITY_PLAN.md"
+    $workflowPath = Join-Path $fleetRoot "docs\fleet\ONE_PROJECT_PROOF_RUN_WORKFLOW.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($planPath, $workflowPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Project path portability input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $planPath)) {
+        return
+    }
+
+    $planText = Get-Content -LiteralPath $planPath -Raw
+    $workflowText = Get-Content -LiteralPath $workflowPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    $requiredPhrases = @(
+        "Project Path Portability Plan",
+        "Evidence only; not executable authority or approval.",
+        "Missing project paths must fail closed.",
+        'Keep `projects.json` as the source of truth',
+        ".codex-local/project-paths.local.json",
+        "local environment configuration, not Fleet authority",
+        "No fallback search should walk broad user directories",
+        "Ambiguity must stay YELLOW or RED until Tim gives an exact path.",
+        "proof-run readiness remains false",
+        "Passing Fleet tests or a valid Codex CLI shim does not override missing product context.",
+        "must not print private absolute paths such as user profile directories",
+        "update the Fleet project path to a stable local clone path",
+        "clone or copy the product repo to the currently configured path",
+        "add a future gitignored local override for this laptop",
+        "defer product proof-runs to the machine where the product context already exists",
+        "does not implement local path overrides or change existing project resolution behavior"
+    )
+
+    foreach ($phrase in $requiredPhrases) {
+        Assert-True -Condition ($planText -match [regex]::Escape($phrase)) -Message "Project path portability plan preserves phrase: $phrase"
+    }
+
+    $stopBoundaries = @(
+        "touching PrivateLens or another product repo without exact approval",
+        "running product builds or proof runs",
+        "installing dependencies",
+        "running migrations",
+        "configuring remote access",
+        "storing secrets or private credentials",
+        "scanning broad user folders for repos",
+        "exposing local absolute paths in public docs or dashboards",
+        "treating phone/dashboard UI as execution authority",
+        "widening Fleet permissions"
+    )
+
+    foreach ($boundary in $stopBoundaries) {
+        Assert-True -Condition ($planText -match [regex]::Escape($boundary)) -Message "Project path portability plan preserves stop boundary: $boundary"
+    }
+
+    $workflowPhrases = @(
+        "PROJECT_PATH_PORTABILITY_PLAN.md",
+        "proof-run readiness must remain false",
+        "Do not infer a replacement path",
+        "leak public absolute paths",
+        "phone/dashboard request as permission to remap a project"
+    )
+
+    foreach ($phrase in $workflowPhrases) {
+        Assert-True -Condition ($workflowText -match [regex]::Escape($phrase)) -Message "One-project workflow references path portability boundary: $phrase"
+    }
+
+    $queuePhrases = @(
+        "HQ-246 Project Path Portability Plan",
+        "status: done",
+        "docs/fleet/PROJECT_PATH_PORTABILITY_PLAN.md",
+        "docs/fleet/ONE_PROJECT_PROOF_RUN_WORKFLOW.md",
+        "missing configured paths to fail closed",
+        "avoid full local absolute user paths",
+        "Do not implement path overrides, touch product repos, or run proof runs"
+    )
+
+    foreach ($phrase in $queuePhrases) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records project path portability plan: $phrase"
+    }
+
+    Assert-False -Condition ($planText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "Project path portability plan avoids concrete local user paths"
+    Assert-False -Condition ($planText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo mutation|PrivateLens changes|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "Project path portability plan does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -16845,6 +16932,7 @@ Test-HqPhoneProjectStatusDashboard
 Test-HqOneProjectProofRunWorkflow
 Test-HqPrivateLensCsvValidationProofTaskPacket
 Test-HqNewLaptopSetupRunbook
+Test-HqProjectPathPortabilityPlan
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
