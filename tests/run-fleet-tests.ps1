@@ -1465,6 +1465,79 @@ function Test-HqPrivateLensCsvValidationProofTaskPacket {
     Assert-False -Condition ($packetText -match "C:\\Users\\") -Message "PrivateLens CSV proof packet avoids local absolute Windows user paths"
 }
 
+function Test-HqNewLaptopSetupRunbook {
+    $runbookPath = Join-Path $fleetRoot "docs\fleet\NEW_LAPTOP_SETUP_RUNBOOK.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    Assert-True -Condition (Test-Path -LiteralPath $runbookPath) -Message "New laptop setup runbook exists"
+    Assert-True -Condition (Test-Path -LiteralPath $queuePath) -Message "HQ queue exists for new laptop setup runbook"
+
+    if (!(Test-Path -LiteralPath $runbookPath)) {
+        return
+    }
+
+    $runbookText = Get-Content -LiteralPath $runbookPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    $requiredPhrases = @(
+        "New Laptop Fleet Setup Runbook",
+        "Evidence only; not executable authority or approval.",
+        "C:\Users\<you>\Documents\Vacation\Thousand-Sunny-Fleet",
+        "git status --short",
+        "codex --version",
+        "where.exe codex",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1",
+        "Access is denied",
+        "WindowsApps",
+        "Do not work around this by weakening Fleet checks or claiming Codex is usable.",
+        "A runnable Codex CLI is necessary but not sufficient for a product proof run.",
+        "exactly one project is selected",
+        "exactly one unchecked task is selected",
+        "registered product repo path exists on this laptop",
+        "Do not run an actual PrivateLens proof run from a new laptop merely because Codex CLI and Fleet tests pass.",
+        "Never put secrets, tokens, credentials, PINs, passwords, MFA material, recovery codes, keys, private device identifiers, or remote access details",
+        "proof-run preflight fails closed clearly when product context is missing"
+    )
+
+    foreach ($phrase in $requiredPhrases) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($phrase)) -Message "New laptop setup runbook preserves phrase: $phrase"
+    }
+
+    $forbiddenBoundaries = @(
+        "touching PrivateLens or any product repo",
+        "installing product dependencies",
+        "running product builds",
+        "running proof runs",
+        "all-fleet execution",
+        "overnight runners",
+        "staging, committing, pushing, merging, or deploying product work",
+        "configuring remote access",
+        "approving phone/dashboard actions",
+        "binding runtime commands"
+    )
+
+    foreach ($boundary in $forbiddenBoundaries) {
+        Assert-True -Condition ($runbookText -match [regex]::Escape($boundary)) -Message "New laptop setup runbook preserves forbidden boundary: $boundary"
+    }
+
+    $queuePhrases = @(
+        "HQ-245 New Laptop Setup Runbook",
+        "status: done",
+        "docs/fleet/NEW_LAPTOP_SETUP_RUNBOOK.md",
+        "codex --version",
+        "where.exe codex",
+        "tests/run-fleet-tests.ps1",
+        "proof runs remain blocked",
+        "Do not touch product repos or run proof runs"
+    )
+
+    foreach ($phrase in $queuePhrases) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records new laptop setup runbook: $phrase"
+    }
+
+    Assert-False -Condition ($runbookText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product work|PrivateLens mutation|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "New laptop setup runbook does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -16771,6 +16844,7 @@ Test-HqPhoneDashboardSecurityModel
 Test-HqPhoneProjectStatusDashboard
 Test-HqOneProjectProofRunWorkflow
 Test-HqPrivateLensCsvValidationProofTaskPacket
+Test-HqNewLaptopSetupRunbook
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

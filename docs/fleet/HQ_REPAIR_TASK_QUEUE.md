@@ -7646,3 +7646,33 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Tests assert the helper exists, runs against the PrivateLens proof packet, uses aliases, recognizes blocked synthetic packets, and remains recommendation-only.
 - repeatablePrompt:
   - `Take exactly HQ-244 Model Routing Preflight Helper V1. Patch only HQ-244 allowedFiles. Do not wire into execution. Run only HQ-244 validationCommands. Stop after HQ-244 and report GREEN/YELLOW/RED.`
+
+### HQ-245 New Laptop Setup Runbook
+
+- status: done
+- phase: New laptop portability hardening
+- goal: Document the safe new-laptop setup path for Codex Fleet, including clone location, Codex CLI shim checks, baseline tests, proof-run caveats, and no-secret/no-product-run boundaries.
+- prerequisites:
+  - HQ-244 done
+  - Codex CLI shim repair diagnosed on the new laptop
+- allowedFiles:
+  - `docs/fleet/NEW_LAPTOP_SETUP_RUNBOOK.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Runbook names a stable user-owned Fleet clone path without requiring generated agent output paths.
+  - Runbook documents `codex --version`, `where.exe codex`, and `tests/run-fleet-tests.ps1` as new-laptop checks.
+  - Runbook explains that `Access is denied` from a WindowsApps-only Codex resolution must fail closed and be repaired before proof-run work.
+  - Runbook states proof runs remain blocked until the product repo path, task queue, build context, and exactly one selected task are present.
+  - Runbook preserves no-secret, no-product-run, no all-fleet, no overnight, no phone-approval, and no runtime-command-binding boundaries.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`
+- stopIf:
+  - Requires product-repo access, PrivateLens mutation, proof-run execution, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone approval, runtime command binding, push, merge, deploy, broader authority, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/NEW_LAPTOP_SETUP_RUNBOOK.md` with clone-path guidance, Codex CLI shim checks, Fleet test command, proof-run preflight caveat, and forbidden-operation boundaries.
+  - Added focused test coverage for the runbook and queue entry in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
+- repeatablePrompt:
+  - `Take exactly HQ-245 New Laptop Setup Runbook. Patch only HQ-245 allowedFiles. Do not touch product repos or run proof runs. Run only HQ-245 validationCommands. Stop after HQ-245 and report GREEN/YELLOW/RED.`
