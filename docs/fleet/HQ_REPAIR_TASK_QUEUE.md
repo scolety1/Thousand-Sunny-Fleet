@@ -7740,3 +7740,37 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1`.
 - repeatablePrompt:
   - `Take exactly HQ-247 Away-Safe Microtask Packet. Patch only HQ-247 allowedFiles. Do not touch product repos, run proof runs, create automations, or push. Run only HQ-247 validationCommands. Stop after HQ-247 and report GREEN/YELLOW/RED.`
+
+### HQ-248 Fleet Self-Improvement Loop V1
+
+- status: done
+- phase: Fleet self-improvement hardening
+- goal: Define a bounded prompt pattern for up to N Fleet-only self-improvement iterations with GREEN-gated validation, local commits, model routing, and strict stop signs.
+- prerequisites:
+  - HQ-247 done
+- allowedFiles:
+  - `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md`
+  - `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Loop requires a small explicit N and stops BLOCKED when N is missing, ambiguous, unbounded, overnight, all-fleet, or autopilot.
+  - Each iteration confirms clean baseline, selects exactly one Fleet-only task, confirms allowed files, model-routes with aliases only, patches only allowed files, validates, reports, and continues only when still GREEN and clean.
+  - Local commits are allowed only when explicitly permitted, Fleet-only, GREEN, tests pass, and only allowed files changed.
+  - Push remains blocked unless separately approved after review.
+  - Phone HQ remains request/status only and cannot approve or execute actions.
+  - PrivateLens remains a disposable proof target, not the loop objective, and must not be touched.
+  - Stop signs cover YELLOW/RED/BLOCKED, failed tests, timed-out tests without diagnosis, unexpected files, product repos, PrivateLens, proof runs, push/merge/deploy, installs/packages, secrets/auth/credentials, remote access, all-fleet, overnight/unbounded runners, phone execution authority, runtime command binding, and same uncertainty twice.
+  - Away-safe packet points larger bounded loops to the self-improvement loop without granting new authority.
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\self-improvement-loop-v1.log`
+- stopIf:
+  - Requires implementing an automation or runner, product-repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone approval, runtime command binding, broad authority, unbounded looping, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md` with bounded up-to-N loop contract, per-iteration checks, model routing, commit boundary, stop signs, Phone HQ boundary, and reusable prompt.
+  - Updated `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md` to point larger bounded loops to the self-improvement loop while preserving non-authority boundaries.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\self-improvement-loop-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-248 Fleet Self-Improvement Loop V1. Patch only HQ-248 allowedFiles. Do not touch product repos, run proof runs, create automations, run overnight/all-fleet, or push. Run only HQ-248 validationCommands. Stop after HQ-248 and report GREEN/YELLOW/RED.`

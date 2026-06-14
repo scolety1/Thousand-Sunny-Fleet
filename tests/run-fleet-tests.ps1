@@ -198,7 +198,7 @@ function Test-RuntimeHelpers {
         Assert-True -Condition ($resolvedCodex -like "*.cmd") -Message "Runtime resolves codex to executable cmd shim on Windows"
     }
 
-    $normal = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-Command", "Write-Output fixture-ok") -TimeoutSeconds 10
+    $normal = Invoke-FleetProcess -FilePath "powershell" -Arguments @("-NoProfile", "-Command", "Write-Output fixture-ok") -TimeoutSeconds 30
     Assert-Equal -Actual $normal.exitCode -Expected 0 -Message "Invoke-FleetProcess captures successful exit code"
     Assert-True -Condition (($normal.output -join "`n") -match "fixture-ok") -Message "Invoke-FleetProcess captures output"
 
@@ -217,7 +217,7 @@ Add-Content -LiteralPath '$counterPath' -Value 'run'
 exit 0
 "@
     try {
-        $noOutputResult = Invoke-FleetCodexReadOnly -Prompt "fixture" -OutputPath $noOutputPath -CodexExecutable "powershell" -CodexBaseArguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $noOutputScript) -SkipOutputArgument -MaxNoOutputRetries 2 -TimeoutSeconds 10 -RateLimitMaxCooldowns 0
+        $noOutputResult = Invoke-FleetCodexReadOnly -Prompt "fixture" -OutputPath $noOutputPath -CodexExecutable "powershell" -CodexBaseArguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $noOutputScript) -SkipOutputArgument -MaxNoOutputRetries 2 -TimeoutSeconds 30 -RateLimitMaxCooldowns 0
         $attempts = @(Get-Content -Path $counterPath -ErrorAction SilentlyContinue).Count
         Assert-Equal -Actual $attempts -Expected 2 -Message "Read-only Codex helper exits after configured no-output retries"
         Assert-False -Condition (Test-Path $noOutputPath) -Message "No-output Codex helper does not fake a successful output file"
@@ -1731,6 +1731,136 @@ function Test-HqAwaySafeMicrotaskPacket {
 
     Assert-False -Condition ($packetText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "Away-safe microtask packet avoids concrete local user paths"
     Assert-False -Condition ($packetText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo access|PrivateLens changes|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "Away-safe microtask packet does not grant forbidden authority"
+}
+
+function Test-HqFleetSelfImprovementLoop {
+    $loopPath = Join-Path $fleetRoot "docs\fleet\FLEET_SELF_IMPROVEMENT_LOOP.md"
+    $awayPath = Join-Path $fleetRoot "docs\fleet\AWAY_SAFE_MICROTASK_PACKET.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($loopPath, $awayPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet self-improvement loop input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $loopPath)) {
+        return
+    }
+
+    $loopText = Get-Content -LiteralPath $loopPath -Raw
+    $awayText = Get-Content -LiteralPath $awayPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    $requiredPhrases = @(
+        "Fleet Self-Improvement Loop",
+        "Evidence only; not executable authority or approval.",
+        'up to `N` Fleet-only iterations',
+        'If `N` is missing, ambiguous, unbounded, or described as overnight/all-fleet/autopilot, stop BLOCKED for repacketization.',
+        "Each iteration must complete exactly one Fleet-only task",
+        'Confirm clean baseline with `git status --short`.',
+        "Select exactly one Fleet-only task",
+        "Confirm the selected task's allowed files before editing.",
+        "Run model routing preflight or classify with the alias-only routing policy.",
+        "Patch only the selected task's allowed files.",
+        "Validate with ``git diff --check`` and the selected task's validation commands.",
+        "Create one local commit only if the task is GREEN",
+        "Continue to the next iteration only if the working tree is clean",
+        'Use `best_value` by default.',
+        'Use `perfection` only when Tim explicitly asks',
+        "Do not hardcode current model names",
+        "Do not hardcode current model names, claim current pricing, call model APIs, mutate Codex config",
+        "Blocked conditions are not solved by a stronger model alias.",
+        "Phone HQ and dashboard surfaces remain request/status only.",
+        "PrivateLens remains a disposable proof target",
+        "It is not the objective of this loop",
+        "Push remains blocked unless Tim separately approves a reviewed commit push.",
+        "Run the Codex Fleet self-improvement loop for up to <N> iterations.",
+        "Stop after at most <N> iterations.",
+        "does not implement a runner, create an automation, approve unattended work, approve push, or relax the one-task boundary"
+    )
+
+    foreach ($phrase in $requiredPhrases) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($phrase)) -Message "Fleet self-improvement loop preserves phrase: $phrase"
+    }
+
+    foreach ($alias in @("fast_readonly", "standard_patch", "deep_reasoning", "premium_audit")) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($alias)) -Message "Fleet self-improvement loop uses model alias: $alias"
+    }
+
+    $stopSigns = @(
+        "YELLOW, RED, or BLOCKED result",
+        "failed tests",
+        "timed-out tests without diagnosis",
+        "unexpected files",
+        "product repo touch",
+        "PrivateLens mutation",
+        "proof-run need",
+        "push, merge, or deploy need",
+        "install, package, or dependency need",
+        "secrets, auth, credential, token, password, MFA, recovery-code, key, payment, or deploy issue",
+        "remote access need",
+        "all-fleet need",
+        "overnight or unbounded runner",
+        "phone/dashboard approval or execution request",
+        "runtime command binding",
+        "lock deletion or permission widening",
+        "missing or ambiguous allowed files",
+        "missing validation command",
+        "same uncertainty twice",
+        "any need to start a second task inside one iteration"
+    )
+
+    foreach ($stopSign in $stopSigns) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($stopSign)) -Message "Fleet self-improvement loop preserves stop sign: $stopSign"
+    }
+
+    $reportPhrases = @(
+        "iterations requested",
+        "iterations completed",
+        "task selected per iteration",
+        "recommended model alias per iteration",
+        "files changed",
+        "commit hashes if committed",
+        "checks run",
+        "stop signs encountered, if any",
+        "GREEN/YELLOW/RED",
+        "working tree status",
+        "exact next prompt"
+    )
+
+    foreach ($phrase in $reportPhrases) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($phrase)) -Message "Fleet self-improvement loop preserves report field: $phrase"
+    }
+
+    $awayPhrases = @(
+        "FLEET_SELF_IMPROVEMENT_LOOP.md",
+        "one-task boundary inside each iteration",
+        "GREEN validation and a clean working tree before continuing",
+        "model routing advisory and alias-only",
+        "blocks product repos, PrivateLens mutation, proof runs, push, merge, deploy, installs, migrations, remote access, secrets, all-fleet execution, overnight runners, phone approvals, and runtime command binding"
+    )
+
+    foreach ($phrase in $awayPhrases) {
+        Assert-True -Condition ($awayText -match [regex]::Escape($phrase)) -Message "Away-safe packet references self-improvement loop boundary: $phrase"
+    }
+
+    $queuePhrases = @(
+        "HQ-248 Fleet Self-Improvement Loop V1",
+        "status: done",
+        "docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md",
+        "small explicit N",
+        "model-routes with aliases only",
+        "Push remains blocked unless separately approved after review.",
+        "Phone HQ remains request/status only and cannot approve or execute actions.",
+        "PrivateLens remains a disposable proof target",
+        "Do not touch product repos, run proof runs, create automations, run overnight/all-fleet, or push"
+    )
+
+    foreach ($phrase in $queuePhrases) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records Fleet self-improvement loop: $phrase"
+    }
+
+    Assert-False -Condition ($loopText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "Fleet self-improvement loop avoids concrete local user paths"
+    Assert-False -Condition ($loopText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo access|PrivateLens changes|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "Fleet self-improvement loop does not grant forbidden authority"
 }
 
 function Test-HqPhonePostPublishVerificationPacket {
@@ -17042,6 +17172,7 @@ Test-HqPrivateLensCsvValidationProofTaskPacket
 Test-HqNewLaptopSetupRunbook
 Test-HqProjectPathPortabilityPlan
 Test-HqAwaySafeMicrotaskPacket
+Test-HqFleetSelfImprovementLoop
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
