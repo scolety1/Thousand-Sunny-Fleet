@@ -10,6 +10,8 @@ This packet defines a bounded way for Codex Fleet / Thousand Sunny Fleet to impr
 
 PrivateLens remains a disposable proof target for selected proof-run workflows. It is not the objective of this loop, and this loop must not touch PrivateLens or any product repo.
 
+Use `docs/fleet/TSF_OPERATING_MODEL.md` as the lifecycle and mode vocabulary for selecting Fleet-only self-improvement tasks. The operating model does not grant new execution authority; it only names sections, modes, Focus Lock, known-fix routes, Tim Question Queue, and Mobile HQ request/status boundaries.
+
 ## Loop Contract
 
 Tim may ask for up to `N` Fleet-only iterations. `N` must be a small positive number in the prompt. If `N` is missing, ambiguous, unbounded, or described as overnight/all-fleet/autopilot, stop BLOCKED for repacketization.

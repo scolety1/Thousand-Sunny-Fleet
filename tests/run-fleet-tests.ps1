@@ -1863,6 +1863,191 @@ function Test-HqFleetSelfImprovementLoop {
     Assert-False -Condition ($loopText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo access|PrivateLens changes|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "Fleet self-improvement loop does not grant forbidden authority"
 }
 
+function Test-HqTsfOperatingModel {
+    $modelPath = Join-Path $fleetRoot "docs\fleet\TSF_OPERATING_MODEL.md"
+    $loopPath = Join-Path $fleetRoot "docs\fleet\FLEET_SELF_IMPROVEMENT_LOOP.md"
+    $awayPath = Join-Path $fleetRoot "docs\fleet\AWAY_SAFE_MICROTASK_PACKET.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($modelPath, $loopPath, $awayPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF operating model input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $modelPath)) {
+        return
+    }
+
+    $modelText = Get-Content -LiteralPath $modelPath -Raw
+    $loopText = Get-Content -LiteralPath $loopPath -Raw
+    $awayText = Get-Content -LiteralPath $awayPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($section in @(
+        "Ideas / Backlog",
+        "Active / Development",
+        "Review / Release Candidate",
+        "Paused",
+        "Archived / Parked",
+        "Finished / Rolled Out",
+        "Blocked"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($section)) -Message "TSF operating model defines section: $section"
+    }
+
+    $requiredPhrases = @(
+        "Evidence only; not executable authority or approval.",
+        "The goal is TSF itself.",
+        "PrivateLens remains a disposable proof target",
+        "Ideas are not executable authority and are not autonomous-eligible.",
+        "must not treat an idea as approval to implement",
+        "Review does not equal Finished.",
+        "Finished requires Tim acceptance or explicit rollout evidence.",
+        "Codex/TSF may not mark a track Finished / Rolled Out by itself.",
+        "Finished tracks are stable baselines and are not directly mutated.",
+        "Future work starts by creating a new Active / Development upgrade track derived from the finished baseline.",
+        "Niners v1.0 remains Finished / Rolled Out while Niners v1.2 is Active / Development.",
+        "Track duplication means creating a new active upgrade track from a finished baseline, not copying the entire repo blindly.",
+        "In-House Mode",
+        "Busy Mode",
+        "Away Mode",
+        "Phone HQ remains request/status only.",
+        "Phone requests are not execution authority.",
+        "Static GitHub Pages cannot securely execute commands on the laptop.",
+        "Future mobile control requires a safe authenticated/local request bridge.",
+        "TSF must validate every request locally before acting.",
+        "The request bridge is future architecture, not implemented by this task.",
+        "Unsafe model: a phone button directly runs shell commands. This is forbidden.",
+        "Known-fix routes require local validation before acting.",
+        "Unknown blockers remain BLOCKED/YELLOW and require Tim or In-House Mode.",
+        "outer terminal/output timeout where the suite passes under log redirection",
+        "missing product repo path on a new laptop",
+        "Tim Question Queue",
+        "Away Mode should collect non-urgent questions instead of spamming Tim.",
+        "A planned deadline is not approval to push, deploy, ship",
+        "Deadline mode should prioritize selected active tracks",
+        "no unbounded overnight or all-fleet behavior"
+    )
+
+    foreach ($phrase in $requiredPhrases) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($phrase)) -Message "TSF operating model preserves phrase: $phrase"
+    }
+
+    foreach ($field in @(
+        "project",
+        "track/version",
+        "section",
+        "baseline",
+        "end goal",
+        "deadline",
+        "priority",
+        "definition of done",
+        "validation",
+        "blockers",
+        "next milestone",
+        "rollback target",
+        "work eligibility"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($field)) -Message "TSF operating model includes track field: $field"
+    }
+
+    foreach ($ineligible in @(
+        "Ideas, archived tracks, paused tracks, blocked tracks, finished tracks",
+        "not autonomous-eligible",
+        "not Paused",
+        "not Archived / Parked",
+        "not Finished / Rolled Out",
+        "not Blocked",
+        "inside Focus Lock if Focus Lock is active",
+        "exactly one selected project",
+        "exactly one selected track",
+        "exactly one selected task",
+        "allowed files are known",
+        "validation commands are known"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($ineligible)) -Message "TSF operating model preserves work eligibility rule: $ineligible"
+    }
+
+    foreach ($routeField in @(
+        "ID",
+        "name",
+        "fingerprint",
+        "allowed files",
+        "allowed commands",
+        "validation",
+        "forbidden actions",
+        "stop conditions",
+        "confidence level"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($routeField)) -Message "TSF operating model includes known-fix route field: $routeField"
+    }
+
+    foreach ($confidence in @("auto-safe", "phone-requestable", "in-house-only", "forbidden/manual-only")) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($confidence)) -Message "TSF operating model includes known-fix confidence: $confidence"
+    }
+
+    foreach ($bridgeConstraint in @(
+        "request ID",
+        "audit/status evidence",
+        "allowed action types",
+        "local validation",
+        "stop gates",
+        "client-side secrets",
+        "local absolute private paths",
+        "private/customer data",
+        "arbitrary command payloads"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($bridgeConstraint)) -Message "TSF operating model includes bridge constraint: $bridgeConstraint"
+    }
+
+    foreach ($candidate in @(
+        "project/track schema",
+        "Ideas/Backlog doc",
+        "lifecycle section renderer/status snapshot",
+        "mode switcher policy",
+        "work eligibility validator",
+        "Focus Lock",
+        "known-fix registry",
+        "Tim Question Queue",
+        "Mobile HQ request inbox",
+        "safe request bridge design",
+        "finished-release upgrade-track flow",
+        "deadline/end-goal planner",
+        "dashboard sections for Ideas, Active, Review, Paused, Archived, Finished, and Blocked"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($candidate)) -Message "HQ queue records operating model follow-up candidate: $candidate"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-249 TSF Operating Model V1",
+        "status: done",
+        "docs/fleet/TSF_OPERATING_MODEL.md",
+        "Review / Release Candidate does not equal Finished / Rolled Out",
+        "Mobile HQ remains request/status only",
+        "Do not touch product repos, run proof runs, implement live phone commands, run overnight/all-fleet, or push"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records TSF operating model boundary: $queuePhrase"
+    }
+
+    foreach ($crossReference in @(
+        "TSF_OPERATING_MODEL.md",
+        "lifecycle and mode vocabulary",
+        "does not grant new execution authority"
+    )) {
+        Assert-True -Condition ($loopText -match [regex]::Escape($crossReference)) -Message "Self-improvement loop references operating model: $crossReference"
+    }
+
+    foreach ($awayReference in @(
+        "TSF_OPERATING_MODEL.md",
+        "project-section and mode vocabulary",
+        "does not approve a second task or phone execution"
+    )) {
+        Assert-True -Condition ($awayText -match [regex]::Escape($awayReference)) -Message "Away-safe packet references operating model: $awayReference"
+    }
+
+    Assert-False -Condition ($modelText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF operating model avoids concrete local user paths"
+    Assert-False -Condition ($modelText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo control|PrivateLens mutation|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "TSF operating model does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -17173,6 +17358,7 @@ Test-HqNewLaptopSetupRunbook
 Test-HqProjectPathPortabilityPlan
 Test-HqAwaySafeMicrotaskPacket
 Test-HqFleetSelfImprovementLoop
+Test-HqTsfOperatingModel
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

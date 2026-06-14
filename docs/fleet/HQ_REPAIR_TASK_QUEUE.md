@@ -7774,3 +7774,56 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\self-improvement-loop-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-248 Fleet Self-Improvement Loop V1. Patch only HQ-248 allowedFiles. Do not touch product repos, run proof runs, create automations, run overnight/all-fleet, or push. Run only HQ-248 validationCommands. Stop after HQ-248 and report GREEN/YELLOW/RED.`
+
+### HQ-249 TSF Operating Model V1
+
+- status: done
+- phase: TSF operating model architecture
+- goal: Define the TSF project-management operating model for lifecycle sections, tracks/versions, modes, work eligibility, Focus Lock, Mobile HQ request/status, known-fix routes, Tim Question Queue, and deadline/end-goal planning.
+- prerequisites:
+  - HQ-248 done
+- allowedFiles:
+  - `docs/fleet/TSF_OPERATING_MODEL.md`
+  - `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md`
+  - `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Operating model defines Ideas / Backlog, Active / Development, Review / Release Candidate, Paused, Archived / Parked, Finished / Rolled Out, and Blocked.
+  - Ideas are not executable authority and must be promoted into an active project/track before implementation.
+  - Review / Release Candidate does not equal Finished / Rolled Out, and Finished requires Tim acceptance or explicit rollout evidence.
+  - Finished tracks are not directly mutated; future work creates a new Active / Development upgrade track from the finished baseline.
+  - Track fields include project, track/version, section, baseline, end goal, deadline, priority, definition of done, validation, blockers, next milestone, rollback target, and work eligibility.
+  - Modes define In-House Mode, Busy Mode, and Away Mode with WIP limits and stop gates.
+  - Work eligibility excludes Ideas, Paused, Archived / Parked, Finished / Rolled Out, Blocked, vague goals, unsafe product work, and tasks missing allowed files or validation.
+  - Focus Lock restricts TSF to selected priority tracks but does not approve unsafe actions.
+  - Mobile HQ remains request/status only; static GitHub Pages cannot securely execute commands, and future bridge work requires local validation, request IDs, audit logs, stop gates, and no client-side secrets.
+  - Known-fix routes require ID, name, fingerprint, allowed files, allowed commands, validation, forbidden actions, stop conditions, and confidence level.
+  - Tim Question Queue, deadline/end-goal planning, and dashboard section candidates are specified without granting execution authority.
+  - Self-improvement and away-safe packets reference the operating model without granting new authority.
+- followupQueueCandidates:
+  - project/track schema
+  - Ideas/Backlog doc
+  - lifecycle section renderer/status snapshot
+  - mode switcher policy
+  - work eligibility validator
+  - Focus Lock
+  - known-fix registry
+  - Tim Question Queue
+  - Mobile HQ request inbox
+  - safe request bridge design
+  - finished-release upgrade-track flow
+  - deadline/end-goal planner
+  - dashboard sections for Ideas, Active, Review, Paused, Archived, Finished, and Blocked
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\tsf-operating-model-v1.log`
+- stopIf:
+  - Requires product repo control, PrivateLens mutation, proof-run execution, live phone command execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone approval, runtime command binding, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_OPERATING_MODEL.md` as architecture/spec evidence for TSF lifecycle, tracks, modes, work eligibility, Mobile HQ request/status, request bridge constraints, known-fix routes, Tim Question Queue, deadline/end-goal planning, and WIP limits.
+  - Updated `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md` and `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md` to reference the operating model as vocabulary only.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\tsf-operating-model-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-249 TSF Operating Model V1. Patch only HQ-249 allowedFiles. Do not touch product repos, run proof runs, implement live phone commands, run overnight/all-fleet, or push. Run only HQ-249 validationCommands. Stop after HQ-249 and report GREEN/YELLOW/RED.`

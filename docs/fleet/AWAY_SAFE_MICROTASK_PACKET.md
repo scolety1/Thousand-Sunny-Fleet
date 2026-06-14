@@ -104,6 +104,8 @@ Report BLOCKED for HQ repacketization with the exact repeated condition.
 
 For explicitly bounded multi-iteration Fleet self-improvement, use `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md`. That packet preserves the one-task boundary inside each iteration, requires GREEN validation and a clean working tree before continuing, keeps model routing advisory and alias-only, and still blocks product repos, PrivateLens mutation, proof runs, push, merge, deploy, installs, migrations, remote access, secrets, all-fleet execution, overnight runners, phone approvals, and runtime command binding.
 
+Use `docs/fleet/TSF_OPERATING_MODEL.md` for the shared project-section and mode vocabulary when an away-safe task needs to discuss Ideas / Backlog, Active / Development, Review / Release Candidate, Paused, Archived / Parked, Finished / Rolled Out, Blocked, Focus Lock, known-fix routes, or the Tim Question Queue. The operating model is evidence only and does not approve a second task or phone execution.
+
 ## Status
 
 This packet is evidence-only prompt guidance. It does not create an automation, approve unattended all-fleet work, approve overnight runners, or grant authority beyond one explicitly supplied Fleet-only microtask.
