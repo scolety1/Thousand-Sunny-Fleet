@@ -7874,3 +7874,44 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\assignment-completion-loop-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-250 TSF Assignment-Completion Loop V1. Patch only HQ-250 allowedFiles. Do not touch product repos, run proof runs, implement live phone commands, run overnight/all-fleet, or push. Run only HQ-250 validationCommands. Stop after HQ-250 and report GREEN/YELLOW/RED.`
+
+### HQ-251 TSF Safe Night Sprint v1.1 Controls
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `ffb2b043aaba9cecc72b2339811541b6cd2292a8`
+- goal: Add docs/test-backed controls for assignment packets, next-assignment gates, report classification, reusable prompts, Phone HQ request/status boundaries, and copy/paste relay reduction.
+- allowedFiles:
+  - `docs/fleet/TSF_SAFE_NIGHT_SPRINT_CONTROLS.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Current remote GREEN baseline is unambiguous as `ffb2b043aaba9cecc72b2339811541b6cd2292a8`.
+  - Assignment packet template includes assignment name, project/repo, current baseline, goal/end state, allowed/forbidden scope, Definition of Done, validation commands, report requirements, stop conditions, push policy, next-assignment eligibility, and safety-fuse note.
+  - Next-assignment gates require GREEN current assignment, validation evidence, clean or intentionally safe reported tree, explicit eligible next assignment, known allowed files/validation, and no boundary crossings.
+  - Codex report classifier covers GREEN/YELLOW/RED examples for clean commit, reviews, push, failed/timed-out tests, dirty tree, unexpected files, product/PrivateLens/proof-run/push violations, static GitHub Pages command-execution claims, phone request misuse, and pseudo-button prose.
+  - Prompt library includes implementation, review-only, push-readiness, explicit push, failed-test repair, handoff packet, phone request/status-only, static GitHub Pages safety review, and next-assignment selection patterns.
+  - Phone HQ remains request/status only and static GitHub Pages cannot execute local commands.
+  - Copy/paste relay reduction roadmap is staged and does not bind runtime commands.
+  - Queue candidates remain non-executable future tasks and are not approval to implement everything.
+- nextRecommendedBoundedAssignments:
+  - assignment schema
+  - assignment queue
+  - local-only dry-run queue validation
+  - Codex report classifier fixture matrix
+  - prompt library extraction into templates
+  - Mobile HQ assignment status view
+  - local request inbox model
+  - static GitHub Pages safety wording audit
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\safe-night-sprint-v1-1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_SAFE_NIGHT_SPRINT_CONTROLS.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\safe-night-sprint-v1-1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-251 TSF Safe Night Sprint v1.1 Controls. Patch only HQ-251 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-251 validationCommands. Stop after HQ-251 and report GREEN/YELLOW/RED.`

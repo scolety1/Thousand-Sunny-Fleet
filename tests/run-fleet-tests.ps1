@@ -2126,6 +2126,164 @@ function Test-HqTsfOperatingModel {
     Assert-False -Condition ($modelText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo control|PrivateLens mutation|proof runs|all-fleet|overnight|phone approvals|runtime command binding|future authority)") -Message "TSF operating model does not grant forbidden authority"
 }
 
+function Test-HqTsfSafeNightSprintControls {
+    $controlsPath = Join-Path $fleetRoot "docs\fleet\TSF_SAFE_NIGHT_SPRINT_CONTROLS.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($controlsPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF safe night sprint input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $controlsPath)) {
+        return
+    }
+
+    $controlsText = Get-Content -LiteralPath $controlsPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Safe Night Sprint Controls",
+        "Evidence only; not executable authority or approval.",
+        "ffb2b043aaba9cecc72b2339811541b6cd2292a8",
+        "Assignment-Completion Loop v1 is complete and pushed GREEN.",
+        "Assignment Definition of Done as the primary completion condition",
+        "Numeric task, commit, and time limits are safety fuses only",
+        "does not authorize product repo work, PrivateLens work, proof runs, push, merge, deploy, installs, migrations, secrets, remote access, all-fleet, overnight runners, phone execution authority, runtime command binding, lock deletion, or permission widening"
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($phrase)) -Message "Safe night sprint controls preserve baseline/boundary phrase: $phrase"
+    }
+
+    foreach ($templateField in @(
+        "Assignment name:",
+        "Project/repo:",
+        "Current baseline:",
+        "Goal/end state:",
+        "Allowed files/scope:",
+        "Forbidden files/scope:",
+        "Definition of Done:",
+        "Validation commands:",
+        "Report requirements:",
+        "Stop conditions:",
+        "Push policy:",
+        "Next-assignment eligibility:",
+        "Safety fuses:"
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($templateField)) -Message "Assignment packet template includes field: $templateField"
+    }
+
+    foreach ($gate in @(
+        "current assignment is GREEN",
+        "Definition of Done is met with validation evidence",
+        "working tree is clean, or intentional dirty state is explicitly reported and safe",
+        "next assignment is explicitly eligible and bounded",
+        "Focus Lock allows the next assignment's project/track",
+        "allowed files and validation are known",
+        "queue candidates are not treated as approval to execute all candidates",
+        "Task count completed must never equal assignment complete.",
+        "Safety fuses can pause or stop work, but they do not define success."
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($gate)) -Message "Next-assignment gate preserves rule: $gate"
+    }
+
+    foreach ($classifierCase in @(
+        "Clean local commit",
+        "Review-only pass",
+        "Push-readiness review",
+        "Approved push completed",
+        "Failed test",
+        "Timed-out test with diagnosis",
+        "Timed-out test without diagnosis",
+        "Dirty tree",
+        'Untracked `data/` or `local_exports/`',
+        "Unexpected file touch",
+        "Product repo touch",
+        "PrivateLens touch",
+        "Proof run attempted",
+        "Push performed without approval",
+        "Static GitHub Pages command-execution claim",
+        "Phone HQ request treated as command approval",
+        "Tool-like pseudo-buttons or UI labels"
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($classifierCase)) -Message "Report classifier covers case: $classifierCase"
+    }
+
+    foreach ($promptPattern in @(
+        "Implementation Assignment",
+        "Review-Only Assignment",
+        "Push-Readiness Review",
+        "Explicit Push Approval",
+        "Failed-Test Repair",
+        "Handoff Packet Generation",
+        "Phone Request/Status-Only Lane",
+        "Static GitHub Pages Safety Review",
+        "Next-Assignment Selection After GREEN"
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($promptPattern)) -Message "Prompt library includes pattern: $promptPattern"
+    }
+
+    foreach ($phoneBoundary in @(
+        "Current Phone HQ is static GitHub Pages request/status only.",
+        "Static GitHub Pages cannot execute local commands.",
+        "UI buttons, labels, notifications, and dashboard copy are not execution authority.",
+        "Phone HQ may not approve or execute work by itself.",
+        "Unsafe model: phone button directly runs shell commands. This remains forbidden.",
+        "client-side secrets, tokens, credentials, deploy keys, local absolute private paths, or private/customer data"
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($phoneBoundary)) -Message "Phone HQ boundary preserves rule: $phoneBoundary"
+    }
+
+    foreach ($roadmapStage in @(
+        "Docs/test-backed assignment packets and report classifier.",
+        "Local-only dry-run queue validation.",
+        "Local request inbox model.",
+        "Local runner candidate design.",
+        "Authenticated request bridge design.",
+        "Proof target only after explicit approval.",
+        "Push/deploy approvals remain human-gated."
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($roadmapStage)) -Message "Relay roadmap includes stage: $roadmapStage"
+    }
+
+    foreach ($regression in @(
+        "assignment completion uses Definition of Done, not arbitrary task count",
+        "task/commit/time numbers are safety fuses only",
+        "product repos remain blocked unless explicitly approved",
+        "PrivateLens remains blocked unless explicitly approved",
+        "proof runs remain blocked unless explicitly approved",
+        "Phone HQ is request/status only",
+        "static GitHub Pages cannot execute local commands",
+        "no all-fleet",
+        "no unbounded overnight runner",
+        "no runtime command binding",
+        "no push/merge/deploy without explicit approval",
+        "queue candidates are not executable authority"
+    )) {
+        Assert-True -Condition ($controlsText -match [regex]::Escape($regression)) -Message "Safe night sprint regression expectation preserves invariant: $regression"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-251 TSF Safe Night Sprint v1.1 Controls",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "ffb2b043aaba9cecc72b2339811541b6cd2292a8",
+        "assignment packet template",
+        "Codex report classifier",
+        "Prompt library",
+        "Phone HQ remains request/status only",
+        "Copy/paste relay reduction roadmap",
+        "assignment schema",
+        "local-only dry-run queue validation",
+        "Mobile HQ assignment status view",
+        "local request inbox model",
+        "Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records safe night sprint control: $queuePhrase"
+    }
+
+    Assert-False -Condition ($controlsText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF safe night sprint controls avoid concrete local user paths"
+    Assert-False -Condition ($controlsText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority)") -Message "TSF safe night sprint controls do not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -17437,6 +17595,7 @@ Test-HqProjectPathPortabilityPlan
 Test-HqAwaySafeMicrotaskPacket
 Test-HqFleetSelfImprovementLoop
 Test-HqTsfOperatingModel
+Test-HqTsfSafeNightSprintControls
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
