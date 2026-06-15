@@ -7954,3 +7954,43 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\safe-night-sprint-next-assignment.log`.
 - repeatablePrompt:
   - `Take exactly HQ-252 TSF Assignment Packet System V1. Patch only HQ-252 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-252 validationCommands. Stop after HQ-252 and report GREEN/YELLOW/RED.`
+
+### HQ-253 TSF Runway Handoff System V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `270215c9113a712e35ea8ebad5d6837c701bdc43`
+- goal: Standardize TSF runway handoffs after GREEN commits, GREEN push-readiness reviews, YELLOW timeouts or ambiguous reports, successful pushes, and next-runway packet generation.
+- allowedFiles:
+  - `docs/fleet/TSF_RUNWAY_HANDOFF_SYSTEM.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Runway packets and Codex reports are evidence/guidance only, not executable authority.
+  - GREEN local commits require separate push-readiness review and do not imply push approval.
+  - GREEN push-readiness reviews require explicit Tim approval for the exact reviewed commit before push.
+  - YELLOW timeout or ambiguous reports require log path, last meaningful log lines, failure scan, and a validation-only rerun before continuing.
+  - Successful pushes require remote hash verification and reset the current remote GREEN baseline.
+  - Push safety gates require exact branch, exact HEAD, clean tree, diff check, full Fleet tests, reviewed Fleet-only files, and preserved boundaries.
+  - Stale packets stop when baseline, HEAD, branch, repo path, lane, or product context does not match.
+  - Cross-project mispastes such as NWR, Drop Decision Day, rookie/outcome/drop-decision lanes, or product-local CSV artifacts are ignored unless they match current TSF repo/path/baseline.
+  - Continuation prompts include only repo, branch, baseline, target, verdict/evidence, next assignment, allowed files, forbidden actions, validation, stop conditions, and report format.
+- nextRecommendedBoundedAssignments:
+  - push decision rubric
+  - stale packet fixture matrix
+  - cross-project mispaste classifier fixtures
+  - next-runway prompt template extraction
+  - remote baseline ledger
+  - Mobile HQ runway status view
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\runway-handoff-system-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_RUNWAY_HANDOFF_SYSTEM.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\runway-handoff-system-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-253 TSF Runway Handoff System V1. Patch only HQ-253 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-253 validationCommands. Stop after HQ-253 and report GREEN/YELLOW/RED.`

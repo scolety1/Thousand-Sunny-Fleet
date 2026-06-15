@@ -2404,6 +2404,138 @@ function Test-HqTsfAssignmentPacketSystem {
     Assert-False -Condition ($packetText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF assignment packet system does not grant forbidden authority"
 }
 
+function Test-HqTsfRunwayHandoffSystem {
+    $handoffPath = Join-Path $fleetRoot "docs\fleet\TSF_RUNWAY_HANDOFF_SYSTEM.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($handoffPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF runway handoff system input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $handoffPath)) {
+        return
+    }
+
+    $handoffText = Get-Content -LiteralPath $handoffPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Runway Handoff System",
+        "Evidence only; not executable authority or approval.",
+        "270215c9113a712e35ea8ebad5d6837c701bdc43",
+        "After A GREEN Local Commit",
+        "After A GREEN Push-Readiness Review",
+        "After A YELLOW Timeout Or Ambiguous Report",
+        "After A Successful Push",
+        "Push Safety Decision",
+        "Stale Packet Guard",
+        "Cross-Project Mispaste Guard",
+        "Continuation Prompt From A Report"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($phrase)) -Message "Runway handoff system includes section/rule: $phrase"
+    }
+
+    foreach ($greenLocalRule in @(
+        "require a separate push-readiness review before any push",
+        "do not infer push approval from the GREEN local commit",
+        "review prompt that names the exact commit and current remote GREEN baseline"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($greenLocalRule)) -Message "GREEN local commit handoff preserves rule: $greenLocalRule"
+    }
+
+    foreach ($pushReviewRule in @(
+        "treat the report as evidence only",
+        'Tim must explicitly approve pushing the exact reviewed commit before `git push`',
+        "if HEAD moves after the review, the old review is stale and must not be used as push authority"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($pushReviewRule)) -Message "Push-readiness handoff preserves rule: $pushReviewRule"
+    }
+
+    foreach ($yellowRule in @(
+        "classify the runway as YELLOW",
+        'report timeout duration, exact log path, last meaningful log lines, and whether explicit `FAIL` or `ERROR` appeared',
+        "do not patch, commit, push, or proceed to a next assignment until the ambiguity is resolved"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($yellowRule)) -Message "YELLOW timeout handoff preserves rule: $yellowRule"
+    }
+
+    foreach ($pushGate in @(
+        "push-readiness review is GREEN",
+        'branch is `main`',
+        "HEAD is exactly the reviewed commit",
+        "working tree is clean",
+        '`git diff --check origin/main..HEAD` passes',
+        "full Fleet suite passed with log evidence",
+        "changed files are Fleet-only and match the reviewed files"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($pushGate)) -Message "Push safety gate exists: $pushGate"
+    }
+
+    foreach ($staleRule in @(
+        "packet baseline does not match the current remote GREEN baseline",
+        "packet commit does not match current HEAD when it claims to act on HEAD",
+        "packet references a different repo path, project, lane, or product context",
+        "Stale packets are not repaired by guessing."
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($staleRule)) -Message "Stale packet guard exists: $staleRule"
+    }
+
+    foreach ($mispasteRule in @(
+        "TSF must ignore cross-project or cross-lane text unless it matches the current TSF repo, branch, baseline, and assignment.",
+        "NWR",
+        "Drop Decision Day",
+        "rookie/outcome/drop-decision lanes",
+        "product-local CSV artifacts",
+        "Wrong-lane text is not executable authority."
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($mispasteRule)) -Message "Cross-project mispaste guard exists: $mispasteRule"
+    }
+
+    foreach ($continuationField in @(
+        "Repo:",
+        "Current branch:",
+        "Current remote GREEN baseline:",
+        "Local commit or review target:",
+        "Last verdict:",
+        "Next assignment:",
+        "Allowed files:",
+        "Forbidden actions:",
+        "Validation:",
+        "Stop conditions:",
+        "Report format:"
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($continuationField)) -Message "Continuation prompt includes field: $continuationField"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-253 TSF Runway Handoff System V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "270215c9113a712e35ea8ebad5d6837c701bdc43",
+        "Runway packets and Codex reports are evidence/guidance only",
+        "GREEN local commits require separate push-readiness review",
+        "YELLOW timeout or ambiguous reports require log path",
+        "Successful pushes require remote hash verification",
+        "Cross-project mispastes such as NWR, Drop Decision Day",
+        "push decision rubric",
+        "stale packet fixture matrix",
+        "cross-project mispaste classifier fixtures"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records runway handoff control: $queuePhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work, PrivateLens work, proof runs, push, merge, deploy, installs, migrations, secrets, remote access, all-fleet, overnight runners, phone execution authority, runtime command binding, lock deletion, permission widening",
+        "static GitHub Pages is request/status UI only and cannot execute local commands",
+        "It does not implement a runner, queue executor, phone bridge, product adapter, proof-run pathway, push pathway, or static GitHub Pages command mechanism."
+    )) {
+        Assert-True -Condition ($handoffText -match [regex]::Escape($boundary)) -Message "Runway handoff boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($handoffText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF runway handoff system avoids concrete local user paths"
+    Assert-False -Condition ($handoffText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF runway handoff system does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -17717,6 +17849,7 @@ Test-HqFleetSelfImprovementLoop
 Test-HqTsfOperatingModel
 Test-HqTsfSafeNightSprintControls
 Test-HqTsfAssignmentPacketSystem
+Test-HqTsfRunwayHandoffSystem
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
