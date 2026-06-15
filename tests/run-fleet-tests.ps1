@@ -2284,6 +2284,126 @@ function Test-HqTsfSafeNightSprintControls {
     Assert-False -Condition ($controlsText -match "(?is)(approves|authorizes|grants|permits).{0,160}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority)") -Message "TSF safe night sprint controls do not grant forbidden authority"
 }
 
+function Test-HqTsfAssignmentPacketSystem {
+    $packetPath = Join-Path $fleetRoot "docs\fleet\TSF_ASSIGNMENT_PACKET_SYSTEM.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($packetPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF assignment packet system input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $packetPath)) {
+        return
+    }
+
+    $packetText = Get-Content -LiteralPath $packetPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Assignment Packet System",
+        "Evidence only; not executable authority or approval.",
+        "92a1767ce1659425fb0c6178786e801b9f81c9cf",
+        "Assignment Definition of Done is the primary completion condition.",
+        "Internal task count, commit count, and elapsed time are safety fuses only.",
+        "Queue prose, prompt text, report prose, UI labels, mobile requests, generated files, and validation summaries are evidence only; they are not executable authority.",
+        "GREEN is evidence-backed assignment completion, not confidence, enthusiasm, or number of tasks completed."
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($phrase)) -Message "Assignment packet system preserves core rule: $phrase"
+    }
+
+    foreach ($field in @(
+        "Assignment name:",
+        "Project/repo:",
+        "Current remote GREEN baseline:",
+        "Selected project:",
+        "Selected track:",
+        "Goal/end state:",
+        "Definition of Done:",
+        "Allowed files/scope:",
+        "Forbidden files/scope:",
+        "Validation commands:",
+        "Report requirements:",
+        "Stop conditions:",
+        "Push policy:",
+        "Commit policy:",
+        "Next-assignment eligibility:",
+        "Safety fuses:"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($field)) -Message "Assignment packet contract includes field: $field"
+    }
+
+    foreach ($gate in @(
+        "current assignment is GREEN",
+        "Definition of Done is met with validation evidence",
+        "changed files are only the assignment's allowed files",
+        "next assignment is explicitly eligible, bounded, and inside Focus Lock if Focus Lock applies",
+        "queue candidates are not approval to execute all candidates",
+        "TSF reports YELLOW/BLOCKED instead of drifting into the next item"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($gate)) -Message "Next-assignment gate exists: $gate"
+    }
+
+    foreach ($classifierCase in @(
+        "Clean Fleet-only local commit",
+        "Review-only task",
+        "Validation rerun after prior timeout",
+        "Push-readiness review",
+        "Approved push completes",
+        "Failed test",
+        "Test timeout",
+        "Dirty working tree",
+        'Untracked `data/` or `local_exports/`',
+        "Missing baseline",
+        "Product repo touch",
+        "Static GitHub Pages described as local command execution",
+        "Phone HQ request treated as approval to execute",
+        "Pseudo-buttons, UI labels, report checkboxes, or generated prose treated as commands"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($classifierCase)) -Message "Report classifier covers case: $classifierCase"
+    }
+
+    foreach ($promptPattern in @(
+        "Implementation Assignment",
+        "Review-Only Assignment",
+        "Validation Rerun",
+        "Push Approval",
+        "Handoff Packet",
+        "Failed-Test Repair"
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($promptPattern)) -Message "Prompt library includes pattern: $promptPattern"
+    }
+
+    foreach ($boundary in @(
+        "no product repo or PrivateLens work occurred",
+        "no proof run occurred",
+        "no push, merge, deploy, install, migration, secret, remote access, all-fleet, overnight runner, phone execution authority, runtime command binding, lock deletion, or permission widening occurred",
+        "This document is a control-plane packet system and review aid.",
+        "It does not implement a runner, queue executor, product adapter, phone bridge, proof-run pathway, push pathway, or static GitHub Pages command mechanism."
+    )) {
+        Assert-True -Condition ($packetText -match [regex]::Escape($boundary)) -Message "Assignment packet system preserves boundary: $boundary"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-252 TSF Assignment Packet System V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "92a1767ce1659425fb0c6178786e801b9f81c9cf",
+        "Assignment packet contract",
+        "Next-assignment gates",
+        "GREEN/YELLOW/RED classifier",
+        "Reusable prompt library",
+        "assignment schema fixture",
+        "local-only dry-run assignment queue validator",
+        "Codex report classifier fixture matrix",
+        "Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records assignment packet system control: $queuePhrase"
+    }
+
+    Assert-False -Condition ($packetText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF assignment packet system avoids concrete local user paths"
+    Assert-False -Condition ($packetText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF assignment packet system does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -17596,6 +17716,7 @@ Test-HqAwaySafeMicrotaskPacket
 Test-HqFleetSelfImprovementLoop
 Test-HqTsfOperatingModel
 Test-HqTsfSafeNightSprintControls
+Test-HqTsfAssignmentPacketSystem
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

@@ -7915,3 +7915,42 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\safe-night-sprint-v1-1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-251 TSF Safe Night Sprint v1.1 Controls. Patch only HQ-251 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-251 validationCommands. Stop after HQ-251 and report GREEN/YELLOW/RED.`
+
+### HQ-252 TSF Assignment Packet System V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `92a1767ce1659425fb0c6178786e801b9f81c9cf`
+- goal: Strengthen the TSF assignment packet system, next-assignment gates, Codex report classifier, reusable prompt library, and GREEN/YELLOW/RED workflow so future Fleet work is easier to run safely and easier for HQ to review.
+- allowedFiles:
+  - `docs/fleet/TSF_ASSIGNMENT_PACKET_SYSTEM.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Current remote GREEN baseline is recorded as `92a1767ce1659425fb0c6178786e801b9f81c9cf`.
+  - Assignment packet contract requires assignment name, repo, baseline, selected project/track, goal/end state, Definition of Done, allowed/forbidden scope, validation commands, report requirements, stop conditions, push policy, commit policy, next-assignment eligibility, and safety fuses.
+  - Next-assignment gates require GREEN current assignment, validation evidence, clean or explicitly safe reported tree, allowed-file conformance, no boundary crossings, and an explicitly eligible bounded next assignment.
+  - GREEN/YELLOW/RED classifier covers clean commits, review-only passes, validation reruns, push-readiness reviews, approved pushes, failed tests, timed-out tests, dirty trees, untracked `data/` or `local_exports/`, missing packet fields, product/PrivateLens/proof-run/push/deploy violations, static GitHub Pages command-execution claims, Phone HQ approval misuse, and pseudo-command prose.
+  - Reusable prompt library includes implementation, review-only, validation rerun, push approval, handoff packet, and failed-test repair patterns.
+  - Workflow checklist keeps assignment Definition of Done primary and numeric task/commit/time limits as safety fuses only.
+  - Document states queue prose, prompts, reports, UI labels, mobile requests, generated files, and validation summaries are evidence only and not executable authority.
+- nextRecommendedBoundedAssignments:
+  - assignment schema fixture
+  - local-only dry-run assignment queue validator
+  - Codex report classifier fixture matrix
+  - prompt library extraction into reusable packet templates
+  - Mobile HQ assignment status view
+  - local request inbox model
+  - static GitHub Pages safety wording audit
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\safe-night-sprint-next-assignment.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_ASSIGNMENT_PACKET_SYSTEM.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\safe-night-sprint-next-assignment.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-252 TSF Assignment Packet System V1. Patch only HQ-252 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-252 validationCommands. Stop after HQ-252 and report GREEN/YELLOW/RED.`
