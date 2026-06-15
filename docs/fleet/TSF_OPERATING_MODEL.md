@@ -78,13 +78,38 @@ Additional implementation fields may later include `project_id`, `track_id`, `ba
 
 Track duplication means creating a new active upgrade track from a finished baseline, not copying the entire repo blindly. Finished tracks stay immutable except for metadata/status notes.
 
+## Assignments
+
+Assignment is the main unit of Away Mode work. Internal tasks are subordinate to the assignment.
+
+Assignment fields should include:
+
+- project
+- track
+- end goal
+- definition of done
+- allowed files
+- validation
+- stop conditions
+- priority
+- mode eligibility
+- next-assignment behavior
+
+TSF should continue working until the current assignment's definition of done is met, or until it hits YELLOW/RED/BLOCKED. Numeric task, commit, and time limits are safety fuses only, not the primary stopping condition.
+
+Assignment completion requires the assignment's definition of done and validation evidence. "Codex cannot think of more changes" does not equal complete. If the definition of done is vague, TSF must refine it first or stop YELLOW/BLOCKED instead of drifting.
+
+When Assignment A completes GREEN, TSF may select Assignment B only if B is eligible. TSF must not jump to paused, archived, finished, blocked, idea-only, out-of-focus, unvalidated, or unsafe assignments. Focus Lock restricts assignment hopping to selected priority projects/tracks.
+
+Active eligible assignments can be ordered by priority, deadline, and Focus Lock. Ideas / Backlog are not assignments until promoted. Finished tracks are not assignments unless a new active upgrade track is created. Review / Release Candidate work remains distinct from Finished / Rolled Out.
+
 ## Mode Switcher
 
 TSF supports three human-availability modes:
 
 - In-House Mode: Tim is present and actively improving code. TSF may ask questions as they arise, reroute interactively, and work through blockers with Tim while still obeying one project, one track, one task, allowed files, validation, and stop gates.
 - Busy Mode: Tim is partly available. TSF should ask only meaningful blockers, batch questions, continue safe work when possible, and avoid risky work that needs frequent intervention.
-- Away Mode: Tim is away. TSF may run only bounded preapproved loops, never an unbounded overnight runner, stop on YELLOW/RED/BLOCKED, surface blockers to Mobile HQ, and collect non-urgent questions in the Tim Question Queue.
+- Away Mode: Tim is away. TSF may run only bounded preapproved assignment-completion loops, never an unbounded overnight runner, stop on YELLOW/RED/BLOCKED, surface blockers to Mobile HQ, and collect non-urgent questions in the Tim Question Queue. Away Mode can work through many internal tasks if they are necessary to finish the current assignment and all stop gates stay GREEN.
 
 Mode changes are routing context, not safety exceptions.
 
@@ -106,6 +131,8 @@ TSF can only work on eligible tracks. Eligible means all of these are true:
 - stop gates are known
 
 Ideas, archived tracks, paused tracks, blocked tracks, finished tracks, vague goals without a task packet, tasks needing secrets/install/migration/remote access, and tasks requiring unapproved product repo mutation are not autonomous-eligible.
+
+An assignment is eligible only when its project/track is eligible, its definition of done is clear, allowed files and validation are known, and its next-assignment behavior does not bypass Focus Lock or stop gates.
 
 ## Focus Lock And Pause Behavior
 
@@ -191,8 +218,9 @@ Away Mode:
 
 - max one active project
 - max one active track
-- max one task at a time
-- bounded N tasks/commits
+- max one assignment at a time
+- many internal tasks only when required by the assignment definition of done
+- numeric task/commit/time limits are runaway safety fuses only
 - stop after first blocker
 - no unbounded overnight or all-fleet behavior
 

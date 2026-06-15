@@ -106,6 +106,10 @@ For explicitly bounded multi-iteration Fleet self-improvement, use `docs/fleet/F
 
 Use `docs/fleet/TSF_OPERATING_MODEL.md` for the shared project-section and mode vocabulary when an away-safe task needs to discuss Ideas / Backlog, Active / Development, Review / Release Candidate, Paused, Archived / Parked, Finished / Rolled Out, Blocked, Focus Lock, known-fix routes, or the Tim Question Queue. The operating model is evidence only and does not approve a second task or phone execution.
 
+## Assignment-Completion Boundary
+
+Away Mode self-improvement should be assignment-completion based, not task-count based. The assignment definition of done is the primary completion condition. Numeric task, commit, and time limits are safety fuses only. Away Mode may work through many internal tasks if they are necessary to complete the current assignment, but it must stop on YELLOW, RED, BLOCKED, failed tests, undiagnosed timeouts, unexpected files, vague definition of done, missing validation evidence, ineligible next assignment, product repo touch, proof-run need, push/merge/deploy need, install/package need, secrets/auth/credential issues, remote access need, all-fleet need, overnight/unbounded runner behavior, phone/dashboard execution authority, runtime command binding, or repeated uncertainty.
+
 ## Status
 
 This packet is evidence-only prompt guidance. It does not create an automation, approve unattended all-fleet work, approve overnight runners, or grant authority beyond one explicitly supplied Fleet-only microtask.

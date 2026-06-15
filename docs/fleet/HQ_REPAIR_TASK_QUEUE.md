@@ -7827,3 +7827,50 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\tsf-operating-model-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-249 TSF Operating Model V1. Patch only HQ-249 allowedFiles. Do not touch product repos, run proof runs, implement live phone commands, run overnight/all-fleet, or push. Run only HQ-249 validationCommands. Stop after HQ-249 and report GREEN/YELLOW/RED.`
+
+### HQ-250 TSF Assignment-Completion Loop V1
+
+- status: done
+- phase: TSF operating model architecture
+- goal: Update the TSF loop model so Away Mode and self-improvement loops are assignment-completion based, not task-count based.
+- prerequisites:
+  - HQ-249 done
+- allowedFiles:
+  - `docs/fleet/TSF_OPERATING_MODEL.md`
+  - `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md`
+  - `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Assignment becomes the main unit of Away Mode work, with internal tasks subordinate to the assignment.
+  - Assignment fields include project, track, end goal, definition of done, allowed files, validation, stop conditions, priority, mode eligibility, and next-assignment behavior.
+  - TSF continues until the current assignment definition of done is met, or until YELLOW/RED/BLOCKED.
+  - Numeric task, commit, and time limits are safety fuses only, not the primary stopping condition.
+  - Completion requires definition-of-done and validation evidence; "Codex cannot think of more changes" does not equal complete.
+  - Vague definition of done must be refined first or stop YELLOW/BLOCKED.
+  - GREEN completed assignments may move only to next eligible assignments.
+  - Ineligible assignments are skipped, including paused, archived, finished, blocked, idea-only, out-of-focus, unvalidated, or unsafe assignments.
+  - Focus Lock restricts assignment hopping to selected priority projects/tracks.
+  - Away Mode remains bounded and stop-gated, not an unbounded runner.
+- followupQueueCandidates:
+  - assignment schema
+  - assignment queue
+  - assignment eligibility validator
+  - definition-of-done checker
+  - assignment completion report
+  - next-assignment selector
+  - Mobile HQ assignment status view
+  - assignment blocker/question queue
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\assignment-completion-loop-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone approval, runtime command binding, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Updated `docs/fleet/TSF_OPERATING_MODEL.md` with assignment fields, assignment completion, definition-of-done evidence, next-assignment hopping, eligibility, and Focus Lock constraints.
+  - Updated `docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md` from task-count/iteration language to assignment-completion language with numeric limits as safety fuses.
+  - Updated `docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md` with the Away Mode assignment-completion boundary.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\assignment-completion-loop-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-250 TSF Assignment-Completion Loop V1. Patch only HQ-250 allowedFiles. Do not touch product repos, run proof runs, implement live phone commands, run overnight/all-fleet, or push. Run only HQ-250 validationCommands. Stop after HQ-250 and report GREEN/YELLOW/RED.`

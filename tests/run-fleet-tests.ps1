@@ -1753,17 +1753,24 @@ function Test-HqFleetSelfImprovementLoop {
     $requiredPhrases = @(
         "Fleet Self-Improvement Loop",
         "Evidence only; not executable authority or approval.",
-        'up to `N` Fleet-only iterations',
-        'If `N` is missing, ambiguous, unbounded, or described as overnight/all-fleet/autopilot, stop BLOCKED for repacketization.',
-        "Each iteration must complete exactly one Fleet-only task",
+        "Assignment is the main unit of Away Mode self-improvement work.",
+        "Internal tasks are subordinate to the assignment.",
+        "TSF should continue working until the current assignment's definition of done is met, or until it hits YELLOW/RED/BLOCKED.",
+        "Numeric task, commit, and time limits remain only as runaway safety fuses, not the primary stopping condition.",
+        'If the assignment''s definition of done is vague, TSF must refine it first or stop YELLOW/BLOCKED for repacketization.',
+        '"Codex cannot think of more changes" does not equal complete.',
+        "When Assignment A completes GREEN, TSF may select Assignment B only if B is eligible.",
+        "TSF must not jump to paused, archived, finished, blocked, idea-only, out-of-focus, unvalidated, or unsafe assignments.",
+        "Assignment fields should include project, track, end goal, definition of done, allowed files, validation, stop conditions, priority, mode eligibility, and next-assignment behavior.",
         'Confirm clean baseline with `git status --short`.',
-        "Select exactly one Fleet-only task",
-        "Confirm the selected task's allowed files before editing.",
+        "Select exactly one Fleet-only assignment",
+        "Confirm the selected assignment's definition of done, allowed files, validation, stop conditions, mode eligibility, and next-assignment behavior before editing.",
         "Run model routing preflight or classify with the alias-only routing policy.",
-        "Patch only the selected task's allowed files.",
-        "Validate with ``git diff --check`` and the selected task's validation commands.",
-        "Create one local commit only if the task is GREEN",
-        "Continue to the next iteration only if the working tree is clean",
+        "Patch only the selected assignment's allowed files.",
+        "Validate with ``git diff --check`` and the selected assignment's validation commands.",
+        "Continue internal tasks only when they are necessary to meet the assignment definition of done and all stop gates remain GREEN.",
+        "Create one local commit only if the assignment is GREEN",
+        "Continue to the next assignment only if the working tree is clean",
         'Use `best_value` by default.',
         'Use `perfection` only when Tim explicitly asks',
         "Do not hardcode current model names",
@@ -1773,9 +1780,11 @@ function Test-HqFleetSelfImprovementLoop {
         "PrivateLens remains a disposable proof target",
         "It is not the objective of this loop",
         "Push remains blocked unless Tim separately approves a reviewed commit push.",
-        "Run the Codex Fleet self-improvement loop for up to <N> iterations.",
-        "Stop after at most <N> iterations.",
-        "does not implement a runner, create an automation, approve unattended work, approve push, or relax the one-task boundary"
+        "Run the Codex Fleet assignment-completion loop for the selected Fleet-only assignment.",
+        "The assignment definition of done is the primary completion condition.",
+        "Numeric task, commit, and time limits are safety fuses only.",
+        "Stop after the selected assignment completes GREEN, hits a stop sign, or safely hands off to the next eligible assignment.",
+        "does not implement a runner, create an automation, approve unattended work, approve push, or relax assignment eligibility"
     )
 
     foreach ($phrase in $requiredPhrases) {
@@ -1805,8 +1814,11 @@ function Test-HqFleetSelfImprovementLoop {
         "lock deletion or permission widening",
         "missing or ambiguous allowed files",
         "missing validation command",
+        "vague definition of done",
+        "no validation evidence for completion",
+        "ineligible next assignment",
         "same uncertainty twice",
-        "any need to start a second task inside one iteration"
+        "arbitrary task/commit/time limit reached before assignment completion"
     )
 
     foreach ($stopSign in $stopSigns) {
@@ -1814,10 +1826,12 @@ function Test-HqFleetSelfImprovementLoop {
     }
 
     $reportPhrases = @(
-        "iterations requested",
-        "iterations completed",
-        "task selected per iteration",
-        "recommended model alias per iteration",
+        "assignment selected",
+        "definition of done",
+        "completion evidence",
+        "internal tasks completed",
+        "next assignment selected, if any",
+        "recommended model alias",
         "files changed",
         "commit hashes if committed",
         "checks run",
@@ -1836,7 +1850,10 @@ function Test-HqFleetSelfImprovementLoop {
         "one-task boundary inside each iteration",
         "GREEN validation and a clean working tree before continuing",
         "model routing advisory and alias-only",
-        "blocks product repos, PrivateLens mutation, proof runs, push, merge, deploy, installs, migrations, remote access, secrets, all-fleet execution, overnight runners, phone approvals, and runtime command binding"
+        "blocks product repos, PrivateLens mutation, proof runs, push, merge, deploy, installs, migrations, remote access, secrets, all-fleet execution, overnight runners, phone approvals, and runtime command binding",
+        "Assignment-Completion Boundary",
+        "assignment-completion based, not task-count based",
+        "Numeric task, commit, and time limits are safety fuses only."
     )
 
     foreach ($phrase in $awayPhrases) {
@@ -1847,7 +1864,7 @@ function Test-HqFleetSelfImprovementLoop {
         "HQ-248 Fleet Self-Improvement Loop V1",
         "status: done",
         "docs/fleet/FLEET_SELF_IMPROVEMENT_LOOP.md",
-        "small explicit N",
+        "bounded prompt pattern for up to N Fleet-only self-improvement iterations",
         "model-routes with aliases only",
         "Push remains blocked unless separately approved after review.",
         "Phone HQ remains request/status only and cannot approve or execute actions.",
@@ -1907,9 +1924,22 @@ function Test-HqTsfOperatingModel {
         "Future work starts by creating a new Active / Development upgrade track derived from the finished baseline.",
         "Niners v1.0 remains Finished / Rolled Out while Niners v1.2 is Active / Development.",
         "Track duplication means creating a new active upgrade track from a finished baseline, not copying the entire repo blindly.",
+        "Assignment is the main unit of Away Mode work.",
+        "Internal tasks are subordinate to the assignment.",
+        "TSF should continue working until the current assignment's definition of done is met, or until it hits YELLOW/RED/BLOCKED.",
+        "Numeric task, commit, and time limits are safety fuses only, not the primary stopping condition.",
+        "Assignment completion requires the assignment's definition of done and validation evidence.",
+        '"Codex cannot think of more changes" does not equal complete.',
+        "If the definition of done is vague, TSF must refine it first or stop YELLOW/BLOCKED instead of drifting.",
+        "When Assignment A completes GREEN, TSF may select Assignment B only if B is eligible.",
+        "TSF must not jump to paused, archived, finished, blocked, idea-only, out-of-focus, unvalidated, or unsafe assignments.",
+        "Focus Lock restricts assignment hopping to selected priority projects/tracks.",
+        "Ideas / Backlog are not assignments until promoted.",
+        "Finished tracks are not assignments unless a new active upgrade track is created.",
         "In-House Mode",
         "Busy Mode",
         "Away Mode",
+        "Away Mode can work through many internal tasks if they are necessary to finish the current assignment and all stop gates stay GREEN.",
         "Phone HQ remains request/status only.",
         "Phone requests are not execution authority.",
         "Static GitHub Pages cannot securely execute commands on the laptop.",
@@ -1950,6 +1980,21 @@ function Test-HqTsfOperatingModel {
         Assert-True -Condition ($modelText -match [regex]::Escape($field)) -Message "TSF operating model includes track field: $field"
     }
 
+    foreach ($assignmentField in @(
+        "project",
+        "track",
+        "end goal",
+        "definition of done",
+        "allowed files",
+        "validation",
+        "stop conditions",
+        "priority",
+        "mode eligibility",
+        "next-assignment behavior"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($assignmentField)) -Message "TSF operating model includes assignment field: $assignmentField"
+    }
+
     foreach ($ineligible in @(
         "Ideas, archived tracks, paused tracks, blocked tracks, finished tracks",
         "not autonomous-eligible",
@@ -1965,6 +2010,18 @@ function Test-HqTsfOperatingModel {
         "validation commands are known"
     )) {
         Assert-True -Condition ($modelText -match [regex]::Escape($ineligible)) -Message "TSF operating model preserves work eligibility rule: $ineligible"
+    }
+
+    foreach ($assignmentEligibility in @(
+        "An assignment is eligible only when its project/track is eligible",
+        "its definition of done is clear",
+        "allowed files and validation are known",
+        "its next-assignment behavior does not bypass Focus Lock or stop gates",
+        "max one assignment at a time",
+        "many internal tasks only when required by the assignment definition of done",
+        "numeric task/commit/time limits are runaway safety fuses only"
+    )) {
+        Assert-True -Condition ($modelText -match [regex]::Escape($assignmentEligibility)) -Message "TSF operating model preserves assignment eligibility rule: $assignmentEligibility"
     }
 
     foreach ($routeField in @(
@@ -2026,6 +2083,27 @@ function Test-HqTsfOperatingModel {
         "Do not touch product repos, run proof runs, implement live phone commands, run overnight/all-fleet, or push"
     )) {
         Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records TSF operating model boundary: $queuePhrase"
+    }
+
+    foreach ($assignmentQueuePhrase in @(
+        "HQ-250 TSF Assignment-Completion Loop V1",
+        "status: done",
+        "assignment-completion based, not task-count based",
+        "Assignment fields include project, track, end goal, definition of done, allowed files, validation, stop conditions, priority, mode eligibility, and next-assignment behavior.",
+        "Numeric task, commit, and time limits are safety fuses only, not the primary stopping condition.",
+        "Completion requires definition-of-done and validation evidence",
+        "GREEN completed assignments may move only to next eligible assignments.",
+        "Ineligible assignments are skipped",
+        "assignment schema",
+        "assignment queue",
+        "assignment eligibility validator",
+        "definition-of-done checker",
+        "assignment completion report",
+        "next-assignment selector",
+        "Mobile HQ assignment status view",
+        "assignment blocker/question queue"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($assignmentQueuePhrase)) -Message "HQ queue records assignment-completion loop boundary: $assignmentQueuePhrase"
     }
 
     foreach ($crossReference in @(
