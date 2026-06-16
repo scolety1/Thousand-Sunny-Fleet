@@ -7994,3 +7994,43 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\runway-handoff-system-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-253 TSF Runway Handoff System V1. Patch only HQ-253 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-253 validationCommands. Stop after HQ-253 and report GREEN/YELLOW/RED.`
+
+### HQ-254 TSF Baseline Ledger And Report Intake V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `3705be3f2880a65c095ad2eccaca9a2fa61cc02e`
+- goal: Define a tracked baseline ledger and report-intake process so TSF can interpret Codex reports, track current remote GREEN baseline, identify local-ahead commits, detect repeated/stale reports, and choose the correct next action.
+- allowedFiles:
+  - `docs/fleet/TSF_BASELINE_LEDGER_AND_REPORT_INTAKE.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Current remote GREEN baseline is recorded as `3705be3f2880a65c095ad2eccaca9a2fa61cc02e`.
+  - Baseline ledger fields include remote GREEN baseline, local HEAD, origin main, branch, working tree status, local-ahead commits, validation log, report verdict/fingerprint, next action, and blocker reason.
+  - Report intake classifier covers GREEN local commit, GREEN push-readiness review, GREEN push, YELLOW timeout, ambiguous report, repeated report, stale report, wrong-project mispaste, dirty tree, failed validation, and boundary crossing.
+  - Next action choices are limited to review local commit, validation-only rerun, approve push, create next assignment, or stop and ask HQ.
+  - Push requires Tim's separate approval after GREEN push-readiness.
+  - Stale packets stop when HEAD, branch, repo path, or baseline does not match.
+  - Repeated reports must be detected before generating duplicate prompts.
+  - Cross-project text is ignored unless repo/path/baseline/assignment matches TSF.
+  - Codex reports are evidence only, not authority.
+- nextRecommendedBoundedAssignments:
+  - baseline ledger fixture schema
+  - report fingerprint fixture matrix
+  - stale/repeated report classifier fixtures
+  - local-ahead commit detector dry-run spec
+  - HQ next-action decision rubric
+  - Mobile HQ baseline/status view
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\baseline-ledger-report-intake-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_BASELINE_LEDGER_AND_REPORT_INTAKE.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\baseline-ledger-report-intake-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-254 TSF Baseline Ledger And Report Intake V1. Patch only HQ-254 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-254 validationCommands. Stop after HQ-254 and report GREEN/YELLOW/RED.`

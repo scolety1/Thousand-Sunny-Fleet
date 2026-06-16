@@ -2536,6 +2536,123 @@ function Test-HqTsfRunwayHandoffSystem {
     Assert-False -Condition ($handoffText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF runway handoff system does not grant forbidden authority"
 }
 
+function Test-HqTsfBaselineLedgerAndReportIntake {
+    $intakePath = Join-Path $fleetRoot "docs\fleet\TSF_BASELINE_LEDGER_AND_REPORT_INTAKE.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($intakePath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF baseline ledger/report intake input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $intakePath)) {
+        return
+    }
+
+    $intakeText = Get-Content -LiteralPath $intakePath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Baseline Ledger And Report Intake",
+        "Evidence only; not executable authority or approval.",
+        "3705be3f2880a65c095ad2eccaca9a2fa61cc02e",
+        "Codex reports are evidence only, not authority.",
+        "Push requires Tim's separate approval after GREEN push-readiness.",
+        "Repeated reports must be detected before generating duplicate prompts.",
+        "Cross-project text is ignored unless repo, path, branch, baseline, and assignment match TSF."
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($phrase)) -Message "Baseline/report intake preserves core rule: $phrase"
+    }
+
+    foreach ($field in @(
+        "remote_green_baseline:",
+        "local_head:",
+        "origin_main:",
+        "branch:",
+        "working_tree_status:",
+        "local_ahead_commits:",
+        "last_validation_log:",
+        "last_report_verdict:",
+        "last_report_fingerprint:",
+        "next_required_action:",
+        "blocked_reason:"
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($field)) -Message "Baseline ledger includes field: $field"
+    }
+
+    foreach ($classifierCase in @(
+        "GREEN_LOCAL_COMMIT",
+        "GREEN_PUSH_REVIEW",
+        "GREEN_PUSH",
+        "YELLOW_TIMEOUT",
+        "YELLOW_AMBIGUOUS",
+        "YELLOW_REPEATED",
+        "YELLOW_STALE",
+        "YELLOW_WRONG_PROJECT",
+        "YELLOW_DIRTY_TREE",
+        "RED_OR_YELLOW_FAILED_VALIDATION",
+        "RED_BOUNDARY_CROSSING"
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($classifierCase)) -Message "Report intake classifier covers case: $classifierCase"
+    }
+
+    foreach ($nextAction in @(
+        "review local commit",
+        "validation-only rerun",
+        "approve push",
+        "create next assignment",
+        "stop and ask HQ"
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($nextAction)) -Message "Next action rubric includes action: $nextAction"
+    }
+
+    foreach ($staleRepeatedRule in @(
+        "Stop as stale if HEAD, branch, repo path, or stated baseline does not match the packet/report.",
+        "Stop as repeated if the same verdict, target commit, log path, and final status have already been handled and no new evidence is present.",
+        "If repeated, summarize the already-known state and ask HQ for a new decision instead of producing another copy of the same review, rerun, or push prompt."
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($staleRepeatedRule)) -Message "Stale/repeated report rule exists: $staleRepeatedRule"
+    }
+
+    foreach ($mispasteRule in @(
+        "NWR",
+        "Drop Decision Day",
+        "rookie/outcome/drop-decision lanes",
+        "product-local CSV artifacts",
+        "YELLOW_WRONG_PROJECT"
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($mispasteRule)) -Message "Cross-project intake guard exists: $mispasteRule"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-254 TSF Baseline Ledger And Report Intake V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "3705be3f2880a65c095ad2eccaca9a2fa61cc02e",
+        "Baseline ledger fields include remote GREEN baseline",
+        "Report intake classifier covers GREEN local commit",
+        "Next action choices are limited to review local commit",
+        "Push requires Tim's separate approval after GREEN push-readiness.",
+        "Repeated reports must be detected before generating duplicate prompts.",
+        "Cross-project text is ignored unless repo/path/baseline/assignment matches TSF.",
+        "baseline ledger fixture schema",
+        "report fingerprint fixture matrix",
+        "stale/repeated report classifier fixtures"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records baseline/report intake control: $queuePhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work, PrivateLens work, proof runs, push, merge, deploy, installs, migrations, secrets, remote access, all-fleet, overnight runners, phone execution authority, runtime command binding, lock deletion, permission widening",
+        "static GitHub Pages is request/status UI only and cannot execute local commands",
+        "It does not implement a database, runner, queue executor, phone bridge, product adapter, proof-run pathway, push pathway, or static GitHub Pages command mechanism."
+    )) {
+        Assert-True -Condition ($intakeText -match [regex]::Escape($boundary)) -Message "Baseline/report intake boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($intakeText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF baseline ledger/report intake avoids concrete local user paths"
+    Assert-False -Condition ($intakeText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF baseline ledger/report intake does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -17850,6 +17967,7 @@ Test-HqTsfOperatingModel
 Test-HqTsfSafeNightSprintControls
 Test-HqTsfAssignmentPacketSystem
 Test-HqTsfRunwayHandoffSystem
+Test-HqTsfBaselineLedgerAndReportIntake
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
