@@ -2653,6 +2653,106 @@ function Test-HqTsfBaselineLedgerAndReportIntake {
     Assert-False -Condition ($intakeText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF baseline ledger/report intake does not grant forbidden authority"
 }
 
+function Test-HqTsfValidationTimeoutAndRerunPolicy {
+    $policyPath = Join-Path $fleetRoot "docs\fleet\TSF_VALIDATION_TIMEOUT_AND_RERUN_POLICY.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($policyPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF validation timeout/rerun input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $policyPath)) {
+        return
+    }
+
+    $policyText = Get-Content -LiteralPath $policyPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Validation Timeout And Rerun Policy",
+        "Evidence only; not executable authority or approval.",
+        "167338c4484ee039bafa21be97ee6733c1f17471",
+        "Timeout does not equal GREEN.",
+        'A log with many `PASS:` lines but no final `Codex Fleet tests passed.` line remains YELLOW.',
+        "Push readiness requires a completed GREEN full Fleet suite unless a future explicitly approved policy says otherwise.",
+        "Validation reruns must use a new log path.",
+        "Old logs cannot be reused as proof of a new rerun.",
+        "A longer command timeout is allowed only as validation execution time.",
+        "It is not an overnight runner, background automation, all-fleet execution, unattended autonomy, or permission to start another task."
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($phrase)) -Message "Validation timeout/rerun policy preserves rule: $phrase"
+    }
+
+    foreach ($validationOnlyRule in @(
+        "no patching",
+        "no commits",
+        "no push",
+        "no proof runs",
+        "no product repo or PrivateLens access"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($validationOnlyRule)) -Message "Validation-only rerun preserves rule: $validationOnlyRule"
+    }
+
+    foreach ($timeoutReportField in @(
+        "timeout duration",
+        "exact new log path",
+        "last 20 meaningful lines from the new log",
+        'whether `FAIL`, `ERROR`, or `Codex Fleet tests failed` appears in the new log',
+        "whether the old log path was ignored",
+        'final `git status --short`'
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($timeoutReportField)) -Message "Timeout report includes field: $timeoutReportField"
+    }
+
+    foreach ($classification in @(
+        "YELLOW_TIMEOUT",
+        "YELLOW_STALE_LOG",
+        "YELLOW_REPEATED",
+        "RED_OR_YELLOW_FAILED_VALIDATION",
+        "YELLOW_DIRTY_TREE"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($classification)) -Message "Validation classification exists: $classification"
+    }
+
+    foreach ($pushGate in @(
+        'full Fleet suite completes and prints `Codex Fleet tests passed.`',
+        "validation log path is the current requested log path",
+        "product repos and PrivateLens remained untouched",
+        "proof runs remained blocked",
+        "no push/merge/deploy/install/migration/secret/remote-access/all-fleet/overnight/phone/runtime-binding boundary was crossed"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($pushGate)) -Message "Push-readiness timeout gate exists: $pushGate"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-255 TSF Validation Timeout And Rerun Policy V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "167338c4484ee039bafa21be97ee6733c1f17471",
+        "Timeout does not equal GREEN.",
+        'Logs with many `PASS:` lines but no final `Codex Fleet tests passed.` remain YELLOW.',
+        "Validation reruns must use a new log path",
+        "Validation-only rerun means no patching, no commits, and no push.",
+        "Longer command timeout is validation execution time only",
+        "Repeated reports must be detected and not treated as new validation.",
+        "validation log freshness fixture matrix",
+        "push-readiness gate fixture matrix"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records validation timeout/rerun policy: $queuePhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work, PrivateLens work, proof runs, push, merge, deploy, installs, migrations, secrets, remote access, all-fleet, overnight runners, phone execution authority, runtime command binding, lock deletion, permission widening",
+        "static GitHub Pages command execution",
+        "It does not implement a runner, queue executor, phone bridge, product adapter, proof-run pathway, push pathway, or static GitHub Pages command mechanism."
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($boundary)) -Message "Validation timeout/rerun boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($policyText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF validation timeout/rerun policy avoids concrete local user paths"
+    Assert-False -Condition ($policyText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF validation timeout/rerun policy does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -17968,6 +18068,7 @@ Test-HqTsfSafeNightSprintControls
 Test-HqTsfAssignmentPacketSystem
 Test-HqTsfRunwayHandoffSystem
 Test-HqTsfBaselineLedgerAndReportIntake
+Test-HqTsfValidationTimeoutAndRerunPolicy
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

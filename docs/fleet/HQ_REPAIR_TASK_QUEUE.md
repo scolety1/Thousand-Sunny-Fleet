@@ -8034,3 +8034,42 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\baseline-ledger-report-intake-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-254 TSF Baseline Ledger And Report Intake V1. Patch only HQ-254 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-254 validationCommands. Stop after HQ-254 and report GREEN/YELLOW/RED.`
+
+### HQ-255 TSF Validation Timeout And Rerun Policy V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `167338c4484ee039bafa21be97ee6733c1f17471`
+- goal: Define how TSF handles full-suite timeouts, old log paths, repeated reports, and validation-only reruns without weakening push-readiness gates.
+- allowedFiles:
+  - `docs/fleet/TSF_VALIDATION_TIMEOUT_AND_RERUN_POLICY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Timeout does not equal GREEN.
+  - Logs with many `PASS:` lines but no final `Codex Fleet tests passed.` remain YELLOW.
+  - Push readiness requires a completed GREEN full Fleet suite unless a future explicitly approved policy says otherwise.
+  - Validation reruns must use a new log path, and old logs cannot prove a new rerun.
+  - Validation-only rerun means no patching, no commits, and no push.
+  - Longer command timeout is validation execution time only, not an overnight runner or unbounded autonomy.
+  - Repeated reports must be detected and not treated as new validation.
+  - Timeout reports include duration, exact new log path, last 20 meaningful lines, FAIL/ERROR scan, old-log ignored status, and final `git status --short`.
+  - Failed validation reports the failure and stops unless separately instructed.
+- nextRecommendedBoundedAssignments:
+  - validation log freshness fixture matrix
+  - repeated validation report fingerprint schema
+  - push-readiness gate fixture matrix
+  - local-ahead validation status summary
+  - Mobile HQ validation status view
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\validation-timeout-rerun-policy-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_VALIDATION_TIMEOUT_AND_RERUN_POLICY.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\validation-timeout-rerun-policy-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-255 TSF Validation Timeout And Rerun Policy V1. Patch only HQ-255 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-255 validationCommands. Stop after HQ-255 and report GREEN/YELLOW/RED.`
