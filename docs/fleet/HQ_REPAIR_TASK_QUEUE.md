@@ -8073,3 +8073,40 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\validation-timeout-rerun-policy-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-255 TSF Validation Timeout And Rerun Policy V1. Patch only HQ-255 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-255 validationCommands. Stop after HQ-255 and report GREEN/YELLOW/RED.`
+
+### HQ-256 TSF Push Decision Rubric V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `b03def2a72049cc904c42170fc7ffb7727f7edc8`
+- goal: Define a tracked push decision rubric and approval helper so TSF can explain whether a reviewed local commit should be pushed, what exactly is being pushed, risk posture, and what remote baseline will result after push.
+- allowedFiles:
+  - `docs/fleet/TSF_PUSH_DECISION_RUBRIC.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Push decisions are allowed only after GREEN push-readiness review.
+  - `Ready for Tim to decide` is not itself push approval.
+  - Approval helper facts include commit hash, commit purpose, files changed, current remote baseline, new remote baseline after push, docs/tests/harness-only scope, product/PrivateLens untouched status, proof-run blocked status, full Fleet GREEN status, and YELLOW/RED caveats.
+  - Decision labels are `APPROVE PUSH`, `HOLD / VALIDATE AGAIN`, `DO NOT PUSH`, and `STOP AND ASK HQ`.
+  - `APPROVE PUSH` is recommended only when review is GREEN, validation is GREEN, tree is clean, HEAD matches reviewed commit, remote baseline matches expected prior baseline, no boundary was crossed, and no YELLOW/RED caveats remain.
+  - Push is held for full-suite timeout, old log reuse, repeated or stale reports, repo/path/baseline mismatch, local commit mismatch, dirty tree, missing final pass line, or ambiguous product/PrivateLens/proof/deploy/runtime boundaries.
+  - Standard `what am I pushing?` and Codex push-approval prompt templates preserve Tim's separate explicit push approval requirement.
+- nextRecommendedBoundedAssignments:
+  - push decision fixture matrix
+  - push approval prompt lint fixture
+  - local-ahead risk summary template
+  - remote baseline freshness fixture
+  - Mobile HQ push decision status view
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\push-decision-rubric-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_PUSH_DECISION_RUBRIC.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\push-decision-rubric-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-256 TSF Push Decision Rubric V1. Patch only HQ-256 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-256 validationCommands. Stop after HQ-256 and report GREEN/YELLOW/RED.`

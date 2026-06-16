@@ -2753,6 +2753,127 @@ function Test-HqTsfValidationTimeoutAndRerunPolicy {
     Assert-False -Condition ($policyText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF validation timeout/rerun policy does not grant forbidden authority"
 }
 
+function Test-HqTsfPushDecisionRubric {
+    $rubricPath = Join-Path $fleetRoot "docs\fleet\TSF_PUSH_DECISION_RUBRIC.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($rubricPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF push decision rubric input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $rubricPath)) {
+        return
+    }
+
+    $rubricText = Get-Content -LiteralPath $rubricPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Push Decision Rubric",
+        "Evidence only; not executable authority or approval.",
+        "b03def2a72049cc904c42170fc7ffb7727f7edc8",
+        "A push decision is allowed only after a GREEN push-readiness review for the exact local commit.",
+        '`Ready for Tim to decide` is not itself push approval.',
+        'Tim must explicitly approve pushing the exact reviewed commit before Codex may run `git push origin main`.'
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($phrase)) -Message "Push decision rubric preserves core rule: $phrase"
+    }
+
+    foreach ($helperFact in @(
+        "commit hash",
+        "commit purpose",
+        "files changed",
+        "current remote baseline",
+        "new remote baseline after push",
+        "whether changes are docs/tests/harness only",
+        "whether product repos and PrivateLens remained untouched",
+        "whether proof runs remained blocked",
+        "whether full Fleet tests completed GREEN",
+        "whether any YELLOW/RED caveats remain"
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($helperFact)) -Message "Push approval helper includes fact: $helperFact"
+    }
+
+    foreach ($decisionLabel in @(
+        "APPROVE PUSH",
+        "HOLD / VALIDATE AGAIN",
+        "DO NOT PUSH",
+        "STOP AND ASK HQ"
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($decisionLabel)) -Message "Push decision label exists: $decisionLabel"
+    }
+
+    foreach ($approveGate in @(
+        "commit content review is GREEN",
+        "validation is GREEN",
+        "working tree is clean",
+        "HEAD matches reviewed commit",
+        "remote baseline matches expected prior baseline",
+        "no boundary was crossed",
+        "full Fleet tests completed GREEN in the current requested log path",
+        "no YELLOW/RED caveats remain"
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($approveGate)) -Message "Approve-push gate exists: $approveGate"
+    }
+
+    foreach ($holdCondition in @(
+        "full suite timed out",
+        "old logs were reused",
+        "report is repeated or stale",
+        "repo, path, or baseline mismatch exists",
+        "local commit is not the reviewed commit",
+        "dirty tree exists",
+        'validation log lacks final `Codex Fleet tests passed.`',
+        "any product, PrivateLens, proof-run, deploy, phone, remote-access, runtime-binding, all-fleet, overnight, install, migration, secret, merge, or push boundary is ambiguous"
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($holdCondition)) -Message "Hold condition exists: $holdCondition"
+    }
+
+    foreach ($templateField in @(
+        'You would be pushing:',
+        'Commit: <commit hash> - <commit purpose>',
+        'Current remote baseline: <origin/main before push>',
+        'New remote baseline after push: <commit hash>',
+        'Recommended decision: <APPROVE PUSH | HOLD / VALIDATE AGAIN | DO NOT PUSH | STOP AND ASK HQ>',
+        'Tim explicitly approves pushing TSF commit <commit hash> to remote main.',
+        'Current remote GREEN baseline:',
+        'Before pushing, confirm:',
+        'remote main contains <commit hash>'
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($templateField)) -Message "Push template includes field: $templateField"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-256 TSF Push Decision Rubric V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "b03def2a72049cc904c42170fc7ffb7727f7edc8",
+        "Push decisions are allowed only after GREEN push-readiness review.",
+        '`Ready for Tim to decide` is not itself push approval.',
+        'Decision labels are `APPROVE PUSH`, `HOLD / VALIDATE AGAIN`, `DO NOT PUSH`, and `STOP AND ASK HQ`.',
+        "Push is held for full-suite timeout",
+        "Standard ``what am I pushing?`` and Codex push-approval prompt templates preserve Tim's separate explicit push approval requirement.",
+        "push decision fixture matrix",
+        "push approval prompt lint fixture"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records push decision rubric: $queuePhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work, PrivateLens work, proof runs, push, merge, deploy, installs, migrations, secrets, remote access, all-fleet, overnight runners, phone execution authority, runtime command binding, lock deletion, permission widening",
+        "static GitHub Pages command execution",
+        "This document is a push decision aid.",
+        "It does not implement a runner, queue executor, phone bridge, product adapter, proof-run pathway, push pathway, or static GitHub Pages command mechanism."
+    )) {
+        Assert-True -Condition ($rubricText -match [regex]::Escape($boundary)) -Message "Push decision rubric boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($rubricText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF push decision rubric avoids concrete local user paths"
+    Assert-True -Condition ($rubricText -match [regex]::Escape("A queue entry, Codex report, validation log, static dashboard, phone request, generated packet, or rubric recommendation cannot approve push by itself.")) -Message "TSF push decision rubric blocks evidence-only push approval"
+    Assert-False -Condition ($rubricText -match "(?is)(report|log|queue|dashboard|phone request|generated packet|rubric recommendation)\s+(approves|authorizes|grants|permits)\s+(push|git push)") -Message "TSF push decision rubric avoids evidence-only push grant"
+    Assert-False -Condition ($rubricText -match "(?is)(authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF push decision rubric does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18069,6 +18190,7 @@ Test-HqTsfAssignmentPacketSystem
 Test-HqTsfRunwayHandoffSystem
 Test-HqTsfBaselineLedgerAndReportIntake
 Test-HqTsfValidationTimeoutAndRerunPolicy
+Test-HqTsfPushDecisionRubric
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
