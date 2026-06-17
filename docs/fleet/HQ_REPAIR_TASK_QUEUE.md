@@ -8110,3 +8110,43 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\push-decision-rubric-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-256 TSF Push Decision Rubric V1. Patch only HQ-256 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/all-fleet, or push. Run only HQ-256 validationCommands. Stop after HQ-256 and report GREEN/YELLOW/RED.`
+
+### HQ-257 TSF Car-Ride Field Test Protocol V1
+
+- status: done
+- phase: TSF phone-monitored field-test preparation
+- currentRemoteGreenBaseline:
+  - `b03def2a72049cc904c42170fc7ffb7727f7edc8`
+- localStack:
+  - `aab2fc0a77a669aa57f4b7bcb8c8beb1e6fb88b8`
+- goal: Prepare TSF for a safe phone-monitored car-ride field test with compact status reports, idea intake cards, stale report handling, push-decision handling, timeout handling, and active-driving safety stops.
+- allowedFiles:
+  - `docs/fleet/TSF_CAR_RIDE_FIELD_TEST_PROTOCOL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Field-test purpose covers report intake, stale packet detection, push-decision handling, timeout handling, idea intake, and improvement collection without authorizing execution.
+  - Phone HQ remains request/status/idea-intake only.
+  - Compact phone status reports include verdict, repo/path/branch, baseline/HEAD, files changed, checks run, boundaries preserved, blocker/next action, exact question for Tim, and driving safety.
+  - Idea cards include idea title, project/lane, problem, desired outcome, risk/scope notes, TSF-only or product-lane classification, and allowed next action.
+  - Ideas remain non-authoritative queue candidates unless separately approved.
+  - Stop conditions cover product repo edits, PrivateLens work, proof runs, push/merge/deploy, install/migration/secret work, remote access, phone approval, runtime binding, all-fleet, overnight/background runners, active-driving attention, static GitHub Pages command execution, stale state, wrong-project text, and repeated reports.
+  - Tomorrow scenarios cover GREEN local commit report, GREEN push-readiness report, YELLOW timeout report, duplicate stale report, wrong-project mispaste, product idea, TSF-only idea, phone `what am I pushing?`, and next runway request.
+  - No prompt or protocol requires Tim to read, type, approve, or monitor while actively driving.
+- nextRecommendedBoundedAssignments:
+  - car-ride report classifier fixture matrix
+  - phone idea card fixture schema
+  - compact status report template extraction
+  - stale phone report freshness checklist
+  - Mobile HQ idea intake static view
+- validationCommands:
+  - `git diff --check`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\car-ride-field-test-protocol-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, active-driving attention, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_CAR_RIDE_FIELD_TEST_PROTOCOL.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\car-ride-field-test-protocol-v1.log`.
+- repeatablePrompt:
+  - `Take exactly HQ-257 TSF Car-Ride Field Test Protocol V1. Patch only HQ-257 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, require active-driving attention, or push. Run only HQ-257 validationCommands. Stop after HQ-257 and report GREEN/YELLOW/RED.`

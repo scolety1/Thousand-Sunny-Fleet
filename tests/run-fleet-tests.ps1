@@ -2874,6 +2874,137 @@ function Test-HqTsfPushDecisionRubric {
     Assert-False -Condition ($rubricText -match "(?is)(authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF push decision rubric does not grant forbidden authority"
 }
 
+function Test-HqTsfCarRideFieldTestProtocol {
+    $protocolPath = Join-Path $fleetRoot "docs\fleet\TSF_CAR_RIDE_FIELD_TEST_PROTOCOL.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($protocolPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF car-ride protocol input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $protocolPath)) {
+        return
+    }
+
+    $protocolText = Get-Content -LiteralPath $protocolPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Car-Ride Field Test Protocol",
+        "Evidence only; not executable authority or approval.",
+        "b03def2a72049cc904c42170fc7ffb7727f7edc8",
+        "aab2fc0a77a669aa57f4b7bcb8c8beb1e6fb88b8",
+        "Tomorrow's reports must distinguish official remote baseline, local HEAD, and any local-ahead commits.",
+        "Phone HQ is request/status/idea-intake only.",
+        "Use passenger or rest-stop review only.",
+        "Static GitHub Pages remains a static request/status surface. It cannot execute local commands."
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($phrase)) -Message "Car-ride protocol preserves core rule: $phrase"
+    }
+
+    foreach ($purpose in @(
+        "report intake and GREEN/YELLOW/RED classification",
+        "stale packet and stale report detection",
+        "push-decision handling after GREEN review",
+        "validation timeout and rerun handling",
+        "compact phone-readable status reports",
+        "idea intake as non-authoritative queue candidates",
+        "safety stops for wrong-project text, ambiguous authority, or active-driving attention risk"
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($purpose)) -Message "Car-ride field-test purpose includes: $purpose"
+    }
+
+    foreach ($statusField in @(
+        "Verdict: GREEN | YELLOW | RED",
+        "Repo/path/branch:",
+        "Baseline/HEAD:",
+        "Files changed:",
+        "Checks run:",
+        "Boundaries preserved:",
+        "Blocker/next action:",
+        "Question for Tim:",
+        "Driving safety: passenger/rest-stop review only; no active-driving attention required."
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($statusField)) -Message "Compact phone status includes field: $statusField"
+    }
+
+    foreach ($ideaField in @(
+        "Idea title:",
+        "Project/lane:",
+        "Problem it solves:",
+        "Desired outcome:",
+        "Risk/scope notes:",
+        "TSF-only or product-lane work:",
+        "Allowed next action: queue only / prompt draft / review-only / blocked pending desktop",
+        "Idea cards are non-authoritative queue candidates."
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($ideaField)) -Message "Mobile idea card includes field/rule: $ideaField"
+    }
+
+    foreach ($stopCondition in @(
+        "product repo edits",
+        "PrivateLens work",
+        "proof run",
+        "push, merge, or deploy",
+        "install, migration, or secret handling",
+        "remote access",
+        "phone approval",
+        "runtime command binding",
+        "all-fleet",
+        "overnight or background runner",
+        "active-driving attention requirement",
+        "static GitHub Pages executing local commands",
+        "wrong-project or wrong-lane mispaste",
+        "repeated report with no new evidence"
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($stopCondition)) -Message "Car-ride stop condition exists: $stopCondition"
+    }
+
+    foreach ($scenario in @(
+        "GREEN local commit report arrives",
+        "GREEN push-readiness report arrives",
+        "YELLOW timeout report arrives",
+        "Duplicate stale report arrives",
+        "Wrong-project mispaste arrives",
+        "New product idea from phone",
+        "New TSF-only idea from phone",
+        '"What am I pushing?" from phone',
+        "Next runway packet request from phone"
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($scenario)) -Message "Tomorrow scenario exists: $scenario"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-257 TSF Car-Ride Field Test Protocol V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "b03def2a72049cc904c42170fc7ffb7727f7edc8",
+        "localStack",
+        "aab2fc0a77a669aa57f4b7bcb8c8beb1e6fb88b8",
+        "Phone HQ remains request/status/idea-intake only.",
+        "Compact phone status reports include verdict",
+        "Idea cards include idea title",
+        "Ideas remain non-authoritative queue candidates unless separately approved.",
+        "No prompt or protocol requires Tim to read, type, approve, or monitor while actively driving.",
+        "car-ride report classifier fixture matrix",
+        "phone idea card fixture schema"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records car-ride protocol: $queuePhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work, PrivateLens work, proof runs, push, merge, deploy, installs, migrations, secrets, remote access, all-fleet, overnight or background runners, phone execution authority, runtime command binding, lock deletion, permission widening",
+        "This document is a phone-monitored field-test protocol and review aid.",
+        "It does not implement a runner, queue executor, phone bridge, product adapter, proof-run pathway, push pathway, background process, remote-control surface, or static GitHub Pages command mechanism."
+    )) {
+        Assert-True -Condition ($protocolText -match [regex]::Escape($boundary)) -Message "Car-ride boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($protocolText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF car-ride protocol avoids concrete local user paths"
+    Assert-False -Condition ($protocolText -match "(?is)(authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority|static GitHub Pages command execution)") -Message "TSF car-ride protocol does not grant forbidden authority"
+    Assert-False -Condition ($protocolText -match "(?is)(while actively driving).{0,120}(read|type|approve|monitor|required)") -Message "TSF car-ride protocol does not require active-driving attention"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18191,6 +18322,7 @@ Test-HqTsfRunwayHandoffSystem
 Test-HqTsfBaselineLedgerAndReportIntake
 Test-HqTsfValidationTimeoutAndRerunPolicy
 Test-HqTsfPushDecisionRubric
+Test-HqTsfCarRideFieldTestProtocol
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract
