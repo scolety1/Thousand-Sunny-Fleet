@@ -1082,6 +1082,14 @@ function Test-HqPhoneProjectStatusDashboard {
             profile = "experimental-prototype"
             projectType = "ai-workflow"
             riskTier = "local-only"
+        },
+        [pscustomobject]@{
+            name = "ArchivedFixture"
+            repo = "C:\Users\codex-agent\ArchivedSecretFixture"
+            profile = "experimental-prototype"
+            projectType = "sandbox-prototype"
+            riskTier = "local-only"
+            archived = $true
         }
     ) | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fixtureConfig -Encoding UTF8
 
@@ -1098,9 +1106,16 @@ function Test-HqPhoneProjectStatusDashboard {
     $parsed = $generatedJson | ConvertFrom-Json
 
     Assert-True -Condition ($parsed.statusKind -eq "public-safe-project-status-snapshot") -Message "Project status snapshot has public-safe status kind"
-    Assert-True -Condition (@($parsed.projects).Count -eq 1) -Message "Project status fixture emits one project"
+    Assert-True -Condition (@($parsed.projects).Count -eq 2) -Message "Project status fixture emits active and archived projects"
     Assert-True -Condition ($generated -match "PrivateLens") -Message "Project status generator can represent PrivateLens"
-    Assert-False -Condition ($generated -match "C:\\Users\\|C:/Users/|PrivateLensSecretFixture") -Message "Generated project status omits local absolute Windows user paths"
+    Assert-True -Condition ($generated -match "ArchivedFixture") -Message "Project status generator can represent archived projects"
+    $archivedFixtureProject = @($parsed.projects | Where-Object { [string]$_.name -eq "ArchivedFixture" })[0]
+    Assert-Equal -Actual ([string]$archivedFixtureProject.statusColor) -Expected "ARCHIVED" -Message "Archived project status is ARCHIVED"
+    Assert-Equal -Actual ([string]$archivedFixtureProject.branch) -Expected "archived" -Message "Archived project does not inspect branch"
+    Assert-Equal -Actual ([string]$archivedFixtureProject.cleanState) -Expected "archived" -Message "Archived project does not inspect clean state"
+    Assert-Equal -Actual ([bool]$archivedFixtureProject.archived) -Expected $true -Message "Archived project snapshot carries archived flag"
+    Assert-True -Condition ([string]$archivedFixtureProject.nextRecommendedAction -match "Leave archived") -Message "Archived project next action stays parked"
+    Assert-False -Condition ($generated -match "C:\\Users\\|C:/Users/|PrivateLensSecretFixture|ArchivedSecretFixture") -Message "Generated project status omits local absolute Windows user paths"
     Assert-False -Condition ($generated -match "C:\\Dev\\|C:/Dev/") -Message "Generated project status omits local Dev paths"
 
     foreach ($pattern in @(
@@ -4749,7 +4764,7 @@ function Test-MaintenanceDirtySkip {
             "-ConfigPath", $fixtureConfig,
             "-Project", "FixtureStaticDemo",
             "-OutFile", $outFile
-        )
+        ) -TimeoutSeconds 120
         Assert-Equal -Actual $maintenance.exitCode -Expected 0 -Message "Maintenance report succeeds when fixture ship is dirty"
         $report = Get-Content $outFile -Raw
         Assert-True -Condition ($report -match "SKIPPED DIRTY") -Message "Maintenance report skips dirty ships by default"

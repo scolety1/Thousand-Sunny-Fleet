@@ -186,6 +186,7 @@ foreach ($project in $projects) {
     $name = [string]$project.name
     $repo = [string]$project.repo
     $id = ConvertTo-PublicId -Name $name
+    $archived = ($null -ne $project.PSObject.Properties["archived"] -and [bool]$project.archived)
     $inspectable = $false
     $safeNote = "Evidence missing; request desktop review."
     $branch = "unknown"
@@ -194,7 +195,11 @@ foreach ($project in $projects) {
     $buildResult = "UNKNOWN"
     $pendingTaskCount = $null
 
-    if (![string]::IsNullOrWhiteSpace($repo) -and (Test-Path -LiteralPath $repo)) {
+    if ($archived) {
+        $safeNote = "Project is archived in TSF registry; leave parked unless Tim reactivates it."
+        $branch = "archived"
+        $cleanState = "archived"
+    } elseif (![string]::IsNullOrWhiteSpace($repo) -and (Test-Path -LiteralPath $repo)) {
         $gitRoot = Invoke-GitText -RepoPath $repo -Arguments @("rev-parse", "--show-toplevel")
         if (![string]::IsNullOrWhiteSpace($gitRoot)) {
             $inspectable = $true
@@ -216,8 +221,8 @@ foreach ($project in $projects) {
         $safeNote = "Registered project is not available on this machine."
     }
 
-    $statusColor = Get-StatusColor -Inspectable $inspectable -CleanState $cleanState -CheckpointVerdict $checkpointVerdict -BuildResult $buildResult -PendingTaskCount $pendingTaskCount
-    $nextAction = Get-NextAction -StatusColor $statusColor -CleanState $cleanState -CheckpointVerdict $checkpointVerdict -BuildResult $buildResult -PendingTaskCount $pendingTaskCount
+    $statusColor = if ($archived) { "ARCHIVED" } else { Get-StatusColor -Inspectable $inspectable -CleanState $cleanState -CheckpointVerdict $checkpointVerdict -BuildResult $buildResult -PendingTaskCount $pendingTaskCount }
+    $nextAction = if ($archived) { "Leave archived unless Tim reactivates it." } else { Get-NextAction -StatusColor $statusColor -CleanState $cleanState -CheckpointVerdict $checkpointVerdict -BuildResult $buildResult -PendingTaskCount $pendingTaskCount }
 
     $snapshotProjects += [pscustomobject]@{
         id = $id
@@ -230,6 +235,7 @@ foreach ($project in $projects) {
         pendingTaskCount = $pendingTaskCount
         nextRecommendedAction = $nextAction
         note = $safeNote
+        archived = $archived
         controls = [pscustomobject]@{
             requestTask = "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/quick-mission.md"
             stopRequest = "https://github.com/scolety1/Thousand-Sunny-Fleet/edit/main/fleet/control/emergency.md"
