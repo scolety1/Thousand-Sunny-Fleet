@@ -3545,6 +3545,143 @@ function Test-HqTsfMixedOutcomeBatchStressDrill {
     Assert-False -Condition ($drillText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF mixed-outcome drill does not grant forbidden authority"
 }
 
+function Test-HqTsfRealProjectShapedDryRun {
+    $drillPath = Join-Path $fleetRoot "docs\fleet\TSF_REAL_PROJECT_SHAPED_DRY_RUN.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($drillPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF real-project-shaped dry run input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $drillPath)) {
+        return
+    }
+
+    $drillText = Get-Content -LiteralPath $drillPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Real-Project-Shaped Dry Run",
+        "Evidence only; not executable authority or approval.",
+        "intake messy project-shaped work",
+        "separate eligible assignment-packet work from blocked work",
+        "without touching any real product repo",
+        "Assignment Definition Of Done",
+        "Synthetic Project-Shaped Batch",
+        "Item 3 Proof-Run Blocker Packet",
+        "Item 5 Push Approval Request",
+        "Dry Run Report",
+        "Safe Next Product-Lane Hand-Offs",
+        "TSF correctly handled a real-project-shaped batch without executing product work"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($phrase)) -Message "TSF real-project-shaped dry run preserves phrase: $phrase"
+    }
+
+    foreach ($state in @(
+        "ITEM_FINISHED_GREEN",
+        "ITEM_BLOCKED_DEFERRED",
+        "ITEM_NEEDS_HQ_INPUT",
+        "BATCH_FINISHED_PARTIAL"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($state)) -Message "TSF real-project-shaped dry run records terminal state: $state"
+        Assert-True -Condition ($queueText -match [regex]::Escape($state)) -Message "HQ queue records real-project-shaped dry run state: $state"
+    }
+
+    Assert-True -Condition (([regex]::Matches($drillText, [regex]::Escape("ITEM_FINISHED_GREEN"))).Count -ge 3) -Message "TSF real-project-shaped dry run records three finished GREEN items"
+
+    foreach ($requestPhrase in @(
+        "NWR Mock Draft HQ needs a Phase 1 intake checklist.",
+        "HouseOS needs a mobile staff-side bug triage packet.",
+        "PrivateLens proof run should start now.",
+        "A stale laptop path appears in an old TSF prompt.",
+        "Push whatever is ready.",
+        "Eligible read-only assignment-packet candidate, not product repo work.",
+        "Eligible planning/triage packet candidate, not product repo work.",
+        "Blocked/deferred because proof runs require explicit approval",
+        "stale-path/cross-machine guard item",
+        "Requires push-readiness review and Tim approval; no automatic push."
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($requestPhrase)) -Message "TSF real-project-shaped dry run classifies request: $requestPhrase"
+    }
+
+    foreach ($blockerField in @(
+        "item name: PrivateLens proof run request",
+        "what was attempted:",
+        "exact blocker:",
+        "evidence/log placeholder:",
+        "safest next action:",
+        "retry conditions:",
+        "whether other items can continue:"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($blockerField)) -Message "TSF real-project-shaped proof-run blocker packet includes field: $blockerField"
+    }
+
+    foreach ($approvalPhrase in @(
+        "decision needed:",
+        "Option A: run a push-readiness review for the named commit.",
+        "Option B: leave the work local and return to product/project work.",
+        "safest recommended option:",
+        "Nothing is pushed, merged, or deployed."
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($approvalPhrase)) -Message "TSF real-project-shaped push approval request includes phrase: $approvalPhrase"
+    }
+
+    foreach ($reportPhrase in @(
+        "items completed: item 1",
+        "items blocked/deferred: item 3",
+        "items needing HQ input: item 5",
+        "durable progress made:",
+        "what was not done:",
+        "repo safety status:",
+        "NWR Mock Draft HQ Phase 1 intake checklist packet.",
+        "HouseOS mobile staff-side bug triage packet.",
+        "Any PrivateLens proof run.",
+        "Any push-readiness review for a named commit.",
+        "create a bounded assignment packet"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($reportPhrase)) -Message "TSF real-project-shaped dry run report includes phrase: $reportPhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work",
+        "PrivateLens work",
+        "proof runs",
+        "push, merge, deploy",
+        "installs",
+        "migrations",
+        "secrets",
+        "remote access",
+        "all-fleet",
+        "overnight/background runners",
+        "phone execution authority",
+        "runtime command binding",
+        "lock deletion",
+        "permission widening",
+        "broader authority"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($boundary)) -Message "TSF real-project-shaped dry run boundary preserved: $boundary"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-263 TSF Real-Project-Shaped Dry Run V1",
+        "currentRemoteGreenBaseline",
+        "080dabf812f01b1cb508d80ab40f72338578b323",
+        "intake realistic project-shaped requests",
+        "Item 1 becomes an eligible read-only assignment-packet candidate",
+        "Item 2 becomes an eligible planning/triage packet candidate",
+        "Item 3 is blocked/deferred because proof runs require explicit approval.",
+        "Item 4 is handled as a stale-path/cross-machine guard item.",
+        "Item 5 requires push-readiness review and Tim approval, not automatic push.",
+        "did not touch product repos or PrivateLens and did not auto-approve push",
+        "safe to hand to a real product lane"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records real-project-shaped dry run: $queuePhrase"
+    }
+
+    Assert-False -Condition ($drillText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF real-project-shaped dry run avoids concrete local user paths"
+    Assert-False -Condition ($drillText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF real-project-shaped dry run does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18867,6 +19004,7 @@ Test-HqTsfDesktopActivationNote
 Test-HqTsfLoopClosureNoTreadmillPolicy
 Test-HqTsfSyntheticBatchDrill
 Test-HqTsfMixedOutcomeBatchStressDrill
+Test-HqTsfRealProjectShapedDryRun
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

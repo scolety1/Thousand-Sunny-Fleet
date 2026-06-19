@@ -8369,3 +8369,47 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
 - repeatablePrompt:
   - `Take exactly HQ-262 TSF Mixed-Outcome Batch Stress Drill V1. Patch only HQ-262 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-262 validationCommands. Stop after HQ-262 and report GREEN/YELLOW/RED plus BATCH_FINISHED_PARTIAL.`
+
+### HQ-263 TSF Real-Project-Shaped Dry Run V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `080dabf812f01b1cb508d80ab40f72338578b323`
+- goal: Add a tracked TSF-only dry run proving TSF can intake realistic project-shaped requests, classify them, separate safe assignment-packet candidates from blocked work, and avoid executing product work.
+- allowedFiles:
+  - `docs/fleet/TSF_REAL_PROJECT_SHAPED_DRY_RUN.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- syntheticRequests:
+  - NWR Mock Draft HQ Phase 1 intake checklist: `ITEM_FINISHED_GREEN`
+  - HouseOS mobile staff-side bug triage packet: `ITEM_FINISHED_GREEN`
+  - PrivateLens proof run should start now: `ITEM_BLOCKED_DEFERRED`
+  - stale laptop path in an old TSF prompt: `ITEM_FINISHED_GREEN`
+  - push whatever is ready: `ITEM_NEEDS_HQ_INPUT`
+- batchTerminalState:
+  - `BATCH_FINISHED_PARTIAL`
+- acceptance:
+  - Item 1 becomes an eligible read-only assignment-packet candidate, not product repo work.
+  - Item 2 becomes an eligible planning/triage packet candidate, not product repo work.
+  - Item 3 is blocked/deferred because proof runs require explicit approval.
+  - Item 4 is handled as a stale-path/cross-machine guard item.
+  - Item 5 requires push-readiness review and Tim approval, not automatic push.
+  - The dry run includes a blocker packet for the proof-run item.
+  - The dry run confirms TSF did not touch product repos or PrivateLens and did not auto-approve push.
+  - The dry run lists what is safe to hand to a real product lane and what requires Tim/HQ approval first.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\real-project-shaped-dry-run-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, new policy without a real gap, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_REAL_PROJECT_SHAPED_DRY_RUN.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-263 TSF Real-Project-Shaped Dry Run V1. Patch only HQ-263 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-263 validationCommands. Stop after HQ-263 and report GREEN/YELLOW/RED plus BATCH_FINISHED_PARTIAL.`
