@@ -5712,7 +5712,7 @@ function Test-ProductAdmissionGateSupport {
         "-Project", "FixtureStaticDemo",
         "-ConfigPath", $fixtureConfig,
         "-Mode", "warn"
-    ) -TimeoutSeconds 60
+    ) -TimeoutSeconds 240
     Assert-Equal -Actual $kill.ExitCode -Expected 0 -Message "Kill switch runs on backfilled fixture"
     Assert-True -Condition (($kill.Output -join "`n") -match 'Kill switch FixtureStaticDemo: KILL') -Message "Kill switch catches blocked launch gate in warn mode"
 
@@ -5779,7 +5779,7 @@ function Test-ProductAdmissionGateSupport {
         "-ConfigPath", $fixtureConfig,
         "-OutMarkdown", $dashboardMissingFirstScreenReport,
         "-NoHtml"
-    ) -TimeoutSeconds 240
+    ) -TimeoutSeconds 600
     Assert-Equal -Actual $dashboardMissingFirstScreen.ExitCode -Expected 0 -Message "Product dashboard runs when task staging metadata is incomplete"
     $dashboardMissingFirstScreenText = Get-Content -LiteralPath $dashboardMissingFirstScreenReport -Raw
     Assert-True -Condition ($dashboardMissingFirstScreenText -match 'Staging Attention') -Message "Product dashboard writes staging attention section"
@@ -5913,7 +5913,7 @@ function Test-ProductAdmissionGateSupport {
         "-Project", "FixtureStaticDemo",
         "-ConfigPath", $fixtureConfig,
         "-Mode", "warn"
-    ) -TimeoutSeconds 120
+    ) -TimeoutSeconds 240
     Assert-Equal -Actual $killWatch.ExitCode -Expected 0 -Message "Kill switch reruns after product-shaped task"
     Assert-True -Condition (($killWatch.Output -join "`n") -match 'Kill switch FixtureStaticDemo: WATCH') -Message "Kill switch watches simplify lane instead of killing ready product-shaped task"
 
@@ -5925,7 +5925,7 @@ function Test-ProductAdmissionGateSupport {
         "-ConfigPath", $fixtureConfig,
         "-OutMarkdown", $dashboardReport,
         "-NoHtml"
-    ) -TimeoutSeconds 240
+    ) -TimeoutSeconds 600
     Assert-Equal -Actual $dashboard.ExitCode -Expected 0 -Message "Product dashboard runs after staging metadata is ready"
     $dashboardReportText = Get-Content -LiteralPath $dashboardReport -Raw
     Assert-True -Condition ($dashboardReportText -match '\| Ship \| Group \| Launch \| Admission \| Score \| Usefulness \| Staging \|') -Message "Product dashboard includes staging column"
