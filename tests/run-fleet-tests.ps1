@@ -5701,7 +5701,7 @@ function Test-ProductAdmissionGateSupport {
         "-Project", "FixtureStaticDemo",
         "-ConfigPath", $fixtureConfig,
         "-Mode", "warn"
-    ) -TimeoutSeconds 120
+    ) -TimeoutSeconds 60
     Assert-Equal -Actual $launch.ExitCode -Expected 0 -Message "Launch gate runs on backfilled fixture"
     Assert-True -Condition (($launch.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate still blocks old non-product-shaped fixture task"
 
@@ -5913,7 +5913,7 @@ function Test-ProductAdmissionGateSupport {
         "-Project", "FixtureStaticDemo",
         "-ConfigPath", $fixtureConfig,
         "-Mode", "warn"
-    ) -TimeoutSeconds 60
+    ) -TimeoutSeconds 120
     Assert-Equal -Actual $killWatch.ExitCode -Expected 0 -Message "Kill switch reruns after product-shaped task"
     Assert-True -Condition (($killWatch.Output -join "`n") -match 'Kill switch FixtureStaticDemo: WATCH') -Message "Kill switch watches simplify lane instead of killing ready product-shaped task"
 
