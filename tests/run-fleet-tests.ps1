@@ -3106,6 +3106,127 @@ function Test-HqTsfDesktopActivationNote {
     Assert-False -Condition ($activationText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo access|PrivateLens mutation|proof runs|all-fleet|overnight|background runners|phone approvals|runtime command binding|future authority)") -Message "TSF desktop activation does not grant forbidden authority"
 }
 
+function Test-HqTsfLoopClosureNoTreadmillPolicy {
+    $policyPath = Join-Path $fleetRoot "docs\fleet\TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($policyPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF loop closure policy input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $policyPath)) {
+        return
+    }
+
+    $policyText = Get-Content -LiteralPath $policyPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Loop Closure No-Treadmill Policy",
+        "Evidence only; not executable authority or approval.",
+        "finish the assignment's Definition of Done",
+        "stop and request specific help",
+        "call off the assignment",
+        "Every TSF/Codex loop must end as exactly one of these states",
+        "Reports must name the terminal state.",
+        "Vague queue-filling is not progress.",
+        "The default is not `"keep going`".",
+        "The default is finish the assignment, request specific help, or call it off.",
+        "Repeated validation failures should not produce endless validation prompts.",
+        "If the same timeout, failure, missing context, validation ambiguity, or review finding appears twice without new evidence",
+        "Codex may recommend calling off an assignment",
+        "the work is no longer useful",
+        "it is becoming meta-work without product value",
+        "it requires blocked permissions",
+        "it repeatedly fails for unclear reasons",
+        "it risks crossing product/proof/runtime boundaries",
+        "the original end goal is already satisfied",
+        "no durable progress was made",
+        "Product-Value Checkpoint",
+        "recommend stopping TSF tuning and moving to a real product lane"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($phrase)) -Message "TSF loop closure policy preserves phrase: $phrase"
+    }
+
+    foreach ($state in @(
+        "FINISHED_GREEN",
+        "PUSH_DECISION_READY",
+        "VALIDATION_RERUN_REQUIRED",
+        "FOCUSED_REPAIR_REQUIRED",
+        "NEEDS_HQ_INPUT",
+        "CALLED_OFF",
+        "RED_BLOCKED"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($state)) -Message "TSF loop closure policy defines terminal state: $state"
+        Assert-True -Condition ($queueText -match [regex]::Escape($state)) -Message "HQ queue records loop terminal state: $state"
+    }
+
+    foreach ($helpField in @(
+        "what decision is needed",
+        "what options exist",
+        "safest recommended option",
+        "consequence of doing nothing"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($helpField)) -Message "TSF loop closure help request includes field: $helpField"
+    }
+
+    foreach ($reportField in @(
+        "terminal state",
+        "assignment Definition of Done status",
+        "named blocker or missing item",
+        "validation result",
+        "what is now possible that was not possible before",
+        "whether this improves future product work or is only control-plane cleanup",
+        "specific Tim/HQ question",
+        "safest recommended option",
+        "consequence of doing nothing",
+        "next action only if it directly advances the original assignment or resolves a named blocker"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($reportField)) -Message "TSF loop closure report contract includes field: $reportField"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-259 TSF Loop Closure No-Treadmill Policy V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "2b91f967b8bdd867d12cc8edbf103b0d875ca4fd",
+        "Every loop must end in exactly one explicit terminal state.",
+        "Codex must not recommend generic `"continue`", `"next bounded task`", or `"rerun`" prompts unless the next action directly advances the original assignment or resolves a named blocker.",
+        "If the Definition of Done is reachable within allowed scope, Codex should finish it.",
+        "If the Definition of Done is not reachable, Codex must stop and say exactly what is missing.",
+        "Repeated timeout, failure, or review loops switch to focused diagnosis",
+        "Help requests name the decision needed, options, safest recommended option, and consequence of doing nothing.",
+        "Call-off is valid",
+        "no durable progress was made",
+        "Low-value TSF tuning should stop and move to a real product lane."
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records loop closure no-treadmill policy: $queuePhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work",
+        "PrivateLens work",
+        "proof runs",
+        "push, merge, deploy",
+        "installs",
+        "migrations",
+        "secrets",
+        "remote access",
+        "all-fleet",
+        "overnight/background runners",
+        "phone execution authority",
+        "runtime command binding",
+        "lock deletion",
+        "permission widening",
+        "broader authority"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($boundary)) -Message "TSF loop closure boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($policyText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF loop closure policy avoids concrete local user paths"
+    Assert-False -Condition ($policyText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF loop closure policy does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18425,6 +18546,7 @@ Test-HqTsfValidationTimeoutAndRerunPolicy
 Test-HqTsfPushDecisionRubric
 Test-HqTsfCarRideFieldTestProtocol
 Test-HqTsfDesktopActivationNote
+Test-HqTsfLoopClosureNoTreadmillPolicy
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

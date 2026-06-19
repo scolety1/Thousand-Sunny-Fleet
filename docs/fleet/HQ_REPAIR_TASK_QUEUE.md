@@ -8186,3 +8186,49 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/tests/harness-only and does not activate product repo or proof-run execution.
 - repeatablePrompt:
   - `Take exactly HQ-258 TSF Desktop Activation Note V1. Patch only HQ-258 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-258 validationCommands. Stop after HQ-258 and report GREEN/YELLOW/RED.`
+
+### HQ-259 TSF Loop Closure No-Treadmill Policy V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `2b91f967b8bdd867d12cc8edbf103b0d875ca4fd`
+- goal: Add a tracked policy that prevents endless TSF/Codex treadmill loops and forces every loop to finish, request specific help, require focused repair, or call off the assignment.
+- allowedFiles:
+  - `docs/fleet/TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- terminalStates:
+  - `FINISHED_GREEN`
+  - `PUSH_DECISION_READY`
+  - `VALIDATION_RERUN_REQUIRED`
+  - `FOCUSED_REPAIR_REQUIRED`
+  - `NEEDS_HQ_INPUT`
+  - `CALLED_OFF`
+  - `RED_BLOCKED`
+- acceptance:
+  - Every loop must end in exactly one explicit terminal state.
+  - Codex must not recommend generic "continue", "next bounded task", or "rerun" prompts unless the next action directly advances the original assignment or resolves a named blocker.
+  - If the Definition of Done is reachable within allowed scope, Codex should finish it.
+  - If the Definition of Done is not reachable, Codex must stop and say exactly what is missing.
+  - Repeated timeout, failure, or review loops switch to focused diagnosis, HQ input, call-off, or RED/BLOCKED instead of endless reruns.
+  - Help requests name the decision needed, options, safest recommended option, and consequence of doing nothing.
+  - Call-off is valid when the work is no longer useful, becoming meta-work without product value, requires blocked permissions, repeatedly fails unclearly, risks product/proof/runtime boundaries, or the original end goal is already satisfied.
+  - Final reports explain what is now possible that was not possible before, or say "no durable progress was made."
+  - TSF meta-work reports say whether the work improves actual future product work or is only control-plane cleanup.
+  - Low-value TSF tuning should stop and move to a real product lane.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\loop-closure-no-treadmill-policy-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-259 TSF Loop Closure No-Treadmill Policy V1. Patch only HQ-259 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-259 validationCommands. Stop after HQ-259 and report GREEN/YELLOW/RED plus one loop terminal state.`
