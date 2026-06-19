@@ -3423,6 +3423,128 @@ function Test-HqTsfSyntheticBatchDrill {
     Assert-False -Condition ($drillText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF synthetic batch drill does not grant forbidden authority"
 }
 
+function Test-HqTsfMixedOutcomeBatchStressDrill {
+    $drillPath = Join-Path $fleetRoot "docs\fleet\TSF_MIXED_OUTCOME_BATCH_STRESS_DRILL.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($drillPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF mixed-outcome batch stress drill input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $drillPath)) {
+        return
+    }
+
+    $drillText = Get-Content -LiteralPath $drillPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Mixed-Outcome Batch Stress Drill",
+        "Evidence only; not executable authority or approval.",
+        "messy multi-item batch with mixed outcomes",
+        "without getting stuck, looping, or pretending blocked work is complete",
+        "Assignment Definition Of Done",
+        "Synthetic Batch Items",
+        "Item 3 Blocker Packet",
+        "Item 4 HQ Input Request",
+        "Continued After Item 3",
+        "Final Batch Report",
+        "Policy Gap Check",
+        "No new policy is required."
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($phrase)) -Message "TSF mixed-outcome drill preserves phrase: $phrase"
+    }
+
+    foreach ($state in @(
+        "ITEM_FINISHED_GREEN",
+        "ITEM_BLOCKED_DEFERRED",
+        "ITEM_NEEDS_HQ_INPUT",
+        "ITEM_CALLED_OFF",
+        "ITEM_SKIPPED_DEPENDENCY",
+        "BATCH_FINISHED_PARTIAL"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($state)) -Message "TSF mixed-outcome drill records terminal state: $state"
+        Assert-True -Condition ($queueText -match [regex]::Escape($state)) -Message "HQ queue records mixed-outcome drill state: $state"
+    }
+
+    Assert-True -Condition (([regex]::Matches($drillText, [regex]::Escape("ITEM_FINISHED_GREEN"))).Count -ge 2) -Message "TSF mixed-outcome drill records two finished GREEN items"
+
+    foreach ($blockerField in @(
+        "item name: Synthetic item 3 - blocked evidence naming repair",
+        "what was attempted:",
+        "exact blocker:",
+        "evidence/log placeholder:",
+        "safest next action:",
+        "retry conditions:",
+        "whether other items can continue:"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($blockerField)) -Message "TSF mixed-outcome blocker packet includes field: $blockerField"
+    }
+
+    foreach ($hqInputPhrase in @(
+        "decision needed:",
+        'Option A: mark it `ITEM_NEEDS_HQ_INPUT`',
+        'Option B: mark it `ITEM_BLOCKED_DEFERRED`',
+        "safest recommended option: Option A",
+        "consequence of doing nothing:"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($hqInputPhrase)) -Message "TSF mixed-outcome HQ input request includes phrase: $hqInputPhrase"
+    }
+
+    foreach ($reportPhrase in @(
+        "items completed: item 1",
+        "items blocked/deferred: item 3",
+        "items needing HQ input: item 4",
+        "items called off: item 5",
+        "items skipped: item 6",
+        "durable progress made:",
+        "what was not done:",
+        "repo safety status:",
+        "More test drills are not useful unless a concrete TSF control-plane blocker appears.",
+        "Move to real product/project work."
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($reportPhrase)) -Message "TSF mixed-outcome final report includes phrase: $reportPhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work",
+        "PrivateLens work",
+        "proof runs",
+        "push, merge, deploy",
+        "installs",
+        "migrations",
+        "secrets",
+        "remote access",
+        "all-fleet",
+        "overnight/background runners",
+        "phone execution authority",
+        "runtime command binding",
+        "lock deletion",
+        "permission widening",
+        "broader authority"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($boundary)) -Message "TSF mixed-outcome drill boundary preserved: $boundary"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-262 TSF Mixed-Outcome Batch Stress Drill V1",
+        "currentRemoteGreenBaseline",
+        "0b513e37e045ccba73ea0f5f30a210da2be387d4",
+        "completed, blocked/deferred, HQ-input, called-off, and dependency-skipped items",
+        "The drill proves Codex moved past item 3 after deferring it.",
+        "The drill shows item 4 requires a specific HQ decision instead of guessing.",
+        "The drill shows item 5 was called off for low product value.",
+        "The drill shows item 6 was skipped for dependency reasons.",
+        "does not create new policy unless a real gap appears",
+        "moving to real product/project work unless a concrete TSF control-plane blocker appears"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records mixed-outcome stress drill: $queuePhrase"
+    }
+
+    Assert-False -Condition ($drillText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF mixed-outcome drill avoids concrete local user paths"
+    Assert-False -Condition ($drillText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF mixed-outcome drill does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18744,6 +18866,7 @@ Test-HqTsfCarRideFieldTestProtocol
 Test-HqTsfDesktopActivationNote
 Test-HqTsfLoopClosureNoTreadmillPolicy
 Test-HqTsfSyntheticBatchDrill
+Test-HqTsfMixedOutcomeBatchStressDrill
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

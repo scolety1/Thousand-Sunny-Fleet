@@ -8324,3 +8324,48 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
 - repeatablePrompt:
   - `Take exactly HQ-261 TSF Synthetic Batch Drill V1. Patch only HQ-261 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-261 validationCommands. Stop after HQ-261 and report GREEN/YELLOW/RED plus BATCH_FINISHED_PARTIAL.`
+
+### HQ-262 TSF Mixed-Outcome Batch Stress Drill V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `0b513e37e045ccba73ea0f5f30a210da2be387d4`
+- goal: Add a tracked mixed-outcome batch stress drill proving TSF can handle completed, blocked/deferred, HQ-input, called-off, and dependency-skipped items without looping or pretending blocked work is complete.
+- allowedFiles:
+  - `docs/fleet/TSF_MIXED_OUTCOME_BATCH_STRESS_DRILL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- syntheticItems:
+  - simple eligible docs/status check: `ITEM_FINISHED_GREEN`
+  - second independent eligible item: `ITEM_FINISHED_GREEN`
+  - named blocker with later independent work available: `ITEM_BLOCKED_DEFERRED`
+  - Tim/HQ must choose between two safe options: `ITEM_NEEDS_HQ_INPUT`
+  - low-value stale TSF meta-task: `ITEM_CALLED_OFF`
+  - dependency on blocked item 3: `ITEM_SKIPPED_DEPENDENCY`
+- batchTerminalState:
+  - `BATCH_FINISHED_PARTIAL`
+- acceptance:
+  - The drill reports all item terminal states.
+  - The drill proves Codex moved past item 3 after deferring it.
+  - The drill shows item 4 requires a specific HQ decision instead of guessing.
+  - The drill shows item 5 was called off for low product value.
+  - The drill shows item 6 was skipped for dependency reasons.
+  - The drill explains durable progress and what was not done.
+  - The drill confirms repo safety and does not create new policy unless a real gap appears.
+  - The drill recommends moving to real product/project work unless a concrete TSF control-plane blocker appears.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\mixed-outcome-batch-stress-drill-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, new policy without a real gap, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_MIXED_OUTCOME_BATCH_STRESS_DRILL.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-262 TSF Mixed-Outcome Batch Stress Drill V1. Patch only HQ-262 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-262 validationCommands. Stop after HQ-262 and report GREEN/YELLOW/RED plus BATCH_FINISHED_PARTIAL.`
