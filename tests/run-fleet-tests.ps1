@@ -3312,6 +3312,117 @@ function Test-HqTsfLoopClosureNoTreadmillPolicy {
     Assert-False -Condition ($policyText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF loop closure policy does not grant forbidden authority"
 }
 
+function Test-HqTsfSyntheticBatchDrill {
+    $drillPath = Join-Path $fleetRoot "docs\fleet\TSF_SYNTHETIC_BATCH_DRILL.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+
+    foreach ($path in @($drillPath, $queuePath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF synthetic batch drill input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $drillPath)) {
+        return
+    }
+
+    $drillText = Get-Content -LiteralPath $drillPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+
+    foreach ($phrase in @(
+        "TSF Synthetic Batch Drill",
+        "Evidence only; not executable authority or approval.",
+        "one blocked item does not stop the whole batch",
+        "independent later items continue",
+        "every item gets a terminal state",
+        "the batch gets a terminal state",
+        "the final report distinguishes durable progress from deferred blockers",
+        "Assignment Definition Of Done",
+        "Synthetic Batch Items",
+        "Blocker Packet",
+        "Continued After Blocker",
+        "Final Batch Report",
+        "What Was Intentionally Not Done",
+        "Product-Value Checkpoint"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($phrase)) -Message "TSF synthetic batch drill preserves phrase: $phrase"
+    }
+
+    foreach ($state in @(
+        "ITEM_FINISHED_GREEN",
+        "ITEM_BLOCKED_DEFERRED",
+        "ITEM_SKIPPED_DEPENDENCY",
+        "ITEM_CALLED_OFF",
+        "BATCH_FINISHED_PARTIAL"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($state)) -Message "TSF synthetic batch drill records terminal state: $state"
+        Assert-True -Condition ($queueText -match [regex]::Escape($state)) -Message "HQ queue records synthetic batch drill state: $state"
+    }
+
+    Assert-True -Condition (([regex]::Matches($drillText, [regex]::Escape("ITEM_FINISHED_GREEN"))).Count -ge 2) -Message "TSF synthetic batch drill records two finished GREEN items"
+
+    foreach ($blockerField in @(
+        "item name: Synthetic item 2 - missing HQ label decision",
+        "what was attempted:",
+        "exact blocker:",
+        "evidence/log path if applicable:",
+        "safest next action:",
+        "whether it can be retried later:",
+        "whether other items can continue:"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($blockerField)) -Message "TSF synthetic batch drill blocker packet includes field: $blockerField"
+    }
+
+    foreach ($reportPhrase in @(
+        "items completed: item 1",
+        "items blocked/deferred: item 2",
+        "items skipped: item 5",
+        "items called off: item 4",
+        "durable progress made:",
+        "repo safety status:",
+        "recommended next action:",
+        "move to real product/project work"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($reportPhrase)) -Message "TSF synthetic batch drill final report includes phrase: $reportPhrase"
+    }
+
+    foreach ($boundary in @(
+        "product repo work",
+        "PrivateLens work",
+        "proof runs",
+        "push, merge, deploy",
+        "installs",
+        "migrations",
+        "secrets",
+        "remote access",
+        "all-fleet",
+        "overnight/background runners",
+        "phone execution authority",
+        "runtime command binding",
+        "lock deletion",
+        "permission widening",
+        "broader authority"
+    )) {
+        Assert-True -Condition ($drillText -match [regex]::Escape($boundary)) -Message "TSF synthetic batch drill boundary preserved: $boundary"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-261 TSF Synthetic Batch Drill V1",
+        "currentRemoteGreenBaseline",
+        "511c013bcd8bfa8755f5d1ce79ce101cd9f71d74",
+        "one blocked item does not stop the whole batch",
+        "The drill records item-by-item terminal states.",
+        "The drill records a blocker packet for the blocked item.",
+        "The drill explains that Codex continued after the blocked item.",
+        "The drill records durable progress made and deferred blockers separately.",
+        "The drill records repo safety status and product-value checkpoint.",
+        "moving to real product/project work unless a named TSF blocker appears"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records synthetic batch drill: $queuePhrase"
+    }
+
+    Assert-False -Condition ($drillText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF synthetic batch drill avoids concrete local user paths"
+    Assert-False -Condition ($drillText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF synthetic batch drill does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18632,6 +18743,7 @@ Test-HqTsfPushDecisionRubric
 Test-HqTsfCarRideFieldTestProtocol
 Test-HqTsfDesktopActivationNote
 Test-HqTsfLoopClosureNoTreadmillPolicy
+Test-HqTsfSyntheticBatchDrill
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

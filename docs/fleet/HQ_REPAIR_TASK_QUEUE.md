@@ -8281,3 +8281,46 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
 - repeatablePrompt:
   - `Take exactly HQ-260 TSF Batch Progression Follow-Up V1. Patch only HQ-260 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-260 validationCommands. Stop after HQ-260 and report GREEN/YELLOW/RED plus one batch terminal state.`
+
+### HQ-261 TSF Synthetic Batch Drill V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentRemoteGreenBaseline:
+  - `511c013bcd8bfa8755f5d1ce79ce101cd9f71d74`
+- goal: Add a tracked synthetic batch drill proving that one blocked item does not stop the whole batch when later items are independent and safe.
+- allowedFiles:
+  - `docs/fleet/TSF_SYNTHETIC_BATCH_DRILL.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- syntheticItems:
+  - fixable docs-only typo/checklist item: `ITEM_FINISHED_GREEN`
+  - fake blocked item requiring missing HQ input: `ITEM_BLOCKED_DEFERRED`
+  - later independent docs/status item: `ITEM_FINISHED_GREEN`
+  - stale or low-value item: `ITEM_CALLED_OFF`
+  - dependent item that cannot proceed because item 2 is blocked: `ITEM_SKIPPED_DEPENDENCY`
+- batchTerminalState:
+  - `BATCH_FINISHED_PARTIAL`
+- acceptance:
+  - The drill records item-by-item terminal states.
+  - The drill records a blocker packet for the blocked item.
+  - The drill explains that Codex continued after the blocked item.
+  - The drill records durable progress made and deferred blockers separately.
+  - The drill records what was intentionally not done.
+  - The drill records repo safety status and product-value checkpoint.
+  - The drill recommends stopping low-value TSF meta-tuning and moving to real product/project work unless a named TSF blocker appears.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\synthetic-batch-drill-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_SYNTHETIC_BATCH_DRILL.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-261 TSF Synthetic Batch Drill V1. Patch only HQ-261 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-261 validationCommands. Stop after HQ-261 and report GREEN/YELLOW/RED plus BATCH_FINISHED_PARTIAL.`
