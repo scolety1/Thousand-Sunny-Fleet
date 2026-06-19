@@ -8232,3 +8232,52 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
 - repeatablePrompt:
   - `Take exactly HQ-259 TSF Loop Closure No-Treadmill Policy V1. Patch only HQ-259 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-259 validationCommands. Stop after HQ-259 and report GREEN/YELLOW/RED plus one loop terminal state.`
+
+### HQ-260 TSF Batch Progression Follow-Up V1
+
+- status: done
+- phase: TSF assignment-completion control-plane hardening
+- currentLocalHead:
+  - `4ba49ec681eaccd00f28d292df422a609d969553`
+- goal: Extend loop closure so batches process every eligible independent item instead of stopping the whole batch on the first item blocker.
+- allowedFiles:
+  - `docs/fleet/TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- perItemTerminalStates:
+  - `ITEM_FINISHED_GREEN`
+  - `ITEM_BLOCKED_DEFERRED`
+  - `ITEM_NEEDS_HQ_INPUT`
+  - `ITEM_SKIPPED_DEPENDENCY`
+  - `ITEM_CALLED_OFF`
+  - `ITEM_RED_BLOCKED`
+- batchTerminalStates:
+  - `BATCH_FINISHED_GREEN`
+  - `BATCH_FINISHED_PARTIAL`
+  - `BATCH_NEEDS_HQ_INPUT`
+  - `BATCH_RED_BLOCKED`
+  - `BATCH_CALLED_OFF`
+- acceptance:
+  - When Tim gives multiple errors/tasks, the goal is to process the whole eligible list, not to get stuck on the first blocker.
+  - If one item is blocked but the repo remains safe and later items are independent, Codex records the blocker and moves to the next eligible item.
+  - One item blocker stops the whole batch only when it creates a global blocker.
+  - Global stop conditions cover unsafe working tree, product repo/PrivateLens/proof/deploy/runtime/phone/secret/remote-access/all-fleet/overnight boundary risk, dependency for all remaining items, broken validation infrastructure, required Tim/HQ input, or stale/not-worth-continuing batch goal.
+  - Codex must not repeatedly rerun the same blocked item without new information.
+  - Every blocked/deferred item records item name, what was attempted, exact blocker, evidence/log path if applicable, safest next action, whether it can be retried later, and whether other items can continue.
+  - Every batch report includes items completed, blocked/deferred, skipped, called off, durable progress made, clean repo status, product/PrivateLens/proof boundary status, and recommended next action.
+  - A batch with five errors can finish as `BATCH_FINISHED_PARTIAL` after completed items and deferred blockers are recorded.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\batch-progression-follow-up-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Updated `docs/fleet/TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md` with batch progression, per-item terminal states, batch terminal states, move-on rule, global stop rule, blocker packet rule, final batch report rule, and five-error example.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-260 TSF Batch Progression Follow-Up V1. Patch only HQ-260 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-260 validationCommands. Stop after HQ-260 and report GREEN/YELLOW/RED plus one batch terminal state.`

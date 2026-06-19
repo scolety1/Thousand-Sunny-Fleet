@@ -3161,6 +3161,73 @@ function Test-HqTsfLoopClosureNoTreadmillPolicy {
         Assert-True -Condition ($queueText -match [regex]::Escape($state)) -Message "HQ queue records loop terminal state: $state"
     }
 
+    foreach ($itemState in @(
+        "ITEM_FINISHED_GREEN",
+        "ITEM_BLOCKED_DEFERRED",
+        "ITEM_NEEDS_HQ_INPUT",
+        "ITEM_SKIPPED_DEPENDENCY",
+        "ITEM_CALLED_OFF",
+        "ITEM_RED_BLOCKED"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($itemState)) -Message "TSF loop closure policy defines per-item terminal state: $itemState"
+        Assert-True -Condition ($queueText -match [regex]::Escape($itemState)) -Message "HQ queue records per-item terminal state: $itemState"
+    }
+
+    foreach ($batchState in @(
+        "BATCH_FINISHED_GREEN",
+        "BATCH_FINISHED_PARTIAL",
+        "BATCH_NEEDS_HQ_INPUT",
+        "BATCH_RED_BLOCKED",
+        "BATCH_CALLED_OFF"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($batchState)) -Message "TSF loop closure policy defines batch terminal state: $batchState"
+        Assert-True -Condition ($queueText -match [regex]::Escape($batchState)) -Message "HQ queue records batch terminal state: $batchState"
+    }
+
+    foreach ($batchRule in @(
+        "When Tim gives multiple errors/tasks, the goal is to process the whole eligible list",
+        "One item blocker must not stop the whole batch unless it creates a global blocker.",
+        "If one item is blocked but the repo remains safe and later items are independent",
+        "Codex must record the blocker and move to the next eligible item.",
+        "Codex stops the whole batch only if",
+        "the working tree cannot be kept safe",
+        "continuing risks product repo, PrivateLens, proof, deploy, runtime, phone, secret, remote-access, all-fleet, or overnight boundary crossing",
+        "the blocked item is a dependency for all remaining items",
+        "validation infrastructure is broken",
+        "Tim/HQ input is required to choose a safe path",
+        "the batch goal is stale or not worth continuing",
+        "Codex must not repeatedly rerun the same blocked item without new information.",
+        "After repeated failure on one item, mark it blocked/deferred and continue if safe.",
+        "Final batch may be `BATCH_FINISHED_PARTIAL`, which is acceptable progress."
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($batchRule)) -Message "TSF loop closure policy preserves batch progression rule: $batchRule"
+    }
+
+    foreach ($blockerField in @(
+        "item name",
+        "what was attempted",
+        "exact blocker",
+        "evidence/log path if applicable",
+        "safest next action",
+        "whether it can be retried later",
+        "whether other items can continue"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($blockerField)) -Message "TSF loop closure blocker packet includes field: $blockerField"
+    }
+
+    foreach ($batchReportField in @(
+        "items completed",
+        "items blocked/deferred",
+        "items skipped",
+        "items called off",
+        "durable progress made",
+        "whether repo is clean",
+        "whether product repos/PrivateLens/proof boundaries stayed untouched",
+        "recommended next action"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($batchReportField)) -Message "TSF loop closure final batch report includes field: $batchReportField"
+    }
+
     foreach ($helpField in @(
         "what decision is needed",
         "what options exist",
@@ -3201,6 +3268,24 @@ function Test-HqTsfLoopClosureNoTreadmillPolicy {
         "Low-value TSF tuning should stop and move to a real product lane."
     )) {
         Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records loop closure no-treadmill policy: $queuePhrase"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-260 TSF Batch Progression Follow-Up V1",
+        "currentLocalHead",
+        "4ba49ec681eaccd00f28d292df422a609d969553",
+        "process every eligible independent item instead of stopping the whole batch on the first item blocker",
+        "When Tim gives multiple errors/tasks, the goal is to process the whole eligible list",
+        "Codex records the blocker and moves to the next eligible item",
+        "One item blocker stops the whole batch only when it creates a global blocker.",
+        "Codex must not repeatedly rerun the same blocked item without new information.",
+        "Every blocked/deferred item records item name",
+        "Every batch report includes items completed",
+        "A batch with five errors can finish as",
+        "per-item terminal states",
+        "batch terminal states"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records batch progression follow-up: $queuePhrase"
     }
 
     foreach ($boundary in @(

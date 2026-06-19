@@ -38,6 +38,111 @@ Reports must name the terminal state. A report that ends with only "continue",
 names one of the terminal states above and explains why that next action directly
 advances the original assignment or resolves a named blocker.
 
+## Batch Progression Rule
+
+When Tim gives multiple errors/tasks, the goal is to process the whole eligible
+list, not to get stuck on the first blocker. A blocked item should become
+evidence for a focused follow-up while Codex moves to the next safe independent
+item.
+
+When Tim gives multiple errors/tasks, the goal is to process the whole eligible list.
+
+One item blocker must not stop the whole batch unless it creates a global
+blocker.
+
+One item blocker must not stop the whole batch unless it creates a global blocker.
+
+## Per-Item Terminal States
+
+Each batch item must end as exactly one of these states:
+
+- `ITEM_FINISHED_GREEN`: item was completed and relevant validation passed.
+- `ITEM_BLOCKED_DEFERRED`: item has a known blocker and should be retried later only with new information or a focused repair packet.
+- `ITEM_NEEDS_HQ_INPUT`: item cannot safely proceed without Tim/HQ choosing a path.
+- `ITEM_SKIPPED_DEPENDENCY`: item depends on another blocked/deferred item.
+- `ITEM_CALLED_OFF`: item is no longer useful, stale, unsafe, or not aligned with the batch goal.
+- `ITEM_RED_BLOCKED`: item has a hard blocker or safety violation risk.
+
+## Batch Terminal States
+
+Each batch must end as exactly one of these states:
+
+- `BATCH_FINISHED_GREEN`: every eligible item finished GREEN.
+- `BATCH_FINISHED_PARTIAL`: at least one item finished and at least one item was blocked, skipped, called off, or deferred without creating a global stop.
+- `BATCH_NEEDS_HQ_INPUT`: Tim/HQ input is required before choosing a safe batch path.
+- `BATCH_RED_BLOCKED`: a hard blocker or safety risk stops the whole batch.
+- `BATCH_CALLED_OFF`: the batch is stale, unsafe, no longer useful, or not worth continuing.
+
+## Move-On Rule
+
+If one item is blocked but the repo remains safe and later items are independent,
+Codex must record the blocker and move to the next eligible item. The next item
+must still respect allowed files, validation commands, stop conditions, and
+safety boundaries.
+
+The loop should not convert one item failure into a whole-batch failure unless a
+global stop condition is active.
+
+## Global Stop Rule
+
+Codex stops the whole batch only if:
+
+- the working tree cannot be kept safe
+- continuing risks product repo, PrivateLens, proof, deploy, runtime, phone, secret, remote-access, all-fleet, or overnight boundary crossing
+- the blocked item is a dependency for all remaining items
+- validation infrastructure is broken
+- Tim/HQ input is required to choose a safe path
+- the batch goal is stale or not worth continuing
+
+## No Treadmill Rule For Batch Items
+
+Codex must not repeatedly rerun the same blocked item without new information.
+After repeated failure on one item, mark it blocked/deferred and continue if
+safe. Repeated item failure should produce `ITEM_BLOCKED_DEFERRED`,
+`ITEM_NEEDS_HQ_INPUT`, `ITEM_CALLED_OFF`, or `ITEM_RED_BLOCKED`, not another
+generic rerun.
+
+After repeated failure on one item, mark it blocked/deferred and continue if safe.
+
+## Blocker Packet Rule
+
+For every blocked/deferred item, Codex must record:
+
+- item name
+- what was attempted
+- exact blocker
+- evidence/log path if applicable
+- safest next action
+- whether it can be retried later
+- whether other items can continue
+
+## Final Batch Report Rule
+
+Every batch report must include:
+
+- items completed
+- items blocked/deferred
+- items skipped
+- items called off
+- durable progress made
+- whether repo is clean
+- whether product repos/PrivateLens/proof boundaries stayed untouched
+- recommended next action
+
+## Batch Example
+
+If Tim gives 5 errors:
+
+- Try error 1.
+- If fixed, mark `ITEM_FINISHED_GREEN`.
+- Try error 2.
+- If blocked, mark `ITEM_BLOCKED_DEFERRED`.
+- Move to error 3 if independent and safe.
+- Continue until all 5 are processed or a global stop condition appears.
+- Final batch may be `BATCH_FINISHED_PARTIAL`, which is acceptable progress.
+
+Final batch may be BATCH_FINISHED_PARTIAL, which is acceptable progress.
+
 ## No Treadmill Rule
 
 Codex must not keep recommending generic "continue", "next bounded task", or
