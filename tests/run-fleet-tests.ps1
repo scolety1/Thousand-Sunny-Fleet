@@ -3020,6 +3020,92 @@ function Test-HqTsfCarRideFieldTestProtocol {
     Assert-False -Condition ($protocolText -match "(?is)(while actively driving).{0,120}(read|type|approve|monitor|required)") -Message "TSF car-ride protocol does not require active-driving attention"
 }
 
+function Test-HqTsfDesktopActivationNote {
+    $activationPath = Join-Path $fleetRoot "docs\fleet\TSF_DESKTOP_ACTIVATION.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $projectsPath = Join-Path $fleetRoot "projects.json"
+
+    foreach ($path in @($activationPath, $queuePath, $projectsPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF desktop activation input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $activationPath)) {
+        return
+    }
+
+    $activationText = Get-Content -LiteralPath $activationPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $parsedProjects = Get-Content -LiteralPath $projectsPath -Raw | ConvertFrom-Json
+    $projects = @($parsedProjects | ForEach-Object { $_ })
+
+    foreach ($phrase in @(
+        "TSF Desktop Activation",
+        "Evidence only; not executable authority or approval.",
+        "C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet",
+        "C:\Users\smcol\Documents\Vacation\Thousand-Sunny-Fleet",
+        "The laptop copy is now backup/retired for normal TSF work.",
+        "Future TSF prompts should use the active desktop path unless Tim explicitly says he is recovering the laptop backup.",
+        "4643cd5380a5859286387dab2253c9fcb5bc8278",
+        "PrivateLens remains unarchived.",
+        "16 non-PrivateLens projects remain archived.",
+        "Archived projects show as",
+        "ARCHIVED",
+        "without repo-path inspection"
+    )) {
+        Assert-True -Condition ($activationText -match [regex]::Escape($phrase)) -Message "TSF desktop activation preserves phrase: $phrase"
+    }
+
+    foreach ($queuePhrase in @(
+        "HQ-258 TSF Desktop Activation Note V1",
+        "status: done",
+        "currentRemoteGreenBaseline",
+        "4643cd5380a5859286387dab2253c9fcb5bc8278",
+        "Active TSF desktop path is recorded as",
+        "C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet",
+        "Prior laptop path is recorded as",
+        "C:\Users\smcol\Documents\Vacation\Thousand-Sunny-Fleet",
+        "Laptop copy is marked backup/retired for normal TSF work.",
+        "Future prompts should use the active desktop path unless explicitly recovering laptop backup.",
+        "PrivateLens remains unarchived.",
+        "16 non-PrivateLens projects remain archived.",
+        "Archived projects show as",
+        "ARCHIVED",
+        "without repo-path inspection"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records desktop activation: $queuePhrase"
+    }
+
+    $privateLens = @($projects | Where-Object { [string]$_.name -eq "PrivateLens" -or [string]$_.id -eq "privatelens" })
+    $nonPrivateLens = @($projects | Where-Object { !([string]$_.name -eq "PrivateLens" -or [string]$_.id -eq "privatelens") })
+    $archivedNonPrivateLens = @($nonPrivateLens | Where-Object { [bool]$_.archived })
+    Assert-Equal -Actual $privateLens.Count -Expected 1 -Message "TSF registry contains one PrivateLens project"
+    Assert-False -Condition ([bool]$privateLens[0].archived) -Message "PrivateLens remains unarchived in TSF registry"
+    Assert-Equal -Actual $nonPrivateLens.Count -Expected 16 -Message "TSF registry contains 16 non-PrivateLens projects"
+    Assert-Equal -Actual $archivedNonPrivateLens.Count -Expected 16 -Message "All non-PrivateLens projects remain archived"
+
+    foreach ($boundary in @(
+        "product repo access",
+        "PrivateLens mutation",
+        "proof runs",
+        "push, merge, deploy",
+        "package installs",
+        "migrations",
+        "remote access changes",
+        "secret handling",
+        "phone approvals",
+        "runtime command binding",
+        "all-fleet execution",
+        "overnight/background runners",
+        "lock deletion",
+        "permission widening",
+        "broader authority"
+    )) {
+        Assert-True -Condition ($activationText -match [regex]::Escape($boundary)) -Message "Desktop activation boundary preserved: $boundary"
+    }
+
+    Assert-False -Condition ($activationText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo access|PrivateLens mutation|proof runs|all-fleet|overnight|background runners|phone approvals|runtime command binding|future authority)") -Message "TSF desktop activation does not grant forbidden authority"
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -18338,6 +18424,7 @@ Test-HqTsfBaselineLedgerAndReportIntake
 Test-HqTsfValidationTimeoutAndRerunPolicy
 Test-HqTsfPushDecisionRubric
 Test-HqTsfCarRideFieldTestProtocol
+Test-HqTsfDesktopActivationNote
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

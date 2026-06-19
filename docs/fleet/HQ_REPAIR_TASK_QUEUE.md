@@ -8150,3 +8150,39 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - Validation passed with `git diff --check` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\car-ride-field-test-protocol-v1.log`.
 - repeatablePrompt:
   - `Take exactly HQ-257 TSF Car-Ride Field Test Protocol V1. Patch only HQ-257 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, require active-driving attention, or push. Run only HQ-257 validationCommands. Stop after HQ-257 and report GREEN/YELLOW/RED.`
+
+### HQ-258 TSF Desktop Activation Note V1
+
+- status: done
+- phase: TSF desktop pickup and control-layer activation
+- currentRemoteGreenBaseline:
+  - `4643cd5380a5859286387dab2253c9fcb5bc8278`
+- goal: Record that desktop pickup succeeded and that the Codex-accessible desktop checkout is now the active TSF control-layer repo.
+- allowedFiles:
+  - `docs/fleet/TSF_DESKTOP_ACTIVATION.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- acceptance:
+  - Active TSF desktop path is recorded as `C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet`.
+  - Prior laptop path is recorded as `C:\Users\smcol\Documents\Vacation\Thousand-Sunny-Fleet`.
+  - Laptop copy is marked backup/retired for normal TSF work.
+  - Current active baseline is `4643cd5380a5859286387dab2253c9fcb5bc8278`.
+  - Future prompts should use the active desktop path unless explicitly recovering laptop backup.
+  - PrivateLens remains unarchived.
+  - 16 non-PrivateLens projects remain archived.
+  - Archived projects show as `ARCHIVED` without repo-path inspection.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\desktop-activation-note-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, weakening tests, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_DESKTOP_ACTIVATION.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not activate product repo or proof-run execution.
+- repeatablePrompt:
+  - `Take exactly HQ-258 TSF Desktop Activation Note V1. Patch only HQ-258 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-258 validationCommands. Stop after HQ-258 and report GREEN/YELLOW/RED.`
