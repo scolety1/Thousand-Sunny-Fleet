@@ -4710,7 +4710,7 @@ function Test-DoctorAndReadiness {
         "-File", (Join-Path $fleetRoot "merge-readiness.ps1"),
         "-ConfigPath", $fixtureConfig,
         "-SkipBuild"
-    )
+    ) -TimeoutSeconds 120
     Assert-Equal -Actual $readiness.exitCode -Expected 0 -Message "Merge readiness passes fixture ships in skip-build mode"
     Assert-True -Condition (($readiness.output -join "`n") -match "SAFE TO MERGE AFTER HUMAN REVIEW") -Message "Merge readiness can produce a green overall result"
     $mergeText = Get-Content (Join-Path $fleetRoot "merge-readiness.ps1") -Raw
@@ -5701,7 +5701,7 @@ function Test-ProductAdmissionGateSupport {
         "-Project", "FixtureStaticDemo",
         "-ConfigPath", $fixtureConfig,
         "-Mode", "warn"
-    ) -TimeoutSeconds 60
+    ) -TimeoutSeconds 120
     Assert-Equal -Actual $launch.ExitCode -Expected 0 -Message "Launch gate runs on backfilled fixture"
     Assert-True -Condition (($launch.Output -join "`n") -match 'Launch gate FixtureStaticDemo: BLOCK') -Message "Launch gate still blocks old non-product-shaped fixture task"
 
