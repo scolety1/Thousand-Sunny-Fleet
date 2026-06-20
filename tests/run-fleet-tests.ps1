@@ -3682,6 +3682,90 @@ function Test-HqTsfRealProjectShapedDryRun {
     Assert-False -Condition ($drillText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF real-project-shaped dry run does not grant forbidden authority"
 }
 
+function Test-HqPersonalWebsiteMockupBatch {
+    $mockupRoot = Join-Path $fleetRoot "outputs\personal-site\mockups"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
+    $indexPath = Join-Path $mockupRoot "index.html"
+    $cssPath = Join-Path $mockupRoot "site-mockups.css"
+    $comparisonPath = Join-Path $mockupRoot "MOCKUP_COMPARISON.md"
+
+    foreach ($path in @($mockupRoot, $queuePath, $indexPath, $cssPath, $comparisonPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Personal website mockup batch file exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $mockupRoot)) {
+        return
+    }
+
+    $mockupFiles = @(
+        "mockup-01-card-minimal.html",
+        "mockup-02-editorial-founder.html",
+        "mockup-03-modern-trust.html",
+        "mockup-04-dark-green-contrast.html",
+        "mockup-05-engineering-notebook.html",
+        "mockup-06-simple-recruiter.html",
+        "mockup-07-quiet-lab.html"
+    )
+
+    foreach ($fileName in $mockupFiles) {
+        $path = Join-Path $mockupRoot $fileName
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Personal website mockup exists: $fileName"
+        if (Test-Path -LiteralPath $path) {
+            $text = Get-Content -LiteralPath $path -Raw
+            foreach ($phrase in @(
+                "Spencer Colety",
+                "HouseOS",
+                "Niners War Room",
+                "Family Tree",
+                "ColetyLabs",
+                "placeholder",
+                "site-mockups.css"
+            )) {
+                Assert-True -Condition ($text -match [regex]::Escape($phrase)) -Message "$fileName preserves safe portfolio phrase: $phrase"
+            }
+            Assert-False -Condition ($text -match "(?is)<script|<form|analytics|mailto:|tel:|https?://|api key|token|password|private key|draft strategy|rankings|rosters|real staff data") -Message "$fileName avoids scripts/forms/external links/private data"
+            Assert-False -Condition ($text -match "(?is)AI-powered revolutionary|transforming the future|launched public product|coletylabs\.com") -Message "$fileName avoids hype, overclaiming, and ColetyLabs sales-site copy"
+        }
+    }
+
+    $indexText = Get-Content -LiteralPath $indexPath -Raw
+    foreach ($fileName in $mockupFiles) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($fileName)) -Message "Personal website gallery links mockup: $fileName"
+    }
+    Assert-False -Condition ($indexText -match "(?is)<script|<form|analytics|https?://|mailto:|tel:") -Message "Personal website gallery remains static and placeholder-only"
+
+    $comparisonText = Get-Content -LiteralPath $comparisonPath -Raw
+    foreach ($phrase in @(
+        'batch terminal state: `BATCH_FINISHED_GREEN`',
+        "best overall for business-card QR",
+        "best for hiring/recruiters",
+        "best visual direction",
+        "Confirmation Tracker",
+        "public name/title",
+        "email/contact links",
+        "GitHub/LinkedIn links",
+        "which projects are public",
+        "screenshots allowed",
+        "Family Tree privacy boundary",
+        "NWR privacy boundary",
+        "ColetyLabs vs personal site boundary"
+    )) {
+        Assert-True -Condition ($comparisonText -match [regex]::Escape($phrase)) -Message "Personal website comparison report includes phrase: $phrase"
+    }
+
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    foreach ($phrase in @(
+        "HQ-264 TSF Personal Website Mockup Overnight Batch V1",
+        "5a8f10bfb473e5b0936da73c7d6883dc28ddf145",
+        "BATCH_FINISHED_GREEN",
+        "mockup-01-card-minimal",
+        "mockup-07-quiet-lab",
+        "No AI images, image-generation tools, external services, analytics, forms, backend code, package installs, build tooling, deploy, private data, or product repo work."
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($phrase)) -Message "HQ queue records personal website mockup batch: $phrase"
+    }
+}
+
 function Test-HqPhonePostPublishVerificationPacket {
     $packetPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_POST_PUBLISH_VERIFICATION.md"
     $dashboardPath = Join-Path $fleetRoot "docs\fleet\PHONE_HQ_DASHBOARD.md"
@@ -19005,6 +19089,7 @@ Test-HqTsfLoopClosureNoTreadmillPolicy
 Test-HqTsfSyntheticBatchDrill
 Test-HqTsfMixedOutcomeBatchStressDrill
 Test-HqTsfRealProjectShapedDryRun
+Test-HqPersonalWebsiteMockupBatch
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

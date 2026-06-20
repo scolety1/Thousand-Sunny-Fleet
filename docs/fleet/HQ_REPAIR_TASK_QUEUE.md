@@ -8413,3 +8413,56 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
 - repeatablePrompt:
   - `Take exactly HQ-263 TSF Real-Project-Shaped Dry Run V1. Patch only HQ-263 allowedFiles. Do not touch product repos, run proof runs, implement phone execution, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-263 validationCommands. Stop after HQ-263 and report GREEN/YELLOW/RED plus BATCH_FINISHED_PARTIAL.`
+
+### HQ-264 TSF Personal Website Mockup Overnight Batch V1
+
+- status: done
+- phase: TSF bounded design exploration
+- currentRemoteGreenBaseline:
+  - `5a8f10bfb473e5b0936da73c7d6883dc28ddf145`
+- goal: Create seven static privacy-safe personal portfolio landing page mockups for Spencer Colety's business-card QR/hiring-company landing page.
+- allowedFiles:
+  - `outputs/personal-site/mockups/**`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- reference:
+  - `business_cards_finalist.zip`
+- batchTerminalState:
+  - `BATCH_FINISHED_GREEN`
+- mockupTerminalStates:
+  - `mockup-01-card-minimal`: `ITEM_FINISHED_GREEN`
+  - `mockup-02-editorial-founder`: `ITEM_FINISHED_GREEN`
+  - `mockup-03-modern-trust`: `ITEM_FINISHED_GREEN`
+  - `mockup-04-dark-green-contrast`: `ITEM_FINISHED_GREEN`
+  - `mockup-05-engineering-notebook`: `ITEM_FINISHED_GREEN`
+  - `mockup-06-simple-recruiter`: `ITEM_FINISHED_GREEN`
+  - `mockup-07-quiet-lab`: `ITEM_FINISHED_GREEN`
+- acceptance:
+  - Seven openable static HTML mockups exist under `outputs/personal-site/mockups/`.
+  - A gallery/index page links to all seven mockups.
+  - A comparison report includes top recommendations and confirmation tracker.
+  - Four directions are business-card-aligned and three are independent directions.
+  - Mockups include hero, positioning line, selected projects, about/technical strengths, and contact/next-step sections.
+  - Project cards remain privacy-safe for HouseOS, Niners War Room, Family Tree, and ColetyLabs / automation tools.
+  - No AI images, image-generation tools, external services, analytics, forms, backend code, package installs, build tooling, deploy, private data, or product repo work.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - confirm all 7 mockup HTML files exist
+  - confirm gallery/index exists
+  - confirm comparison report exists
+  - confirm no real private contact links or private data were added
+  - confirm no deploy/build/backend/package files were added
+  - confirm static files can be opened without a build step
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\personal-website-mockup-overnight-batch-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, AI image generation, external services, forms, analytics, backend code, package/build tooling, private data, or files outside allowedFiles.
+- evidence:
+  - Added seven static HTML mockups, a shared CSS file, an index/gallery page, and `MOCKUP_COMPARISON.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/static-output/tests-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-264 TSF Personal Website Mockup Overnight Batch V1. Patch only HQ-264 allowedFiles. Do not touch product repos, run proof runs, generate AI images, add backend/forms/analytics/external services, install packages, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-264 validationCommands. Stop after HQ-264 and report GREEN/YELLOW/RED plus BATCH_FINISHED_GREEN.`
