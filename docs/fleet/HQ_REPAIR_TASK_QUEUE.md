@@ -8466,3 +8466,46 @@ This section is intentionally ordered. Each run takes exactly the first pending 
   - This task is docs/static-output/tests-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
 - repeatablePrompt:
   - `Take exactly HQ-264 TSF Personal Website Mockup Overnight Batch V1. Patch only HQ-264 allowedFiles. Do not touch product repos, run proof runs, generate AI images, add backend/forms/analytics/external services, install packages, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-264 validationCommands. Stop after HQ-264 and report GREEN/YELLOW/RED plus BATCH_FINISHED_GREEN.`
+
+### HQ-265 TSF Artifact Intake Folder System V1
+
+- status: done
+- phase: TSF artifact intake ergonomics
+- currentRemoteGreenBaseline:
+  - `5a8f10bfb473e5b0936da73c7d6883dc28ddf145`
+- goal: Create a standard local artifact-intake folder pattern so Tim can provide files, zips, screenshots, notes, and source material without using Codex chat as the file-upload UI.
+- allowedFiles:
+  - `docs/fleet/TSF_ARTIFACT_INTAKE_FOLDER_SYSTEM.md`
+  - `docs/fleet/HQ_REPAIR_TASK_QUEUE.md`
+  - `tests/run-fleet-tests.ps1`
+- intakeRoots:
+  - preferred: `C:\TSF_INBOX\`
+  - fallback: `C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet\intake\`
+- packetShape:
+  - `INTAKE.md`
+  - `raw\`
+  - `notes\`
+  - `MANIFEST.md` or `manifest.json`
+- acceptance:
+  - Defines intake metadata for project/use case, source files, purpose, allowed use, blocked use, privacy restrictions, commit permission, reference-only status, public-output status, date received, and authority/reference status.
+  - States intake files are evidence/reference, not executable authority.
+  - States intake files do not approve product repo access, PrivateLens work, proof runs, push, merge, deploy, secrets, migrations, installs, runtime binding, phone actions, all-fleet, or overnight/background runners.
+  - States Codex must not commit raw private intake files unless explicitly approved.
+  - States generated outputs remain separate from raw inputs.
+  - Includes `personal_site_mockups` example supporting `business_cards_finalist.zip` as visual/style reference for static personal portfolio mockups.
+  - Includes future Codex prompt shape naming intake folder, `INTAKE.md`, outputs, and boundaries.
+- validationCommands:
+  - `git status --short`
+  - `git branch --show-current`
+  - `git log --oneline -8`
+  - `git diff --check`
+  - `tools/fleet-project-status.ps1`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1 *> .codex-local\test-logs\artifact-intake-folder-system-v1.log`
+- stopIf:
+  - Requires product repo access, PrivateLens mutation, proof-run execution, push, merge, deploy, installs, migrations, remote access configuration, secrets, all-fleet execution, overnight/background runner execution, phone execution authority, runtime command binding, lock deletion, permission widening, broad authority, committing raw private intake files, creating external intake folders, or files outside allowedFiles.
+- evidence:
+  - Added `docs/fleet/TSF_ARTIFACT_INTAKE_FOLDER_SYSTEM.md`.
+  - Added focused tests in `tests/run-fleet-tests.ps1`.
+  - This task is docs/tests/harness-only and does not approve product repo work, proof runs, push, merge, deploy, runtime authority, or unattended execution.
+- repeatablePrompt:
+  - `Take exactly HQ-265 TSF Artifact Intake Folder System V1. Patch only HQ-265 allowedFiles. Do not touch product repos, run proof runs, create external intake folders, commit raw private intake files, run overnight/background/all-fleet, push, merge, or deploy. Run only HQ-265 validationCommands. Stop after HQ-265 and report GREEN/YELLOW/RED.`
