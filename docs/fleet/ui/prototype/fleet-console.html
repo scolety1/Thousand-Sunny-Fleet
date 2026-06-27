@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -12,7 +12,7 @@
     <div>
       <p class="eyebrow">Local mock console</p>
       <h1>Codex Fleet Console</h1>
-      <p class="header-note">Desktop Control Room for return triage, bounded TSF planning, packet prep, and status review.</p>
+      <p class="header-note">Desktop Control Room for return review, read-only TSF state prep, bounded planning, packet prep, and status review.</p>
     </div>
     <div class="header-status" aria-label="Current mock posture">
       <div class="posture">
@@ -29,6 +29,12 @@
   <main id="main-content" class="layout" aria-label="Static mock console content" tabindex="-1">
     <nav class="sidebar" aria-label="Mock console sections">
       <a href="#dashboard">Return Triage</a>
+      <a href="#return-review">Back From Work</a>
+      <a href="#state-source">Read-Only State</a>
+      <a href="#mental-model">Mental Model</a>
+      <a href="#work-orders">Work Orders</a>
+      <a href="#tsf-handles">TSF Handles</a>
+      <a href="#interrupt-only">Interrupt Rules</a>
       <a href="#decision-queue">Decision Queue</a>
       <a href="#away-summary">After Away Mode</a>
       <a href="#project-triage">Project Triage</a>
@@ -55,32 +61,32 @@
         <div class="return-main">
           <p class="eyebrow">Return Triage</p>
           <h2 id="dashboard-title">What do I do now?</h2>
-          <p class="return-lede">The mock console promotes one next action first, then keeps everything else quieter and bucketed by whether Tim is actually needed.</p>
+          <p class="return-lede">The console promotes one next action first, then keeps everything else quieter and bucketed by whether Tim is actually needed.</p>
           <article class="primary-action-card" aria-label="Primary recommended action">
-            <span class="action-kind needs-decision">Needs Tim now</span>
-            <h3>Review Niners War Room draft-room blocker</h3>
-            <p>One source-of-truth conflict blocks safe continuation. Decide the draft-room priority rule before Codex keeps moving.</p>
+            <span class="action-kind needs-review">Return Review</span>
+            <h3>No urgent product decision - review TSF V3 prep, then choose next session</h3>
+            <p>Local status says request-only travel posture, no supervisor running, no emergency request, and no product project selected for automatic work.</p>
           </article>
           <div class="ranked-list" aria-label="Ranked return triage list">
             <article>
               <span class="rank">#1</span>
               <div>
                 <strong>Needs Tim</strong>
-                <p>Resolve the Niners War Room source conflict.</p>
+                <p>Pick the next project and availability: here, busy, or away.</p>
               </div>
             </article>
             <article>
               <span class="rank">#2</span>
               <div>
                 <strong>Review/approve</strong>
-                <p>Approve TSF UI commit after reading the static test summary.</p>
+                <p>Review the local TSF console hardening summary before any next commit.</p>
               </div>
             </article>
             <article>
               <span class="rank">#3</span>
               <div>
                 <strong>Optional next work</strong>
-                <p>No urgent decisions - next safe batch is PrivateLens cleanup.</p>
+                <p>PrivateLens is the only unarchived project; start only if selected.</p>
               </div>
             </article>
           </div>
@@ -92,19 +98,19 @@
           <div class="summary-stack">
             <article>
               <span>Decision load</span>
-              <strong>1 true blocker</strong>
+              <strong>1 session choice</strong>
             </article>
             <article>
               <span>Ready to review</span>
-              <strong>1 local TSF change</strong>
+              <strong>TSF V3 prep</strong>
             </article>
             <article>
               <span>Safe to ignore</span>
-              <strong>4 GREEN items</strong>
+              <strong>archived projects</strong>
             </article>
             <article>
               <span>Recommended session</span>
-              <strong>Quick review, 5-10 minutes</strong>
+              <strong>Return review, 5-10 minutes</strong>
             </article>
           </div>
         </aside>
@@ -113,34 +119,195 @@
       <section class="triage-strip" aria-label="Return triage status distinctions">
         <article class="triage-chip chip-decision">
           <span>Needs decision</span>
-          <strong>1</strong>
-          <p>Human direction blocks safe progress.</p>
+          <strong>availability</strong>
+          <p>Choose here, busy, or away before the next packet.</p>
         </article>
         <article class="triage-chip chip-approval">
           <span>Needs approval</span>
-          <strong>1</strong>
-          <p>Finished local work waits for exact approval.</p>
+          <strong>none live</strong>
+          <p>Approval surfaces remain text-only and non-executable.</p>
         </article>
         <article class="triage-chip chip-review">
           <span>Needs review</span>
-          <strong>1</strong>
-          <p>Read summary before moving forward.</p>
+          <strong>V3 prep</strong>
+          <p>Read the Back From Work summary before choosing work.</p>
         </article>
         <article class="triage-chip chip-ignore">
           <span>Safe to ignore</span>
-          <strong>4</strong>
-          <p>Completed GREEN work is collapsed.</p>
+          <strong>locked</strong>
+          <p>Archived projects stay quiet unless reactivated.</p>
         </article>
         <article class="triage-chip chip-next">
           <span>Safe next batch</span>
           <strong>PrivateLens</strong>
-          <p>Eligible if Tim wants more progress.</p>
+          <p>Eligible only after explicit selected-project scope.</p>
         </article>
         <article class="triage-chip chip-blocked">
           <span>Blocked/unsafe</span>
-          <strong>2</strong>
-          <p>Stop signs stay louder than momentum.</p>
+          <strong>publish/deploy</strong>
+          <p>Push, deploy, install, migrate, and secrets remain blocked.</p>
         </article>
+      </section>
+
+      <section id="return-review" class="panel" aria-labelledby="return-review-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Back From Work / Return Review</p>
+            <h2 id="return-review-title">Read this first when Tim gets back</h2>
+          </div>
+          <span class="status-pill status-pill-green">reduces choices</span>
+        </div>
+        <div class="return-review-grid" aria-label="Back From Work return review state">
+          <article>
+            <span>What changed while Tim was gone</span>
+            <strong>TSF now has a local return cockpit and V3 read-only state prep.</strong>
+            <p>The console is still static HTML/CSS, but it can now be regenerated from safe TSF-local snapshots.</p>
+          </article>
+          <article>
+            <span>What actually needs Tim</span>
+            <strong>Choose the next project and availability.</strong>
+            <p>Pick here, busy, or away; Codex should not ask about routine formatting or safe local cleanup.</p>
+          </article>
+          <article>
+            <span>What can be ignored</span>
+            <strong>Archived projects and routine GREEN work.</strong>
+            <p>Archived/locked projects remain parked and do not compete for attention.</p>
+          </article>
+          <article>
+            <span>What is safe to approve</span>
+            <strong>Only exact, bounded TSF-local work after review.</strong>
+            <p>Publication, deployment, installs, migrations, secrets, and product repo mutation stay outside this console.</p>
+          </article>
+          <article>
+            <span>What next session TSF recommends</span>
+            <strong>Return review, 5-10 minutes.</strong>
+            <p>Read the summary, choose availability, then start a safe batch only if one project is selected.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="state-source" class="panel state-source-panel" aria-labelledby="state-source-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Read-Only State Prep</p>
+            <h2 id="state-source-title">Generated from repo-local state where available</h2>
+          </div>
+          <span class="status-pill">static output</span>
+        </div>
+        <!-- TSF_RENDER_STATE_START -->
+        <div class="state-source-grid" aria-label="Read-only generated state summary">
+          <article>
+            <span>State source</span>
+            <strong>fleet/status/projects.json</strong>
+            <p>Generated public-safe project snapshot is available and preferred over raw mock data.</p>
+          </article>
+          <article>
+            <span>Fleet mode</span>
+            <strong>REQUEST_ONLY_TRAVEL</strong>
+            <p>Supervisor: not running. Emergency: none requested. Evidence only, not command authority.</p>
+          </article>
+          <article>
+            <span>Project registry</span>
+            <strong>17 projects / 16 archived locked</strong>
+            <p>1 unarchived project. Unknown status count: 1. Archived projects remain visibly locked.</p>
+          </article>
+          <article>
+            <span>Latest local reports</span>
+            <strong>fleet/status/current.md, fleet/status/today.md, fleet/status/projects.md</strong>
+            <p>Contracts: TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md, TSF_ARTIFACT_INTAKE_FOLDER_SYSTEM.md. Fallback: safe fixture data available for missing real state.</p>
+          </article>
+        </div>        <!-- TSF_RENDER_STATE_END -->
+      </section>
+
+      <section id="mental-model" class="panel mental-model-panel" aria-labelledby="mental-model-title">
+        <p class="eyebrow">One-click mental model</p>
+        <h2 id="mental-model-title">How Tim controls the fleet without remembering the system</h2>
+        <div class="mental-steps" aria-label="One-click mental model text">
+          <span>Pick project</span>
+          <span>Drop files into C:\TSF_INBOX\&lt;project_name&gt;\</span>
+          <span>Say goal in normal English</span>
+          <span>Choose availability: here / busy / away</span>
+          <span>Codex works until done or truly blocked</span>
+        </div>
+      </section>
+
+      <section id="work-orders" class="panel" aria-labelledby="work-orders-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Work Order Library</p>
+            <h2 id="work-orders-title">Copy/paste prompt templates</h2>
+          </div>
+          <span class="status-pill">text only</span>
+        </div>
+        <div class="work-order-grid" aria-label="Static work order prompt templates">
+          <article>
+            <h3>Normal task while Tim is here</h3>
+            <pre>Project: &lt;name&gt;
+Goal: &lt;plain English goal&gt;
+Availability: here
+Use bounded_implementation. Ask only for true blockers. Report tests and next safe action.</pre>
+          </article>
+          <article>
+            <h3>Busy mode</h3>
+            <pre>Project: &lt;name&gt;
+Goal: &lt;plain English goal&gt;
+Availability: busy
+Use batch_implementation inside approved scope. Batch nonurgent questions for the return report.</pre>
+          </article>
+          <article>
+            <h3>Away-safe work session</h3>
+            <pre>Project: &lt;name&gt;
+Goal: &lt;plain English goal&gt;
+Availability: away
+Use away_safe. Keep working through safe local tasks until done, capped, or truly blocked.</pre>
+          </article>
+          <article>
+            <h3>Deep research/root file intake</h3>
+            <pre>Project: &lt;name&gt;
+Read C:\TSF_INBOX\&lt;project_name&gt;\ plus listed root files.
+Extract facts, risks, open questions, and a bounded first task. Do not mutate product repos.</pre>
+          </article>
+          <article>
+            <h3>Project onboarding</h3>
+            <pre>Project: &lt;name&gt;
+Create the project brain from inbox artifacts and safe TSF docs.
+Classify scope, status, blockers, archived state, and first safe batch.</pre>
+          </article>
+          <article>
+            <h3>Return review after being gone</h3>
+            <pre>Return review:
+Summarize what changed, what passed, what stopped, what needs Tim, what can be ignored, and the next best session.</pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="tsf-handles" class="panel quiet-panel" aria-labelledby="tsf-handles-title">
+        <p class="eyebrow">What TSF handles for Tim</p>
+        <h2 id="tsf-handles-title">Routine coordination should not become homework</h2>
+        <div class="handler-grid" aria-label="What TSF handles for Tim guidance">
+          <span>task packet creation</span>
+          <span>project status review</span>
+          <span>safe local implementation</span>
+          <span>tests/checks</span>
+          <span>return report</span>
+          <span>blocker classification</span>
+          <span>next recommended batch</span>
+        </div>
+      </section>
+
+      <section id="interrupt-only" class="panel" aria-labelledby="interrupt-only-title">
+        <p class="eyebrow">Only interrupt Tim for</p>
+        <h2 id="interrupt-only-title">True blockers and high-authority choices</h2>
+        <div class="interrupt-grid" aria-label="Only interrupt Tim for guidance">
+          <span>product direction</span>
+          <span>conflicting source truth</span>
+          <span>approve push/release/deploy</span>
+          <span>secrets/accounts/API keys</span>
+          <span>migrations</span>
+          <span>archived project reactivation</span>
+          <span>off-limits file expansion</span>
+          <span>test failure that cannot be safely repaired</span>
+        </div>
       </section>
 
       <section id="decision-queue" class="panel" aria-labelledby="decision-queue-title">

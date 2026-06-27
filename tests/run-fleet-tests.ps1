@@ -16116,8 +16116,9 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     $reviewPacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\LOCAL_PROTOTYPE_REVIEW_PACKET.md"
     $accessibilityContractPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\STATIC_ACCESSIBILITY_LINT_CONTRACT.md"
     $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
+    $renderHelperPath = Join-Path $fleetRoot "tools\render-fleet-console.ps1"
 
-    foreach ($path in @($htmlPath, $cssPath, $readmePath, $reviewPacketPath, $accessibilityContractPath, $buttonPolicyPath)) {
+    foreach ($path in @($htmlPath, $cssPath, $readmePath, $reviewPacketPath, $accessibilityContractPath, $buttonPolicyPath, $renderHelperPath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console static prototype safety input exists: $path"
     }
 
@@ -16127,6 +16128,7 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     $reviewPacket = Get-Content -LiteralPath $reviewPacketPath -Raw
     $accessibilityContract = Get-Content -LiteralPath $accessibilityContractPath -Raw
     $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
+    $renderHelper = Get-Content -LiteralPath $renderHelperPath -Raw
     $combined = @($html, $readme) -join "`n"
 
     foreach ($requiredPhrase in @(
@@ -16156,7 +16158,12 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Decision Queue",
         "Done while you were away",
         "Do Not Bother Tim For This",
-        "Next Best Work Session"
+        "Next Best Work Session",
+        "Back From Work",
+        "Return Review",
+        "Work Order Library",
+        "What TSF handles for Tim",
+        "Only interrupt Tim for"
     )) {
         Assert-True -Condition ($combined -match [regex]::Escape($requiredPhrase)) -Message "Static prototype preserves required safety phrase: $requiredPhrase"
     }
@@ -16177,7 +16184,11 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Approval Cards",
         "After Away Mode",
         "Project Triage",
-        "Priority Logic"
+        "Priority Logic",
+        "Read-Only State Prep",
+        "One-click mental model",
+        "What TSF handles for Tim",
+        "Only interrupt Tim for"
     )) {
         Assert-True -Condition ($html -match [regex]::Escape($requiredSurface)) -Message "Static prototype represents evidence-only surface: $requiredSurface"
     }
@@ -16234,6 +16245,91 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "nice-to-have cleanup last"
     )) {
         Assert-True -Condition ($html -match [regex]::Escape($returnTriagePhrase)) -Message "Static prototype renders Return Triage cockpit phrase: $returnTriagePhrase"
+    }
+
+    foreach ($returnReviewPhrase in @(
+        "What changed while Tim was gone",
+        "What actually needs Tim",
+        "What can be ignored",
+        "What is safe to approve",
+        "What next session TSF recommends",
+        "Pick project",
+        "Drop files into C:\TSF_INBOX\&lt;project_name&gt;\",
+        "Say goal in normal English",
+        "Choose availability: here / busy / away",
+        "Codex works until done or truly blocked",
+        "Normal task while Tim is here",
+        "Busy mode",
+        "Away-safe work session",
+        "Deep research/root file intake",
+        "Project onboarding",
+        "Return review after being gone",
+        "task packet creation",
+        "project status review",
+        "safe local implementation",
+        "tests/checks",
+        "return report",
+        "blocker classification",
+        "next recommended batch",
+        "product direction",
+        "conflicting source truth",
+        "approve push/release/deploy",
+        "secrets/accounts/API keys",
+        "migrations",
+        "archived project reactivation",
+        "off-limits file expansion",
+        "test failure that cannot be safely repaired",
+        "Archived projects remain visibly locked"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($returnReviewPhrase)) -Message "Static prototype renders V3 Return Review phrase: $returnReviewPhrase"
+    }
+
+    foreach ($renderHelperPhrase in @(
+        "fleet\status\projects.json",
+        "fleet\status\projects.md",
+        "fleet\status\current.md",
+        "fleet\status\today.md",
+        "TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md",
+        "TSF_ARTIFACT_INTAKE_FOLDER_SYSTEM.md",
+        "tests\fixtures\fleet\ui-control",
+        "projects.json",
+        "Archived projects remain visibly locked"
+    )) {
+        Assert-True -Condition ($renderHelper -match [regex]::Escape($renderHelperPhrase)) -Message "Fleet Console render helper references read-only source: $renderHelperPhrase"
+    }
+
+    foreach ($forbiddenRenderHelperPhrase in @(
+        "fleet-project-status.ps1",
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "git -C",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($renderHelper -match [regex]::Escape($forbiddenRenderHelperPhrase)) -Message "Fleet Console render helper avoids forbidden operation: $forbiddenRenderHelperPhrase"
+    }
+
+    $generatedRenderPath = Join-Path $fleetRoot ".codex-local\fixtures\fleet-console-v3-render.html"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $generatedRenderPath) | Out-Null
+    & $renderHelperPath -FleetRoot $fleetRoot -OutFile $generatedRenderPath | Out-Null
+    Assert-True -Condition (Test-Path -LiteralPath $generatedRenderPath) -Message "Fleet Console render helper can write static HTML output"
+    $generatedRender = Get-Content -LiteralPath $generatedRenderPath -Raw
+
+    foreach ($generatedPhrase in @(
+        "Generated from repo-local state where available",
+        "fleet/status/projects.json",
+        "fleet/status/current.md",
+        "fleet/status/today.md",
+        "Archived projects remain visibly locked",
+        "Work Order Library",
+        "Away-safe work session",
+        "Deep research/root file intake",
+        "Project onboarding"
+    )) {
+        Assert-True -Condition ($generatedRender -match [regex]::Escape($generatedPhrase)) -Message "Fleet Console generated static render includes V3 phrase: $generatedPhrase"
     }
 
     foreach ($safeState in @(

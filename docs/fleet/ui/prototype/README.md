@@ -1,4 +1,4 @@
-# Fleet Console Static Mock Prototype V2
+# Fleet Console Static Mock Prototype V3
 
 Prepared: 2026-06-27
 
@@ -15,12 +15,21 @@ Open `fleet-console.html` directly as a local file for review. No package instal
 
 The prototype has no script, no form action, no network fetch, no live state import, no command binding, and no package-send behavior.
 
-The desktop V2 pass frames the mock as a local return triage cockpit for Tim.
+The desktop V3 pass frames the mock as a local return triage cockpit for Tim.
 Its first job is to answer "What do I do now?" after time away. It promotes one
 primary recommended action, shows a ranked list capped at three items, keeps
 Decision Queue items limited to true human blockers, collapses completed GREEN
 work into a calm "Done while you were away" area, and recommends a Next Best
 Work Session.
+
+V3 also adds a read-only static render helper at `tools/render-fleet-console.ps1`.
+The helper can regenerate the static HTML from TSF-local state where available:
+`fleet/status/projects.json`, `fleet/status/projects.md`,
+`fleet/status/current.md`, `fleet/status/today.md`, the project registry, TSF
+docs/contracts, and safe fixture data when real state is missing. It does not
+inspect product repositories, run product checks, execute commands from the
+browser, approve work, push, deploy, install, migrate, touch secrets, use remote
+access, reactivate archived projects, or bind controls to runtime actions.
 
 The lower console still shows project brain context, artifact intake posture,
 autonomy profiles, batch queue terminal states, current assignment boundaries,
@@ -41,6 +50,12 @@ The mock represents these local planning surfaces:
 - dashboard
 - return triage
 - what do I do now cockpit
+- back from work return review
+- read-only generated state summary
+- one-click mental model
+- work order library
+- what TSF handles for Tim
+- only interrupt Tim for guidance
 - decision queue
 - after away mode summary
 - project triage
@@ -104,6 +119,46 @@ The priority logic is intentionally simple:
 4. active product momentum fourth
 5. nice-to-have cleanup last
 
+## V3 Return Review And Render Boundary
+
+The first screen still answers "What do I do now?" with one directive answer.
+Below it, V3 adds Back From Work / Return Review so Tim can quickly see:
+
+- what changed while Tim was gone
+- what actually needs Tim
+- what can be ignored
+- what is safe to approve
+- what next session TSF recommends
+
+V3 adds one-click mental model text, not a browser action:
+
+- Pick project
+- Drop files into `C:\TSF_INBOX\<project_name>\`
+- Say goal in normal English
+- Choose availability: here / busy / away
+- Codex works until done or truly blocked
+
+The Work Order Library is copy/paste text only. It includes templates for a
+normal task while Tim is here, busy mode, away-safe work, deep research/root file
+intake, project onboarding, and return review after being gone.
+
+The read-only render helper updates only static HTML output. The browser page
+still has no script, no form action, no network fetch, no live state import, no
+command binding, and no package-send behavior.
+
+Generated/read-only sources currently shown in the console:
+
+- `fleet/status/projects.json`
+- `fleet/status/projects.md`
+- `fleet/status/current.md`
+- `fleet/status/today.md`
+- `projects.json` registry counts and archived flags when needed
+- `docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md`
+- `docs/fleet/TSF_ARTIFACT_INTAKE_FOLDER_SYSTEM.md`
+- `tests/fixtures/fleet/ui-control/` safe fixture examples
+
+Archived projects remain visibly locked and not actionable in generated output.
+
 ## Static Accessibility And Responsive Shape
 
 The prototype uses static semantic regions for the header, section navigation, main landmark, panels, fixture tables, and control-state groups. It includes a skip link to the main landmark, visible focus-visible treatment for links and the main skip target, section labels, unavailable-state labels, `aria-describedby` descriptions for disabled/mock controls, and readable text hierarchy for local review.
@@ -121,6 +176,12 @@ The prototype distinguishes local evidence views from unavailable operational co
 | Surface | Prototype state | Boundary |
 | --- | --- | --- |
 | Return Triage | safe display | Shows one primary next action, a three-item ranked list, and quiet nonurgent buckets. |
+| Back From Work / Return Review | safe display | Shows what changed, what needs Tim, what can be ignored, what is safe to approve, and the recommended next session. |
+| Read-Only State Prep | generated safe display | Uses TSF-local status/docs/fixture data to refresh static HTML; does not inspect product repos or bind commands. |
+| One-click mental model | safe display | Text-only flow for project, inbox files, plain-English goal, availability, and true blockers. |
+| Work Order Library | copy-only display | Prompt templates only; cannot start work, approve actions, or execute checks. |
+| What TSF handles for Tim | safe display | Shows routine coordination TSF should summarize or handle within approved scope. |
+| Only interrupt Tim for | safe display | Lists true blockers and high-authority choices that should pause away-safe work. |
 | Decision Queue | safe display | Shows only true human blockers; cannot approve publication, deployment, file expansion, or reactivation. |
 | After Away Mode | safe display | Summarizes finished work, tests, changes, blockers, decisions, and recommended next session. |
 | Project Triage | safe display | Shows one simple next-action status per project: Keep moving, Review needed, Decision needed, Blocked, Parked, or Archived/locked. |

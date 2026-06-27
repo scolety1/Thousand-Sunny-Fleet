@@ -102,6 +102,8 @@ a:focus-visible {
 .decision-card p,
 .away-grid p,
 .project-card p,
+.return-review-grid p,
+.state-source-grid p,
 .return-lede,
 .panel-intro {
   margin: 0;
@@ -283,6 +285,11 @@ a:focus-visible {
   color: var(--red);
 }
 
+.needs-review {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
 .ranked-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -310,6 +317,8 @@ a:focus-visible {
 .triage-chip p,
 .decision-card p,
 .away-grid p,
+.return-review-grid p,
+.state-source-grid p,
 .project-card p,
 .next-session-panel p,
 .done-away p {
@@ -346,6 +355,8 @@ a:focus-visible {
 }
 
 .summary-stack span,
+.return-review-grid span,
+.state-source-grid span,
 .away-grid span,
 .brain-grid span,
 .evidence-grid span,
@@ -469,6 +480,8 @@ a:focus-visible {
 }
 
 .away-grid,
+.return-review-grid,
+.state-source-grid,
 .project-triage-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -477,12 +490,87 @@ a:focus-visible {
 }
 
 .away-grid article,
+.return-review-grid article,
+.state-source-grid article,
 .project-card {
   display: grid;
   gap: 6px;
   min-height: 130px;
   padding: 13px;
   background: var(--panel-soft);
+}
+
+.state-source-panel {
+  border-color: #c7d5c8;
+  background: #f8fbf8;
+}
+
+.return-review-grid article {
+  border-left: 5px solid var(--blue);
+}
+
+.return-review-grid article:first-child {
+  border-left-color: var(--green);
+}
+
+.return-review-grid article:nth-child(2),
+.return-review-grid article:nth-child(4) {
+  border-left-color: var(--yellow);
+}
+
+.state-source-grid article {
+  border-left: 5px solid var(--green);
+}
+
+.mental-model-panel {
+  background: var(--panel);
+}
+
+.mental-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mental-steps span {
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+  font-weight: 700;
+}
+
+.work-order-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.work-order-grid article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+}
+
+.work-order-grid pre {
+  margin: 0;
+  padding: 11px;
+  border: 1px dashed var(--strong-line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #344150;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .project-card {
@@ -510,6 +598,8 @@ a:focus-visible {
 .session-options,
 .done-summary,
 .do-not-grid,
+.handler-grid,
+.interrupt-grid,
 .forbidden-list {
   display: flex;
   flex-wrap: wrap;
@@ -519,6 +609,8 @@ a:focus-visible {
 .session-options span,
 .done-summary span,
 .do-not-grid span,
+.handler-grid span,
+.interrupt-grid span,
 .forbidden-list span {
   padding: 7px 9px;
   border-radius: 999px;
@@ -544,6 +636,22 @@ a:focus-visible {
 
 .do-not-grid span {
   background: #eef2f5;
+}
+
+.handler-grid,
+.interrupt-grid {
+  margin-top: 12px;
+}
+
+.handler-grid span {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.interrupt-grid span {
+  background: var(--yellow-soft);
+  color: var(--yellow);
+  font-weight: 700;
 }
 
 .priority-list {
@@ -765,6 +873,10 @@ a:focus-visible {
   .profile-rail,
   .settings-grid,
   .away-grid,
+  .return-review-grid,
+  .state-source-grid,
+  .mental-steps,
+  .work-order-grid,
   .project-triage-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -792,6 +904,10 @@ a:focus-visible {
   .triage-strip,
   .decision-list,
   .away-grid,
+  .return-review-grid,
+  .state-source-grid,
+  .mental-steps,
+  .work-order-grid,
   .project-triage-grid,
   .next-session-panel {
     grid-template-columns: 1fr;
@@ -868,7 +984,9 @@ a:focus-visible {
   .state-chip,
   .session-options span,
   .done-summary span,
-  .do-not-grid span {
+  .do-not-grid span,
+  .handler-grid span,
+  .interrupt-grid span {
     width: 100%;
   }
 }
