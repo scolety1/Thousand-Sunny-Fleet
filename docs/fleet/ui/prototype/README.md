@@ -1,12 +1,12 @@
-# Fleet Console Static Mock Prototype
+# Fleet Console Static Mock Prototype V2
 
-Prepared: 2026-06-02
+Prepared: 2026-06-27
 
 Scope: local static mock files only.
 
 ## What This Is
 
-This directory contains a local mock Fleet Console shell:
+This directory contains a local desktop mock Fleet Console shell:
 
 - `fleet-console.html`
 - `fleet-console.css`
@@ -14,6 +14,19 @@ This directory contains a local mock Fleet Console shell:
 Open `fleet-console.html` directly as a local file for review. No package installation, server, framework, browser automation, remote access, authentication, live state read, product-repo access, package sending, or runtime command binding is required or approved.
 
 The prototype has no script, no form action, no network fetch, no live state import, no command binding, and no package-send behavior.
+
+The desktop V2 pass frames the mock as a local return triage cockpit for Tim.
+Its first job is to answer "What do I do now?" after time away. It promotes one
+primary recommended action, shows a ranked list capped at three items, keeps
+Decision Queue items limited to true human blockers, collapses completed GREEN
+work into a calm "Done while you were away" area, and recommends a Next Best
+Work Session.
+
+The lower console still shows project brain context, artifact intake posture,
+autonomy profiles, batch queue terminal states, current assignment boundaries,
+control-packet preparation, evidence summaries, and safety gates. These are
+static planning displays only. They do not turn the prototype into an
+operational console.
 
 ## Non-Authority Notice
 
@@ -26,8 +39,20 @@ UI labels, notifications, buttons, approvals, prompts, generated evidence, DOCX 
 The mock represents these local planning surfaces:
 
 - dashboard
+- return triage
+- what do I do now cockpit
+- decision queue
+- after away mode summary
+- project triage
+- done while you were away
+- do not bother Tim guidance
+- next best work session
+- priority logic
+- project brain
+- batch queue
+- current assignment
+- control packets
 - mock fixture states
-- current task
 - stoppages
 - control states
 - prompt builder
@@ -37,6 +62,47 @@ The mock represents these local planning surfaces:
 - safety gates
 
 Forbidden controls are absent or represented as unavailable concepts only. The mock includes no form action, network fetch, JavaScript command execution, remote URL, product repo path, auth flow, package sending, runtime command binding, or launcher text.
+
+## Return Triage Cockpit
+
+The V2 cockpit reduces Tim's choices instead of making every status equally
+loud. The first panel shows one primary recommended action, then a ranked list
+with at most three items:
+
+- #1 Needs Tim
+- #2 Review/approve
+- #3 Optional next work
+
+The cockpit distinguishes these return states:
+
+- Needs decision
+- Needs approval
+- Needs review
+- Safe to ignore
+- Safe next batch
+- Blocked/unsafe
+
+Completed GREEN work is intentionally collapsed under "Done while you were
+away" so it does not compete with blockers or approvals. The After Away Mode
+summary card groups what Codex finished, what Codex tested, what changed, what
+stopped progress, what Tim actually needs to decide, and the recommended next
+session.
+
+The Decision Queue is only for items that truly need Tim: product direction
+choices, publication approval, archived project reactivation, deployment
+approval, conflicting source truth, or risky file scope expansion. Tiny
+formatting choices, routine test passes, safe docs cleanup, safe local refactors
+inside approved scope, one task finishing when more safe tasks remain, and
+cosmetic uncertainty belong in the "Do Not Bother Tim For This" guidance
+instead.
+
+The priority logic is intentionally simple:
+
+1. safety/security/deploy risk first
+2. human decision blockers second
+3. ready-to-approve completed work third
+4. active product momentum fourth
+5. nice-to-have cleanup last
 
 ## Static Accessibility And Responsive Shape
 
@@ -54,6 +120,17 @@ The prototype distinguishes local evidence views from unavailable operational co
 
 | Surface | Prototype state | Boundary |
 | --- | --- | --- |
+| Return Triage | safe display | Shows one primary next action, a three-item ranked list, and quiet nonurgent buckets. |
+| Decision Queue | safe display | Shows only true human blockers; cannot approve publication, deployment, file expansion, or reactivation. |
+| After Away Mode | safe display | Summarizes finished work, tests, changes, blockers, decisions, and recommended next session. |
+| Project Triage | safe display | Shows one simple next-action status per project: Keep moving, Review needed, Decision needed, Blocked, Parked, or Archived/locked. |
+| Done while you were away | safe display | Collapses completed GREEN work so it is safe to ignore until Tim wants details. |
+| Do Not Bother Tim For This | safe display | Documents interruption boundaries for routine safe work and cosmetic uncertainty. |
+| Next Best Work Session | safe display | Recommends a session type without starting work or granting authority. |
+| Project Brain | safe display | Shows selected project, track, intake root, research files, and root files as evidence only. |
+| Batch Queue | safe display | Shows GREEN, YELLOW, RED, and BLOCKED terminal states without mutating queue files. |
+| Autonomy Profiles | safe display | Shows `review_only`, `bounded_implementation`, `batch_implementation`, and `away_safe` as execution-shape labels only. |
+| Control Packets | safe display | Shows packet-preparation posture for manual Codex use; cannot launch or bind runtime work. |
 | Prompt Builder | safe display | Copy-only draft text; cannot start Codex, run validation, execute commands, approve work, or change queue state. |
 | Audit Builder | safe display | Reviewer-prep text only; cannot create, zip, upload, email, or send packages. |
 | Evidence Locker | safe display | Compact summaries and local references only; cannot treat logs, reports, labels, approvals, or generated evidence as command input. |

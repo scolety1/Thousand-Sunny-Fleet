@@ -12,18 +12,34 @@
     <div>
       <p class="eyebrow">Local mock console</p>
       <h1>Codex Fleet Console</h1>
+      <p class="header-note">Desktop Control Room for return triage, bounded TSF planning, packet prep, and status review.</p>
     </div>
-    <div class="posture" aria-label="Current mock posture">
-      <span>Posture</span>
-      <strong>GREEN</strong>
+    <div class="header-status" aria-label="Current mock posture">
+      <div class="posture">
+        <span>Posture</span>
+        <strong>YELLOW</strong>
+      </div>
+      <div class="posture posture-secondary">
+        <span>Mode</span>
+        <strong>desktop only</strong>
+      </div>
     </div>
   </header>
 
   <main id="main-content" class="layout" aria-label="Static mock console content" tabindex="-1">
     <nav class="sidebar" aria-label="Mock console sections">
-      <a href="#dashboard">Dashboard</a>
-      <a href="#fixtures">Mock States</a>
-      <a href="#task">Current Task</a>
+      <a href="#dashboard">Return Triage</a>
+      <a href="#decision-queue">Decision Queue</a>
+      <a href="#away-summary">After Away Mode</a>
+      <a href="#project-triage">Project Triage</a>
+      <a href="#next-session">Next Session</a>
+      <a href="#done-away">Done Away</a>
+      <a href="#do-not-bother">Do Not Bother</a>
+      <a href="#priority-logic">Priority Logic</a>
+      <a href="#project-brain">Project Brain</a>
+      <a href="#queue">Batch Queue</a>
+      <a href="#assignment">Assignment</a>
+      <a href="#packets">Control Packets</a>
       <a href="#stoppages">Stoppages</a>
       <a href="#controls">Control States</a>
       <a href="#prompt">Prompt Builder</a>
@@ -31,56 +47,376 @@
       <a href="#ideas">Idea Inbox</a>
       <a href="#evidence">Evidence Locker</a>
       <a href="#gates">Safety Gates</a>
+      <a href="#settings">Settings</a>
     </nav>
 
     <section class="content" aria-label="Static mock console panels">
-      <section id="dashboard" class="panel hero-panel" aria-labelledby="dashboard-title">
-        <div>
-          <p class="eyebrow">Evidence only</p>
-          <h2 id="dashboard-title">Local harness review surface</h2>
-          <p>This static file is a planning mock. It cannot approve work, execute commands, send packages, bind runtime controls, or grant future authority.</p>
+      <section id="dashboard" class="panel hero-panel return-cockpit" aria-labelledby="dashboard-title">
+        <div class="return-main">
+          <p class="eyebrow">Return Triage</p>
+          <h2 id="dashboard-title">What do I do now?</h2>
+          <p class="return-lede">The mock console promotes one next action first, then keeps everything else quieter and bucketed by whether Tim is actually needed.</p>
+          <article class="primary-action-card" aria-label="Primary recommended action">
+            <span class="action-kind needs-decision">Needs Tim now</span>
+            <h3>Review Niners War Room draft-room blocker</h3>
+            <p>One source-of-truth conflict blocks safe continuation. Decide the draft-room priority rule before Codex keeps moving.</p>
+          </article>
+          <div class="ranked-list" aria-label="Ranked return triage list">
+            <article>
+              <span class="rank">#1</span>
+              <div>
+                <strong>Needs Tim</strong>
+                <p>Resolve the Niners War Room source conflict.</p>
+              </div>
+            </article>
+            <article>
+              <span class="rank">#2</span>
+              <div>
+                <strong>Review/approve</strong>
+                <p>Approve TSF UI commit after reading the static test summary.</p>
+              </div>
+            </article>
+            <article>
+              <span class="rank">#3</span>
+              <div>
+                <strong>Optional next work</strong>
+                <p>No urgent decisions - next safe batch is PrivateLens cleanup.</p>
+              </div>
+            </article>
+          </div>
         </div>
-        <div class="notice">
-          No product repos. No remote access. No package sending. No command binding.
-        </div>
+        <aside class="return-side" aria-label="Return cockpit summary">
+          <div class="notice">
+            No product repos. No remote access. No package sending. No command binding.
+          </div>
+          <div class="summary-stack">
+            <article>
+              <span>Decision load</span>
+              <strong>1 true blocker</strong>
+            </article>
+            <article>
+              <span>Ready to review</span>
+              <strong>1 local TSF change</strong>
+            </article>
+            <article>
+              <span>Safe to ignore</span>
+              <strong>4 GREEN items</strong>
+            </article>
+            <article>
+              <span>Recommended session</span>
+              <strong>Quick review, 5-10 minutes</strong>
+            </article>
+          </div>
+        </aside>
       </section>
 
-      <section class="grid" aria-label="Mock status cards">
-        <article class="panel compact-panel">
-          <p class="eyebrow">Next safe action</p>
-          <h3>Copy one bounded prompt for manual use</h3>
-          <p>The active task must still come from the queue with allowed files, validation, and stop conditions. This mock cannot start it.</p>
+      <section class="triage-strip" aria-label="Return triage status distinctions">
+        <article class="triage-chip chip-decision">
+          <span>Needs decision</span>
+          <strong>1</strong>
+          <p>Human direction blocks safe progress.</p>
         </article>
-        <article class="panel compact-panel">
-          <p class="eyebrow">Validation</p>
-          <h3>Latest local tests passed</h3>
-          <p>Passing tests are evidence for the local task only. They are not permission for product work.</p>
+        <article class="triage-chip chip-approval">
+          <span>Needs approval</span>
+          <strong>1</strong>
+          <p>Finished local work waits for exact approval.</p>
         </article>
-        <article class="panel compact-panel">
-          <p class="eyebrow">Token pressure</p>
-          <h3>Compact packet preferred</h3>
-          <p>Use capsule, thin task packet, and summaries instead of raw reports by default.</p>
+        <article class="triage-chip chip-review">
+          <span>Needs review</span>
+          <strong>1</strong>
+          <p>Read summary before moving forward.</p>
+        </article>
+        <article class="triage-chip chip-ignore">
+          <span>Safe to ignore</span>
+          <strong>4</strong>
+          <p>Completed GREEN work is collapsed.</p>
+        </article>
+        <article class="triage-chip chip-next">
+          <span>Safe next batch</span>
+          <strong>PrivateLens</strong>
+          <p>Eligible if Tim wants more progress.</p>
+        </article>
+        <article class="triage-chip chip-blocked">
+          <span>Blocked/unsafe</span>
+          <strong>2</strong>
+          <p>Stop signs stay louder than momentum.</p>
         </article>
       </section>
 
-      <section id="fixtures" class="panel" aria-labelledby="fixtures-title">
-        <p class="eyebrow">Mock fixture states</p>
-        <h2 id="fixtures-title">Static examples from committed fixtures</h2>
-        <p>These rows mirror local fixture examples as static text. The prototype does not fetch, import, read, execute, or approve from these files.</p>
-        <div class="table" role="table" aria-label="Static fixture state mapping">
-          <div class="row head"><span>Fixture</span><span>Mock posture</span><span>Safe interpretation</span></div>
-          <div class="row"><span>fleet-console-state.green-local-harness.json</span><span>GREEN / parked</span><span>Local harness evidence passed; no product authority.</span></div>
-          <div class="row"><span>fleet-console-state.yellow-blocked.json</span><span>YELLOW / blocked</span><span>Scope drift or missing approval stops the current task.</span></div>
-          <div class="row"><span>fleet-console-state.token-limited.json</span><span>YELLOW / token limited</span><span>Pause and write compact ledger evidence instead of continuing.</span></div>
-          <div class="row"><span>fleet-console-state.forbidden-control.json</span><span>RED / blocked</span><span>Forbidden controls stay hidden, disabled, blocking, and non-executable.</span></div>
-        </div>
-      </section>
-
-      <section id="task" class="panel" aria-labelledby="task-title">
+      <section id="decision-queue" class="panel" aria-labelledby="decision-queue-title">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Current task</p>
-            <h2 id="task-title">Static mock console shell</h2>
+            <p class="eyebrow">Decision Queue</p>
+            <h2 id="decision-queue-title">Only items that truly need Tim</h2>
+          </div>
+          <span class="status-pill status-pill-warning">human input only</span>
+        </div>
+        <p class="panel-intro">This queue excludes routine completions, cosmetic uncertainty, safe local cleanup, and one task finishing while more approved work remains.</p>
+        <div class="decision-list" aria-label="Static decision queue examples">
+          <article class="decision-card decision-critical">
+            <span>Needs decision</span>
+            <strong>Product direction choice</strong>
+            <p>Choose the Niners War Room draft-room priority rule before more work can proceed safely.</p>
+          </article>
+          <article class="decision-card">
+            <span>Needs approval</span>
+            <strong>Approve push</strong>
+            <p>Exact publication approval is required elsewhere; this mock only shows the missing decision.</p>
+          </article>
+          <article class="decision-card">
+            <span>Archived/locked</span>
+            <strong>Approve archived project reactivation</strong>
+            <p>Archived projects remain visibly locked until an exact reactivation record exists.</p>
+          </article>
+          <article class="decision-card">
+            <span>Needs approval</span>
+            <strong>Approve deployment</strong>
+            <p>Deployment remains blocked without explicit approval and a bounded task packet.</p>
+          </article>
+          <article class="decision-card">
+            <span>Blocked</span>
+            <strong>Resolve conflicting source truth</strong>
+            <p>Codex should pause when two authoritative sources disagree.</p>
+          </article>
+          <article class="decision-card">
+            <span>Needs approval</span>
+            <strong>Approve risky file scope expansion</strong>
+            <p>Work outside the approved file scope requires a new bounded packet.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="away-summary" class="panel" aria-labelledby="away-summary-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">After Away Mode</p>
+            <h2 id="away-summary-title">Away report Tim can scan quickly</h2>
+          </div>
+          <span class="status-pill">summary first</span>
+        </div>
+        <div class="away-grid" aria-label="After Away Mode summary card">
+          <article>
+            <span>What Codex finished</span>
+            <strong>TSF desktop console V2 shell draft</strong>
+            <p>Static return triage, project triage, and decision queue examples.</p>
+          </article>
+          <article>
+            <span>What Codex tested</span>
+            <strong>static safety checks</strong>
+            <p>Regression coverage remains focused on local HTML/CSS and no executable hooks.</p>
+          </article>
+          <article>
+            <span>What changed</span>
+            <strong>top of page now decides first</strong>
+            <p>Completed work is quieter, while true blockers and approvals rise to the top.</p>
+          </article>
+          <article>
+            <span>What stopped progress</span>
+            <strong>conflicting source truth</strong>
+            <p>Example blocker requires Tim before the mock suggests continued work.</p>
+          </article>
+          <article>
+            <span>What Tim actually needs to decide</span>
+            <strong>one product direction choice</strong>
+            <p>Everything else is review, approval, or safe to ignore for now.</p>
+          </article>
+          <article>
+            <span>Recommended next session</span>
+            <strong>Quick review, 5-10 minutes</strong>
+            <p>Resolve the blocker, then approve or park the remaining TSF change.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="project-triage" class="panel" aria-labelledby="project-triage-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Project Triage</p>
+            <h2 id="project-triage-title">Simple next-action status by project</h2>
+          </div>
+          <span class="status-pill">one label per project</span>
+        </div>
+        <div class="project-triage-grid" aria-label="Project-level triage cards">
+          <article class="project-card status-review">
+            <span>Review needed</span>
+            <strong>Thousand Sunny Fleet</strong>
+            <p>Inspect the static console update and test result summary.</p>
+          </article>
+          <article class="project-card status-keep">
+            <span>Keep moving</span>
+            <strong>PrivateLens</strong>
+            <p>Eligible safe cleanup remains inside approved local scope.</p>
+          </article>
+          <article class="project-card status-decision">
+            <span>Decision needed</span>
+            <strong>Niners War Room</strong>
+            <p>Direction conflict blocks safe draft-room continuation.</p>
+          </article>
+          <article class="project-card status-blocked">
+            <span>Blocked</span>
+            <strong>Product repo mutation request</strong>
+            <p>Blocked unless an exact selected product repo and scope are approved.</p>
+          </article>
+          <article class="project-card status-parked">
+            <span>Parked</span>
+            <strong>Old exploration lane</strong>
+            <p>No decision needed today; keep out of the return cockpit.</p>
+          </article>
+          <article class="project-card status-archived" aria-label="Archived project locked">
+            <span>Archived/locked</span>
+            <strong>Archived fleet project</strong>
+            <p>Archived projects remain visibly locked and cannot be mutated without exact reactivation.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="next-session" class="panel next-session-panel" aria-labelledby="next-session-title">
+        <div>
+          <p class="eyebrow">Next Best Work Session</p>
+          <h2 id="next-session-title">Quick review, 5-10 minutes</h2>
+          <p>Read the single blocker, decide whether to approve the TSF UI change, then either start the safe PrivateLens batch or park work for later.</p>
+        </div>
+        <div class="session-options" aria-label="Static next best work session options">
+          <span class="selected-session">Quick review, 5-10 minutes</span>
+          <span>Approve and move on</span>
+          <span>Start safe batch</span>
+          <span>Start away_safe session</span>
+          <span>Park this project</span>
+          <span>Escalate to Tim decision</span>
+        </div>
+      </section>
+
+      <section id="done-away" class="panel quiet-panel" aria-labelledby="done-away-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Done while you were away</p>
+            <h2 id="done-away-title">Completed GREEN work is collapsed</h2>
+          </div>
+          <span class="status-pill status-pill-green">safe to ignore</span>
+        </div>
+        <p>Four completed items passed their listed checks. They are grouped here so they do not compete with decisions, approvals, or blockers.</p>
+        <div class="done-summary" aria-label="Collapsed completed work summary">
+          <span>Docs cleanup complete</span>
+          <span>Local fixture mapping complete</span>
+          <span>Static safety wording complete</span>
+          <span>Queue examples complete</span>
+        </div>
+      </section>
+
+      <section id="do-not-bother" class="panel quiet-panel" aria-labelledby="do-not-bother-title">
+        <p class="eyebrow">Do Not Bother Tim For This</p>
+        <h2 id="do-not-bother-title">Codex should keep moving or summarize later</h2>
+        <div class="do-not-grid" aria-label="Do not interrupt guidance">
+          <span>tiny formatting choices</span>
+          <span>routine test passes</span>
+          <span>safe docs cleanup</span>
+          <span>safe local refactors inside approved scope</span>
+          <span>one task finishing when more safe tasks remain</span>
+          <span>cosmetic uncertainty</span>
+        </div>
+      </section>
+
+      <section id="priority-logic" class="panel" aria-labelledby="priority-logic-title">
+        <p class="eyebrow">Priority Logic</p>
+        <h2 id="priority-logic-title">Why the cockpit ranks work this way</h2>
+        <ol class="priority-list">
+          <li>safety/security/deploy risk first</li>
+          <li>human decision blockers second</li>
+          <li>ready-to-approve completed work third</li>
+          <li>active product momentum fourth</li>
+          <li>nice-to-have cleanup last</li>
+        </ol>
+      </section>
+
+      <section id="project-brain" class="panel" aria-labelledby="project-brain-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Project Brain</p>
+            <h2 id="project-brain-title">Selected desktop project context</h2>
+          </div>
+          <span class="status-pill">one project selected</span>
+        </div>
+        <div class="brain-grid">
+          <article>
+            <span>Selected project</span>
+            <strong>Thousand Sunny Fleet</strong>
+          </article>
+          <article>
+            <span>Selected track</span>
+            <strong>desktop-return-triage-v2</strong>
+          </article>
+          <article>
+            <span>Intake root</span>
+            <strong>C:\TSF_INBOX\&lt;project_name&gt;\</strong>
+          </article>
+          <article>
+            <span>Artifact posture</span>
+            <strong>reference only</strong>
+          </article>
+        </div>
+        <div class="split-list">
+          <div>
+            <h3>Research files</h3>
+            <ul>
+              <li>INTAKE.md</li>
+              <li>MANIFEST.md or manifest.json</li>
+              <li>notes/research.md</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Root files</h3>
+            <ul>
+              <li>README.md</li>
+              <li>docs/fleet/TSF_OPERATING_MODEL.md</li>
+              <li>docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="queue" class="panel" aria-labelledby="queue-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Batch Queue</p>
+            <h2 id="queue-title">Terminal states for bounded desktop work</h2>
+          </div>
+          <span class="status-pill status-pill-warning">YELLOW / work remains</span>
+        </div>
+        <div class="queue-board" aria-label="Static batch queue state cards">
+          <article class="queue-card queue-green">
+            <span>GREEN</span>
+            <strong>local doc pass</strong>
+            <p>Acceptance and listed validation are complete.</p>
+          </article>
+          <article class="queue-card queue-yellow">
+            <span>YELLOW</span>
+            <strong>desktop packet prep</strong>
+            <p>Eligible work remains inside batch limits.</p>
+          </article>
+          <article class="queue-card queue-red">
+            <span>RED</span>
+            <strong>failed validation</strong>
+            <p>Stop if the selected task fails or crosses a boundary.</p>
+          </article>
+          <article class="queue-card queue-blocked">
+            <span>BLOCKED</span>
+            <strong>needs Tim</strong>
+            <p>Pause for missing context, approval, or repacketization.</p>
+          </article>
+        </div>
+        <div class="table" role="table" aria-label="Static batch queue examples">
+          <div class="row head"><span>Task</span><span>State</span><span>Desktop next safe action</span></div>
+          <div class="row"><span>PM-001 Project brain intake</span><span>GREEN</span><span>Use as evidence only.</span></div>
+          <div class="row"><span>PM-002 Desktop control packet</span><span>YELLOW</span><span>Draft bounded packet, then manual Codex run.</span></div>
+          <div class="row"><span>PM-003 Product repo mutation</span><span>BLOCKED</span><span>Requires exact selected-project approval.</span></div>
+        </div>
+      </section>
+
+      <section id="assignment" class="panel" aria-labelledby="assignment-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Current assignment</p>
+            <h2 id="assignment-title">Desktop control room shell</h2>
           </div>
           <span class="status-pill">Local file only</span>
         </div>
@@ -108,6 +444,47 @@
         </div>
       </section>
 
+      <section id="packets" class="panel" aria-labelledby="packets-title">
+        <p class="eyebrow">Control Packets</p>
+        <h2 id="packets-title">Desktop autonomy profile rail</h2>
+        <p>Profiles shape already-eligible work. They do not approve implementation, product work, or publication.</p>
+        <div class="profile-rail" aria-label="Autonomy profile display">
+          <article>
+            <span class="state-chip">review_only</span>
+            <h3>Review packet</h3>
+            <p>Inspect, classify, and report without patching.</p>
+          </article>
+          <article>
+            <span class="state-chip">bounded_implementation</span>
+            <h3>One task</h3>
+            <p>Patch one eligible task, validate, then report.</p>
+          </article>
+          <article>
+            <span class="state-chip">batch_implementation</span>
+            <h3>Bounded batch</h3>
+            <p>Continue across eligible queue items until a cap or true blocker.</p>
+          </article>
+          <article>
+            <span class="state-chip">away_safe</span>
+            <h3>Away-safe slice</h3>
+            <p>Collect nonurgent questions and stop only for real blockers.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="fixtures" class="panel" aria-labelledby="fixtures-title">
+        <p class="eyebrow">Mock fixture states</p>
+        <h2 id="fixtures-title">Static examples from committed fixtures</h2>
+        <p>These rows mirror local fixture examples as static text. The prototype does not fetch, import, read, execute, or approve from these files.</p>
+        <div class="table" role="table" aria-label="Static fixture state mapping">
+          <div class="row head"><span>Fixture</span><span>Mock posture</span><span>Safe interpretation</span></div>
+          <div class="row"><span>fleet-console-state.green-local-harness.json</span><span>GREEN / parked</span><span>Local harness evidence passed; no product authority.</span></div>
+          <div class="row"><span>fleet-console-state.yellow-blocked.json</span><span>YELLOW / blocked</span><span>Scope drift or missing approval stops the current task.</span></div>
+          <div class="row"><span>fleet-console-state.token-limited.json</span><span>YELLOW / token limited</span><span>Pause and write compact ledger evidence instead of continuing.</span></div>
+          <div class="row"><span>fleet-console-state.forbidden-control.json</span><span>RED / blocked</span><span>Forbidden controls stay hidden, disabled, blocking, and non-executable.</span></div>
+        </div>
+      </section>
+
       <section id="stoppages" class="panel" aria-labelledby="stoppages-title">
         <p class="eyebrow">Stoppages</p>
         <h2 id="stoppages-title">Stop signs stay visible</h2>
@@ -116,6 +493,7 @@
           <div class="row"><span>Outside allowed files</span><span>blocked</span><span>Repacketize</span></div>
           <div class="row"><span>Evidence treated as authority</span><span>blocked</span><span>Stop and summarize</span></div>
           <div class="row"><span>Missing exact approval</span><span>blocked</span><span>Request human review</span></div>
+          <div class="row"><span>Archived project selected</span><span>blocked</span><span>Require exact reactivation record.</span></div>
         </div>
       </section>
 
@@ -171,7 +549,11 @@
         <p class="eyebrow">Prompt Builder</p>
         <h2 id="prompt-title">Copy-only draft text</h2>
         <p>The mock represents a future copy-only prompt builder. It does not start Codex, run validation, execute commands, approve work, or change queue state.</p>
-        <div class="mock-box">Continue Codex Fleet from current repo state... Work only in the selected queue section... Stop after exactly one task.</div>
+        <div class="packet-preview">
+          <p>Continue Thousand Sunny Fleet from current repo state.</p>
+          <p>Use one selected project, one selected track, one autonomy profile, listed allowed files, listed validation, and explicit stop conditions.</p>
+          <p>Stop for true blockers; collect nonurgent questions in the report.</p>
+        </div>
       </section>
 
       <section id="audit" class="panel" aria-labelledby="audit-title">
@@ -189,7 +571,23 @@
       <section id="evidence" class="panel" aria-labelledby="evidence-title">
         <p class="eyebrow">Evidence Locker</p>
         <h2 id="evidence-title">Compact summaries first</h2>
-        <p>Validation summaries, audit digests, and progress ledgers are shown as compact evidence. Raw logs, reports, UI labels, and approvals are not command input.</p>
+        <div class="evidence-grid">
+          <article>
+            <span>Validation</span>
+            <strong>latest Fleet suite passed</strong>
+            <p>Passing tests are evidence for a bounded task only.</p>
+          </article>
+          <article>
+            <span>Project guide</span>
+            <strong>non-executable</strong>
+            <p>Guidance can shape a prompt but cannot run it.</p>
+          </article>
+          <article>
+            <span>Away report</span>
+            <strong>question queue ready</strong>
+            <p>Nonurgent questions stay batched for Tim.</p>
+          </article>
+        </div>
       </section>
 
       <section id="gates" class="panel" aria-labelledby="gates-title">
@@ -208,6 +606,17 @@
           <span>delete locks</span>
           <span>widen permissions</span>
           <span>risky phone approval</span>
+        </div>
+      </section>
+
+      <section id="settings" class="panel" aria-labelledby="settings-title">
+        <p class="eyebrow">Settings</p>
+        <h2 id="settings-title">Desktop defaults stay conservative</h2>
+        <div class="settings-grid">
+          <article><span>Display density</span><strong>compact</strong></article>
+          <article><span>Raw logs</span><strong>hidden by default</strong></article>
+          <article><span>Prompt mode</span><strong>thin packet</strong></article>
+          <article><span>Publication controls</span><strong>unavailable safety boundaries</strong></article>
         </div>
       </section>
     </section>

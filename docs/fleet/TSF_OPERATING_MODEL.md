@@ -113,6 +113,19 @@ TSF supports three human-availability modes:
 
 Mode changes are routing context, not safety exceptions.
 
+## Autonomy Profiles
+
+`docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md` defines the V1 autonomy
+profiles: `review_only`, `bounded_implementation`, `batch_implementation`, and
+`away_safe`.
+
+Autonomy profiles are execution-shape constraints, not approval. They determine
+whether Codex may only review, patch one bounded task, work a bounded queue
+slice, or continue an away-safe assignment slice. They do not approve product
+repo mutation, archived project mutation, proof runs, push, deploy, package
+installs, migrations, secrets, remote access, all-fleet, overnight runners,
+phone execution authority, or runtime command binding.
+
 ## Work Eligibility
 
 TSF can only work on eligible tracks. Eligible means all of these are true:

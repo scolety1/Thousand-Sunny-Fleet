@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "packetId": "pm-forbidden-action-v1",
+  "autonomyProfile": "bounded_implementation",
+  "project": {
+    "name": "fixture_project",
+    "section": "Active / Development",
+    "archived": false,
+    "productRepoMutationRequested": true
+  },
+  "selected": {
+    "project": "fixture_project",
+    "track": "unsafe-track"
+  },
+  "artifacts": {
+    "inboxProjectName": "fixture_project",
+    "researchFiles": [
+      "INTAKE.md"
+    ],
+    "rootFiles": [
+      "README.md"
+    ]
+  },
+  "queue": [
+    {
+      "id": "PM-030",
+      "title": "Unsafe command should block",
+      "status": "ready",
+      "allowedFiles": [
+        "docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
+      ],
+      "readFirst": [
+        "docs/fleet/TSF_OPERATING_MODEL.md"
+      ],
+      "validationCommands": [
+        "git push origin main"
+      ],
+      "stopIf": [
+        "forbidden command appears"
+      ]
+    }
+  ],
+  "requestedActions": [
+    "deploy after validation"
+  ]
+}

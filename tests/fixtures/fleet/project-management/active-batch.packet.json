@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "packetId": "pm-active-batch-v1",
+  "autonomyProfile": "batch_implementation",
+  "project": {
+    "name": "fixture_project",
+    "section": "Active / Development",
+    "archived": false,
+    "productRepoMutationRequested": false
+  },
+  "selected": {
+    "project": "fixture_project",
+    "track": "control-plane-v1"
+  },
+  "artifacts": {
+    "inboxProjectName": "fixture_project",
+    "researchFiles": [
+      "INTAKE.md",
+      "notes/research.md"
+    ],
+    "rootFiles": [
+      "README.md",
+      "docs/fleet/TSF_OPERATING_MODEL.md"
+    ]
+  },
+  "queue": [
+    {
+      "id": "PM-001",
+      "title": "Add control-plane doc",
+      "status": "ready",
+      "allowedFiles": [
+        "docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
+      ],
+      "readFirst": [
+        "docs/fleet/TSF_OPERATING_MODEL.md"
+      ],
+      "validationCommands": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+      ],
+      "stopIf": [
+        "validation fails outside allowed files",
+        "scope requires product repo mutation"
+      ]
+    },
+    {
+      "id": "PM-002",
+      "title": "Add queue status fixture",
+      "status": "pending",
+      "allowedFiles": [
+        "tests/fixtures/fleet/project-management/active-batch.packet.json"
+      ],
+      "readFirst": [
+        "docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
+      ],
+      "validationCommands": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+      ],
+      "stopIf": [
+        "task needs push, deploy, install, migration, secrets, remote access, proof run, or all-fleet"
+      ]
+    }
+  ],
+  "requestedActions": [
+    "write local Fleet docs/tests only"
+  ]
+}

@@ -21,6 +21,7 @@ $runtimePath = Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1"
 . (Join-Path $fleetRoot "tools\codex-fleet-mobile.ps1")
 . (Join-Path $fleetRoot "tools\codex-fleet-final-readiness.ps1")
 . (Join-Path $fleetRoot "tools\codex-fleet-token-projection.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-project-management.ps1")
 
 $script:Failures = [System.Collections.Generic.List[string]]::new()
 
@@ -3868,6 +3869,134 @@ function Test-HqTsfArtifactIntakeFolderSystem {
         "future Codex prompt shape"
     )) {
         Assert-True -Condition ($queueText -match [regex]::Escape($queuePhrase)) -Message "HQ queue records artifact intake system: $queuePhrase"
+    }
+}
+
+function Test-HqTsfAutonomousProjectManagementV1 {
+    $docPath = Join-Path $fleetRoot "docs\fleet\TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
+    $toolPath = Join-Path $fleetRoot "tools\codex-fleet-project-management.ps1"
+    $entrypointPath = Join-Path $fleetRoot "invoke-project-management-control.ps1"
+    $fixtureDir = Join-Path $fleetRoot "tests\fixtures\fleet\project-management"
+
+    foreach ($path in @($docPath, $toolPath, $entrypointPath, $fixtureDir)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF autonomous project management V1 input exists: $path"
+    }
+
+    $docText = Get-Content -LiteralPath $docPath -Raw -ErrorAction Stop
+    $toolText = Get-Content -LiteralPath $toolPath -Raw -ErrorAction Stop
+
+    foreach ($profileName in @("review_only", "bounded_implementation", "batch_implementation", "away_safe")) {
+        Assert-True -Condition ($docText -match [regex]::Escape($profileName)) -Message "Project management doc defines autonomy profile: $profileName"
+        Assert-True -Condition ($toolText -match [regex]::Escape($profileName)) -Message "Project management tool implements autonomy profile: $profileName"
+    }
+
+    foreach ($phrase in @(
+        "C:\TSF_INBOX\<project_name>\",
+        "Codex should pause only for real blockers",
+        "GREEN",
+        "YELLOW",
+        "RED",
+        "BLOCKED",
+        "TSF Away Mode Report",
+        "Project / Track / Assignment",
+        "Tim Question Queue",
+        "no product repo mutation unless the project is selected and exact approval is",
+        "no archived project mutation unless an exact reactivation record is present",
+        "no push, deploy, package install, migration, secrets/auth/payments/deploy",
+        "does not implement a product adapter, runner, proof-run pathway, phone bridge, push pathway, deploy path, or remote-access mechanism"
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($phrase)) -Message "Project management doc preserves phrase: $phrase"
+    }
+
+    foreach ($functionName in @(
+        "Get-FleetProjectManagementAutonomyProfile",
+        "Resolve-FleetProjectBrainInboxPath",
+        "Resolve-FleetProjectBatchQueueStatus",
+        "Test-FleetProjectManagementPacket",
+        "New-FleetProjectManagementGuide",
+        "New-FleetProjectManagementReportLines"
+    )) {
+        Assert-True -Condition ($toolText -match "function $functionName") -Message "Project management tool exposes $functionName"
+    }
+
+    $pmRoot = Join-Path $fixtureRoot ("project-management-" + [guid]::NewGuid().ToString("N"))
+    $inboxRoot = Join-Path $pmRoot "TSF_INBOX"
+    $fixtureInbox = Join-Path $inboxRoot "fixture_project"
+    $archivedInbox = Join-Path $inboxRoot "archived_fixture"
+    New-Item -ItemType Directory -Force -Path (Join-Path $fixtureInbox "notes") | Out-Null
+    New-Item -ItemType Directory -Force -Path $archivedInbox | Out-Null
+    Set-Content -LiteralPath (Join-Path $fixtureInbox "INTAKE.md") -Encoding UTF8 -Value "Fixture project intake. Evidence only; not authority."
+    Set-Content -LiteralPath (Join-Path $fixtureInbox "MANIFEST.md") -Encoding UTF8 -Value "Fixture manifest."
+    Set-Content -LiteralPath (Join-Path $fixtureInbox "notes\research.md") -Encoding UTF8 -Value "Research note."
+    Set-Content -LiteralPath (Join-Path $archivedInbox "INTAKE.md") -Encoding UTF8 -Value "Archived intake."
+    Set-Content -LiteralPath (Join-Path $archivedInbox "MANIFEST.md") -Encoding UTF8 -Value "Archived manifest."
+
+    try {
+        $activePacket = Get-Content -LiteralPath (Join-Path $fixtureDir "active-batch.packet.json") -Raw | ConvertFrom-Json
+        $activeGuide = New-FleetProjectManagementGuide -Packet $activePacket -InboxRoot $inboxRoot
+        Assert-Equal -Actual $activeGuide.autonomyProfile -Expected "batch_implementation" -Message "Project management guide preserves batch profile"
+        Assert-Equal -Actual $activeGuide.terminalState -Expected "YELLOW" -Message "Active pending batch resolves to YELLOW while work remains"
+        Assert-False -Condition ([bool]$activeGuide.shouldPause) -Message "Active pending batch does not pause without a true blocker"
+        Assert-Equal -Actual @($activeGuide.selectedTaskIds).Count -Expected 2 -Message "Batch implementation selects a bounded queue slice"
+        Assert-True -Condition ([bool]$activeGuide.guardrailsPreserved.noProductRepoMutationUnlessSelectedAndApproved) -Message "Guide preserves product repo guardrail"
+        Assert-True -Condition ([bool]$activeGuide.projectBrain.evidenceOnly) -Message "Project brain remains evidence only"
+
+        $queueGreen = Resolve-FleetProjectBatchQueueStatus -Tasks @(
+            [pscustomobject]@{ id = "A"; status = "done" },
+            [pscustomobject]@{ id = "B"; status = "GREEN" }
+        )
+        Assert-Equal -Actual $queueGreen.terminalState -Expected "GREEN" -Message "Batch queue status maps complete tasks to GREEN"
+
+        $queueRed = Resolve-FleetProjectBatchQueueStatus -Tasks @(
+            [pscustomobject]@{ id = "A"; status = "done" },
+            [pscustomobject]@{ id = "B"; status = "failed_validation" }
+        )
+        Assert-Equal -Actual $queueRed.terminalState -Expected "RED" -Message "Batch queue status maps failed validation to RED"
+
+        $queueBlocked = Resolve-FleetProjectBatchQueueStatus -Tasks @(
+            [pscustomobject]@{ id = "A"; status = "blocked" },
+            [pscustomobject]@{ id = "B"; status = "done" }
+        )
+        Assert-Equal -Actual $queueBlocked.terminalState -Expected "BLOCKED" -Message "Batch queue status maps human blocker to BLOCKED"
+
+        $awayPacket = Get-Content -LiteralPath (Join-Path $fixtureDir "away-safe.packet.json") -Raw | ConvertFrom-Json
+        $awayGuide = New-FleetProjectManagementGuide -Packet $awayPacket -InboxRoot $inboxRoot
+        Assert-Equal -Actual $awayGuide.autonomyProfile -Expected "away_safe" -Message "Away-safe packet resolves away_safe profile"
+        Assert-False -Condition ([bool]$awayGuide.shouldPause) -Message "Away-safe ready task does not pause before a true blocker"
+        Assert-True -Condition (@($awayGuide.awayModeReportFormat) -contains "Tim Question Queue") -Message "Away-safe guide exposes Tim Question Queue report section"
+        $awayLines = @(New-FleetProjectManagementReportLines -Guide $awayGuide)
+        Assert-True -Condition (($awayLines -join "`n") -match "TSF Away Mode Report") -Message "Away-safe report uses away-mode title"
+        Assert-True -Condition (($awayLines -join "`n") -match "Boundaries Preserved") -Message "Away-safe report includes boundary section"
+
+        $archivedPacket = Get-Content -LiteralPath (Join-Path $fixtureDir "archived-blocked.packet.json") -Raw | ConvertFrom-Json
+        $archivedGuide = New-FleetProjectManagementGuide -Packet $archivedPacket -InboxRoot $inboxRoot
+        Assert-Equal -Actual $archivedGuide.terminalState -Expected "BLOCKED" -Message "Archived project is blocked without reactivation"
+        Assert-True -Condition (($archivedGuide.pauseReasons -join "`n") -match "Archived project mutation is blocked") -Message "Archived project blocker names reactivation requirement"
+
+        $forbiddenPacket = Get-Content -LiteralPath (Join-Path $fixtureDir "forbidden-action.packet.json") -Raw | ConvertFrom-Json
+        $forbiddenGuide = New-FleetProjectManagementGuide -Packet $forbiddenPacket -InboxRoot $inboxRoot
+        Assert-Equal -Actual $forbiddenGuide.terminalState -Expected "BLOCKED" -Message "Forbidden project-management packet blocks"
+        Assert-True -Condition (($forbiddenGuide.pauseReasons -join "`n") -match "Product repo mutation is requested") -Message "Product repo mutation without exact approval blocks"
+        Assert-True -Condition (($forbiddenGuide.pauseReasons -join "`n") -match "forbidden action") -Message "Forbidden validation command blocks"
+
+        $reportPath = Join-Path $pmRoot "away-report.md"
+        $jsonPath = Join-Path $pmRoot "away-guide.json"
+        $entrypointResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $entrypointPath,
+            "-PacketPath", (Join-Path $fixtureDir "away-safe.packet.json"),
+            "-InboxRoot", $inboxRoot,
+            "-ReportPath", $reportPath,
+            "-JsonReportPath", $jsonPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $entrypointResult.ExitCode -Expected 0 -Message "Project-management entrypoint writes away-safe guidance"
+        Assert-True -Condition (Test-Path -LiteralPath $reportPath) -Message "Project-management entrypoint writes Markdown report"
+        Assert-True -Condition (Test-Path -LiteralPath $jsonPath) -Message "Project-management entrypoint writes JSON report"
+        $entryGuide = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+        Assert-False -Condition ([bool]$entryGuide.executesProductActions) -Message "Project-management entrypoint does not execute product actions"
+        Assert-False -Condition ([bool]$entryGuide.mutatesProductRepos) -Message "Project-management entrypoint does not mutate product repos"
+        Assert-True -Condition ([bool]$entryGuide.nonExecutable) -Message "Project-management entrypoint marks report non-executable"
+    } finally {
+        Remove-Item -LiteralPath $pmRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -16007,6 +16136,7 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "No remote access",
         "No package sending",
         "No command binding",
+        "Desktop Control Room",
         "not an operational console",
         "cannot approve work",
         "cannot approve or execute work",
@@ -16017,20 +16147,93 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "no command binding",
         "no package-send behavior",
         "Copy-only draft text",
-        "Evidence views, not operational controls"
+        "Evidence views, not operational controls",
+        "project brain",
+        "batch queue",
+        "control packets",
+        "Return Triage",
+        "What do I do now?",
+        "Decision Queue",
+        "Done while you were away",
+        "Do Not Bother Tim For This",
+        "Next Best Work Session"
     )) {
         Assert-True -Condition ($combined -match [regex]::Escape($requiredPhrase)) -Message "Static prototype preserves required safety phrase: $requiredPhrase"
     }
 
     foreach ($requiredSurface in @(
+        "Project Brain",
+        "Batch Queue",
+        "Control Packets",
+        "review_only",
+        "bounded_implementation",
+        "batch_implementation",
+        "away_safe",
         "Prompt Builder",
         "Audit Builder",
         "Evidence Locker",
         "Idea Inbox",
         "Unstuck",
-        "Approval Cards"
+        "Approval Cards",
+        "After Away Mode",
+        "Project Triage",
+        "Priority Logic"
     )) {
         Assert-True -Condition ($html -match [regex]::Escape($requiredSurface)) -Message "Static prototype represents evidence-only surface: $requiredSurface"
+    }
+
+    foreach ($returnTriagePhrase in @(
+        "Primary recommended action",
+        "#1",
+        "#2",
+        "#3",
+        "Needs Tim",
+        "Review/approve",
+        "Optional next work",
+        "Needs decision",
+        "Needs approval",
+        "Needs review",
+        "Safe to ignore",
+        "Safe next batch",
+        "Blocked/unsafe",
+        "What Codex finished",
+        "What Codex tested",
+        "What changed",
+        "What stopped progress",
+        "What Tim actually needs to decide",
+        "Recommended next session",
+        "Product direction choice",
+        "Approve push",
+        "Approve archived project reactivation",
+        "Approve deployment",
+        "Resolve conflicting source truth",
+        "Approve risky file scope expansion",
+        "Keep moving",
+        "Review needed",
+        "Decision needed",
+        "Blocked",
+        "Parked",
+        "Archived/locked",
+        "Archived projects remain visibly locked",
+        "Quick review, 5-10 minutes",
+        "Approve and move on",
+        "Start safe batch",
+        "Start away_safe session",
+        "Park this project",
+        "Escalate to Tim decision",
+        "tiny formatting choices",
+        "routine test passes",
+        "safe docs cleanup",
+        "safe local refactors inside approved scope",
+        "one task finishing when more safe tasks remain",
+        "cosmetic uncertainty",
+        "safety/security/deploy risk first",
+        "human decision blockers second",
+        "ready-to-approve completed work third",
+        "active product momentum fourth",
+        "nice-to-have cleanup last"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($returnTriagePhrase)) -Message "Static prototype renders Return Triage cockpit phrase: $returnTriagePhrase"
     }
 
     foreach ($safeState in @(
@@ -19196,6 +19399,7 @@ Test-HqTsfMixedOutcomeBatchStressDrill
 Test-HqTsfRealProjectShapedDryRun
 Test-HqPersonalWebsiteMockupBatch
 Test-HqTsfArtifactIntakeFolderSystem
+Test-HqTsfAutonomousProjectManagementV1
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
 Test-HqQuickMissionRequestContract

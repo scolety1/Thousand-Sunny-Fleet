@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "packetId": "pm-away-safe-v1",
+  "autonomyProfile": "away_safe",
+  "project": {
+    "name": "fixture_project",
+    "section": "Active / Development",
+    "archived": false,
+    "productRepoMutationRequested": false
+  },
+  "selected": {
+    "project": "fixture_project",
+    "track": "away-safe-v1"
+  },
+  "artifacts": {
+    "inboxProjectName": "fixture_project",
+    "researchFiles": [
+      "INTAKE.md",
+      "MANIFEST.md"
+    ],
+    "rootFiles": [
+      "README.md"
+    ]
+  },
+  "queue": [
+    {
+      "id": "PM-010",
+      "title": "Document away report",
+      "status": "ready",
+      "allowedFiles": [
+        "docs/fleet/TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
+      ],
+      "readFirst": [
+        "docs/fleet/AWAY_SAFE_MICROTASK_PACKET.md"
+      ],
+      "validationCommands": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1"
+      ],
+      "stopIf": [
+        "same uncertainty repeats twice",
+        "definition of done requires product repo work"
+      ]
+    }
+  ],
+  "requestedActions": [
+    "produce away-safe control report"
+  ]
+}
