@@ -205,6 +205,22 @@ Tim understand a repo, improve Codex prompts, review diff risk, split messy
 goals, and recover from stuck states. They remain markdown evidence only and do
 not inspect product repos or expose executable controls.
 
+Game Forge V1 adds generated, read-only game architecture planning outputs:
+
+- `fleet/status/game-forge/templates/game-project-intake.md`
+- `fleet/status/game-forge/blueprints/`
+- `fleet/status/game-forge/system-maps/`
+- `fleet/status/game-forge/prototype-slices/`
+- `fleet/status/game-forge/research-prompts/`
+- `fleet/status/game-forge/risk-reviews/`
+- `fleet/status/game-forge/work-orders/`
+
+The console shows Game Forge below Daily Driver and Coder Upgrade. It helps Tim
+shape game ideas such as Nytheria/Nytheris into engine blueprints, systems maps,
+prototype slices, research prompts, risk reviews, and bounded work orders. It is
+architecture/planning evidence only and does not build a game engine or create a
+game repo.
+
 Generated/read-only sources currently shown in the console:
 
 - `fleet/status/projects.json`
@@ -240,6 +256,7 @@ The prototype distinguishes local evidence views from unavailable operational co
 | Read-Only State Prep | generated safe display | Uses TSF-local status/docs/fixture data to refresh static HTML; does not inspect product repos or bind commands. |
 | Daily Driver Pack | generated safe display | Shows project passport, next-session card, work-order inbox, return triage scorer, and deep research intake output locations. |
 | Coder Upgrade Tools | generated safe display | Shows repo x-rays, context packs, diff risk review, coding lessons, work-order splits, and stuck-state playbooks. |
+| Game Forge | generated safe display | Shows game intake, engine blueprints, systems maps, prototype slices, research prompts, risk reviews, and bounded game work orders. |
 | One-click mental model | safe display | Text-only flow for project, inbox files, plain-English goal, availability, and true blockers. |
 | Work Order Library | copy-only display | Work Order Composer V1 prompt templates only; cannot start work, approve actions, or execute checks. |
 | What TSF handles for Tim | safe display | Shows routine coordination TSF should summarize or handle within approved scope. |

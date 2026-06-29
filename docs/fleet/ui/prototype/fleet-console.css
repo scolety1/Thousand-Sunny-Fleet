@@ -360,6 +360,7 @@ a:focus-visible {
 .state-source-grid span,
 .daily-driver-grid span,
 .coder-upgrade-grid span,
+.game-forge-grid span,
 .away-grid span,
 .brain-grid span,
 .evidence-grid span,
@@ -487,6 +488,7 @@ a:focus-visible {
 .state-source-grid,
 .daily-driver-grid,
 .coder-upgrade-grid,
+.game-forge-grid,
 .session-handoff-grid,
 .project-triage-grid {
   display: grid;
@@ -500,6 +502,7 @@ a:focus-visible {
 .state-source-grid article,
 .daily-driver-grid article,
 .coder-upgrade-grid article,
+.game-forge-grid article,
 .session-handoff-grid article,
 .project-card {
   display: grid;
@@ -529,6 +532,11 @@ a:focus-visible {
   background: #fcfbf7;
 }
 
+.game-forge-panel {
+  border-color: #d1cbc0;
+  background: #fcfaf6;
+}
+
 .daily-driver-grid article {
   border-left: 5px solid var(--green);
 }
@@ -545,6 +553,21 @@ a:focus-visible {
 .coder-upgrade-grid article:nth-child(3),
 .coder-upgrade-grid article:nth-child(6) {
   border-left-color: var(--blue);
+}
+
+.game-forge-grid article {
+  border-left: 5px solid var(--blue);
+}
+
+.game-forge-grid article:nth-child(2),
+.game-forge-grid article:nth-child(4),
+.game-forge-grid article:nth-child(7) {
+  border-left-color: var(--green);
+}
+
+.game-forge-grid article:nth-child(5),
+.game-forge-grid article:nth-child(6) {
+  border-left-color: var(--yellow);
 }
 
 .daily-driver-grid article:nth-child(2),
@@ -941,6 +964,7 @@ a:focus-visible {
   .state-source-grid,
   .daily-driver-grid,
   .coder-upgrade-grid,
+  .game-forge-grid,
   .session-handoff-grid,
   .mental-steps,
   .work-order-grid,
@@ -975,6 +999,7 @@ a:focus-visible {
   .state-source-grid,
   .daily-driver-grid,
   .coder-upgrade-grid,
+  .game-forge-grid,
   .session-handoff-grid,
   .mental-steps,
   .work-order-grid,

@@ -17031,6 +17031,236 @@ function Test-HqTsfCoderUpgradePackV1 {
     }
 }
 
+function Test-HqTsfGameForgeV1 {
+    $helperPath = Join-Path $fleetRoot "tools\codex-fleet-game-forge.ps1"
+    $packScriptPath = Join-Path $fleetRoot "tools\write-game-forge-pack.ps1"
+    $blueprintScriptPath = Join-Path $fleetRoot "tools\write-game-forge-blueprint.ps1"
+    $systemsMapScriptPath = Join-Path $fleetRoot "tools\write-game-forge-systems-map.ps1"
+    $slicesScriptPath = Join-Path $fleetRoot "tools\write-game-forge-prototype-slices.ps1"
+    $researchScriptPath = Join-Path $fleetRoot "tools\write-game-forge-research-prompts.ps1"
+    $riskScriptPath = Join-Path $fleetRoot "tools\write-game-forge-risk-review.ps1"
+    $workOrdersScriptPath = Join-Path $fleetRoot "tools\write-game-forge-work-orders.ps1"
+    $templatePath = Join-Path $fleetRoot "fleet\status\game-forge\templates\game-project-intake.md"
+    $fixturePath = Join-Path $fleetRoot "tests\fixtures\fleet\game-forge\nytheria-intake.md"
+    $docPath = Join-Path $fleetRoot "docs\fleet\TSF_GAME_FORGE_V1.md"
+    $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+
+    foreach ($path in @($helperPath, $packScriptPath, $blueprintScriptPath, $systemsMapScriptPath, $slicesScriptPath, $researchScriptPath, $riskScriptPath, $workOrdersScriptPath, $templatePath, $fixturePath, $docPath, $htmlPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Game Forge V1 input exists: $path"
+    }
+
+    $scriptText = @(
+        (Get-Content -LiteralPath $helperPath -Raw),
+        (Get-Content -LiteralPath $packScriptPath -Raw),
+        (Get-Content -LiteralPath $blueprintScriptPath -Raw),
+        (Get-Content -LiteralPath $systemsMapScriptPath -Raw),
+        (Get-Content -LiteralPath $slicesScriptPath -Raw),
+        (Get-Content -LiteralPath $researchScriptPath -Raw),
+        (Get-Content -LiteralPath $riskScriptPath -Raw),
+        (Get-Content -LiteralPath $workOrdersScriptPath -Raw)
+    ) -join "`n"
+    foreach ($forbiddenOperation in @(
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "git -C",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($scriptText -match [regex]::Escape($forbiddenOperation)) -Message "Game Forge scripts avoid forbidden operation: $forbiddenOperation"
+    }
+
+    $templateText = Get-Content -LiteralPath $templatePath -Raw
+    foreach ($phrase in @(
+        "Game Project Intake Template",
+        "Game name",
+        "Old names / aliases",
+        "AI/living-world needs",
+        "Lore/canon constraints",
+        "Prototype goal",
+        "Must-ask-Tim decisions"
+    )) {
+        Assert-True -Condition ($templateText -match [regex]::Escape($phrase)) -Message "Game Forge template contains phrase: $phrase"
+    }
+
+    $fixtureText = Get-Content -LiteralPath $fixturePath -Raw
+    foreach ($phrase in @(
+        "Game name: Nytheria",
+        "Old names / aliases: Nytheris",
+        "backbone context",
+        "factions pursue goals",
+        "rumors mutate",
+        "NPCs remember",
+        "race, class, origin",
+        "default human doom timeline",
+        "Lore is evidence"
+    )) {
+        Assert-True -Condition ($fixtureText -match [regex]::Escape($phrase)) -Message "Nytheria fixture preserves phrase: $phrase"
+    }
+
+    $outRoot = Join-Path $fixtureRoot ("game-forge-" + [guid]::NewGuid().ToString("N"))
+    try {
+        $blueprintDir = Join-Path $outRoot "blueprints"
+        $systemsDir = Join-Path $outRoot "system-maps"
+        $slicesDir = Join-Path $outRoot "prototype-slices"
+        $researchDir = Join-Path $outRoot "research-prompts"
+        $riskDir = Join-Path $outRoot "risk-reviews"
+        $workOrdersDir = Join-Path $outRoot "work-orders"
+
+        $blueprintResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $blueprintScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-IntakePath", $fixturePath,
+            "-OutDirectory", $blueprintDir
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $blueprintResult.ExitCode -Expected 0 -Message "Game Forge blueprint generator runs"
+        $blueprintPath = Join-Path $blueprintDir "nytheria-engine-blueprint.md"
+        Assert-True -Condition (Test-Path -LiteralPath $blueprintPath) -Message "Game Forge blueprint output exists"
+        $blueprintText = Get-Content -LiteralPath $blueprintPath -Raw
+        foreach ($phrase in @(
+            "Engine Blueprint - Nytheria",
+            "World Clock",
+            "Data Model",
+            "Save/Load Model",
+            "AI Boundaries",
+            "What Not To Build Yet",
+            "Faction Simulator",
+            "God/Faith System",
+            "Rumor System",
+            "NPC Memory",
+            "Lore Canon Layer",
+            "Player Action Ledger"
+        )) {
+            Assert-True -Condition ($blueprintText -match [regex]::Escape($phrase)) -Message "Game Forge blueprint contains phrase: $phrase"
+        }
+
+        $systemsResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $systemsMapScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-IntakePath", $fixturePath,
+            "-OutDirectory", $systemsDir
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $systemsResult.ExitCode -Expected 0 -Message "Game Forge systems map generator runs"
+        $systemsPath = Join-Path $systemsDir "nytheria-systems-map.md"
+        Assert-True -Condition (Test-Path -LiteralPath $systemsPath) -Message "Game Forge systems map output exists"
+        $systemsText = Get-Content -LiteralPath $systemsPath -Raw
+        foreach ($phrase in @("Responsibilities", "Inputs", "Outputs", "Stored state", "Dependencies", "Player actions", "faction goals", "world state snapshots")) {
+            Assert-True -Condition ($systemsText -match [regex]::Escape($phrase)) -Message "Game Forge systems map contains phrase: $phrase"
+        }
+
+        $slicesResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $slicesScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-IntakePath", $fixturePath,
+            "-OutDirectory", $slicesDir
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $slicesResult.ExitCode -Expected 0 -Message "Game Forge prototype slice generator runs"
+        $slicesPath = Join-Path $slicesDir "nytheria-prototype-slices.md"
+        Assert-True -Condition (Test-Path -LiteralPath $slicesPath) -Message "Game Forge prototype slices output exists"
+        $slicesText = Get-Content -LiteralPath $slicesPath -Raw
+        $sliceCount = @([regex]::Matches($slicesText, "(?m)^## Slice \d+")).Count
+        Assert-Equal -Actual $sliceCount -Expected 7 -Message "Game Forge prototype slices creates seven bounded Nytheria slices"
+        foreach ($phrase in @("Text-only world clock prototype", "Faction turn simulator", "Rumor propagation simulation", "NPC memory toy model", "Default timeline / doom clock", "Origin-based opening state generator", "Lore canon registry", "Acceptance criteria", "Codex-ready")) {
+            Assert-True -Condition ($slicesText -match [regex]::Escape($phrase)) -Message "Game Forge prototype slices contains phrase: $phrase"
+        }
+
+        $researchResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $researchScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-IntakePath", $fixturePath,
+            "-OutDirectory", $researchDir
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $researchResult.ExitCode -Expected 0 -Message "Game Forge research prompt generator runs"
+        $researchPath = Join-Path $researchDir "nytheria-research-prompts.md"
+        Assert-True -Condition (Test-Path -LiteralPath $researchPath) -Message "Game Forge research prompts output exists"
+        $researchText = Get-Content -LiteralPath $researchPath -Raw
+        foreach ($phrase in @("Deep Research cannot access local files unless Tim attaches them", "Attach these files", "living-world RPG feasibility", "NPC memory systems", "faction simulation", "technical stack options")) {
+            Assert-True -Condition ($researchText -match [regex]::Escape($phrase)) -Message "Game Forge research prompts contains phrase: $phrase"
+        }
+
+        $riskResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $riskScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-IntakePath", $fixturePath,
+            "-OutDirectory", $riskDir
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $riskResult.ExitCode -Expected 0 -Message "Game Forge risk reviewer runs"
+        $riskPath = Join-Path $riskDir "nytheria-risk-review.md"
+        Assert-True -Condition (Test-Path -LiteralPath $riskPath) -Message "Game Forge risk review output exists"
+        $riskText = Get-Content -LiteralPath $riskPath -Raw
+        foreach ($phrase in @("TOO_BIG", "NEEDS_RESEARCH", "NEEDS_CANON_DECISION", "SAFE_PROTOTYPE", "ENGINE_TRAP", "AI_SCOPE_TRAP", "CONTENT_PIPELINE_RISK", "DATA_MODEL_RISK", "TESTING_GAP", "TIM_DECISION_REQUIRED", "AI rewriting lore", "No save/load model", "Nytheris vs new Nytheria")) {
+            Assert-True -Condition ($riskText -match [regex]::Escape($phrase)) -Message "Game Forge risk review contains phrase: $phrase"
+        }
+
+        $workOrdersResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workOrdersScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-IntakePath", $fixturePath,
+            "-OutDirectory", $workOrdersDir
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $workOrdersResult.ExitCode -Expected 0 -Message "Game Forge work order splitter runs"
+        $workOrdersPath = Join-Path $workOrdersDir "nytheria-game-work-orders.md"
+        Assert-True -Condition (Test-Path -LiteralPath $workOrdersPath) -Message "Game Forge work orders output exists"
+        $workOrdersText = Get-Content -LiteralPath $workOrdersPath -Raw
+        foreach ($phrase in @("Research intake", "Canon schema", "World-state schema", "Toy simulation", "Static prototype UI", "Save/load fixture", "Tests", "Docs", "Acceptance criteria", "Stop conditions")) {
+            Assert-True -Condition ($workOrdersText -match [regex]::Escape($phrase)) -Message "Game Forge work orders contains phrase: $phrase"
+        }
+        Assert-False -Condition ($workOrdersText -match "(?im)^Goal:\s*build\s+(the\s+)?(whole\s+)?engine\b|build whole engine") -Message "Game Forge work orders avoid whole-engine tasks"
+    } finally {
+        Remove-Item -LiteralPath $outRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $docText = Get-Content -LiteralPath $docPath -Raw
+    foreach ($docPhrase in @(
+        "What Game Forge Is",
+        "What Game Forge Is Not",
+        "Nytheria / Nytheris Source Handling",
+        "Evidence",
+        "Approved canon",
+        "Adaptation proposal",
+        "Why Toy Simulations Come First",
+        "Hand Codex one Game Forge work order at a time"
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($docPhrase)) -Message "Game Forge doc contains phrase: $docPhrase"
+    }
+
+    $html = Get-Content -LiteralPath $htmlPath -Raw
+    foreach ($consolePhrase in @(
+        "Game Forge",
+        "Game Project Intake",
+        "Engine Blueprints",
+        "Systems Maps",
+        "Prototype Slices",
+        "Research Prompts",
+        "Risk Reviews",
+        "Game Work Orders",
+        "fleet/status/game-forge/templates/game-project-intake.md",
+        "fleet/status/game-forge/blueprints/",
+        "fleet/status/game-forge/system-maps/",
+        "fleet/status/game-forge/prototype-slices/",
+        "fleet/status/game-forge/research-prompts/",
+        "fleet/status/game-forge/risk-reviews/",
+        "fleet/status/game-forge/work-orders/"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($consolePhrase)) -Message "Fleet Console renders Game Forge section phrase: $consolePhrase"
+    }
+
+    foreach ($forbiddenHtmlPattern in @(
+        '(?i)<\s*(script|iframe|object|embed)\b',
+        '(?i)<\s*form\b',
+        '(?i)\son[a-z]+\s*=',
+        '(?i)javascript\s*:',
+        '(?i)fetch\s*\(',
+        '(?i)XMLHttpRequest',
+        '(?i)<\s*link\b[^>]+\bhref\s*=\s*["'']?\s*(https?:|//)',
+        '(?i)<\s*script\b[^>]+\bsrc\s*=\s*["'']?\s*(https?:|//)'
+    )) {
+        Assert-False -Condition ($html -match $forbiddenHtmlPattern) -Message "Fleet Console Game Forge integration exposes no executable browser hook: $forbiddenHtmlPattern"
+    }
+}
+
 function Test-HqPhoneModeStaticMockSafety {
     $phonePacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\PHONE_MODE_STATIC_MOCK_PACKET.md"
     $decisionPacketPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md"
@@ -20135,6 +20365,7 @@ Test-HqFleetConsoleMockStateSchemaAndFixtures
 Test-HqFleetConsoleStaticPrototypeSafety
 Test-HqTsfDailyDriverPackV1
 Test-HqTsfCoderUpgradePackV1
+Test-HqTsfGameForgeV1
 Test-HqPhoneModeStaticMockSafety
 Test-HqUiSafetyFixtureMatrix
 Test-HqUiSafetyEnforcementTests

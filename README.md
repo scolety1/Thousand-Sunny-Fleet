@@ -14,6 +14,7 @@ When checking the fleet from GitHub, start here:
 - Status guide: `FLEET_REPORTS_README.md`
 - Daily Driver Pack V1: `docs/fleet/TSF_DAILY_DRIVER_PACK_V1.md`
 - Coder Upgrade Pack V1: `docs/fleet/TSF_CODER_UPGRADE_PACK_V1.md`
+- Game Forge V1: `docs/fleet/TSF_GAME_FORGE_V1.md`
 - Quick mission update: `fleet/control/quick-mission.md`
 - Mission control: `fleet/control/mission.md`
 - Emergency stop: `fleet/control/emergency.md`
