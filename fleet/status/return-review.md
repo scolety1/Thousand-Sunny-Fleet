@@ -4,13 +4,13 @@ Generated after the local acceptance QA pass across the six completed/bootstrapp
 
 ## Top recommendation
 
-Continue RepoTriage next. It is the strongest future-coding leverage: the local pasted-input scanner renders, analyzes the sample tree/source snippets, surfaces real finding categories, and can generate an engineering plan.
+Open RepoTriage first if you want a coding force multiplier. It now has a stronger local pasted-input scanner, clearer finding categories, a remediation board, and copy/export markdown reports for future project handoffs.
 
 ## Showable now
 
 | Rank | Project | Acceptance result | Latest relevant commit | Checks |
 | --- | --- | --- | --- | --- |
-| 1 | RepoTriage | Showable local developer tool. Pasted-input scanner is visible, local-only copy is clear, Analyze switches to `local/pasted`, and Generate Plan works. | `f443ed6` | `npm.cmd run build`; `git diff --check` passed |
+| 1 | RepoTriage | Showable local developer tool and now the best next force multiplier. It detects TODO/FIXME, missing tests, risky config, dependency/package signals, suspicious files, docs gaps, and likely entry points from pasted local input. It also shows highest-impact work, safe quick wins, human-decision items, likely checks, and has copy/export report controls. | `c37a2a9` | `npm.cmd run build`; `git diff --check` passed |
 | 2 | PrivateLens | Showable privacy analyzer. Anomaly sensitivity updates the report, local markdown download is present, no browser console errors. | `35ea483` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed |
 | 3 | PromptLab | Showable eval console. CSV import adds a new case with citation coverage assertion, export/run controls are visible, no browser console errors. | `ce53991` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed |
 | 4 | FitTrack | Showable job-search tool after acceptance fix. Pasted resume profile now updates name, target roles, skills, keywords, and fit scoring context. | `f4fd395` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed |
@@ -40,8 +40,7 @@ None. No project needs to be parked from this acceptance pass.
 ## Suggested next Codex prompt
 
 ~~~text
-Run a completion-first polish pass on RepoTriage.
-Keep scope local-only. Focus on making the pasted-input scanner and generated plan feel product-grade.
-Run existing checks and make a local commit if GREEN.
-Do not push, deploy, install packages, run migrations, touch secrets, set remotes, or inspect unrelated projects.
+Use RepoTriage on one real local project.
+I will paste a local file tree/snippets or analysis JSON. Help me identify highest-impact fixes, safe quick wins, human-decision items, likely checks, and likely entry points.
+Keep it local-only. Do not push, deploy, install packages, run migrations, touch secrets, set remotes, or inspect unrelated projects.
 ~~~
