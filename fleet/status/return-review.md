@@ -1,6 +1,6 @@
 ﻿# Return Review
 
-Generated for Tim from TSF-local, read-only state. Keep this short.
+Generated from local TSF status. Short by design.
 
 ## Top recommendation
 
@@ -15,12 +15,12 @@ Open Fleet Console, read What do I do now?, then choose one project and availabi
 ## Ready to approve
 
 - No push, release, deploy, install, migration, secrets, remote access, archived reactivation, or product-repo mutation is ready from this file.
-- TSF-local console or handoff docs can be reviewed after tests pass, but this file does not approve anything by itself.
+- Local TSF console or handoff docs can be reviewed after tests pass, but this file does not approve anything by itself.
 
 ## Done while away
 
 - Routine GREEN work and archived project noise can stay collapsed unless Tim wants details. 16 archived projects remain locked.
-- Status source: public-safe project snapshot. Active/unarchived projects: PrivateLens.
+- Local status shows active/unarchived projects: PrivateLens. Archived projects stay locked.
 
 ## Blocked / unsafe
 
@@ -44,10 +44,9 @@ Validation expectations: run the smallest relevant checks and summarize exact re
 Final report format: verdict, files changed, what changed, tests run, blockers, next safe action, safe-to-commit status.
 ~~~
 
-## Source notes
+## Safety notes
 
-- Fleet mode is REQUEST_ONLY_TRAVEL; supervisor is not running; emergency is none requested. The desktop console has Return Triage and Work Order Library copy/paste prompts.
+- Local status: request-only travel mode; supervisor not running; emergency none requested. The desktop console has Return Triage and Work Order Library copy/paste prompts.
 - Travel posture: phone status and request cockpit only.
-- Projects markdown: available. Contracts: available. Return review docs: documented.
-- Sources: fleet/status/projects.json, fleet/status/current.md, fleet/status/today.md, fleet/status/projects.md, docs/fleet/ui/prototype/fleet-console.html, docs/fleet/ui/prototype/README.md, TSF project-management contract, TSF artifact-intake contract, safe fixture fallback.
+- Based on local fleet status, console docs, project-management guidance, and safe fallback fixtures.
 - Evidence only. No product repo inspection, no archived project reactivation, no proof run, no push, no deploy, no install, no migration, no secrets, no remote access, no hosted UI, and no command-running browser control.

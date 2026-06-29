@@ -60,7 +60,7 @@ function Get-TsfProjectSnapshot {
         return [pscustomobject]@{
             Source = "fleet/status/projects.json"
             Projects = @($snapshot.projects)
-            Note = "public-safe project snapshot"
+            Note = "local project status snapshot"
         }
     }
 
@@ -144,6 +144,9 @@ $fleetMode = Get-TsfStatusLine -Text $currentText -Label "Fleet mode" -Default (
 $supervisor = Get-TsfStatusLine -Text $currentText -Label "Supervisor cycle" -Default (Get-TsfStatusLine -Text $todayText -Label "Supervisor" -Default "unknown")
 $emergency = Get-TsfStatusLine -Text $currentText -Label "Emergency stop" -Default (Get-TsfStatusLine -Text $todayText -Label "Emergency" -Default "unknown")
 $travelPosture = Get-TsfStatusLine -Text $currentText -Label "Travel posture" -Default (Get-TsfStatusLine -Text $todayText -Label "Travel posture" -Default "unknown")
+$fleetModeDisplay = if ($fleetMode -eq "REQUEST_ONLY_TRAVEL") { "request-only travel mode" } else { $fleetMode }
+$supervisorDisplay = if ($supervisor -eq "not running") { "not running" } else { $supervisor }
+$emergencyDisplay = if ($emergency -eq "none requested") { "none requested" } else { $emergency }
 
 $hasConsoleTriage = ($consoleText -match "What do I do now\?") -and ($consoleText -match "Work Order Library")
 $hasReturnReviewDocs = ($consoleReadme -match "return-review.md") -or ($consoleReadme -match "Return Review")
@@ -158,7 +161,7 @@ if ($blockedProjects.Count -gt 0) {
     $topRecommendation = "Review the emergency stop note before starting any work."
 }
 
-$changedLine = "Fleet mode is $fleetMode; supervisor is $supervisor; emergency is $emergency."
+$changedLine = "Local status: $fleetModeDisplay; supervisor $supervisorDisplay; emergency $emergencyDisplay."
 if ($hasConsoleTriage) {
     $changedLine += " The desktop console has Return Triage and Work Order Library copy/paste prompts."
 }
@@ -203,7 +206,7 @@ $contractsState = if ($hasContracts) { "available" } else { "missing" }
 $markdown = @"
 # Return Review
 
-Generated for Tim from TSF-local, read-only state. Keep this short.
+Generated from local TSF status. Short by design.
 
 ## Top recommendation
 
@@ -218,12 +221,12 @@ $topRecommendation
 ## Ready to approve
 
 - $readyLine
-- TSF-local console or handoff docs can be reviewed after tests pass, but this file does not approve anything by itself.
+- Local TSF console or handoff docs can be reviewed after tests pass, but this file does not approve anything by itself.
 
 ## Done while away
 
 - $doneLine
-- Status source: $($snapshot.Note). Active/unarchived projects: $(Format-TsfList -Items $activeProjects -Empty "none shown").
+- Local status shows active/unarchived projects: $(Format-TsfList -Items $activeProjects -Empty "none shown"). Archived projects stay locked.
 
 ## Blocked / unsafe
 
@@ -247,12 +250,11 @@ Validation expectations: run the smallest relevant checks and summarize exact re
 Final report format: verdict, files changed, what changed, tests run, blockers, next safe action, safe-to-commit status.
 ~~~
 
-## Source notes
+## Safety notes
 
 - $changedLine
 - Travel posture: $travelPosture.
-- Projects markdown: $projectsMdState. Contracts: $contractsState. Return review docs: $reviewDocState.
-- $sourceLine.
+- Based on local fleet status, console docs, project-management guidance, and safe fallback fixtures.
 - Evidence only. No product repo inspection, no archived project reactivation, no proof run, no push, no deploy, no install, no migration, no secrets, no remote access, no hosted UI, and no command-running browser control.
 "@
 
