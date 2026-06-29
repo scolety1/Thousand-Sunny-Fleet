@@ -9,7 +9,19 @@ Evidence only; not executable authority or approval.
 TSF Autonomous Project Management V1 upgrades TSF from a one-task control
 layer into a bounded project-management control layer. V1 accepts a project
 brain, project inbox evidence, research/root files, a queue of tasks, and an
-autonomy profile, then produces a Codex work guide and report.
+autonomy profile, then guides Codex toward completed product work inside the
+approved boundaries.
+
+Backbone rule: reports are not the product. Reports prove what got finished.
+
+The completion hierarchy is:
+
+1. Finish the product work.
+2. Keep moving through safe next steps without asking Tim.
+3. Only stop for true blockers.
+4. Make local commits for GREEN completed work when the run explicitly allows
+   local commits.
+5. Leave Tim a concise morning scoreboard after the work is done.
 
 V1 is a control and guidance layer. It does not execute product repo work by
 itself. It does not push, deploy, install packages, run migrations, touch
@@ -54,9 +66,9 @@ V1 supports exactly these autonomy profiles:
 | Profile | Patch authority | Batch behavior | Question behavior |
 | --- | --- | --- | --- |
 | `review_only` | none | inspect one selected review item | report questions |
-| `bounded_implementation` | one eligible task | stop after the selected task validation | ask only true blockers |
-| `batch_implementation` | bounded eligible queue slice | continue across up to five eligible tasks | batch nonurgent questions |
-| `away_safe` | bounded low-risk eligible queue slice | continue across up to three eligible tasks | collect Tim Question Queue |
+| `bounded_implementation` | one eligible completion slice | finish the selected definition of done, then report | ask only true blockers |
+| `batch_implementation` | bounded eligible queue slice | continue across eligible tasks until the batch is GREEN, capped, or truly blocked | batch nonurgent questions |
+| `away_safe` | bounded low-risk eligible queue slice | continue through safe next steps until the selected work is GREEN, capped, or truly blocked | collect Tim Question Queue |
 
 All profiles require one selected project, one selected track, explicit task
 scope, validation commands, and stop conditions. A profile is not approval. It
@@ -83,6 +95,13 @@ as real blockers:
 Nonurgent questions, optional polish choices, and ordinary task-to-task
 bookkeeping are collected in the report when the selected profile allows
 continuation.
+
+Codex should not pause for tiny formatting choices, routine test passes, safe
+local refactors inside approved scope, one task finishing while more safe work
+remains, or cosmetic uncertainty. When Tim's intent is clear, Codex should make
+reasonable product-grade choices itself. If visual or UX uncertainty could
+matter, Codex may produce up to three clearly labeled local options, pick the
+safest default, and continue toward a finished state.
 
 ## Batch Queue Terminal States
 
@@ -119,8 +138,9 @@ The `away_safe` report must use this shape:
 
 The report must include terminal state, autonomy profile, selected tasks,
 validation evidence, blockers, questions for Tim, final boundary confirmations,
-and the next safe action. It must not hide failed validation behind a GREEN
-summary.
+local GREEN commit hashes when present, and the next safe action. It must not
+hide failed validation behind a GREEN summary, and it must not turn Tim's
+morning into a homework pile.
 
 ## Guardrails Preserved
 

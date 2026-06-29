@@ -148,22 +148,22 @@ $fleetModeDisplay = if ($fleetMode -eq "REQUEST_ONLY_TRAVEL") { "request-only tr
 $supervisorDisplay = if ($supervisor -eq "not running") { "not running" } else { $supervisor }
 $emergencyDisplay = if ($emergency -eq "none requested") { "none requested" } else { $emergency }
 
-$hasConsoleTriage = ($consoleText -match "What do I do now\?") -and ($consoleText -match "Work Order Library")
+$hasConsoleTriage = (($consoleText -match "What do I do now\?") -or ($consoleText -match "What got finished\?")) -and ($consoleText -match "Work Order Library")
 $hasReturnReviewDocs = ($consoleReadme -match "return-review.md") -or ($consoleReadme -match "Return Review")
 $hasContracts = (Test-Path -LiteralPath $projectManagementDocPath) -and (Test-Path -LiteralPath $artifactIntakeDocPath)
 $hasFixtureFallback = Test-Path -LiteralPath $fixturePath
 $hasProjectsMd = Test-Path -LiteralPath $projectsMdPath
 
-$topRecommendation = "Open Fleet Console, read What do I do now?, then choose one project and availability: here, busy, or away."
+$topRecommendation = "Review completed GREEN work first, then start the next safe completion run."
 if ($blockedProjects.Count -gt 0) {
-    $topRecommendation = "Resolve the blocked project note before starting another batch."
+    $topRecommendation = "Review the true blocker, then continue another selected safe project if the run allows it."
 } elseif ($emergency -notmatch "none|unknown") {
     $topRecommendation = "Review the emergency stop note before starting any work."
 }
 
-$changedLine = "Local status: $fleetModeDisplay; supervisor $supervisorDisplay; emergency $emergencyDisplay."
+$changedLine = "Local status: $fleetModeDisplay; supervisor $supervisorDisplay; emergency $emergencyDisplay. Reports are proof of completed work, not the product."
 if ($hasConsoleTriage) {
-    $changedLine += " The desktop console has Return Triage and Work Order Library copy/paste prompts."
+    $changedLine += " The desktop console has a completion cockpit and Work Order Library copy/paste prompts."
 }
 
 $readyLine = "No push, release, deploy, install, migration, secrets, remote access, archived reactivation, or product-repo mutation is ready from this file."
@@ -244,10 +244,10 @@ Repo path: <repo path>
 Goal: <plain English goal>
 Files/artifacts: <files, folders, or C:\TSF_INBOX\<project_name>\ artifacts>
 Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.
-Autonomy/availability mode: here | busy | away
+Autonomy/availability mode: here | busy | away | completion_first_sleep_run
 Stop conditions: conflicting source truth, missing approval, unsafe file scope, failed validation that cannot be safely repaired, or any forbidden action.
-Validation expectations: run the smallest relevant checks and summarize exact results.
-Final report format: verdict, files changed, what changed, tests run, blockers, next safe action, safe-to-commit status.
+Validation expectations: keep moving through safe next steps, run relevant local checks, and locally commit GREEN completed work when explicitly allowed.
+Final report format: morning scoreboard by project: DONE, COMMIT, CHECKS, STATUS, TIM REVIEW.
 ~~~
 
 ## Safety notes

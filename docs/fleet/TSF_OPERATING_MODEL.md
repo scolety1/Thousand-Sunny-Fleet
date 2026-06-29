@@ -10,6 +10,36 @@ This document defines Thousand Sunny Fleet / Codex Fleet as a local project-cont
 
 This operating model is architecture/spec guidance only. It does not implement product repo control, live phone command execution, proof runs, push, merge, deploy, package installation, migrations, remote access, secrets handling, all-fleet execution, overnight runners, phone approvals, runtime command binding, or future authority.
 
+Backbone rule: reports are not the product. Reports prove what got finished.
+
+## Completion-First Hierarchy
+
+TSF exists to finish selected product work while Tim is away, not to produce
+triage as the main deliverable. Morning reports, return reviews, scoreboards,
+and console panels are proof and handoff surfaces after the real work is done.
+
+The hierarchy is:
+
+1. Finish the product work.
+2. Keep moving through safe next steps without asking Tim.
+3. Only stop for true blockers.
+4. Make local commits for GREEN completed work when the run explicitly allows
+   local commits.
+5. Leave Tim a concise morning scoreboard after the work is done.
+
+When a selected project's intent is clear, TSF should choose obvious safe
+implementation details itself, make reasonable product-grade choices, and
+continue from one safe task to the next. If visual or UX uncertainty could
+matter, TSF may create up to three clearly labeled local options, choose the
+safest default, and keep pushing toward a finished/showable surface.
+
+TSF should not ask "how did I do?", stop after one small task, or hand Tim a
+homework pile when more selected safe work remains. It should stop for Tim only
+when the next step needs product direction, conflicting source truth resolution,
+publication/release approval, secrets/accounts/API keys, migrations, archived
+project reactivation, off-limits file expansion, or a validation failure that
+cannot be safely repaired.
+
 ## Project Sections
 
 TSF projects and tracks move through explicit sections:
@@ -109,7 +139,7 @@ TSF supports three human-availability modes:
 
 - In-House Mode: Tim is present and actively improving code. TSF may ask questions as they arise, reroute interactively, and work through blockers with Tim while still obeying one project, one track, one task, allowed files, validation, and stop gates.
 - Busy Mode: Tim is partly available. TSF should ask only meaningful blockers, batch questions, continue safe work when possible, and avoid risky work that needs frequent intervention.
-- Away Mode: Tim is away. TSF may run only bounded preapproved assignment-completion loops, never an unbounded overnight runner, stop on YELLOW/RED/BLOCKED, surface blockers to Mobile HQ, and collect non-urgent questions in the Tim Question Queue. Away Mode can work through many internal tasks if they are necessary to finish the current assignment and all stop gates stay GREEN.
+- Away Mode: Tim is away. TSF may run only bounded preapproved assignment-completion loops, never an unbounded overnight runner, stop the current assignment on YELLOW/RED/BLOCKED, surface true blockers to Mobile HQ, and collect non-urgent questions in the Tim Question Queue. Away Mode can work through many internal tasks if they are necessary to finish the current assignment and all stop gates stay GREEN.
 
 Mode changes are routing context, not safety exceptions.
 
@@ -235,6 +265,9 @@ Away Mode:
 - many internal tasks only when required by the assignment definition of done
 - numeric task/commit/time limits are runaway safety fuses only
 - stop after first blocker
+- stop the current assignment after the first true blocker; if the approved run
+  already selected another independent eligible project, record the blocker and
+  continue to that next project
 - no unbounded overnight or all-fleet behavior
 
 Busy Mode may continue safe work and batch questions. In-House Mode may route more interactively but still obeys all hard safety boundaries.
