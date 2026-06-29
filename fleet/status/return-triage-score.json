@@ -1,0 +1,155 @@
+﻿[
+    {
+        "project":  "PrivateLens",
+        "statusColor":  "UNKNOWN",
+        "archived":  false,
+        "classification":  "NEEDS_TIM_NOW",
+        "priority":  20,
+        "reason":  "Tim needs to choose, confirm, or resolve unclear status before work proceeds.",
+        "nextSafeAction":  "Open from desktop to inspect safely."
+    },
+    {
+        "project":  "Bottlelight",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "CursorPets",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "EasyLife",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "EventBook",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "FinanceDecisionLab",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "ForecastLab",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "LifeCapacity",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "LineupLab",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "NinersWarRoom",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "OrderPilot",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "RestaurantDemo",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "RestaurantProfitLab",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "ShiftLedger",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "ShiftPlate",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "Tree",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    },
+    {
+        "project":  "UrbanKitchenSite",
+        "statusColor":  "ARCHIVED",
+        "archived":  true,
+        "classification":  "ARCHIVED_LOCKED",
+        "priority":  60,
+        "reason":  "Archived projects stay locked unless Tim explicitly reactivates them.",
+        "nextSafeAction":  "Leave archived unless Tim reactivates it."
+    }
+]

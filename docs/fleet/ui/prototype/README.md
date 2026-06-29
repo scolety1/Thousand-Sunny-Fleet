@@ -22,6 +22,12 @@ Decision Queue items limited to true human blockers, collapses completed GREEN
 work into a calm "Done while you were away" area, and recommends a Next Best
 Work Session.
 
+Completion-first correction: the console is a scoreboard and control surface,
+not the deliverable. TSF should finish selected product work, continue through
+safe next steps, locally commit GREEN work, and then use this console to prove
+what got done. Triage exists to expose true blockers, not to hand Tim a homework
+pile or stop after one small task.
+
 V3 also adds a read-only static render helper at `tools/render-fleet-console.ps1`.
 The helper can regenerate the static HTML from TSF-local state where available:
 `fleet/status/projects.json`, `fleet/status/projects.md`,
@@ -172,6 +178,19 @@ It reads the same TSF-local status and console sources, plus project-management
 and artifact-intake contracts when present. It does not inspect product repos or
 turn the markdown into approval authority.
 
+Daily Driver Pack V1 adds generated, read-only context files for the daily
+coding flow:
+
+- `fleet/status/project-passports/`
+- `fleet/status/next-session/`
+- `fleet/status/work-orders/`
+- `fleet/status/return-triage-score.md`
+
+The console displays these as quiet supporting outputs below the top return
+cockpit. They help Tim open one passport, one next-session card, one inbox
+summary, and one triage result without treating the browser as an operational
+control surface.
+
 Generated/read-only sources currently shown in the console:
 
 - `fleet/status/projects.json`
@@ -205,6 +224,7 @@ The prototype distinguishes local evidence views from unavailable operational co
 | Back From Work / Return Review | safe display | Shows what changed, what needs Tim, what can be ignored, what is safe to approve, and the recommended next session. |
 | Session Handoff | generated safe display | Points to `fleet/status/return-review.md`, a short plain-language return file with one suggested next prompt. |
 | Read-Only State Prep | generated safe display | Uses TSF-local status/docs/fixture data to refresh static HTML; does not inspect product repos or bind commands. |
+| Daily Driver Pack | generated safe display | Shows project passport, next-session card, work-order inbox, return triage scorer, and deep research intake output locations. |
 | One-click mental model | safe display | Text-only flow for project, inbox files, plain-English goal, availability, and true blockers. |
 | Work Order Library | copy-only display | Work Order Composer V1 prompt templates only; cannot start work, approve actions, or execute checks. |
 | What TSF handles for Tim | safe display | Shows routine coordination TSF should summarize or handle within approved scope. |

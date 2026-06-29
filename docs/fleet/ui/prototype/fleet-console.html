@@ -32,6 +32,7 @@
       <a href="#return-review">Back From Work</a>
       <a href="#session-handoff">Session Handoff</a>
       <a href="#state-source">Read-Only State</a>
+      <a href="#daily-driver">Daily Driver</a>
       <a href="#mental-model">Mental Model</a>
       <a href="#work-orders">Work Orders</a>
       <a href="#tsf-handles">TSF Handles</a>
@@ -60,34 +61,34 @@
     <section class="content" aria-label="Static mock console panels">
       <section id="dashboard" class="panel hero-panel return-cockpit" aria-labelledby="dashboard-title">
         <div class="return-main">
-          <p class="eyebrow">Return Triage</p>
-          <h2 id="dashboard-title">What do I do now?</h2>
-          <p class="return-lede">The console promotes one next action first, then keeps everything else quieter and bucketed by whether Tim is actually needed.</p>
+          <p class="eyebrow">Completion Cockpit</p>
+          <h2 id="dashboard-title">What got finished?</h2>
+          <p class="return-lede">The console should prove completed product work first. Triage exists only to show true blockers and the next safe completion run.</p>
           <article class="primary-action-card" aria-label="Primary recommended action">
-            <span class="action-kind needs-review">Return Review</span>
-            <h3>No urgent product decision - choose the next project and availability</h3>
-            <p>Local status says no supervisor is running, no emergency is requested, and no product project is selected for automatic work.</p>
+            <span class="action-kind needs-review">Morning Scoreboard</span>
+            <h3>Review GREEN commits, then keep building the highest-value selected project</h3>
+            <p>Reports are not the product. Reports prove which product surfaces were finished, checked, and locally committed.</p>
           </article>
           <div class="ranked-list" aria-label="Ranked return triage list">
             <article>
               <span class="rank">#1</span>
               <div>
-                <strong>Needs Tim</strong>
-                <p>Pick the next project and availability: here, busy, or away.</p>
+                <strong>Finished first</strong>
+                <p>Open the completed local commits and showable surfaces before managing the queue.</p>
               </div>
             </article>
             <article>
               <span class="rank">#2</span>
               <div>
-                <strong>Review/approve</strong>
-                <p>Review the local TSF console hardening summary before any next commit.</p>
+                <strong>True blockers</strong>
+                <p>Only product decisions, unsafe scope, failing checks, secrets, deploys, installs, migrations, or missing repo paths need Tim.</p>
               </div>
             </article>
             <article>
               <span class="rank">#3</span>
               <div>
-                <strong>Optional next work</strong>
-                <p>PrivateLens is the only unarchived project; start only if selected.</p>
+                <strong>Keep moving</strong>
+                <p>Safe next batch: if more selected safe work remains, Codex continues and locally commits GREEN work.</p>
               </div>
             </article>
           </div>
@@ -98,12 +99,12 @@
           </div>
           <div class="summary-stack">
             <article>
-              <span>Decision load</span>
-              <strong>1 session choice</strong>
+              <span>Primary goal</span>
+              <strong>finished code</strong>
             </article>
             <article>
-              <span>Ready to review</span>
-              <strong>return handoff</strong>
+              <span>Proof</span>
+              <strong>checks + commits</strong>
             </article>
             <article>
               <span>Safe to ignore</span>
@@ -111,7 +112,7 @@
             </article>
             <article>
               <span>Recommended session</span>
-              <strong>Return review, 5-10 minutes</strong>
+              <strong>completion run</strong>
             </article>
           </div>
         </aside>
@@ -124,7 +125,7 @@
           <p>Choose here, busy, or away before the next packet.</p>
         </article>
         <article class="triage-chip chip-approval">
-          <span>Needs approval</span>
+          <span>Review/approve</span>
           <strong>none live</strong>
           <p>Approval surfaces remain text-only and non-executable.</p>
         </article>
@@ -139,9 +140,9 @@
           <p>Archived projects stay quiet unless reactivated.</p>
         </article>
         <article class="triage-chip chip-next">
-          <span>Safe next batch</span>
+          <span>Optional next work</span>
           <strong>PrivateLens</strong>
-          <p>Eligible only after explicit selected-project scope.</p>
+          <p>Safe next batch only after explicit selected-project scope.</p>
         </article>
         <article class="triage-chip chip-blocked">
           <span>Blocked/unsafe</span>
@@ -248,6 +249,44 @@
         </div>        <!-- TSF_RENDER_STATE_END -->
       </section>
 
+      <section id="daily-driver" class="panel daily-driver-panel" aria-labelledby="daily-driver-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Daily Driver Pack V1</p>
+            <h2 id="daily-driver-title">Project context without making every tool loud</h2>
+          </div>
+          <span class="status-pill">read-only outputs</span>
+        </div>
+        <p class="panel-intro">Use this layer after the top cockpit. It points Codex toward the next safe implementation run; it is not a replacement for completed product work.</p>
+        <div class="daily-driver-grid" aria-label="Daily Driver Pack generated outputs">
+          <article>
+            <span>Project Passports</span>
+            <strong>fleet/status/project-passports/</strong>
+            <p>One small passport per TSF project with purpose, status, guardrails, blockers, and next safe work.</p>
+          </article>
+          <article>
+            <span>Next Session Cards</span>
+            <strong>fleet/status/next-session/</strong>
+            <p>Short Tim-facing cards for active or selected projects. Open this before copying a work order.</p>
+          </article>
+          <article>
+            <span>Work Order Inbox</span>
+            <strong>fleet/status/work-orders/</strong>
+            <p>Summarizes C:\TSF_INBOX\&lt;project_name&gt;\ folders by file names only and keeps research as evidence, not authority.</p>
+          </article>
+          <article>
+            <span>Return Triage Scorer</span>
+            <strong>fleet/status/return-triage-score.md</strong>
+            <p>Classifies projects as NEEDS_TIM_NOW, READY_TO_APPROVE, BLOCKED, SAFE_TO_IGNORE, NEXT_SAFE_BATCH, or ARCHIVED_LOCKED.</p>
+          </article>
+          <article>
+            <span>Deep Research Intake</span>
+            <strong>00_ROOT_CONTEXT / 01_DEEP_RESEARCH</strong>
+            <p>Root files and research stay reference-only until Tim selects one bounded project, scope, validation, and stop conditions.</p>
+          </article>
+        </div>
+      </section>
+
       <section id="mental-model" class="panel mental-model-panel" aria-labelledby="mental-model-title">
         <p class="eyebrow">One-click mental model</p>
         <h2 id="mental-model-title">How Tim controls the fleet without remembering the system</h2>
@@ -280,7 +319,7 @@ Off-limits: product repos unless selected, archived projects unless reactivated,
 Autonomy/availability mode: here / bounded_implementation
 Stop conditions: missing source truth, unsafe scope, failed validation that cannot be repaired safely.
 Validation expectations: run the smallest relevant checks and summarize exact results.
-Final report format: verdict, files changed, tests run, blockers, next safe action.</pre>
+Final report format: completed work, local commit if GREEN, checks, blockers, next safe completion step.</pre>
           </article>
           <article>
             <h3>Busy mode work</h3>
@@ -291,8 +330,8 @@ Files/artifacts: &lt;approved files or artifacts&gt;
 Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, proof runs.
 Autonomy/availability mode: busy / batch_implementation
 Stop conditions: true blocker, scope expansion, risky approval, repeated failed validation.
-Validation expectations: run targeted checks after each safe batch when practical.
-Final report format: return report with completed, tested, changed, blocked, and next session.</pre>
+Validation expectations: run targeted checks after each safe batch when practical; commit GREEN completed work.
+Final report format: scoreboard with DONE, COMMIT, CHECKS, STATUS, and only real Tim decisions.</pre>
           </article>
           <article>
             <h3>Away-safe work</h3>
@@ -304,8 +343,8 @@ Files/artifacts: &lt;approved files, docs, or C:\TSF_INBOX\&lt;project_name&gt;\
 Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, command-running browser controls.
 Autonomy/availability mode: away / away_safe
 Stop conditions: product direction choice, conflicting source truth, missing approval, unsafe file expansion, unrepaired test failure.
-Validation expectations: run safe local checks; batch nonurgent questions for the return report.
-Final report format: top recommendation, needs Tim, done while away, blocked/unsafe, next best work session.</pre>
+Validation expectations: keep moving through safe next steps; run local checks; commit GREEN work; batch nonurgent questions.
+Final report format: morning scoreboard by project: DONE, COMMIT, CHECKS, STATUS, TIM REVIEW.</pre>
           </article>
           <article>
             <h3>Deep research/root file intake</h3>
@@ -372,12 +411,13 @@ Final report format: approve/hold recommendation, risks, required human words, a
 
       <section id="tsf-handles" class="panel quiet-panel" aria-labelledby="tsf-handles-title">
         <p class="eyebrow">What TSF handles for Tim</p>
-        <h2 id="tsf-handles-title">Routine coordination should not become homework</h2>
+        <h2 id="tsf-handles-title">TSF should finish work, not hand Tim homework</h2>
         <div class="handler-grid" aria-label="What TSF handles for Tim guidance">
           <span>task packet creation</span>
           <span>project status review</span>
           <span>safe local implementation</span>
           <span>tests/checks</span>
+          <span>local GREEN commits</span>
           <span>return report</span>
           <span>blocker classification</span>
           <span>next recommended batch</span>

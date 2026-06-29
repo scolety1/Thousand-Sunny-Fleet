@@ -16616,6 +16616,196 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     }
 }
 
+function Test-HqTsfDailyDriverPackV1 {
+    $helperPath = Join-Path $fleetRoot "tools\codex-fleet-daily-driver.ps1"
+    $packScriptPath = Join-Path $fleetRoot "tools\write-daily-driver-pack.ps1"
+    $passportScriptPath = Join-Path $fleetRoot "tools\write-project-passports.ps1"
+    $nextSessionScriptPath = Join-Path $fleetRoot "tools\write-next-session-cards.ps1"
+    $workOrderScriptPath = Join-Path $fleetRoot "tools\write-work-order-inbox.ps1"
+    $triageScriptPath = Join-Path $fleetRoot "tools\write-return-triage-score.ps1"
+    $docPath = Join-Path $fleetRoot "docs\fleet\TSF_DAILY_DRIVER_PACK_V1.md"
+    $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+    $fixtureInboxRoot = Join-Path $fleetRoot "tests\fixtures\fleet\daily-driver\TSF_INBOX"
+
+    foreach ($path in @($helperPath, $packScriptPath, $passportScriptPath, $nextSessionScriptPath, $workOrderScriptPath, $triageScriptPath, $docPath, $htmlPath, $fixtureInboxRoot)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Daily Driver Pack V1 input exists: $path"
+    }
+
+    $scriptText = @(
+        (Get-Content -LiteralPath $helperPath -Raw),
+        (Get-Content -LiteralPath $packScriptPath -Raw),
+        (Get-Content -LiteralPath $passportScriptPath -Raw),
+        (Get-Content -LiteralPath $nextSessionScriptPath -Raw),
+        (Get-Content -LiteralPath $workOrderScriptPath -Raw),
+        (Get-Content -LiteralPath $triageScriptPath -Raw)
+    ) -join "`n"
+    foreach ($forbiddenOperation in @(
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "git -C",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($scriptText -match [regex]::Escape($forbiddenOperation)) -Message "Daily Driver scripts avoid forbidden operation: $forbiddenOperation"
+    }
+
+    $outRoot = Join-Path $fixtureRoot ("daily-driver-" + [guid]::NewGuid().ToString("N"))
+    $passportDir = Join-Path $outRoot "project-passports"
+    $nextSessionDir = Join-Path $outRoot "next-session"
+    $workOrderDir = Join-Path $outRoot "work-orders"
+    $triagePath = Join-Path $outRoot "return-triage-score.md"
+    $triageJsonPath = Join-Path $outRoot "return-triage-score.json"
+
+    try {
+        $passportResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $passportScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $passportDir,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $passportResult.ExitCode -Expected 0 -Message "Project passport generator runs"
+        $passportPath = Join-Path $passportDir "privatelens.md"
+        Assert-True -Condition (Test-Path -LiteralPath $passportPath) -Message "Project passport output exists"
+        $passportText = Get-Content -LiteralPath $passportPath -Raw
+        foreach ($phrase in @(
+            "Project Passport - PrivateLens",
+            "Project name: PrivateLens",
+            "Status: active",
+            "Off-Limits / Guardrails",
+            "Next Safe Work"
+        )) {
+            Assert-True -Condition ($passportText -match [regex]::Escape($phrase)) -Message "Project passport output contains phrase: $phrase"
+        }
+
+        $nextSessionResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $nextSessionScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $nextSessionDir,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $nextSessionResult.ExitCode -Expected 0 -Message "Next Session Card generator runs"
+        $nextSessionPath = Join-Path $nextSessionDir "privatelens.md"
+        Assert-True -Condition (Test-Path -LiteralPath $nextSessionPath) -Message "Next Session Card output exists"
+        $nextSessionText = Get-Content -LiteralPath $nextSessionPath -Raw
+        foreach ($phrase in @(
+            "Next Session Card - PrivateLens",
+            "What Needs Tim",
+            "What Codex Can Do Next",
+            "Suggested Work Order",
+            "What Can Wait"
+        )) {
+            Assert-True -Condition ($nextSessionText -match [regex]::Escape($phrase)) -Message "Next Session Card output contains phrase: $phrase"
+        }
+
+        $workOrderResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workOrderScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $workOrderDir,
+            "-InboxRoot", $fixtureInboxRoot,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $workOrderResult.ExitCode -Expected 0 -Message "Work Order Inbox Normalizer runs"
+        $workOrderPath = Join-Path $workOrderDir "privatelens-work-order.md"
+        Assert-True -Condition (Test-Path -LiteralPath $workOrderPath) -Message "Work Order Inbox output exists"
+        $workOrderText = Get-Content -LiteralPath $workOrderPath -Raw
+        foreach ($phrase in @(
+            "C:\TSF_INBOX\<project_name>\",
+            "00_ROOT_CONTEXT",
+            "01_DEEP_RESEARCH",
+            "02_DECISIONS",
+            "03_TASK_REQUESTS",
+            "04_OUTPUTS_FROM_CODEX",
+            "Root context and deep research are evidence, not authority.",
+            "Approved Decisions",
+            "approved-direction.md",
+            "Open Questions",
+            "open-question.md",
+            "Generated Codex Work Order Draft"
+        )) {
+            Assert-True -Condition ($workOrderText -match [regex]::Escape($phrase)) -Message "Work Order Inbox output contains phrase: $phrase"
+        }
+
+        $triageResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $triageScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutFile", $triagePath,
+            "-JsonOutFile", $triageJsonPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $triageResult.ExitCode -Expected 0 -Message "Return Triage Scorer runs"
+        Assert-True -Condition (Test-Path -LiteralPath $triagePath) -Message "Return Triage Scorer Markdown exists"
+        Assert-True -Condition (Test-Path -LiteralPath $triageJsonPath) -Message "Return Triage Scorer JSON exists"
+        $triageText = Get-Content -LiteralPath $triagePath -Raw
+        foreach ($classification in @("NEEDS_TIM_NOW", "READY_TO_APPROVE", "BLOCKED", "SAFE_TO_IGNORE", "NEXT_SAFE_BATCH", "ARCHIVED_LOCKED")) {
+            Assert-True -Condition (($triageText -match [regex]::Escape($classification)) -or ($scriptText -match [regex]::Escape($classification))) -Message "Return Triage Scorer knows classification: $classification"
+        }
+        $triageJson = @(Get-Content -LiteralPath $triageJsonPath -Raw | ConvertFrom-Json | ForEach-Object { $_ })
+        $archivedProject = @($triageJson | Where-Object { [string]$_.project -eq "EasyLife" })[0]
+        Assert-Equal -Actual ([string]$archivedProject.classification) -Expected "ARCHIVED_LOCKED" -Message "Archived projects classify as ARCHIVED_LOCKED"
+        Assert-True -Condition ([string]$archivedProject.nextSafeAction -match "Leave archived") -Message "Archived projects are not actionable"
+
+        . $helperPath
+        $syntheticCases = @(
+            @{ item = [pscustomobject]@{ name = "Archive"; archived = $true; statusColor = "ARCHIVED"; note = "" }; expected = "ARCHIVED_LOCKED" },
+            @{ item = [pscustomobject]@{ name = "Blocked"; archived = $false; statusColor = "RED"; note = "deploy risk" }; expected = "BLOCKED" },
+            @{ item = [pscustomobject]@{ name = "Ready"; archived = $false; statusColor = "GREEN"; note = "ready to approve" }; expected = "READY_TO_APPROVE" },
+            @{ item = [pscustomobject]@{ name = "Needs"; archived = $false; statusColor = "UNKNOWN"; note = "needs Tim decision" }; expected = "NEEDS_TIM_NOW" },
+            @{ item = [pscustomobject]@{ name = "Ignore"; archived = $false; statusColor = "PARKED"; note = "safe to ignore" }; expected = "SAFE_TO_IGNORE" },
+            @{ item = [pscustomobject]@{ name = "Next"; archived = $false; statusColor = "YELLOW"; note = "active momentum" }; expected = "NEXT_SAFE_BATCH" }
+        )
+        foreach ($case in $syntheticCases) {
+            $classification = Resolve-DailyDriverTriageClassification -Item $case.item
+            Assert-Equal -Actual ([string]$classification.classification) -Expected $case.expected -Message "Return Triage Scorer emits expected classification $($case.expected)"
+        }
+    } finally {
+        Remove-Item -LiteralPath $outRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $docText = Get-Content -LiteralPath $docPath -Raw
+    foreach ($docPhrase in @(
+        "Morning / after work",
+        "Open the recommended Next Session Card",
+        "Starting a new project",
+        "Put research/root files in",
+        "Returning after Codex worked while away",
+        "Research and root context files are evidence, not authority",
+        "Archived projects must remain"
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($docPhrase)) -Message "Daily Driver doc preserves flow phrase: $docPhrase"
+    }
+
+    $html = Get-Content -LiteralPath $htmlPath -Raw
+    foreach ($consolePhrase in @(
+        "Daily Driver Pack V1",
+        "Project Passports",
+        "Next Session Cards",
+        "Work Order Inbox",
+        "Return Triage Scorer",
+        "Deep Research Intake",
+        "fleet/status/project-passports/",
+        "fleet/status/next-session/",
+        "fleet/status/work-orders/",
+        "fleet/status/return-triage-score.md"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($consolePhrase)) -Message "Fleet Console renders Daily Driver section phrase: $consolePhrase"
+    }
+
+    foreach ($forbiddenHtmlPattern in @(
+        '(?i)<\s*(script|iframe|object|embed)\b',
+        '(?i)<\s*form\b',
+        '(?i)\son[a-z]+\s*=',
+        '(?i)javascript\s*:',
+        '(?i)fetch\s*\(',
+        '(?i)XMLHttpRequest',
+        '(?i)<\s*link\b[^>]+\bhref\s*=\s*["'']?\s*(https?:|//)',
+        '(?i)<\s*script\b[^>]+\bsrc\s*=\s*["'']?\s*(https?:|//)'
+    )) {
+        Assert-False -Condition ($html -match $forbiddenHtmlPattern) -Message "Fleet Console Daily Driver integration exposes no executable browser hook: $forbiddenHtmlPattern"
+    }
+}
+
 function Test-HqPhoneModeStaticMockSafety {
     $phonePacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\PHONE_MODE_STATIC_MOCK_PACKET.md"
     $decisionPacketPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md"
@@ -19718,6 +19908,7 @@ Test-HqGreenExternalAuditRecordRegressionGuard
 Test-HqFleetConsolePrototypePacketSchemaAndFixtures
 Test-HqFleetConsoleMockStateSchemaAndFixtures
 Test-HqFleetConsoleStaticPrototypeSafety
+Test-HqTsfDailyDriverPackV1
 Test-HqPhoneModeStaticMockSafety
 Test-HqUiSafetyFixtureMatrix
 Test-HqUiSafetyEnforcementTests

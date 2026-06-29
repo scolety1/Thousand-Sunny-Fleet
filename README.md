@@ -12,6 +12,7 @@ When checking the fleet from GitHub, start here:
 - Phone HQ security model: `docs/fleet/PHONE_HQ_SECURITY_MODEL.md`
 - Hosted mobile dashboard source: `docs/index.html`
 - Status guide: `FLEET_REPORTS_README.md`
+- Daily Driver Pack V1: `docs/fleet/TSF_DAILY_DRIVER_PACK_V1.md`
 - Quick mission update: `fleet/control/quick-mission.md`
 - Mission control: `fleet/control/mission.md`
 - Emergency stop: `fleet/control/emergency.md`
