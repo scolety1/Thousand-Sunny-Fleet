@@ -1,52 +1,52 @@
-﻿# Return Review
+# Return Review
 
-Generated from local TSF status. Short by design.
+Generated from the 2026-06-29 sleep batch. Short by design.
 
 ## Top recommendation
 
-Open Fleet Console, read What do I do now?, then choose one project and availability: here, busy, or away.
+Review the two local commits first: Tree mobile nav polish, then PrivateLens anomaly sensitivity controls.
 
 ## Needs Tim
 
-- Choose the next project.
-- Choose availability: here, busy, or away.
-- Decide any product direction, conflicting source truth, release/push/deploy approval, secrets/accounts/API keys, migration, archived reactivation, or off-limits file expansion.
+- Decide whether the Tree and PrivateLens local commits should be kept, adjusted, or parked.
+- PromptLab still needs a real repo path before TSF can work on it.
+- FitTrack needs a git-backed repo path before TSF can safely commit work.
 
 ## Ready to approve
 
-- No push, release, deploy, install, migration, secrets, remote access, archived reactivation, or product-repo mutation is ready from this file.
-- Local TSF console or handoff docs can be reviewed after tests pass, but this file does not approve anything by itself.
+- Family Tree App: `afc1953b062bb2da77b509b72df5ce20e6f447be` tightened mobile nav chrome.
+- PrivateLens: `2ac79f7874628de4763da321a49be6eea818e418` added local anomaly sensitivity controls.
 
 ## Done while away
 
-- Routine GREEN work and archived project noise can stay collapsed unless Tim wants details. 16 archived projects remain locked.
-- Local status shows active/unarchived projects: PrivateLens. Archived projects stay locked.
+- Tree: completed one bounded UI/QA polish item from the current queue. Checks passed: project static check and `git diff --check`. `npm run check` was unavailable because Tree has no `package.json`.
+- PrivateLens: completed one bounded privacy/data-analysis fallback improvement. Checks passed: `npm run build`, `npm run lint`, and `git diff --check`.
 
 ## Blocked / unsafe
 
-- Unsafe work remains blocked: product repos without selection, archived projects without reactivation, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, and command-running browser controls.
+- PromptLab: BLOCKED because no repo path was found in TSF registry, C:\TSF_INBOX, C:\Dev, or Codex output exact-name search.
+- FitTrack: BLOCKED because discovered local folders are not git repos.
+- Push, deploy, Firebase deploy, production writes, installs, package upgrades, migrations, secrets, remote access, all-fleet commands, background daemons, and non-selected project mutation did not happen.
+- Evidence only: this handoff does not approve push, deploy, release, archived reactivation, or scope expansion.
+
+## Safe to ignore for now
+
+- Archived-project noise outside the selected sleep batch.
+- FitTrack/PromptLab details until Tim provides repo paths.
 
 ## Next best work session
 
-Quick review, 5-10 minutes. Read Fleet Console first, skim this file if needed, then send one bounded work order.
+Quick review, 10 minutes. Open Tree and PrivateLens diffs/commits, then decide whether to continue with one selected project.
 
 ## Suggested next Codex prompt
 
 ~~~text
-Project: <project name>
-Repo path: <repo path>
-Goal: <plain English goal>
-Files/artifacts: <files, folders, or C:\TSF_INBOX\<project_name>\ artifacts>
-Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.
-Autonomy/availability mode: here | busy | away
-Stop conditions: conflicting source truth, missing approval, unsafe file scope, failed validation that cannot be safely repaired, or any forbidden action.
-Validation expectations: run the smallest relevant checks and summarize exact results.
-Final report format: verdict, files changed, what changed, tests run, blockers, next safe action, safe-to-commit status.
+Review the TSF sleep batch.
+
+Controller repo:
+C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet
+
+Please inspect the Tree commit afc1953b062bb2da77b509b72df5ce20e6f447be and the PrivateLens commit 2ac79f7874628de4763da321a49be6eea818e418, summarize what changed, and tell me whether either needs follow-up before I approve any push.
+
+Do not push, deploy, install, run migrations, touch secrets, use remote access, run all-fleet, or reactivate archived projects.
 ~~~
-
-## Safety notes
-
-- Local status: request-only travel mode; supervisor not running; emergency none requested. The desktop console has Return Triage and Work Order Library copy/paste prompts.
-- Travel posture: phone status and request cockpit only.
-- Based on local fleet status, console docs, project-management guidance, and safe fallback fixtures.
-- Evidence only. No product repo inspection, no archived project reactivation, no proof run, no push, no deploy, no install, no migration, no secrets, no remote access, no hosted UI, and no command-running browser control.
