@@ -1,39 +1,47 @@
-# Completion-First Morning Scoreboard
+# Product Acceptance QA Scoreboard
 
-Generated after the local non-git bootstrap and completion continuation pass. Short by design.
+Generated after the local acceptance QA pass across the six completed/bootstrapped projects.
 
 ## Top recommendation
 
-Open RepoTriage first. It now has a local pasted-input scanner that turns file trees or source snippets into TODO/FIXME, type-safety, dependency, and likely test-gap findings with a remediation plan. That is the biggest direct reduction in future repo confusion.
+Continue RepoTriage next. It is the strongest future-coding leverage: the local pasted-input scanner renders, analyzes the sample tree/source snippets, surfaces real finding categories, and can generate an engineering plan.
 
-## Project scoreboard
+## Showable now
 
-| Project | DONE | BASELINE | PRODUCT COMMIT | CHECKS | STATUS | TIM REVIEW |
-| --- | --- | --- | --- | --- | --- | --- |
-| TSF controller | Reconciled the unrelated Game Forge WIP as an already-created local TSF commit, then updated this morning scoreboard. | n/a | `1173c69` plus this status update | `git diff --check`; `tests/run-fleet-tests.ps1` run for this handoff | GREEN before scoreboard edit | Review only if you want to inspect the Game Forge checkpoint. |
-| PromptLab | Bootstrapped the intended app folder as a git repo, then added CSV/JSON eval case import, assertion type selection, and latest-run JSON export. | `de7705e` | `ce53991` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed | GREEN / showable | Try import/export and keep if the workflow feels right. |
-| FitTrack | Bootstrapped the intended app folder as a git repo, then added editable/pasteable resume profile flow that recalculates job-fit scoring. | `b1e8161` | `5efaded` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed | GREEN / showable | Paste a current resume and review the scoring. |
-| Personal Site / Portfolio | Bootstrapped `C:\Dev\coletylabs-site`, then added a public-safe builder/current-work section to the homepage. | `f538fba` | `110b362` | static HTML sanity; `git diff --check` passed | GREEN / showable | Open `C:\Dev\coletylabs-site\index.html` and decide if the public positioning is right. |
-| RepoTriage | Bootstrapped the intended app folder, then replaced mock-only tree analysis with a real local pasted-input scanner and clearer local-only UI copy. | `d0263ae` | `f443ed6` | `npm.cmd run build`; `git diff --check` passed; no lint script exists | GREEN / showable | Open this first for future-coding leverage. |
-| Family Tree App | Carried forward previous GREEN app polish from the completion-first sleep run. | existing repo | `ed86052` | `scripts/codex-static-check.ps1`; `git diff --check` passed in prior run | GREEN / showable | Optional review. |
-| PrivateLens | Carried forward previous GREEN local markdown privacy report export work. | existing repo | `35ea483` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed in prior run | GREEN / showable | Optional review. |
+| Rank | Project | Acceptance result | Latest relevant commit | Checks |
+| --- | --- | --- | --- | --- |
+| 1 | RepoTriage | Showable local developer tool. Pasted-input scanner is visible, local-only copy is clear, Analyze switches to `local/pasted`, and Generate Plan works. | `f443ed6` | `npm.cmd run build`; `git diff --check` passed |
+| 2 | PrivateLens | Showable privacy analyzer. Anomaly sensitivity updates the report, local markdown download is present, no browser console errors. | `35ea483` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed |
+| 3 | PromptLab | Showable eval console. CSV import adds a new case with citation coverage assertion, export/run controls are visible, no browser console errors. | `ce53991` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed |
+| 4 | FitTrack | Showable job-search tool after acceptance fix. Pasted resume profile now updates name, target roles, skills, keywords, and fit scoring context. | `f4fd395` | `npm.cmd run build`; `npm.cmd run lint`; `git diff --check` passed |
+| 5 | Personal Site / Portfolio | Showable static Colety Labs site. Builder/current-work section and public-safe boundary render; static links passed sanity check. | `110b362` | static HTML sanity; static link sanity; `git diff --check` passed |
+
+## Needs one more polish pass
+
+| Project | Why |
+| --- | --- |
+| Family Tree App | The completed empty-search polish works and the search page has no browser console errors. For full demo readiness, do one more app-level pass with intended auth/data fixtures and route preview, because local static serving cannot exercise Vercel clean-route rewrites or real family-tree data flow. |
+
+## Parked
+
+None. No project needs to be parked from this acceptance pass.
+
+## Fixes made during QA
+
+- FitTrack: `f4fd395 Fix resume paste profile parsing`
+  - Normal pasted resume text now updates the profile name and target roles instead of only skills/keywords.
 
 ## What can be ignored
 
-- The old "not a git repo" blocker is resolved for PromptLab, FitTrack, Personal Site / Portfolio, and RepoTriage.
-- The package/output/scaffold copies remain non-canonical and should stay ignored unless Tim explicitly promotes one.
-- Archived projects stayed untouched.
-- No push, deploy, install, migration, secrets, remote access, all-fleet command, or background daemon happened.
-
-## What is ready to approve
-
-- Local commits are ready for Tim review in each bootstrapped repo.
-- Nothing is ready to push until Tim does a separate push-readiness review and explicitly approves it.
+- The old non-git blocker is resolved for PromptLab, FitTrack, Personal Site / Portfolio, and RepoTriage.
+- Non-canonical package/output/scaffold copies should still be ignored unless Tim explicitly promotes one.
+- No push, deploy, install, migration, secrets, remote access, all-fleet command, background daemon, or unrelated project mutation happened.
 
 ## Suggested next Codex prompt
 
 ~~~text
-Run a showability review of RepoTriage, PromptLab, FitTrack, and the Colety Labs site.
-Open each local app/site, verify the latest local commits, and tell me what to keep, adjust, or park.
+Run a completion-first polish pass on RepoTriage.
+Keep scope local-only. Focus on making the pasted-input scanner and generated plan feel product-grade.
+Run existing checks and make a local commit if GREEN.
 Do not push, deploy, install packages, run migrations, touch secrets, set remotes, or inspect unrelated projects.
 ~~~
