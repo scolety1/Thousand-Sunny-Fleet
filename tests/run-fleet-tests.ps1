@@ -16389,6 +16389,7 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "fleet/status/projects.json",
         "fleet/status/current.md",
         "fleet/status/today.md",
+        "request-only travel mode",
         "Archived projects remain visibly locked",
         "Work Order Library",
         "Away-safe work session",
@@ -16418,6 +16419,7 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Off-limits:",
         "Validation expectations:",
         "Final report format:",
+        "request-only travel mode",
         "Evidence only"
     )) {
         Assert-True -Condition ($generatedReturnReview -match [regex]::Escape($generatedReturnPhrase)) -Message "Generated return review includes V1 phrase: $generatedReturnPhrase"

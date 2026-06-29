@@ -137,6 +137,7 @@ $unknownProjects = @($projects | Where-Object { [string]$_.statusColor -eq "UNKN
 $archivedSummary = if ($totalProjects -gt 0) { "$totalProjects projects / $archivedProjects archived locked" } else { "fixture fallback / archived locked" }
 $activeSummary = if ($activeProjects -eq 1) { "1 unarchived project" } else { "$activeProjects unarchived projects" }
 $fleetMode = Get-TsfStatusLine -Text $currentText -Label "Fleet mode" -Default "unknown"
+$fleetModeDisplay = if ($fleetMode -eq "REQUEST_ONLY_TRAVEL") { "request-only travel mode" } else { $fleetMode }
 $supervisor = Get-TsfStatusLine -Text $currentText -Label "Supervisor cycle" -Default (Get-TsfStatusLine -Text $todayText -Label "Supervisor" -Default "unknown")
 $emergency = Get-TsfStatusLine -Text $currentText -Label "Emergency stop" -Default (Get-TsfStatusLine -Text $todayText -Label "Emergency" -Default "unknown")
 
@@ -161,7 +162,7 @@ $stateHtml = @"
           </article>
           <article>
             <span>Fleet mode</span>
-            <strong>$(ConvertTo-TsfHtml $fleetMode)</strong>
+            <strong>$(ConvertTo-TsfHtml $fleetModeDisplay)</strong>
             <p>Supervisor: $(ConvertTo-TsfHtml $supervisor). Emergency: $(ConvertTo-TsfHtml $emergency). Evidence only, not command authority.</p>
           </article>
           <article>
