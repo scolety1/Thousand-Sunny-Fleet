@@ -12,16 +12,16 @@ Open PrivateLens first. It now has a local markdown report export and is the mos
 | --- | --- | --- | --- | --- | --- |
 | TSF controller | Rewrote the autonomous backbone so TSF finishes product work first, keeps moving through safe next steps, commits GREEN work when allowed, and treats reports as proof. | `4c13098` | `git diff --check`; `tests/run-fleet-tests.ps1` passed | GREEN | Review doctrine wording when convenient. |
 | Family Tree App | Improved empty-tree search: clear no-relatives state, direct add-person link back to the tree, and less instruction-fragment copy. | `ed86052` | `git diff --check`; `scripts/codex-static-check.ps1` passed | GREEN / showable | Review the search page if you want to keep the UX. |
-| PromptLab | Resolved local path, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
-| FitTrack | Resolved local path, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
+| PromptLab | Found `C:\Users\codex-agent\Documents\Codex\2026-06-10\i-have-30-percent-of-my\work\promptlab`, but it is not a git repo, so clean-state verification and local commit are not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide the canonical git repo path or approve a git bootstrap later. |
+| FitTrack | Confirmed `work\fittrack` and `outputs\fittrack` under the Codex 2026-06-10 folder, but neither is a git repo. | none | `git status --short` failed: not a git repository | BLOCKED | Provide the canonical git repo path or approve a git bootstrap later. |
 | PrivateLens | Added a browser-only local report panel with downloadable markdown summary of privacy posture, dataset stats, insights, anomalies, and import warnings. | `35ea483` | `git diff --check`; `npm.cmd run build`; `npm.cmd run lint` passed | GREEN / showable | Open the app and try the Local report download. |
-| Personal Site / Portfolio | Resolved `C:\Dev\coletylabs-site`, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
-| RepoTriage | Resolved local app folder, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
+| Personal Site / Portfolio | Confirmed `C:\Dev\coletylabs-site` plus a Codex static scaffold, but neither is a git repo. | none | `git status --short` failed: not a git repository | BLOCKED | Provide the canonical git repo path or approve a git bootstrap later. |
+| RepoTriage | Found `C:\Users\codex-agent\Documents\Codex\2026-06-10\build-a-polished-mvp-called-repotriage`, but it is not a git repo. | none | `git status --short` failed: not a git repository | BLOCKED | Provide the canonical git repo path or approve a git bootstrap later. |
 
 ## What can be ignored
 
 - Archived project noise stayed locked.
-- No action is needed for PromptLab, FitTrack, Personal Site, or RepoTriage until their real git repo paths are confirmed.
+- No action is needed for PromptLab, FitTrack, Personal Site, or RepoTriage until their real git repo paths are confirmed or Tim approves repo bootstrap.
 - No push/release/deploy/install/migration/secrets/remote work happened.
 
 ## Suggested next Codex prompt
