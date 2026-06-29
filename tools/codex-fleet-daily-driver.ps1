@@ -412,24 +412,38 @@ function New-DailyDriverNextSessionLines {
 
     $name = [string]$Project.name
     $state = Get-DailyDriverProjectState -Project $Project
-    $needsTim = if ($state -eq "archived") {
-        "Tim must explicitly reactivate this archived project before any work."
-    } elseif ([string]$Project.statusColor -eq "UNKNOWN") {
-        "Choose whether to inspect this project from desktop and pick availability: here, busy, or away."
-    } else {
-        "Choose the next bounded goal and availability."
-    }
-    $codexNext = if ($state -eq "archived") {
-        "Codex can only summarize existing TSF-local status; no project work."
-    } else {
-        "Codex should execute bounded selected-project work until the product surface is finished, GREEN, locally committed, or truly blocked."
-    }
-    $wait = if ($state -eq "archived") { "Everything else; archived work stays quiet." } else { "Archived projects, broad proof runs, publication, deployment, installs, migrations, secrets, and remote access." }
     $statusColor = Format-DailyDriverValue -Value $Project.statusColor -Default "UNKNOWN"
     $branch = Format-DailyDriverValue -Value $Project.branch -Default "unknown"
     $cleanState = Format-DailyDriverValue -Value $Project.cleanState -Default "unknown"
     $latestNote = Format-DailyDriverValue -Value $Project.note -Default "No specific status note recorded."
     $repoPath = Format-DailyDriverValue -Value $Project.repo -Default "<repo path>"
+    $needsTim = if ($state -eq "archived") {
+        "Tim must explicitly reactivate this archived project before any work."
+    } elseif ($statusColor -eq "UNKNOWN") {
+        "Decide whether to approve read-only repo inspection on this desktop. TSF-local status is UNKNOWN and says: $latestNote Until Tim approves that inspection, stay inside TSF outputs."
+    } else {
+        "Choose the next bounded goal and availability."
+    }
+    $codexNext = if ($state -eq "archived") {
+        "Codex can only summarize existing TSF-local status; no project work."
+    } elseif ($statusColor -eq "UNKNOWN") {
+        "Codex can reconcile TSF-local status, return review, passport, triage, and inbox evidence, then draft the exact read-only inspection request. It must stop before opening the product repo."
+    } else {
+        "Codex can prepare or execute one bounded, selected-project work order after Tim names the goal and allowed scope."
+    }
+    $wait = if ($state -eq "archived") { "Everything else; archived work stays quiet." } else { "Archived projects, broad proof runs, publication, deployment, installs, migrations, secrets, and remote access." }
+    $workOrderGoal = if ($statusColor -eq "UNKNOWN") {
+        "Use TSF-local Daily Driver files to explain why this project needs Tim, reconcile the unclear status, and draft the exact read-only repo-inspection approval request; do not open the product repo."
+    } else {
+        "<plain English goal>"
+    }
+    $repoAccessLine = if ($state -eq "archived") {
+        "Do not open this product repo; archived projects remain locked."
+    } elseif ($statusColor -eq "UNKNOWN") {
+        "Stop before product repo access: Tim must explicitly approve read-only inspection of this selected repo path on this desktop."
+    } else {
+        "Product repo access still requires selected-project scope and exact allowed files."
+    }
 
     return @(
         "# Next Session Card - $name",
@@ -438,9 +452,10 @@ function New-DailyDriverNextSessionLines {
         "",
         "## Open This First",
         "",
-        "- Fleet Console: docs/fleet/ui/prototype/fleet-console.html",
-        "- Passport: fleet/status/project-passports/$($Project.slug).md",
-        "- Return review: fleet/status/return-review.md",
+        "- First after Fleet Console: this card, fleet/status/next-session/$($Project.slug).md",
+        "- Then: fleet/status/return-review.md for the latest handoff context.",
+        "- Then: fleet/status/project-passports/$($Project.slug).md for repo path, status, guardrails, blockers, and validation hints.",
+        "- Stop before product repo access until Tim explicitly approves read-only inspection for this selected project.",
         "",
         "## Current Status",
         "",
@@ -461,18 +476,20 @@ function New-DailyDriverNextSessionLines {
         "~~~text",
         "Project: $name",
         "Repo path: $repoPath",
-        "Goal: finish the selected product work, not just inspect or report.",
+        "Goal: $workOrderGoal",
         "Files/artifacts: fleet/status/project-passports/$($Project.slug).md; fleet/status/next-session/$($Project.slug).md; optional C:\TSF_INBOX\$name\ files named by Tim",
-        "Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.",
-        "Autonomy/availability mode: here | busy | away | completion_first_sleep_run",
-        "Stop conditions: conflicting source truth, missing approval, unsafe file scope, failed validation that cannot be safely repaired, or any forbidden action.",
-        "Validation expectations: keep moving through safe next steps, run relevant checks, and locally commit GREEN work.",
-        "Final report format: morning scoreboard with DONE, COMMIT, CHECKS, STATUS, and TIM REVIEW only for true decisions.",
+        "Product repo access: $repoAccessLine",
+        "Off-limits: product repo mutation unless a later bounded work order names exact allowed files, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.",
+        "Autonomy/availability mode: here | busy | away",
+        "Stop conditions: need to inspect the product repo before Tim approves read-only inspection, need to mutate product files before exact allowed files are named, conflicting source truth, unsafe scope, failed validation that cannot be safely repaired, or any forbidden action.",
+        "Validation expectations: run only TSF-local checks unless Tim approves selected-project validation.",
+        "Final report format: verdict, what Tim needs to decide, files read, blockers, next safe action, safe-to-commit status.",
         "~~~",
         "",
         "## Stop Conditions",
         "",
-        "- Product repo inspection is required before Tim selects the project.",
+        "- Product repo inspection is required before Tim explicitly approves read-only inspection for this selected project.",
+        "- Product repo mutation is required before exact allowed files are named in a later bounded work order.",
         "- Archived reactivation, push, deploy, install, migration, secrets, remote access, proof run, or all-fleet execution is requested.",
         "- Validation fails and the repair is outside the approved TSF-local scope.",
         "",
@@ -621,6 +638,16 @@ function New-DailyDriverWorkOrderLines {
     $missing = Format-DailyDriverList -Items $Summary.missingFolders -Empty "none"
     $taskFiles = Format-DailyDriverList -Items $Summary.taskRequestFiles -Empty "none found"
     $repoPath = Format-DailyDriverValue -Value $Project.repo -Default "<repo path>"
+    $sourceCaution = if ([string]$Summary.sourceKind -eq "safe fixture fallback") {
+        "Safe fixture fallback means this proves the folder shape only; it is not authority for real product work."
+    } else {
+        "Use these inbox file names as evidence only until Tim selects scope and authority."
+    }
+    $draftGoal = if ([string]$Summary.sourceKind -eq "safe fixture fallback") {
+        "Turn one task request from $taskFiles into a bounded plan and list the exact approval needed before product repo inspection; do not patch $name."
+    } else {
+        "Turn one task request from $taskFiles into a bounded implementation plan after Tim approves selected repo scope."
+    }
 
     return @(
         "# Work Order Inbox Summary - $name",
@@ -648,6 +675,7 @@ function New-DailyDriverWorkOrderLines {
         "- Root context and deep research are evidence, not authority.",
         "- Outputs from Codex are evidence and must not approve future work.",
         "- Research can inform a bounded task only after Tim selects the project, scope, validation, and stop conditions.",
+        "- $sourceCaution",
         "",
         "## Approved Decisions",
         "",
@@ -659,7 +687,7 @@ function New-DailyDriverWorkOrderLines {
         "",
         "## Suggested Implementation Tasks",
         "",
-        "- Convert named task requests into a bounded completion run that keeps going through safe next steps.",
+        "- Convert named task requests into a bounded Codex work order; if product repo inspection is needed, stop and ask Tim for explicit read-only approval first.",
         "- Keep research/root files read-only unless Tim approves exact output files.",
         "",
         "## Generated Codex Work Order Draft",
@@ -667,13 +695,14 @@ function New-DailyDriverWorkOrderLines {
         "~~~text",
         "Project: $name",
         "Repo path: $repoPath",
-        "Goal: finish the selected product work from $taskFiles, not just inspect or report.",
+        "Goal: $draftGoal",
         "Files/artifacts: $($Summary.projectPath); fleet/status/project-passports/$($Project.slug).md; fleet/status/next-session/$($Project.slug).md",
-        "Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.",
-        "Autonomy/availability mode: here | busy | away | completion_first_sleep_run",
-        "Stop conditions: conflicting source truth, missing approval, unsafe file scope, failed validation that cannot be safely repaired, or any forbidden action.",
-        "Validation expectations: keep moving through safe next steps, run relevant checks, and locally commit GREEN work.",
-        "Final report format: morning scoreboard with DONE, COMMIT, CHECKS, STATUS, and TIM REVIEW only for true decisions.",
+        "Product repo access: stop and ask Tim before opening the product repo; mutation remains off-limits unless a later bounded task names exact allowed files.",
+        "Off-limits: product repo mutation without exact allowed files, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.",
+        "Autonomy/availability mode: here | busy | away",
+        "Stop conditions: conflicting source truth, missing approval for read-only repo inspection, unsafe file scope, failed validation that cannot be safely repaired, or any forbidden action.",
+        "Validation expectations: run only TSF-local checks unless Tim approves selected-project validation.",
+        "Final report format: verdict, what Tim needs to decide, files read, blockers, next safe action, safe-to-commit status.",
         "~~~"
     )
 }
@@ -780,7 +809,13 @@ function Write-DailyDriverTriageScore {
             classification = [string]$classification.classification
             priority = [int]$classification.priority
             reason = [string]$classification.reason
-            nextSafeAction = if ([bool]$project.archived) { "Leave archived unless Tim reactivates it." } else { Format-DailyDriverValue -Value $project.nextRecommendedAction -Default "Choose one bounded work order." }
+            nextSafeAction = if ([bool]$project.archived) {
+                "Leave archived unless Tim reactivates it."
+            } elseif ([string]$classification.classification -eq "NEEDS_TIM_NOW" -and [string]$project.statusColor -eq "UNKNOWN") {
+                "Open fleet/status/next-session/$($project.slug).md first; decide whether to approve read-only repo inspection on this desktop."
+            } else {
+                Format-DailyDriverValue -Value $project.nextRecommendedAction -Default "Choose one bounded work order."
+            }
         }
     }
 

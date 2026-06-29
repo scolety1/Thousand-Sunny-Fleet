@@ -6,7 +6,7 @@
         "classification":  "NEEDS_TIM_NOW",
         "priority":  20,
         "reason":  "Tim needs to choose, confirm, or resolve unclear status before work proceeds.",
-        "nextSafeAction":  "Open from desktop to inspect safely."
+        "nextSafeAction":  "Open fleet/status/next-session/privatelens.md first; decide whether to approve read-only repo inspection on this desktop."
     },
     {
         "project":  "Bottlelight",

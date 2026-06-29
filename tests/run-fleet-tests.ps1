@@ -16693,6 +16693,9 @@ function Test-HqTsfDailyDriverPackV1 {
         foreach ($phrase in @(
             "Next Session Card - PrivateLens",
             "What Needs Tim",
+            "read-only repo inspection",
+            "Stop before product repo access",
+            "do not open the product repo",
             "What Codex Can Do Next",
             "Suggested Work Order",
             "What Can Wait"
@@ -16719,11 +16722,14 @@ function Test-HqTsfDailyDriverPackV1 {
             "03_TASK_REQUESTS",
             "04_OUTPUTS_FROM_CODEX",
             "Root context and deep research are evidence, not authority.",
+            "Safe fixture fallback means this proves the folder shape only",
             "Approved Decisions",
             "approved-direction.md",
             "Open Questions",
             "open-question.md",
-            "Generated Codex Work Order Draft"
+            "Generated Codex Work Order Draft",
+            "do not patch PrivateLens",
+            "stop and ask Tim before opening the product repo"
         )) {
             Assert-True -Condition ($workOrderText -match [regex]::Escape($phrase)) -Message "Work Order Inbox output contains phrase: $phrase"
         }
@@ -16738,6 +16744,7 @@ function Test-HqTsfDailyDriverPackV1 {
         Assert-True -Condition (Test-Path -LiteralPath $triagePath) -Message "Return Triage Scorer Markdown exists"
         Assert-True -Condition (Test-Path -LiteralPath $triageJsonPath) -Message "Return Triage Scorer JSON exists"
         $triageText = Get-Content -LiteralPath $triagePath -Raw
+        Assert-True -Condition ($triageText -match [regex]::Escape("Open fleet/status/next-session/privatelens.md first; decide whether to approve read-only repo inspection on this desktop.")) -Message "Return Triage Scorer gives concrete PrivateLens read-only inspection decision"
         foreach ($classification in @("NEEDS_TIM_NOW", "READY_TO_APPROVE", "BLOCKED", "SAFE_TO_IGNORE", "NEXT_SAFE_BATCH", "ARCHIVED_LOCKED")) {
             Assert-True -Condition (($triageText -match [regex]::Escape($classification)) -or ($scriptText -match [regex]::Escape($classification))) -Message "Return Triage Scorer knows classification: $classification"
         }
