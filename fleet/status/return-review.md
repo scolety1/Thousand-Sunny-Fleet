@@ -1,52 +1,33 @@
-﻿# Return Review
+# Completion-First Morning Scoreboard
 
-Generated from local TSF status. Short by design.
+Generated after the local sleep-run build pass. Short by design.
 
 ## Top recommendation
 
-Review completed GREEN work first, then start the next safe completion run.
+Open PrivateLens first. It now has a local markdown report export and is the most immediately showable product improvement from this run.
 
-## Needs Tim
+## Project scoreboard
 
-- Choose the next project.
-- Choose availability: here, busy, or away.
-- Decide any product direction, conflicting source truth, release/push/deploy approval, secrets/accounts/API keys, migration, archived reactivation, or off-limits file expansion.
+| Project | DONE | COMMIT | CHECKS | STATUS | TIM REVIEW |
+| --- | --- | --- | --- | --- | --- |
+| TSF controller | Rewrote the autonomous backbone so TSF finishes product work first, keeps moving through safe next steps, commits GREEN work when allowed, and treats reports as proof. | `4c13098` | `git diff --check`; `tests/run-fleet-tests.ps1` passed | GREEN | Review doctrine wording when convenient. |
+| Family Tree App | Improved empty-tree search: clear no-relatives state, direct add-person link back to the tree, and less instruction-fragment copy. | `ed86052` | `git diff --check`; `scripts/codex-static-check.ps1` passed | GREEN / showable | Review the search page if you want to keep the UX. |
+| PromptLab | Resolved local path, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
+| FitTrack | Resolved local path, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
+| PrivateLens | Added a browser-only local report panel with downloadable markdown summary of privacy posture, dataset stats, insights, anomalies, and import warnings. | `35ea483` | `git diff --check`; `npm.cmd run build`; `npm.cmd run lint` passed | GREEN / showable | Open the app and try the Local report download. |
+| Personal Site / Portfolio | Resolved `C:\Dev\coletylabs-site`, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
+| RepoTriage | Resolved local app folder, but it is not a git repo, so clean-state verification and local commit were not safe. | none | `git status --short` failed: not a git repository | BLOCKED | Provide/confirm the git repo path. |
 
-## Ready to approve
+## What can be ignored
 
-- No push, release, deploy, install, migration, secrets, remote access, archived reactivation, or product-repo mutation is ready from this file.
-- Local TSF console or handoff docs can be reviewed after tests pass, but this file does not approve anything by itself.
-
-## Done while away
-
-- Routine GREEN work and archived project noise can stay collapsed unless Tim wants details. 16 archived projects remain locked.
-- Local status shows active/unarchived projects: PrivateLens. Archived projects stay locked.
-
-## Blocked / unsafe
-
-- Unsafe work remains blocked: product repos without selection, archived projects without reactivation, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, and command-running browser controls.
-
-## Next best work session
-
-Quick review, 5-10 minutes. Read Fleet Console first, skim this file if needed, then send one bounded work order.
+- Archived project noise stayed locked.
+- No action is needed for PromptLab, FitTrack, Personal Site, or RepoTriage until their real git repo paths are confirmed.
+- No push/release/deploy/install/migration/secrets/remote work happened.
 
 ## Suggested next Codex prompt
 
 ~~~text
-Project: <project name>
-Repo path: <repo path>
-Goal: <plain English goal>
-Files/artifacts: <files, folders, or C:\TSF_INBOX\<project_name>\ artifacts>
-Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, proof runs, command-running browser controls.
-Autonomy/availability mode: here | busy | away | completion_first_sleep_run
-Stop conditions: conflicting source truth, missing approval, unsafe file scope, failed validation that cannot be safely repaired, or any forbidden action.
-Validation expectations: keep moving through safe next steps, run relevant local checks, and locally commit GREEN completed work when explicitly allowed.
-Final report format: morning scoreboard by project: DONE, COMMIT, CHECKS, STATUS, TIM REVIEW.
+Run a completion-first review of PrivateLens and Family Tree App.
+Open the local commits, verify the product surfaces, and tell me whether to keep, adjust, or park them.
+Do not push, deploy, install, migrate, touch secrets, or inspect unrelated projects.
 ~~~
-
-## Safety notes
-
-- Local status: request-only travel mode; supervisor not running; emergency none requested. Reports are proof of completed work, not the product. The desktop console has a completion cockpit and Work Order Library copy/paste prompts.
-- Travel posture: phone status and request cockpit only.
-- Based on local fleet status, console docs, project-management guidance, and safe fallback fixtures.
-- Evidence only. No product repo inspection, no archived project reactivation, no proof run, no push, no deploy, no install, no migration, no secrets, no remote access, no hosted UI, and no command-running browser control.
