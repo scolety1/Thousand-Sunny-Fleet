@@ -33,6 +33,7 @@
       <a href="#session-handoff">Session Handoff</a>
       <a href="#state-source">Read-Only State</a>
       <a href="#daily-driver">Daily Driver</a>
+      <a href="#coder-upgrade">Coder Upgrade</a>
       <a href="#mental-model">Mental Model</a>
       <a href="#work-orders">Work Orders</a>
       <a href="#tsf-handles">TSF Handles</a>
@@ -283,6 +284,49 @@
             <span>Deep Research Intake</span>
             <strong>00_ROOT_CONTEXT / 01_DEEP_RESEARCH</strong>
             <p>Root files and research stay reference-only until Tim selects one bounded project, scope, validation, and stop conditions.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="coder-upgrade" class="panel coder-upgrade-panel" aria-labelledby="coder-upgrade-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Coder Upgrade Tools</p>
+            <h2 id="coder-upgrade-title">Better prompts, calmer reviews, smaller tasks</h2>
+          </div>
+          <span class="status-pill">optional helpers</span>
+        </div>
+        <p class="panel-intro">Use these after the top return triage and Daily Driver card. They help Tim code faster without turning the browser into a control surface.</p>
+        <div class="coder-upgrade-grid" aria-label="Coder Upgrade Pack generated outputs">
+          <article>
+            <span>Repo X-Ray</span>
+            <strong>fleet/status/repo-xray/</strong>
+            <p>Repo understanding cards from TSF-local metadata only: purpose, known entrypoints, tests, risk zones, and a safe understanding prompt.</p>
+          </article>
+          <article>
+            <span>Context Pack Builder</span>
+            <strong>fleet/status/context-packs/</strong>
+            <p>Compact Codex context with source-truth files, approved decisions, open questions, guardrails, task candidates, and validation expectations.</p>
+          </article>
+          <article>
+            <span>Diff Risk Reviewer</span>
+            <strong>fleet/status/diff-risk-review.md</strong>
+            <p>Classifies local TSF diffs as LOW, MEDIUM, HIGH, or BLOCKED before commit approval.</p>
+          </article>
+          <article>
+            <span>Bug Journal / Lessons Learned</span>
+            <strong>fleet/status/coding-lessons/lessons-learned.md</strong>
+            <p>Short lessons that turn bugs and repairs into future checks Tim can reuse.</p>
+          </article>
+          <article>
+            <span>Spec-to-Work-Orders Splitter</span>
+            <strong>fleet/status/work-order-splits/</strong>
+            <p>Turns messy goals into 3 to 7 bounded, testable Codex work orders with stop conditions.</p>
+          </article>
+          <article>
+            <span>Stuck-State Playbooks</span>
+            <strong>fleet/status/stuck-playbooks/</strong>
+            <p>Calm recovery paths for failing tests, dirty trees, unclear direction, missing files, forbidden actions, and too-large scope.</p>
           </article>
         </div>
       </section>

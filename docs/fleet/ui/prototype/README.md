@@ -191,6 +191,20 @@ cockpit. They help Tim open one passport, one next-session card, one inbox
 summary, and one triage result without treating the browser as an operational
 control surface.
 
+Coder Upgrade Pack V1 adds optional, generated coding helpers:
+
+- `fleet/status/repo-xray/`
+- `fleet/status/context-packs/`
+- `fleet/status/diff-risk-review.md`
+- `fleet/status/coding-lessons/lessons-learned.md`
+- `fleet/status/work-order-splits/`
+- `fleet/status/stuck-playbooks/`
+
+The console shows these below Daily Driver as a quiet support section. They help
+Tim understand a repo, improve Codex prompts, review diff risk, split messy
+goals, and recover from stuck states. They remain markdown evidence only and do
+not inspect product repos or expose executable controls.
+
 Generated/read-only sources currently shown in the console:
 
 - `fleet/status/projects.json`
@@ -225,6 +239,7 @@ The prototype distinguishes local evidence views from unavailable operational co
 | Session Handoff | generated safe display | Points to `fleet/status/return-review.md`, a short plain-language return file with one suggested next prompt. |
 | Read-Only State Prep | generated safe display | Uses TSF-local status/docs/fixture data to refresh static HTML; does not inspect product repos or bind commands. |
 | Daily Driver Pack | generated safe display | Shows project passport, next-session card, work-order inbox, return triage scorer, and deep research intake output locations. |
+| Coder Upgrade Tools | generated safe display | Shows repo x-rays, context packs, diff risk review, coding lessons, work-order splits, and stuck-state playbooks. |
 | One-click mental model | safe display | Text-only flow for project, inbox files, plain-English goal, availability, and true blockers. |
 | Work Order Library | copy-only display | Work Order Composer V1 prompt templates only; cannot start work, approve actions, or execute checks. |
 | What TSF handles for Tim | safe display | Shows routine coordination TSF should summarize or handle within approved scope. |

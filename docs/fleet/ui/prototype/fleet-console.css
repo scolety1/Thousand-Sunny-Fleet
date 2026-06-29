@@ -359,6 +359,7 @@ a:focus-visible {
 .return-review-grid span,
 .state-source-grid span,
 .daily-driver-grid span,
+.coder-upgrade-grid span,
 .away-grid span,
 .brain-grid span,
 .evidence-grid span,
@@ -485,6 +486,7 @@ a:focus-visible {
 .return-review-grid,
 .state-source-grid,
 .daily-driver-grid,
+.coder-upgrade-grid,
 .session-handoff-grid,
 .project-triage-grid {
   display: grid;
@@ -497,6 +499,7 @@ a:focus-visible {
 .return-review-grid article,
 .state-source-grid article,
 .daily-driver-grid article,
+.coder-upgrade-grid article,
 .session-handoff-grid article,
 .project-card {
   display: grid;
@@ -521,8 +524,27 @@ a:focus-visible {
   background: #fbfdf9;
 }
 
+.coder-upgrade-panel {
+  border-color: #d5d1c4;
+  background: #fcfbf7;
+}
+
 .daily-driver-grid article {
   border-left: 5px solid var(--green);
+}
+
+.coder-upgrade-grid article {
+  border-left: 5px solid var(--yellow);
+}
+
+.coder-upgrade-grid article:nth-child(2),
+.coder-upgrade-grid article:nth-child(5) {
+  border-left-color: var(--green);
+}
+
+.coder-upgrade-grid article:nth-child(3),
+.coder-upgrade-grid article:nth-child(6) {
+  border-left-color: var(--blue);
 }
 
 .daily-driver-grid article:nth-child(2),
@@ -918,6 +940,7 @@ a:focus-visible {
   .return-review-grid,
   .state-source-grid,
   .daily-driver-grid,
+  .coder-upgrade-grid,
   .session-handoff-grid,
   .mental-steps,
   .work-order-grid,
@@ -951,6 +974,7 @@ a:focus-visible {
   .return-review-grid,
   .state-source-grid,
   .daily-driver-grid,
+  .coder-upgrade-grid,
   .session-handoff-grid,
   .mental-steps,
   .work-order-grid,

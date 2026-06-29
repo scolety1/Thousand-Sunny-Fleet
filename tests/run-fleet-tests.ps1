@@ -16806,6 +16806,224 @@ function Test-HqTsfDailyDriverPackV1 {
     }
 }
 
+function Test-HqTsfCoderUpgradePackV1 {
+    $helperPath = Join-Path $fleetRoot "tools\codex-fleet-coder-upgrade.ps1"
+    $packScriptPath = Join-Path $fleetRoot "tools\write-coder-upgrade-pack.ps1"
+    $diffScriptPath = Join-Path $fleetRoot "tools\write-diff-risk-review.ps1"
+    $xrayScriptPath = Join-Path $fleetRoot "tools\write-repo-xray.ps1"
+    $contextScriptPath = Join-Path $fleetRoot "tools\write-context-packs.ps1"
+    $splitScriptPath = Join-Path $fleetRoot "tools\write-work-order-splits.ps1"
+    $playbookScriptPath = Join-Path $fleetRoot "tools\write-stuck-playbooks.ps1"
+    $lessonsScriptPath = Join-Path $fleetRoot "tools\write-coding-lessons.ps1"
+    $docPath = Join-Path $fleetRoot "docs\fleet\TSF_CODER_UPGRADE_PACK_V1.md"
+    $htmlPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+    $fixtureRootPath = Join-Path $fleetRoot "tests\fixtures\fleet\coder-upgrade"
+    $fixtureInboxRoot = Join-Path $fleetRoot "tests\fixtures\fleet\daily-driver\TSF_INBOX"
+
+    foreach ($path in @($helperPath, $packScriptPath, $diffScriptPath, $xrayScriptPath, $contextScriptPath, $splitScriptPath, $playbookScriptPath, $lessonsScriptPath, $docPath, $htmlPath, $fixtureRootPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Coder Upgrade Pack V1 input exists: $path"
+    }
+
+    $scriptText = @(
+        (Get-Content -LiteralPath $helperPath -Raw),
+        (Get-Content -LiteralPath $packScriptPath -Raw),
+        (Get-Content -LiteralPath $diffScriptPath -Raw),
+        (Get-Content -LiteralPath $xrayScriptPath -Raw),
+        (Get-Content -LiteralPath $contextScriptPath -Raw),
+        (Get-Content -LiteralPath $splitScriptPath -Raw),
+        (Get-Content -LiteralPath $playbookScriptPath -Raw),
+        (Get-Content -LiteralPath $lessonsScriptPath -Raw)
+    ) -join "`n"
+    foreach ($forbiddenOperation in @(
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "git -C",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($scriptText -match [regex]::Escape($forbiddenOperation)) -Message "Coder Upgrade scripts avoid forbidden operation: $forbiddenOperation"
+    }
+
+    $outRoot = Join-Path $fixtureRoot ("coder-upgrade-" + [guid]::NewGuid().ToString("N"))
+    $xrayDir = Join-Path $outRoot "repo-xray"
+    $contextDir = Join-Path $outRoot "context-packs"
+    $splitDir = Join-Path $outRoot "work-order-splits"
+    $playbookDir = Join-Path $outRoot "stuck-playbooks"
+    $lessonsPath = Join-Path $outRoot "coding-lessons\lessons-learned.md"
+
+    try {
+        foreach ($case in @(
+            @{ name = "low"; expected = "LOW" },
+            @{ name = "medium"; expected = "MEDIUM" },
+            @{ name = "high"; expected = "HIGH" },
+            @{ name = "blocked"; expected = "BLOCKED" }
+        )) {
+            $diffPath = Join-Path $outRoot "diff-risk-$($case.name).md"
+            $diffResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+                "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $diffScriptPath,
+                "-FleetRoot", $fleetRoot,
+                "-OutFile", $diffPath,
+                "-FixtureCase", $case.name
+            ) -TimeoutSeconds 30
+            Assert-Equal -Actual $diffResult.ExitCode -Expected 0 -Message "Diff Risk Reviewer runs fixture case $($case.name)"
+            $diffText = Get-Content -LiteralPath $diffPath -Raw
+            Assert-True -Condition ($diffText -match "Risk level: $($case.expected)") -Message "Diff Risk Reviewer classifies $($case.name) as $($case.expected)"
+            Assert-True -Condition ($diffText -match "Files Changed" -and $diffText -match "Recommended validation" -and $diffText -match "Human approval needed" -and $diffText -match "Suggested commit message") -Message "Diff Risk Reviewer reports required sections for $($case.name)"
+        }
+
+        . $helperPath
+        $blocked = Resolve-CoderUpgradeDiffRisk -ChangedFiles @("docs\fleet\deploy-plan.md") -DiffText "requires secrets and archived project reactivation"
+        Assert-Equal -Actual ([string]$blocked.riskLevel) -Expected "BLOCKED" -Message "Forbidden actions classify as BLOCKED"
+
+        $xrayResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $xrayScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $xrayDir,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $xrayResult.ExitCode -Expected 0 -Message "Repo X-Ray generator runs"
+        $xrayPath = Join-Path $xrayDir "privatelens.md"
+        Assert-True -Condition (Test-Path -LiteralPath $xrayPath) -Message "Repo X-Ray output exists"
+        $xrayText = Get-Content -LiteralPath $xrayPath -Raw
+        foreach ($phrase in @(
+            "Repo X-Ray - PrivateLens",
+            "Project name: PrivateLens",
+            "Repo path if known",
+            "Status:",
+            "Risk Zones / Off-Limits",
+            "Suggested Codex Prompt"
+        )) {
+            Assert-True -Condition ($xrayText -match [regex]::Escape($phrase)) -Message "Repo X-Ray output contains phrase: $phrase"
+        }
+
+        $contextResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $contextScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $contextDir,
+            "-InboxRoot", $fixtureInboxRoot,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $contextResult.ExitCode -Expected 0 -Message "Context Pack Builder runs"
+        $contextPath = Join-Path $contextDir "privatelens-context-pack.md"
+        Assert-True -Condition (Test-Path -LiteralPath $contextPath) -Message "Context Pack output exists"
+        $contextText = Get-Content -LiteralPath $contextPath -Raw
+        foreach ($phrase in @(
+            "Context Pack - PrivateLens",
+            "Source-Truth Files",
+            "Approved Decisions",
+            "approved-direction.md",
+            "Open Questions",
+            "open-question.md",
+            "Guardrails",
+            "Validation Expectations"
+        )) {
+            Assert-True -Condition ($contextText -match [regex]::Escape($phrase)) -Message "Context Pack output contains phrase: $phrase"
+        }
+
+        $splitResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $splitScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $splitDir,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $splitResult.ExitCode -Expected 0 -Message "Spec-to-Work-Orders Splitter runs"
+        $splitPath = Join-Path $splitDir "privatelens-split.md"
+        Assert-True -Condition (Test-Path -LiteralPath $splitPath) -Message "Work-order split output exists"
+        $splitText = Get-Content -LiteralPath $splitPath -Raw
+        $taskCount = @([regex]::Matches($splitText, "(?m)^### Task \d+")).Count
+        Assert-True -Condition ($taskCount -ge 3 -and $taskCount -le 7) -Message "Spec-to-Work-Orders creates 3 to 7 bounded tasks"
+        foreach ($phrase in @("Acceptance criteria", "Off-limits", "Stop conditions", "Validation commands", "Final Report Format")) {
+            Assert-True -Condition ($splitText -match [regex]::Escape($phrase)) -Message "Work-order split output contains phrase: $phrase"
+        }
+
+        $playbookResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $playbookScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutDirectory", $playbookDir,
+            "-ProjectName", "PrivateLens"
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $playbookResult.ExitCode -Expected 0 -Message "Stuck-State Playbook generator runs"
+        $playbookPath = Join-Path $playbookDir "privatelens-stuck-playbook.md"
+        Assert-True -Condition (Test-Path -LiteralPath $playbookPath) -Message "Stuck-State Playbook output exists"
+        $playbookText = Get-Content -LiteralPath $playbookPath -Raw
+        foreach ($phrase in @(
+            "Stuck-State Playbook - PrivateLens",
+            "failing tests",
+            "dirty working tree",
+            "archived project boundary",
+            "forbidden action requirement",
+            "Safe next checks",
+            "When Tim is required",
+            "Suggested prompt to continue"
+        )) {
+            Assert-True -Condition ($playbookText -match [regex]::Escape($phrase)) -Message "Stuck-State Playbook output contains phrase: $phrase"
+        }
+
+        $lessonsResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $lessonsScriptPath,
+            "-FleetRoot", $fleetRoot,
+            "-OutFile", $lessonsPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $lessonsResult.ExitCode -Expected 0 -Message "Bug Journal generator runs"
+        Assert-True -Condition (Test-Path -LiteralPath $lessonsPath) -Message "Bug Journal output exists"
+        $lessonsText = Get-Content -LiteralPath $lessonsPath -Raw
+        foreach ($phrase in @("Problem:", "Cause:", "Fix:", "How to catch earlier next time:", "Test/check to add:", "Applies to which projects/tools:")) {
+            Assert-True -Condition ($lessonsText -match [regex]::Escape($phrase)) -Message "Bug Journal output contains phrase: $phrase"
+        }
+    } finally {
+        Remove-Item -LiteralPath $outRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $docText = Get-Content -LiteralPath $docPath -Raw
+    foreach ($docPhrase in @(
+        "Before Coding",
+        "Open Repo X-Ray for the project",
+        "During Coding",
+        "Use Spec-to-Work-Orders when the goal is messy",
+        "Use Stuck-State Playbook when blocked",
+        "After Coding",
+        "Add or update Bug Journal lesson",
+        "Diff Risk Reviewer"
+    )) {
+        Assert-True -Condition ($docText -match [regex]::Escape($docPhrase)) -Message "Coder Upgrade doc preserves flow phrase: $docPhrase"
+    }
+
+    $html = Get-Content -LiteralPath $htmlPath -Raw
+    foreach ($consolePhrase in @(
+        "Coder Upgrade Tools",
+        "Repo X-Ray",
+        "Context Pack Builder",
+        "Diff Risk Reviewer",
+        "Bug Journal / Lessons Learned",
+        "Spec-to-Work-Orders Splitter",
+        "Stuck-State Playbooks",
+        "fleet/status/repo-xray/",
+        "fleet/status/context-packs/",
+        "fleet/status/diff-risk-review.md",
+        "fleet/status/coding-lessons/lessons-learned.md",
+        "fleet/status/work-order-splits/",
+        "fleet/status/stuck-playbooks/"
+    )) {
+        Assert-True -Condition ($html -match [regex]::Escape($consolePhrase)) -Message "Fleet Console renders Coder Upgrade section phrase: $consolePhrase"
+    }
+
+    foreach ($forbiddenHtmlPattern in @(
+        '(?i)<\s*(script|iframe|object|embed)\b',
+        '(?i)<\s*form\b',
+        '(?i)\son[a-z]+\s*=',
+        '(?i)javascript\s*:',
+        '(?i)fetch\s*\(',
+        '(?i)XMLHttpRequest',
+        '(?i)<\s*link\b[^>]+\bhref\s*=\s*["'']?\s*(https?:|//)',
+        '(?i)<\s*script\b[^>]+\bsrc\s*=\s*["'']?\s*(https?:|//)'
+    )) {
+        Assert-False -Condition ($html -match $forbiddenHtmlPattern) -Message "Fleet Console Coder Upgrade integration exposes no executable browser hook: $forbiddenHtmlPattern"
+    }
+}
+
 function Test-HqPhoneModeStaticMockSafety {
     $phonePacketPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\PHONE_MODE_STATIC_MOCK_PACKET.md"
     $decisionPacketPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_PHONE_MODE_DECISION_PACKET.md"
@@ -19909,6 +20127,7 @@ Test-HqFleetConsolePrototypePacketSchemaAndFixtures
 Test-HqFleetConsoleMockStateSchemaAndFixtures
 Test-HqFleetConsoleStaticPrototypeSafety
 Test-HqTsfDailyDriverPackV1
+Test-HqTsfCoderUpgradePackV1
 Test-HqPhoneModeStaticMockSafety
 Test-HqUiSafetyFixtureMatrix
 Test-HqUiSafetyEnforcementTests
