@@ -16117,8 +16117,10 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     $accessibilityContractPath = Join-Path $fleetRoot "docs\fleet\ui\prototype\STATIC_ACCESSIBILITY_LINT_CONTRACT.md"
     $buttonPolicyPath = Join-Path $fleetRoot "docs\fleet\ui\FLEET_CONSOLE_BUTTON_ACTION_POLICY.md"
     $renderHelperPath = Join-Path $fleetRoot "tools\render-fleet-console.ps1"
+    $returnReviewHelperPath = Join-Path $fleetRoot "tools\write-return-review.ps1"
+    $returnReviewPath = Join-Path $fleetRoot "fleet\status\return-review.md"
 
-    foreach ($path in @($htmlPath, $cssPath, $readmePath, $reviewPacketPath, $accessibilityContractPath, $buttonPolicyPath, $renderHelperPath)) {
+    foreach ($path in @($htmlPath, $cssPath, $readmePath, $reviewPacketPath, $accessibilityContractPath, $buttonPolicyPath, $renderHelperPath, $returnReviewHelperPath, $returnReviewPath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Fleet Console static prototype safety input exists: $path"
     }
 
@@ -16129,7 +16131,12 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     $accessibilityContract = Get-Content -LiteralPath $accessibilityContractPath -Raw
     $buttonPolicy = Get-Content -LiteralPath $buttonPolicyPath -Raw
     $renderHelper = Get-Content -LiteralPath $renderHelperPath -Raw
-    $combined = @($html, $readme) -join "`n"
+    $returnReviewHelper = Get-Content -LiteralPath $returnReviewHelperPath -Raw
+    $returnReview = Get-Content -LiteralPath $returnReviewPath -Raw
+    $combined = @($html, $readme, $returnReview) -join "`n"
+
+    $v3CommitSubjects = @(& git -C $fleetRoot log --format=%s -n 30 2>$null)
+    Assert-True -Condition (($v3CommitSubjects -join "`n") -match [regex]::Escape("Add desktop fleet console V3")) -Message "Console V3 local checkpoint commit exists"
 
     foreach ($requiredPhrase in @(
         "Evidence only",
@@ -16161,7 +16168,10 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Next Best Work Session",
         "Back From Work",
         "Return Review",
+        "Session Handoff V1",
+        "fleet/status/return-review.md",
         "Work Order Library",
+        "Work Order Composer V1",
         "What TSF handles for Tim",
         "Only interrupt Tim for"
     )) {
@@ -16185,8 +16195,10 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "After Away Mode",
         "Project Triage",
         "Priority Logic",
+        "Session Handoff V1",
         "Read-Only State Prep",
         "One-click mental model",
+        "Work Order Composer V1",
         "What TSF handles for Tim",
         "Only interrupt Tim for"
     )) {
@@ -16264,6 +16276,15 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Deep research/root file intake",
         "Project onboarding",
         "Return review after being gone",
+        "Commit-ready review",
+        "Push approval review",
+        "Repo path:",
+        "Files/artifacts:",
+        "Off-limits:",
+        "Autonomy/availability mode:",
+        "Stop conditions:",
+        "Validation expectations:",
+        "Final report format:",
         "task packet creation",
         "project status review",
         "safe local implementation",
@@ -16282,6 +16303,23 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Archived projects remain visibly locked"
     )) {
         Assert-True -Condition ($html -match [regex]::Escape($returnReviewPhrase)) -Message "Static prototype renders V3 Return Review phrase: $returnReviewPhrase"
+    }
+
+    foreach ($sessionHandoffPhrase in @(
+        "Session Handoff V1",
+        "One short return file when the console is too much",
+        "Top recommendation",
+        "Needs Tim",
+        "Ready to approve",
+        "Done while away",
+        "Blocked / unsafe",
+        "Next best work session",
+        "Suggested next Codex prompt",
+        "Open Fleet Console",
+        "Copy a work order",
+        "Send it to Codex"
+    )) {
+        Assert-True -Condition ($combined -match [regex]::Escape($sessionHandoffPhrase)) -Message "Session Handoff V1 surface renders phrase: $sessionHandoffPhrase"
     }
 
     foreach ($renderHelperPhrase in @(
@@ -16312,6 +16350,34 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         Assert-False -Condition ($renderHelper -match [regex]::Escape($forbiddenRenderHelperPhrase)) -Message "Fleet Console render helper avoids forbidden operation: $forbiddenRenderHelperPhrase"
     }
 
+    foreach ($returnReviewHelperPhrase in @(
+        "fleet\status\projects.json",
+        "fleet\status\projects.md",
+        "fleet\status\current.md",
+        "fleet\status\today.md",
+        "docs\fleet\ui\prototype\fleet-console.html",
+        "docs\fleet\ui\prototype\README.md",
+        "TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md",
+        "TSF_ARTIFACT_INTAKE_FOLDER_SYSTEM.md",
+        "tests\fixtures\fleet\ui-control",
+        "fleet\status\return-review.md"
+    )) {
+        Assert-True -Condition ($returnReviewHelper -match [regex]::Escape($returnReviewHelperPhrase)) -Message "Return review helper references read-only source: $returnReviewHelperPhrase"
+    }
+
+    foreach ($forbiddenReturnReviewHelperPhrase in @(
+        "fleet-project-status.ps1",
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "npm install",
+        "pnpm install",
+        "yarn install"
+    )) {
+        Assert-False -Condition ($returnReviewHelper -match [regex]::Escape($forbiddenReturnReviewHelperPhrase)) -Message "Return review helper avoids forbidden operation: $forbiddenReturnReviewHelperPhrase"
+    }
+
     $generatedRenderPath = Join-Path $fleetRoot ".codex-local\fixtures\fleet-console-v3-render.html"
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $generatedRenderPath) | Out-Null
     & $renderHelperPath -FleetRoot $fleetRoot -OutFile $generatedRenderPath | Out-Null
@@ -16330,6 +16396,31 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
         "Project onboarding"
     )) {
         Assert-True -Condition ($generatedRender -match [regex]::Escape($generatedPhrase)) -Message "Fleet Console generated static render includes V3 phrase: $generatedPhrase"
+    }
+
+    $generatedReturnReviewPath = Join-Path $fleetRoot ".codex-local\fixtures\return-review-v1.md"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $generatedReturnReviewPath) | Out-Null
+    & $returnReviewHelperPath -FleetRoot $fleetRoot -OutFile $generatedReturnReviewPath | Out-Null
+    Assert-True -Condition (Test-Path -LiteralPath $generatedReturnReviewPath) -Message "Return review helper can write static markdown output"
+    $generatedReturnReview = Get-Content -LiteralPath $generatedReturnReviewPath -Raw
+
+    foreach ($generatedReturnPhrase in @(
+        "# Return Review",
+        "Top recommendation",
+        "Needs Tim",
+        "Ready to approve",
+        "Done while away",
+        "Blocked / unsafe",
+        "Next best work session",
+        "Suggested next Codex prompt",
+        "Project: <project name>",
+        "Repo path: <repo path>",
+        "Off-limits:",
+        "Validation expectations:",
+        "Final report format:",
+        "Evidence only"
+    )) {
+        Assert-True -Condition ($generatedReturnReview -match [regex]::Escape($generatedReturnPhrase)) -Message "Generated return review includes V1 phrase: $generatedReturnPhrase"
     }
 
     foreach ($safeState in @(

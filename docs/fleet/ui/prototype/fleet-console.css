@@ -104,6 +104,7 @@ a:focus-visible {
 .project-card p,
 .return-review-grid p,
 .state-source-grid p,
+.session-handoff-grid p,
 .return-lede,
 .panel-intro {
   margin: 0;
@@ -482,6 +483,7 @@ a:focus-visible {
 .away-grid,
 .return-review-grid,
 .state-source-grid,
+.session-handoff-grid,
 .project-triage-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -492,6 +494,7 @@ a:focus-visible {
 .away-grid article,
 .return-review-grid article,
 .state-source-grid article,
+.session-handoff-grid article,
 .project-card {
   display: grid;
   gap: 6px;
@@ -503,6 +506,23 @@ a:focus-visible {
 .state-source-panel {
   border-color: #c7d5c8;
   background: #f8fbf8;
+}
+
+.session-handoff-panel {
+  border-color: #c8d4e6;
+  background: #f8fbff;
+}
+
+.session-handoff-grid article {
+  border-left: 5px solid var(--blue);
+}
+
+.session-handoff-grid article:first-child {
+  border-left-color: var(--green);
+}
+
+.session-handoff-grid article:nth-child(2) {
+  border-left-color: var(--yellow);
 }
 
 .return-review-grid article {
@@ -544,13 +564,14 @@ a:focus-visible {
 
 .work-order-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
 }
 
 .work-order-grid article {
   display: grid;
+  align-content: start;
   gap: 8px;
   min-width: 0;
   padding: 13px;
@@ -875,6 +896,7 @@ a:focus-visible {
   .away-grid,
   .return-review-grid,
   .state-source-grid,
+  .session-handoff-grid,
   .mental-steps,
   .work-order-grid,
   .project-triage-grid {
@@ -906,6 +928,7 @@ a:focus-visible {
   .away-grid,
   .return-review-grid,
   .state-source-grid,
+  .session-handoff-grid,
   .mental-steps,
   .work-order-grid,
   .project-triage-grid,

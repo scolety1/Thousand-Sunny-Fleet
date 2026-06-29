@@ -30,6 +30,7 @@
     <nav class="sidebar" aria-label="Mock console sections">
       <a href="#dashboard">Return Triage</a>
       <a href="#return-review">Back From Work</a>
+      <a href="#session-handoff">Session Handoff</a>
       <a href="#state-source">Read-Only State</a>
       <a href="#mental-model">Mental Model</a>
       <a href="#work-orders">Work Orders</a>
@@ -186,6 +187,34 @@
         </div>
       </section>
 
+      <section id="session-handoff" class="panel session-handoff-panel" aria-labelledby="session-handoff-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Session Handoff V1</p>
+            <h2 id="session-handoff-title">One short return file when the console is too much</h2>
+          </div>
+          <span class="status-pill">plain markdown</span>
+        </div>
+        <p class="panel-intro">Open fleet/status/return-review.md when Tim wants the smallest possible answer before starting work.</p>
+        <div class="session-handoff-grid" aria-label="Session Handoff V1 summary">
+          <article>
+            <span>Top recommendation</span>
+            <strong>Read What do I do now? first.</strong>
+            <p>The handoff repeats the one recommended action without dumping every project detail.</p>
+          </article>
+          <article>
+            <span>Needs Tim</span>
+            <strong>Only decisions and high-authority approvals.</strong>
+            <p>Project choice, availability, source conflicts, push/release/deploy approval, secrets, migrations, and archived reactivation.</p>
+          </article>
+          <article>
+            <span>Suggested next Codex prompt</span>
+            <strong>Copy one bounded prompt.</strong>
+            <p>The file ends with a plain template that names goal, scope, off-limits work, stop conditions, validation, and report format.</p>
+          </article>
+        </div>
+      </section>
+
       <section id="state-source" class="panel state-source-panel" aria-labelledby="state-source-title">
         <div class="section-head">
           <div>
@@ -234,49 +263,109 @@
       <section id="work-orders" class="panel" aria-labelledby="work-orders-title">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Work Order Library</p>
+            <p class="eyebrow">Work Order Library / Work Order Composer V1</p>
             <h2 id="work-orders-title">Copy/paste prompt templates</h2>
           </div>
           <span class="status-pill">text only</span>
         </div>
         <div class="work-order-grid" aria-label="Static work order prompt templates">
           <article>
-            <h3>Normal task while Tim is here</h3>
-            <pre>Project: &lt;name&gt;
+            <h3>Start work while Tim is here</h3>
+            <pre>Template alias: Normal task while Tim is here
+Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
 Goal: &lt;plain English goal&gt;
-Availability: here
-Use bounded_implementation. Ask only for true blockers. Report tests and next safe action.</pre>
+Files/artifacts: &lt;files, folders, or notes&gt;
+Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners.
+Autonomy/availability mode: here / bounded_implementation
+Stop conditions: missing source truth, unsafe scope, failed validation that cannot be repaired safely.
+Validation expectations: run the smallest relevant checks and summarize exact results.
+Final report format: verdict, files changed, tests run, blockers, next safe action.</pre>
           </article>
           <article>
-            <h3>Busy mode</h3>
-            <pre>Project: &lt;name&gt;
+            <h3>Busy mode work</h3>
+            <pre>Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
 Goal: &lt;plain English goal&gt;
-Availability: busy
-Use batch_implementation inside approved scope. Batch nonurgent questions for the return report.</pre>
+Files/artifacts: &lt;approved files or artifacts&gt;
+Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, proof runs.
+Autonomy/availability mode: busy / batch_implementation
+Stop conditions: true blocker, scope expansion, risky approval, repeated failed validation.
+Validation expectations: run targeted checks after each safe batch when practical.
+Final report format: return report with completed, tested, changed, blocked, and next session.</pre>
           </article>
           <article>
-            <h3>Away-safe work session</h3>
-            <pre>Project: &lt;name&gt;
+            <h3>Away-safe work</h3>
+            <pre>Template alias: Away-safe work session
+Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
 Goal: &lt;plain English goal&gt;
-Availability: away
-Use away_safe. Keep working through safe local tasks until done, capped, or truly blocked.</pre>
+Files/artifacts: &lt;approved files, docs, or C:\TSF_INBOX\&lt;project_name&gt;\ artifacts&gt;
+Off-limits: product repos unless selected, archived projects unless reactivated, push/release/deploy, installs, migrations, secrets, remote access, all-fleet runners, command-running browser controls.
+Autonomy/availability mode: away / away_safe
+Stop conditions: product direction choice, conflicting source truth, missing approval, unsafe file expansion, unrepaired test failure.
+Validation expectations: run safe local checks; batch nonurgent questions for the return report.
+Final report format: top recommendation, needs Tim, done while away, blocked/unsafe, next best work session.</pre>
           </article>
           <article>
             <h3>Deep research/root file intake</h3>
-            <pre>Project: &lt;name&gt;
-Read C:\TSF_INBOX\&lt;project_name&gt;\ plus listed root files.
-Extract facts, risks, open questions, and a bounded first task. Do not mutate product repos.</pre>
+            <pre>Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
+Goal: understand source truth and produce a bounded first task.
+Files/artifacts: C:\TSF_INBOX\&lt;project_name&gt;\; &lt;root files&gt;; &lt;research notes&gt;
+Off-limits: product repo mutation, archived reactivation, push/release/deploy, installs, migrations, secrets, remote access.
+Autonomy/availability mode: review_only or away_safe research
+Stop conditions: conflicting source truth, missing artifact, sensitive data, request to expand beyond approved files.
+Validation expectations: no implementation checks unless explicitly approved; cite exact local sources read.
+Final report format: facts, risks, open questions, recommended first task, stop signs.</pre>
           </article>
           <article>
             <h3>Project onboarding</h3>
-            <pre>Project: &lt;name&gt;
-Create the project brain from inbox artifacts and safe TSF docs.
-Classify scope, status, blockers, archived state, and first safe batch.</pre>
+            <pre>Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
+Goal: create or update the project brain from safe local inputs.
+Files/artifacts: C:\TSF_INBOX\&lt;project_name&gt;\; TSF project registry/status files; project docs.
+Off-limits: product repo mutation unless selected, archived reactivation, push/release/deploy, installs, migrations, secrets.
+Autonomy/availability mode: here or busy / review_only
+Stop conditions: archived project, missing source truth, sensitive credentials, unclear owner decision.
+Validation expectations: verify docs render or status generation works if changed.
+Final report format: project state, allowed scope, blockers, first safe batch, what Tim must decide.</pre>
           </article>
           <article>
             <h3>Return review after being gone</h3>
-            <pre>Return review:
-Summarize what changed, what passed, what stopped, what needs Tim, what can be ignored, and the next best session.</pre>
+            <pre>Project: Thousand Sunny Fleet or &lt;project name&gt;
+Repo path: &lt;repo path&gt;
+Goal: produce a calm return review after time away.
+Files/artifacts: fleet/status/return-review.md; latest local reports; console docs.
+Off-limits: product repo mutation, archived reactivation, push/release/deploy, installs, migrations, secrets, remote access.
+Autonomy/availability mode: here / review_only
+Stop conditions: stale or conflicting source truth, missing test evidence, unsafe pending approval.
+Validation expectations: regenerate or inspect the return review and confirm required sections exist.
+Final report format: top recommendation, needs Tim, ready to approve, done while away, blocked/unsafe, next prompt.</pre>
+          </article>
+          <article>
+            <h3>Commit-ready review</h3>
+            <pre>Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
+Goal: decide whether the local change is ready for a checkpoint.
+Files/artifacts: &lt;changed files&gt;; &lt;test logs&gt;; &lt;diff summary&gt;
+Off-limits: push/release/deploy, installs, migrations, secrets, remote access, product repo mutation outside selected scope.
+Autonomy/availability mode: here / review_only
+Stop conditions: failing required check, unrelated dirty files, unclear file scope, missing Tim approval for high-authority action.
+Validation expectations: inspect status, whitespace diff, and required tests without broad proof runs.
+Final report format: verdict, exact files, test evidence, risks, safe-to-checkpoint recommendation.</pre>
+          </article>
+          <article>
+            <h3>Push approval review</h3>
+            <pre>Project: &lt;project name&gt;
+Repo path: &lt;repo path&gt;
+Goal: prepare Tim to decide whether publication is safe.
+Files/artifacts: &lt;local checkpoint hash&gt;; &lt;release notes&gt;; &lt;validation evidence&gt;
+Off-limits: performing the push, deploy, install, migration, secrets work, remote access, or widening file scope.
+Autonomy/availability mode: here / review_only
+Stop conditions: missing exact approval, stale tests, unresolved blocker, product direction uncertainty, secret or migration involvement.
+Validation expectations: summarize existing evidence and name any check Tim should require before approval.
+Final report format: approve/hold recommendation, risks, required human words, and no action taken.</pre>
           </article>
         </div>
       </section>
