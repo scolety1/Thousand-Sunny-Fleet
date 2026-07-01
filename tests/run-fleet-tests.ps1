@@ -3313,6 +3313,136 @@ function Test-HqTsfLoopClosureNoTreadmillPolicy {
     Assert-False -Condition ($policyText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|PrivateLens work|proof runs|all-fleet|overnight|background runners|phone execution authority|runtime command binding|future authority)") -Message "TSF loop closure policy does not grant forbidden authority"
 }
 
+function Test-HqTsfBlockerResolutionBuilderLanePolicy {
+    $policyPath = Join-Path $fleetRoot "docs\fleet\TSF_BLOCKER_RESOLUTION_BUILDER_LANE_POLICY.md"
+    $loopPolicyPath = Join-Path $fleetRoot "docs\fleet\TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md"
+    $checklistPath = Join-Path $fleetRoot "docs\fleet\anti-loop\CODEX_PROMPT_AND_POST_RUN_CHECKLIST.md"
+
+    foreach ($path in @($policyPath, $loopPolicyPath, $checklistPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF blocker-resolution builder lane input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $policyPath)) {
+        return
+    }
+
+    $policyText = Get-Content -LiteralPath $policyPath -Raw
+    $loopPolicyText = Get-Content -LiteralPath $loopPolicyPath -Raw
+    $checklistText = Get-Content -LiteralPath $checklistPath -Raw
+
+    foreach ($phrase in @(
+        "TSF Blocker-Resolution Builder Lane Policy",
+        "Evidence only; not executable authority or approval.",
+        "The process can be safe, but inefficient.",
+        "Every lane must declare its unblock artifact.",
+        "No blocker-only lane unless the blocker cannot be attacked directly.",
+        "Batch review-only docs.",
+        "Use parallel lanes only when they produce independent artifacts.",
+        "Can the next lane build, or are we just documenting?",
+        "Prefer artifact-producing lanes over packet-producing lanes.",
+        "A YELLOW packet may be safe to merge, but it is not durable progress unless it removes a blocker or narrows the next build.",
+        "missing player-week zero eligibility",
+        "return/special TD scoring semantics",
+        "The wrong finish line",
+        "full scoring parity became the gate, even though the useful thing is lagged factual usage",
+        "done enough",
+        "actual review-only dataset artifact, not another `"should we?`" report",
+        "No app wiring, model logic, or rankings",
+        "Routes are not blocking.",
+        "TPRR and YPRR are out unless a rights-cleared upload exists.",
+        "Merge only at checkpoints.",
+        "Batch merge the completed evidence packets, then start one builder lane, not more research.",
+        "Prefer exclude and move on over investigate forever.",
+        "YELLOW is acceptable when it means safe, review-only, incomplete by design.",
+        "No more lanes unless they produce one of: dataset, schema, validator, field map, sidecar, or merge-ready policy artifact.",
+        "build the next needed artifact or directly unblock the builder that will"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($phrase)) -Message "TSF blocker-resolution builder policy preserves phrase: $phrase"
+    }
+
+    foreach ($field in @(
+        "unblock artifact",
+        "builder enabled",
+        "blocker removed or narrowed",
+        "phase finish line",
+        "review-only reason",
+        "exact next builder",
+        "whether the next lane can build now",
+        "whether any packet-only follow-up should be batched",
+        "fields/scope explicitly excluded for this phase"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($field)) -Message "TSF blocker-resolution builder policy includes field: $field"
+    }
+
+    foreach ($artifact in @(
+        "validator",
+        "policy matrix",
+        "source admission",
+        "fixture or sidecar",
+        "parity result",
+        "bounded builder work order"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($artifact)) -Message "TSF blocker-resolution builder policy prefers artifact: $artifact"
+    }
+
+    foreach ($boundary in @(
+        "product repo work",
+        "archived project reactivation",
+        "push, merge, deploy",
+        "installs",
+        "migrations",
+        "secrets/auth/payments work",
+        "proof runs",
+        "remote access",
+        "all-fleet commands",
+        "overnight/background runners",
+        "runtime command binding",
+        "permission widening",
+        "broader authority"
+    )) {
+        Assert-True -Condition ($policyText -match [regex]::Escape($boundary)) -Message "TSF blocker-resolution builder policy boundary preserved: $boundary"
+    }
+
+    foreach ($loopPhrase in @(
+        "Blocker-Resolution Builder Rule",
+        "Every blocker lane must name the concrete artifact that would unblock the next builder.",
+        "the next lane should build the unblock artifact instead of writing another packet",
+        "No blocker-only lane is allowed unless",
+        "Can the next lane build, or are we just documenting?",
+        "A YELLOW packet may be safe to merge, but it is not durable progress unless it removes a blocker or narrows the next build.",
+        "Review-Only Phase Finish-Line Rule",
+        "The phase is done enough when the agreed artifact, field map, missingness",
+        "Merge only at checkpoints.",
+        "Prefer exclude and move on over investigate forever.",
+        "YELLOW is acceptable when it means safe, review-only, incomplete by design.",
+        "No more lanes unless they produce one of: dataset, schema, validator, field map, sidecar, or merge-ready policy artifact.",
+        "No app wiring, model logic, or rankings",
+        "TSF_BLOCKER_RESOLUTION_BUILDER_LANE_POLICY.md"
+    )) {
+        Assert-True -Condition ($loopPolicyText -match [regex]::Escape($loopPhrase)) -Message "TSF no-treadmill policy references blocker-resolution builder rule: $loopPhrase"
+    }
+
+    foreach ($checklistPhrase in @(
+        "unblockArtifact",
+        "the concrete artifact, validator, policy matrix, parity result, or builder that this lane should produce or enable",
+        "phaseFinishLine",
+        "the done-enough gate for this phase",
+        "mergePlan",
+        "whether this lane is part of a checkpoint batch merge",
+        "builderPosture",
+        "unblock artifact produced, builder unblocked, next unblock artifact named",
+        "finishLinePosture",
+        "phase finish line reached, narrowed, or redirected",
+        "batch merge at a checkpoint before starting the next builder",
+        "switch to the blocker-resolution builder for the named unblock artifact"
+    )) {
+        Assert-True -Condition ($checklistText -match [regex]::Escape($checklistPhrase)) -Message "TSF anti-loop checklist preserves blocker-resolution builder phrase: $checklistPhrase"
+    }
+
+    Assert-False -Condition ($policyText -match "C:\\Users\\smcol|C:\\Users\\codex-agent") -Message "TSF blocker-resolution builder policy avoids concrete local user paths"
+    Assert-False -Condition ($policyText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo work|archived project reactivation|proof runs|all-fleet|overnight|background runners|runtime command binding|future authority)") -Message "TSF blocker-resolution builder policy does not grant forbidden authority"
+}
+
 function Test-HqTsfSyntheticBatchDrill {
     $drillPath = Join-Path $fleetRoot "docs\fleet\TSF_SYNTHETIC_BATCH_DRILL.md"
     $queuePath = Join-Path $fleetRoot "docs\fleet\HQ_REPAIR_TASK_QUEUE.md"
@@ -20228,6 +20358,7 @@ Test-HqTsfPushDecisionRubric
 Test-HqTsfCarRideFieldTestProtocol
 Test-HqTsfDesktopActivationNote
 Test-HqTsfLoopClosureNoTreadmillPolicy
+Test-HqTsfBlockerResolutionBuilderLanePolicy
 Test-HqTsfSyntheticBatchDrill
 Test-HqTsfMixedOutcomeBatchStressDrill
 Test-HqTsfRealProjectShapedDryRun

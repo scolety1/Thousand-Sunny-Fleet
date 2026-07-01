@@ -116,6 +116,41 @@ For every blocked/deferred item, Codex must record:
 - whether it can be retried later
 - whether other items can continue
 
+## Blocker-Resolution Builder Rule
+
+Every blocker lane must name the concrete artifact that would unblock the next builder.
+If the blocker can be attacked directly, the next lane should build the unblock artifact instead of writing another packet that only restates the same blocker.
+
+No blocker-only lane is allowed unless the blocker requires a Tim/HQ decision,
+crosses a safety boundary, or the lane is producing a policy matrix, validator,
+or exact decision packet that directly enables a builder.
+
+HQ should ask after every lane: "Can the next lane build, or are we just documenting?"
+If the answer is "just documenting," stop and redirect unless the
+documentation is the unblock artifact.
+
+A YELLOW packet may be safe to merge, but it is not durable progress unless it removes a blocker or narrows the next build.
+
+See `docs/fleet/TSF_BLOCKER_RESOLUTION_BUILDER_LANE_POLICY.md`.
+
+## Review-Only Phase Finish-Line Rule
+
+Review-only phases must declare the useful finish line before adding more lanes.
+The wrong finish line can turn a bounded source/data phase into endless proof
+work. The phase is done enough when the agreed artifact, field map, missingness
+behavior, validation summary, source mappings, guardrails, and blocked/excluded
+scope are documented.
+
+Merge only at checkpoints. Batch evidence packets that feed one builder instead
+of creating merge churn after every small lane.
+
+Prefer exclude and move on over investigate forever. YELLOW is acceptable when it means safe, review-only, incomplete by design.
+
+No more lanes unless they produce one of: dataset, schema, validator, field map, sidecar, or merge-ready policy artifact.
+
+No app wiring, model logic, or rankings belong in a review-only source/data
+phase unless Tim explicitly approves that scope.
+
 ## Final Batch Report Rule
 
 Every batch report must include:

@@ -14,6 +14,9 @@ Every one-task implementation prompt should name these items clearly:
 
 - `endGoal`: the bounded outcome the current queue section is trying to reach.
 - `oneTask`: the exact selected task id and title, or the rule for selecting exactly one eligible task.
+- `unblockArtifact`: the concrete artifact, validator, policy matrix, parity result, or builder that this lane should produce or enable; if none, explain why review-only is required.
+- `phaseFinishLine`: the done-enough gate for this phase, including the fields, sources, or product scopes intentionally excluded.
+- `mergePlan`: whether this lane is part of a checkpoint batch merge or truly needs its own merge event.
 - `outOfScope`: product repos, product mutation, all-fleet commands, ship launch, staging, commit, push, deploy, installs, migrations, secrets/auth/payments/deploy work, lock deletion, permission widening, dirty-work reverts, runtime hooks unless explicitly allowed, and any second task.
 - `allowedFiles`: the only files that may be patched, plus the queue file only for that same task's status reconciliation after validation.
 - `readFirst`: the active queue entry and the selected task's listed source docs.
@@ -55,6 +58,8 @@ At task exit, preserve this compact summary:
 - `validation`: exact commands run and result.
 - `remainingGaps`: missing acceptance, missing validation, unresolved authority, human decision, or none.
 - `driftLoopStatus`: whether drift was avoided, which loop fingerprint was seen, or why no loop remains.
+- `builderPosture`: unblock artifact produced, builder unblocked, next unblock artifact named, or exact reason the lane stayed review-only.
+- `finishLinePosture`: phase finish line reached, narrowed, or redirected; list excluded fields that should not reopen the phase.
 - `nextStepClarity`: the next eligible task, repacketization need, human review need, audit need, or queue exhaustion.
 - `nextStepType`: `samePromptAgain`, `repacketize`, `humanReview`, `externalAudit`, `commitScopeReview`, `blocked`, or `queueExhausted`.
 
@@ -73,6 +78,8 @@ A handoff should reference current source files instead of retelling the whole h
 The next allowed move should be one of:
 
 - run the same one-task prompt again for the next eligible task
+- switch to the blocker-resolution builder for the named unblock artifact
+- batch merge at a checkpoint before starting the next builder
 - repacketize with the latest failure fingerprint and remaining gap
 - request human review for an exact decision
 - prepare an evidence-only external audit packet after human approval
