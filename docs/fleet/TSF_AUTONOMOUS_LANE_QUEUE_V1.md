@@ -78,9 +78,9 @@ When starting an autonomous TSF control-plane session:
 
 | Priority | Lane | Status | Why It Matters | Unblock Artifact |
 | --- | --- | --- | --- | --- |
-| 1 | Report Quality Validator | `READY` | Final reports are the handoff Tim sees first; a validator reduces review friction and fake GREENs. | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` |
-| 2 | Status Freshness Index | `READY_AFTER_PREVIOUS` | Current status is now refreshed, but TSF lacks a compact freshness map for current, today, archive, and intake files. | `docs/fleet/TSF_STATUS_FRESHNESS_INDEX_V1.md` |
-| 3 | Prompt Library Refresh | `READY_AFTER_PREVIOUS` | TSF has older prompt snippets, but not a compact autonomy-era prompt library for intake, local checkpoint, push-prep, and stop packets. | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` |
+| 1 | Report Quality Validator | `CLOSED` | Final reports are the handoff Tim sees first; a validator reduces review friction and fake GREENs. | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` |
+| 2 | Status Freshness Index | `CLOSED` | Current status is now refreshed, but TSF lacked a compact freshness map for current, today, archive, and intake files. | `docs/fleet/TSF_STATUS_FRESHNESS_INDEX_V1.md` |
+| 3 | Prompt Library Refresh | `READY` | TSF has older prompt snippets, but not a compact autonomy-era prompt library for intake, local checkpoint, push-prep, and stop packets. | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` |
 | 4 | Safe Stop / Escalation Matrix | `READY_AFTER_PREVIOUS` | The autonomy envelope has stop rules; a matrix would make stop-vs-continue decisions faster for future Codex sessions. | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` |
 | 5 | Control-Plane Artifact Index | `READY_AFTER_PREVIOUS` | The HQ adapter, bench, tuning, gate board, autonomy envelope, and intake files are scattered across docs/status paths. | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` |
 | 6 | Authority Boundary Scan Checklist | `PARKED` | Useful if another doc accidentally blurs evidence and authority. Not urgent while validations are passing. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
@@ -275,18 +275,18 @@ Stop if:
 
 ## Current Recommended Next Lane
 
-Run Lane 1: Report Quality Validator.
+Run Lane 3: Prompt Library Refresh.
 
-It is the highest-value next builder because the autonomy envelope now lets
-Codex make safe local decisions and commits. The next review bottleneck is
-whether final reports are complete, truthful, and easy for Tim or HQ to judge
-without reconstructing repo state manually.
+Lane 1 and Lane 2 are closed by the two-hour autonomous control-plane sprint.
+The next useful safe builder is a compact autonomy-era prompt library for
+intake, local checkpoint packaging, push-readiness without push, exact push
+approval, dirty-work reconciliation, and restricted-gate approval packets.
 
 ## Commit Guidance
 
-Use one coherent checkpoint for this queue and the Report Quality Validator if
-both are created in the same sprint. They serve the same control-plane purpose:
-future autonomous lane selection plus final-report quality control.
+Use coherent checkpoints for related queue artifacts. The first sprint batch
+closed the queue plus report validator. The second sprint batch closes the
+status freshness index plus this queue update.
 
 Do not push from this queue. Push remains a separate exact Tim gate.
 
