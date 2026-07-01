@@ -58,6 +58,7 @@ permission to cross restricted gates.
 | `docs/fleet/TSF_AUTONOMY_ENVELOPE_V1.md` | `CURRENT_CONTROL` | Defines safe TSF-local autonomy and exact Tim gates. | Blanket restricted-gate approval. |
 | `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md` | `CURRENT_CONTROL` | Queue of safe next TSF-local control-plane builder lanes. | Product work, PrivateLens work, or automatic execution. |
 | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` | `CURRENT_CONTROL` | Checklist/classifier for Codex final report quality. | Replacing actual validation commands or git evidence. |
+| `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` | `CURRENT_CONTROL` | Copyable autonomy-era prompts for intake, checkpointing, reconciliation, push-prep, exact push approval, restricted-gate packets, and final-report self-checks. | Execution authority, product work, or bypassing live repo validation. |
 | `docs/fleet/TSF_FINAL_GATE_CLOSURE_BOARD_V1.md` | `CLOSED_EVIDENCE` | Closure board for completed HQ adapter/tuning/anti-loop gate review. | New restricted action approval. |
 | `docs/fleet/TSF_HQ_ADAPTER_MODE.md` | `CURRENT_CONTROL` | HQ strategic decision format and authority model. | Execution authority. |
 | `docs/fleet/hq-adapter/TSF_HQ_DECISION_BENCH_V1.md` | `CURRENT_CONTROL` | Decision-quality benchmark for HQ responses. | Runtime automation or product work. |
