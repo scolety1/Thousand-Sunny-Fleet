@@ -81,8 +81,8 @@ When starting an autonomous TSF control-plane session:
 | 1 | Report Quality Validator | `CLOSED` | Final reports are the handoff Tim sees first; a validator reduces review friction and fake GREENs. | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` |
 | 2 | Status Freshness Index | `CLOSED` | Current status is now refreshed, but TSF lacked a compact freshness map for current, today, archive, and intake files. | `docs/fleet/TSF_STATUS_FRESHNESS_INDEX_V1.md` |
 | 3 | Prompt Library Refresh | `CLOSED` | TSF has older prompt snippets, but did not have a compact autonomy-era prompt library for intake, local checkpoint, push-prep, and stop packets. | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` |
-| 4 | Safe Stop / Escalation Matrix | `READY` | The autonomy envelope has stop rules; a matrix would make stop-vs-continue decisions faster for future Codex sessions. | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` |
-| 5 | Control-Plane Artifact Index | `READY_AFTER_PREVIOUS` | The HQ adapter, bench, tuning, gate board, autonomy envelope, and intake files are scattered across docs/status paths. | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` |
+| 4 | Safe Stop / Escalation Matrix | `CLOSED` | The autonomy envelope has stop rules; a matrix now makes stop-vs-continue decisions faster for future Codex sessions. | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` |
+| 5 | Control-Plane Artifact Index | `READY` | The HQ adapter, bench, tuning, gate board, autonomy envelope, and intake files are scattered across docs/status paths. | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` |
 | 6 | Authority Boundary Scan Checklist | `PARKED` | Useful if another doc accidentally blurs evidence and authority. Not urgent while validations are passing. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
 | 7 | Product Repo Onboarding Mock Packet | `TIM_REQUIRED` for real product use; safe only as TSF-local mock | Product repo access remains restricted. A mock can be created later if Tim wants safer onboarding packets without touching product repos. | TSF-local mock work order only; no product files |
 
@@ -207,7 +207,7 @@ Exclude and move on:
 
 ## Lane 4 - Safe Stop / Escalation Matrix
 
-Status: `READY`
+Status: `CLOSED`
 
 Real finish line:
 
@@ -229,7 +229,7 @@ Exclude and move on:
 
 ## Lane 5 - Control-Plane Artifact Index
 
-Status: `READY_AFTER_PREVIOUS`
+Status: `READY`
 
 Real finish line:
 
@@ -275,18 +275,20 @@ Stop if:
 
 ## Current Recommended Next Lane
 
-Run Lane 4: Safe Stop / Escalation Matrix.
+Run Lane 5: Control-Plane Artifact Index.
 
-Lane 1, Lane 2, and Lane 3 are closed. The next useful safe builder is a
-stop-vs-continue matrix that turns the autonomy envelope stop rules into a
-quick decision table for future Codex sessions.
+Lane 1, Lane 2, Lane 3, and Lane 4 are closed. The next useful safe builder is
+a compact control-plane artifact index that maps the major TSF operating docs,
+their status, and their next-use condition.
 
 ## Commit Guidance
 
 Use coherent checkpoints for related queue artifacts. The first sprint batch
 closed the queue plus report validator. The second sprint batch closed the
 status freshness index plus its queue update. The third queue-execution batch
-closes the autonomy prompt library plus this queue update.
+closed the autonomy prompt library plus this queue update. The fourth
+queue-execution batch closes the safe stop escalation matrix plus queue and
+freshness-index updates.
 
 Do not push from this queue. Push remains a separate exact Tim gate.
 

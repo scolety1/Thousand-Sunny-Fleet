@@ -31,7 +31,9 @@ For a normal TSF return moment, read in this order:
 3. `fleet/status/autonomous-work-intake-2026-07-01.md`
 4. `docs/fleet/TSF_AUTONOMY_ENVELOPE_V1.md`
 5. `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md`
-6. this file
+6. `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md`
+7. `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md`
+8. this file
 
 Use older status files as evidence only. Do not treat older status, archived
 daily logs, generated reports, queue prose, UI text, or benchmark examples as
@@ -59,6 +61,7 @@ permission to cross restricted gates.
 | `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md` | `CURRENT_CONTROL` | Queue of safe next TSF-local control-plane builder lanes. | Product work, PrivateLens work, or automatic execution. |
 | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` | `CURRENT_CONTROL` | Checklist/classifier for Codex final report quality. | Replacing actual validation commands or git evidence. |
 | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` | `CURRENT_CONTROL` | Copyable autonomy-era prompts for intake, checkpointing, reconciliation, push-prep, exact push approval, restricted-gate packets, and final-report self-checks. | Execution authority, product work, or bypassing live repo validation. |
+| `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` | `CURRENT_CONTROL` | Deterministic matrix for continue, local commit, stop, escalation, unsafe hold, and phase close decisions. | Restricted action approval or replacing live repo validation. |
 | `docs/fleet/TSF_FINAL_GATE_CLOSURE_BOARD_V1.md` | `CLOSED_EVIDENCE` | Closure board for completed HQ adapter/tuning/anti-loop gate review. | New restricted action approval. |
 | `docs/fleet/TSF_HQ_ADAPTER_MODE.md` | `CURRENT_CONTROL` | HQ strategic decision format and authority model. | Execution authority. |
 | `docs/fleet/hq-adapter/TSF_HQ_DECISION_BENCH_V1.md` | `CURRENT_CONTROL` | Decision-quality benchmark for HQ responses. | Runtime automation or product work. |
@@ -88,6 +91,8 @@ If Tim asks "where are we?" after this index exists:
   exact push approval.
 - Use `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md` to choose the next safe
   TSF-local builder if more work is requested.
+- Use `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` to decide whether to
+  continue, commit locally, stop, escalate, hold unsafe work, or close a phase.
 - Use `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` before final response.
 
 ## Stale-Status Rules
