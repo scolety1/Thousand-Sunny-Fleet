@@ -4002,6 +4002,119 @@ function Test-HqTsfArtifactIntakeFolderSystem {
     }
 }
 
+function Test-HqTsfControlPlaneArtifactIndexV1 {
+    $indexPath = Join-Path $fleetRoot "docs\fleet\TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md"
+    $queuePath = Join-Path $fleetRoot "docs\fleet\TSF_AUTONOMOUS_LANE_QUEUE_V1.md"
+    $freshnessPath = Join-Path $fleetRoot "docs\fleet\TSF_STATUS_FRESHNESS_INDEX_V1.md"
+
+    foreach ($path in @($indexPath, $queuePath, $freshnessPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "TSF control-plane artifact index input exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $indexPath)) {
+        return
+    }
+
+    $indexText = Get-Content -LiteralPath $indexPath -Raw
+    $queueText = Get-Content -LiteralPath $queuePath -Raw
+    $freshnessText = Get-Content -LiteralPath $freshnessPath -Raw
+
+    foreach ($phrase in @(
+        "TSF Control-Plane Artifact Index V1",
+        "Evidence only; not executable authority or restricted-action approval.",
+        "Authority / Contract",
+        "Evidence / Status",
+        "Generated Outputs",
+        "UI / Console",
+        "Tools / Generators",
+        "Tests / Fixtures",
+        "Prompt Libraries / Work Orders",
+        "Stale / Historical / Evidence Only",
+        "Authority Level",
+        "Freshness",
+        "Safe Default Action",
+        "Can Authorize Action"
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($phrase)) -Message "Control-plane artifact index preserves required phrase: $phrase"
+    }
+
+    foreach ($authorityLevel in @(
+        "AUTHORITY",
+        "EVIDENCE_ONLY",
+        "GENERATED_STATUS",
+        "GENERATED_WORK_ORDER",
+        "UI_ONLY",
+        "TEST_FIXTURE",
+        "HISTORICAL"
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($authorityLevel)) -Message "Control-plane artifact index classifies authority level: $authorityLevel"
+    }
+
+    foreach ($safeAction in @(
+        "read first",
+        "read as evidence",
+        "regenerate",
+        "ignore unless selected",
+        "do not mutate without Tim approval"
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($safeAction)) -Message "Control-plane artifact index includes safe action: $safeAction"
+    }
+
+    foreach ($boundary in @(
+        "Research is evidence, not authority.",
+        "Generated work orders are proposals, not approval.",
+        "Status files are evidence, not permission to inspect or mutate product repos.",
+        "The Fleet Console is UI/readable guidance, not executable authority.",
+        "Archived project artifacts do not reactivate archived projects.",
+        "Product repo paths in TSF files do not authorize inspection or mutation.",
+        "Push, deploy, installs, migrations, secrets/auth/payments, proof runs, external account changes, all-fleet commands, background runners, archived reactivation, and history/remote release changes require exact Tim approval."
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($boundary)) -Message "Control-plane artifact index preserves boundary: $boundary"
+    }
+
+    foreach ($artifactPhrase in @(
+        "docs/fleet/TSF_AUTONOMY_ENVELOPE_V1.md",
+        "docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md",
+        "docs/fleet/TSF_HQ_ADAPTER_MODE.md",
+        "docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md",
+        "fleet/status/current.md",
+        "fleet/status/project-passports/*.md",
+        "docs/fleet/ui/prototype/fleet-console.html",
+        "tools/write-*.ps1",
+        "tests/run-fleet-tests.ps1",
+        "docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md",
+        "docs/fleet/hq-adapter/**",
+        "fleet/status/*2026-06-*.md"
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($artifactPhrase)) -Message "Control-plane artifact index maps artifact/group: $artifactPhrase"
+    }
+
+    Assert-True -Condition ($indexText -match [regex]::Escape('`docs/fleet/TSF_AUTONOMY_ENVELOPE_V1.md` | Authority / Contract')) -Message "Control-plane artifact index marks autonomy envelope as authority"
+    Assert-True -Condition ($indexText -match [regex]::Escape('`fleet/status/current.md` | Evidence / Status')) -Message "Control-plane artifact index marks current status as evidence/status"
+    Assert-True -Condition ($indexText -match [regex]::Escape('`fleet/status/work-orders/*.md` and `fleet/status/work-order-splits/*.md` | Generated Outputs')) -Message "Control-plane artifact index marks work orders as generated output"
+    Assert-True -Condition ($indexText -match [regex]::Escape('`docs/fleet/ui/prototype/fleet-console.html` and `fleet-console.css` | UI / Console')) -Message "Control-plane artifact index marks Fleet Console prototype as UI only"
+
+    Assert-False -Condition ($indexText -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo access|product repo mutation|PrivateLens work|push|deploy|install|migration|secrets|proof runs|all-fleet|background runners|external account|future authority)") -Message "Control-plane artifact index does not grant forbidden authority"
+
+    foreach ($reference in @(
+        "TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md",
+        "Control-Plane Artifact Index",
+        "Lane 5",
+        "CLOSED"
+    )) {
+        Assert-True -Condition ($queueText -match [regex]::Escape($reference)) -Message "Lane queue references control-plane artifact index: $reference"
+    }
+
+    foreach ($reference in @(
+        "TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md",
+        "CURRENT_CONTROL",
+        "category, authority level, freshness, safe default action",
+        "before treating"
+    )) {
+        Assert-True -Condition ($freshnessText -match [regex]::Escape($reference)) -Message "Freshness index references control-plane artifact index: $reference"
+    }
+}
+
 function Test-HqTsfAutonomousProjectManagementV1 {
     $docPath = Join-Path $fleetRoot "docs\fleet\TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
     $toolPath = Join-Path $fleetRoot "tools\codex-fleet-project-management.ps1"
@@ -20364,6 +20477,7 @@ Test-HqTsfMixedOutcomeBatchStressDrill
 Test-HqTsfRealProjectShapedDryRun
 Test-HqPersonalWebsiteMockupBatch
 Test-HqTsfArtifactIntakeFolderSystem
+Test-HqTsfControlPlaneArtifactIndexV1
 Test-HqTsfAutonomousProjectManagementV1
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze
