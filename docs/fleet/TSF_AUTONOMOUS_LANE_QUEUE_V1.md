@@ -86,6 +86,7 @@ When starting an autonomous TSF control-plane session:
 | 6 | Control Plane Overview | `CLOSED` | Tim's north-star TSF summary is canonized as a concise orientation artifact for future Codex/HQ sessions. | `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md` |
 | 7 | Authority Boundary Scan Checklist | `PARKED` | Useful if another doc accidentally blurs evidence and authority. Not urgent while validations are passing. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
 | 8 | Product Repo Onboarding Mock Packet | `TIM_REQUIRED` for real product use; safe only as TSF-local mock | Product repo access remains restricted. A mock can be created later if Tim wants safer onboarding packets without touching product repos. | TSF-local mock work order only; no product files |
+| 9 | Next-Session Cards | `CLOSED` | Compact cards now route future TSF sessions without making Tim reconstruct safe local work versus true approval gates. | `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md` |
 
 ## Lane 1 - Report Quality Validator
 
@@ -299,13 +300,38 @@ Stop if:
 - real product repo or PrivateLens access is needed
 - archived project reactivation is implied
 
+## Lane 9 - Next-Session Cards
+
+Status: `CLOSED`
+
+Real finish line:
+
+- TSF has compact cards for return snapshot, push gate, product-pilot approval
+  review, product-pilot execution, authority boundary scan, status freshness
+  refresh, and runner template tuning
+- every card names trigger, scope, finish line, unblock artifact, validation,
+  stop conditions, and whether Tim is truly needed
+- cards preserve exact restricted gates and do not replace live git validation
+
+Unblock artifact:
+
+- `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md`
+
+Exclude and move on:
+
+- product repo inspection
+- PrivateLens inspection
+- push execution
+- persistent runner execution
+- broad policy prose without a card or validator
+
 ## Current Recommended Next Lane
 
-No `READY` lane remains after the Control Plane Overview lane.
+No always-on `READY` lane remains after the Next-Session Cards lane.
 
-Lane 1, Lane 2, Lane 3, Lane 4, Lane 5, and Lane 6 are closed. Lane 7 remains
-`PARKED` until a real report, doc, prompt, or queue creates ambiguity about
-evidence versus authority. Lane 8 remains `TIM_REQUIRED` for real product
+Lane 1, Lane 2, Lane 3, Lane 4, Lane 5, Lane 6, and Lane 9 are closed. Lane 7
+remains `PARKED` until a real report, doc, prompt, or queue creates ambiguity
+about evidence versus authority. Lane 8 remains `TIM_REQUIRED` for real product
 access.
 
 ## Commit Guidance
@@ -318,7 +344,8 @@ queue-execution batch closes the safe stop escalation matrix plus queue and
 freshness-index updates. The fifth queue-execution batch closes the
 control-plane artifact index plus queue, freshness-index, and regression-test
 updates. The overview checkpoint canonizes Tim's north-star summary plus queue
-and freshness-index updates.
+and freshness-index updates. The next-session checkpoint adds routing cards and
+refreshes the artifact/freshness indexes for runner-era approval packets.
 
 Do not push from this queue. Push remains a separate exact Tim gate.
 

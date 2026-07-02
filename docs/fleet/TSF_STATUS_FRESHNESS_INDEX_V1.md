@@ -33,9 +33,10 @@ For a normal TSF return moment, read in this order:
 5. `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md`
 6. `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md`
 7. `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md`
-8. `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md`
-9. `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md`
-10. this file
+8. `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md`
+9. `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md`
+10. `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md`
+11. this file
 
 Use older status files as evidence only. Do not treat older status, archived
 daily logs, generated reports, queue prose, UI text, or benchmark examples as
@@ -66,6 +67,7 @@ permission to cross restricted gates.
 | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` | `CURRENT_CONTROL` | Checklist/classifier for Codex final report quality. | Replacing actual validation commands or git evidence. |
 | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` | `CURRENT_CONTROL` | Copyable autonomy-era prompts for intake, checkpointing, reconciliation, push-prep, exact push approval, restricted-gate packets, and final-report self-checks. | Execution authority, product work, or bypassing live repo validation. |
 | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` | `CURRENT_CONTROL` | Deterministic matrix for continue, local commit, stop, escalation, unsafe hold, and phase close decisions. | Restricted action approval or replacing live repo validation. |
+| `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md` | `CURRENT_CONTROL` | Compact routing cards for safe next TSF sessions and true Tim approval gates. | Restricted action approval or replacing live git/status validation. |
 | `docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_HARNESS_PILOT_V0.md` | `CURRENT_CONTROL` | Controlled TSF-local overnight-runner harness design and pilot boundary. | Product repo work, persistent background runners, all-fleet commands, or push approval. |
 | `docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_DECISION_LOG_SCHEMA_V0.md` | `CURRENT_CONTROL` | Minimum fields for runner decision logs. | Treating logs as approval or executable authority. |
 | `docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_STOP_CONDITIONS_V0.md` | `CURRENT_CONTROL` | Deterministic stop rules for controlled runner-style TSF sessions. | Bypassing exact Tim approval gates. |
@@ -73,6 +75,8 @@ permission to cross restricted gates.
 | `docs/fleet/overnight-runner/tsf_overnight_runner_decision_log_template_v0_1.json` | `CURRENT_CONTROL` | Machine-readable v0.1 decision-log template skeleton. | Secrets, external account data, executable runner state, or approval authority. |
 | `docs/fleet/overnight-runner/TSF_READ_ONLY_PRODUCT_REPO_PILOT_APPROVAL_PACKET_V0.md` | `CURRENT_CONTROL` | Exact approval packet template for a future read-only product-repo pilot. | Product repo access by itself, mutation, PrivateLens work, push, deploy, installs, migrations, secrets, proof runs, all-fleet commands, background runners, or external account work. |
 | `fleet/runs/overnight-runner/overnight-runner-pilot-v0-2026-07-02.md` | `CLOSED_EVIDENCE` | Completed v0 controlled runner pilot log. | Current repo truth after the run or future runner approval. |
+| `fleet/runs/overnight-runner/overnight-runner-json-template-dry-run-v0-1-2026-07-02.md` | `CLOSED_EVIDENCE` | Completed v0.1 markdown decision-log template dry run. | Product repo pilot approval, persistent runner approval, or current repo truth. |
+| `fleet/runs/overnight-runner/overnight-runner-json-template-dry-run-v0-1-2026-07-02.json` | `CLOSED_EVIDENCE` | Completed v0.1 structured decision-log dry-run sample. | Executable runner state, product repo pilot approval, or secrets/external account data. |
 | `docs/fleet/TSF_FINAL_GATE_CLOSURE_BOARD_V1.md` | `CLOSED_EVIDENCE` | Closure board for completed HQ adapter/tuning/anti-loop gate review. | New restricted action approval. |
 | `docs/fleet/TSF_HQ_ADAPTER_MODE.md` | `CURRENT_CONTROL` | HQ strategic decision format and authority model. | Execution authority. |
 | `docs/fleet/hq-adapter/TSF_HQ_DECISION_BENCH_V1.md` | `CURRENT_CONTROL` | Decision-quality benchmark for HQ responses. | Runtime automation or product work. |
@@ -109,6 +113,8 @@ If Tim asks "where are we?" after this index exists:
   snapshots as authority.
 - Use `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` to decide whether to
   continue, commit locally, stop, escalate, hold unsafe work, or close a phase.
+- Use `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md` when Tim wants the next safe
+  session shape rather than a full lane-queue read.
 - Use `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` before final response.
 
 ## Stale-Status Rules
