@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "runId": "nwr-read-only-pilot-v0-2026-07-02",
+  "verdict": "GREEN",
+  "approval": {
+    "action": "read-only product-repo pilot",
+    "repoName": "Niners War Room / NWR",
+    "canonicalRepoPath": "C:\\NWR\\Niners-War-Room",
+    "approvedSourceRef": "origin/work/hq-parallel-control",
+    "isolatedWorktreePath": "C:\\NWR\\Niners-War-Room-tsf-readonly-pilot-20260702",
+    "scope": [
+      "validate canonical repo identity",
+      "do not modify canonical checkout",
+      "create or use clean isolated worktree only if safe",
+      "perform read-only inspection in isolated worktree",
+      "write report artifacts only in TSF repo"
+    ],
+    "expiresAfter": "one read-only pilot report"
+  },
+  "canonicalRepo": {
+    "path": "C:\\NWR\\Niners-War-Room",
+    "topLevel": "C:/NWR/Niners-War-Room",
+    "originRemote": "https://github.com/scolety1/Niners-War-Room.git",
+    "branchStatus": "work/nfl-usage-target-backtest-v0...origin/work/nfl-usage-target-backtest-v0",
+    "head": "e7c1aa564040d9c1dad61907c9f48cfc47931702",
+    "dirtyAtStart": true,
+    "dirtyFilesObserved": [
+      "docs/hq/parallel_lanes/dynastyprocess_market_baseline_20260622/dp_freshness_report.csv",
+      "docs/hq/parallel_lanes/dynastyprocess_market_baseline_20260622/dp_market_baseline_context.csv",
+      "docs/hq/parallel_lanes/dynastyprocess_market_baseline_20260622/dp_nwr_join_coverage.csv",
+      "docs/hq/parallel_lanes/dynastyprocess_market_baseline_20260622/dp_pick_value_context.csv",
+      "docs/hq/parallel_lanes/dynastyprocess_market_baseline_20260622/dp_playerid_crosswalk_audit.csv"
+    ],
+    "modifiedByPilot": false
+  },
+  "isolatedWorktree": {
+    "path": "C:\\NWR\\Niners-War-Room-tsf-readonly-pilot-20260702",
+    "createdByPilot": true,
+    "sourceRef": "origin/work/hq-parallel-control",
+    "head": "6f61445665061d6687ced7c29be65b101c4033cc",
+    "branchMode": "detached HEAD",
+    "cleanAfterInspection": true,
+    "modifiedByPilot": false
+  },
+  "commandsRun": {
+    "canonical": [
+      "git -C C:\\NWR\\Niners-War-Room remote -v",
+      "git -C C:\\NWR\\Niners-War-Room status --short --branch",
+      "git -C C:\\NWR\\Niners-War-Room rev-parse --show-toplevel",
+      "git -C C:\\NWR\\Niners-War-Room rev-parse HEAD",
+      "git -C C:\\NWR\\Niners-War-Room rev-parse --verify origin/work/hq-parallel-control",
+      "git -C C:\\NWR\\Niners-War-Room worktree list"
+    ],
+    "worktreeCreation": [
+      "git -C C:\\NWR\\Niners-War-Room worktree add --detach C:\\NWR\\Niners-War-Room-tsf-readonly-pilot-20260702 origin/work/hq-parallel-control"
+    ],
+    "isolatedReadOnly": [
+      "git status --short --branch",
+      "git branch --show-current",
+      "git rev-parse HEAD",
+      "git log --oneline -10",
+      "Get-ChildItem",
+      "rg --files",
+      "Get-Content README.md",
+      "Get-Content pyproject.toml",
+      "Get-Content RUN_POLICY.md",
+      "Get-Content MISSION.md",
+      "Get-Content app\\navigation.py",
+      "Get-Content docs\\hq\\MASTER_HQ_OUTCOME_V2_HISTORICAL_GATE_CLOSEOUT_20260630.md",
+      "rg guarded review/evidence/source-truth terms over docs/app/src/README/policy files"
+    ]
+  },
+  "inspectionSummary": {
+    "topLevelAreas": [
+      "app",
+      "src",
+      "docs",
+      "sample_data",
+      "config",
+      "scripts",
+      "tests",
+      "templates"
+    ],
+    "observedSurfaces": [
+      "Draft Cockpit",
+      "Mock Drafts",
+      "Dynasty Rankings",
+      "Player Compare",
+      "Trading Lab",
+      "Draft Analyzer",
+      "Development Lab",
+      "Evidence Review",
+      "Evidence Review Hub",
+      "Settings / Data Health"
+    ],
+    "guardrailsObserved": [
+      "local-first runtime policy",
+      "review-only trust labels",
+      "Development Lab display-only and not-source-truth boundaries",
+      "HQ closeouts blocking production activation until separate review",
+      "manual review gates for model/ranking/source-truth promotion"
+    ]
+  },
+  "intentionallyNotInspected": [
+    "secrets",
+    "env files",
+    "runtime/deploy/auth/payment private configs",
+    "PrivateLens",
+    "tests or proof runs",
+    "services or app runtime",
+    "product mutation paths for changing rankings/models/formulas/source truth"
+  ],
+  "restrictedGatesRemaining": [
+    "product repo mutation",
+    "NWR commits or pushes",
+    "tests/proof runs",
+    "installs/migrations",
+    "app/server/runtime work",
+    "secrets/auth/payments",
+    "rankings/model/formula/source-truth promotion",
+    "PrivateLens access",
+    "deploys",
+    "external account changes",
+    "all-fleet commands",
+    "persistent background runners"
+  ],
+  "tuningSignals": [
+    "isolated worktree allowed read-only inspection without touching dirty canonical checkout",
+    "future logs should cap large worktree-list output",
+    "future pilots should name one narrow read-only inspection question",
+    "safe searches need explicit secret/path exclusions"
+  ],
+  "confirmations": {
+    "nwrCanonicalCheckoutModified": false,
+    "nwrIsolatedWorktreeModified": false,
+    "nwrCommitCreated": false,
+    "nwrPushPerformed": false,
+    "tsfArtifactsOnly": true,
+    "productMutationRemainsTimRequired": true,
+    "noDeployInstallMigrationSecretProofAllFleetBackgroundPrivateLensExternalAccountWork": true
+  }
+}
