@@ -86,6 +86,7 @@ approval.
 | `docs/fleet/TSF_STATUS_FRESHNESS_INDEX_V1.md` | Authority / Contract | Source-of-truth order and freshness classification for return moments. | `AUTHORITY` | `CURRENT_CONTROL` | read first | yes | Freshness map is not current git truth; still verify branch, HEAD, remote, and status. |
 | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` | Authority / Contract | Classifies TSF artifacts by category, authority level, freshness, and safe default action. | `AUTHORITY` | `CURRENT_CONTROL` | read first | yes | Index does not replace live validation or exact Tim approvals. |
 | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` | Authority / Contract | Final-report checklist and classifier for autonomy-era TSF reports. | `AUTHORITY` | `CURRENT_CONTROL` | read first | yes | Report quality is not the same as approval to push or mutate restricted scopes. |
+| `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` | Authority / Contract | Fast scan for classifying authority leaks across docs, prompts, status, UI text, logs, work orders, and Tim-gate packets. | `AUTHORITY` | `CURRENT_CONTROL` | read first when authority is ambiguous | yes | Classifies and routes ambiguity; it does not approve restricted actions. |
 | `docs/fleet/TSF_PUSH_DECISION_RUBRIC.md` | Authority / Contract | Defines exact push-decision posture and non-authority evidence boundaries. | `AUTHORITY` | `CURRENT_CONTROL` | read first | yes | Push still needs exact Tim approval after GREEN readiness. |
 | `docs/fleet/TSF_BLOCKER_RESOLUTION_BUILDER_LANE_POLICY.md` | Authority / Contract | Turns blocker-documentation loops into builder/unblock-artifact lanes. | `AUTHORITY` | `CURRENT_CONTROL` | read first | yes | Should redirect safe blockers, not bypass restricted gates. |
 | `docs/fleet/TSF_LOOP_CLOSURE_NO_TREADMILL_POLICY.md` | Authority / Contract | Prevents repeated review/documentation treadmill behavior. | `AUTHORITY` | `CURRENT_CONTROL` | read first | yes | Avoids churn; does not approve unsafe shortcuts. |
@@ -182,6 +183,9 @@ For normal autonomous TSF-control-plane work:
    using them.
 7. Read `docs/fleet/TSF_STATUS_FRESHNESS_INDEX_V1.md` when freshness or stale
    status is the question.
+8. Read `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` when an
+   artifact blurs evidence, authority, generated work, UI guidance, historical
+   status, or Tim-required gates.
 
 ## Do Not Treat As Authority
 

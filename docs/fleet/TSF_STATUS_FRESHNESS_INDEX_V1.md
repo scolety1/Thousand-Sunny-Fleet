@@ -65,6 +65,7 @@ permission to cross restricted gates.
 | `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md` | `CURRENT_CONTROL` | Queue of safe next TSF-local control-plane builder lanes. | Product work, PrivateLens work, or automatic execution. |
 | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` | `CURRENT_CONTROL` | Classifies major TSF artifacts by category, authority level, freshness, safe default action, and whether they can guide action. | Restricted action approval or replacing live repo validation. |
 | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` | `CURRENT_CONTROL` | Checklist/classifier for Codex final report quality. | Replacing actual validation commands or git evidence. |
+| `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` | `CURRENT_CONTROL` | Fast checklist for spotting authority leaks in docs, prompts, status, UI text, logs, work orders, and Tim-gate packets. | Approving restricted actions or replacing exact Tim approval. |
 | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` | `CURRENT_CONTROL` | Copyable autonomy-era prompts for intake, checkpointing, reconciliation, push-prep, exact push approval, restricted-gate packets, and final-report self-checks. | Execution authority, product work, or bypassing live repo validation. |
 | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` | `CURRENT_CONTROL` | Deterministic matrix for continue, local commit, stop, escalation, unsafe hold, and phase close decisions. | Restricted action approval or replacing live repo validation. |
 | `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md` | `CURRENT_CONTROL` | Compact routing cards for safe next TSF sessions and true Tim approval gates. | Restricted action approval or replacing live git/status validation. |
@@ -111,6 +112,9 @@ If Tim asks "where are we?" after this index exists:
 - Use `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` before treating
   docs, status, generated outputs, tools, tests, UI text, prompts, or old
   snapshots as authority.
+- Use `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` when a source
+  blurs evidence, authority, generated work, UI guidance, historical status, or
+  Tim-required gates.
 - Use `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` to decide whether to
   continue, commit locally, stop, escalate, hold unsafe work, or close a phase.
 - Use `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md` when Tim wants the next safe

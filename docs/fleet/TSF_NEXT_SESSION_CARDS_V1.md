@@ -215,7 +215,7 @@ Needs Tim:
 
 ## Card 5 - Authority Boundary Scan
 
-Status: `PARKED`
+Status: `READY_SAFE_LOCAL` when a real ambiguity appears
 
 Use when:
 
@@ -226,7 +226,7 @@ Use when:
 Safe scope:
 
 - TSF-local docs/control-plane inspection
-- one scan checklist or correction note
+- one scan result or wording correction note
 
 Real finish line:
 
@@ -236,8 +236,7 @@ Real finish line:
 
 Unblock artifact:
 
-- `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` if a real ambiguity
-  appears
+- `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md`
 
 Validation:
 

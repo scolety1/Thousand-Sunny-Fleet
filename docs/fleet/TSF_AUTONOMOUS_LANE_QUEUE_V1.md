@@ -84,7 +84,7 @@ When starting an autonomous TSF control-plane session:
 | 4 | Safe Stop / Escalation Matrix | `CLOSED` | The autonomy envelope has stop rules; a matrix now makes stop-vs-continue decisions faster for future Codex sessions. | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` |
 | 5 | Control-Plane Artifact Index | `CLOSED` | The HQ adapter, bench, tuning, gate board, autonomy envelope, and intake files are now mapped in one classification index. | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` |
 | 6 | Control Plane Overview | `CLOSED` | Tim's north-star TSF summary is canonized as a concise orientation artifact for future Codex/HQ sessions. | `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md` |
-| 7 | Authority Boundary Scan Checklist | `PARKED` | Useful if another doc accidentally blurs evidence and authority. Not urgent while validations are passing. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
+| 7 | Authority Boundary Scan Checklist | `CLOSED_REFERENCE` | Reusable checklist now exists for classifying authority leaks when docs, prompts, status, UI labels, logs, or work orders blur evidence and permission. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
 | 8 | Product Repo Onboarding Mock Packet | `TIM_REQUIRED` for real product use; safe only as TSF-local mock | Product repo access remains restricted. A mock can be created later if Tim wants safer onboarding packets without touching product repos. | TSF-local mock work order only; no product files |
 | 9 | Next-Session Cards | `CLOSED` | Compact cards now route future TSF sessions without making Tim reconstruct safe local work versus true approval gates. | `docs/fleet/TSF_NEXT_SESSION_CARDS_V1.md` |
 
@@ -277,14 +277,28 @@ Exclude and move on:
 
 ## Lane 7 - Authority Boundary Scan Checklist
 
-Status: `PARKED`
+Status: `CLOSED_REFERENCE`
 
-Use this lane only after a real report, doc, prompt, or queue creates ambiguity
-about evidence versus authority.
+Use this artifact after a real report, doc, prompt, queue, UI label, runner log,
+or work order creates ambiguity about evidence versus authority.
+
+Real finish line:
+
+- TSF has a reusable checklist for classifying authority, evidence, generated
+  status, generated work orders, UI-only text, test fixtures, historical
+  records, and Tim-gate packets
+- the checklist names restricted gates that still require exact Tim approval
+- the checklist provides a scan result template and corrective actions
 
 Unblock artifact:
 
 - `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md`
+
+Exclude and move on:
+
+- reopening completed lanes without a concrete ambiguity
+- treating the checklist as approval to execute restricted gates
+- product repo or PrivateLens inspection
 
 ## Lane 8 - Product Repo Onboarding Mock Packet
 
@@ -329,10 +343,10 @@ Exclude and move on:
 
 No always-on `READY` lane remains after the Next-Session Cards lane.
 
-Lane 1, Lane 2, Lane 3, Lane 4, Lane 5, Lane 6, and Lane 9 are closed. Lane 7
-remains `PARKED` until a real report, doc, prompt, or queue creates ambiguity
-about evidence versus authority. Lane 8 remains `TIM_REQUIRED` for real product
-access.
+Lane 1, Lane 2, Lane 3, Lane 4, Lane 5, Lane 6, Lane 7, and Lane 9 are closed
+or reference-ready. Lane 8 remains `TIM_REQUIRED` for real product access. No
+always-on `READY` lane remains unless a future session supplies a concrete
+TSF-local builder request or a true Tim approval packet.
 
 ## Commit Guidance
 
