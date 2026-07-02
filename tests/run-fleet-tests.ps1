@@ -4115,6 +4115,165 @@ function Test-HqTsfControlPlaneArtifactIndexV1 {
     }
 }
 
+function Test-HqTsfOvernightDraftBatchV1 {
+    $draftRoot = Join-Path $fleetRoot "fleet\status\draft-queue"
+    $indexPath = Join-Path $draftRoot "overnight-draft-batch-v1.md"
+    $privateLensApprovalPath = Join-Path $draftRoot "privatelens-read-only-inspection-approval.md"
+    $privateLensWorkPath = Join-Path $draftRoot "privatelens-first-work-session-draft.md"
+    $nytheriaApprovalPath = Join-Path $draftRoot "nytheria-slice-1-approval.md"
+    $nytheriaWorkPath = Join-Path $draftRoot "nytheria-slice-1-implementation-work-order.md"
+    $pushPath = Join-Path $draftRoot "tsf-push-approval-packet.md"
+    $lane6Path = Join-Path $draftRoot "lane-6-authority-evidence-ambiguity-trigger.md"
+    $lane7Path = Join-Path $draftRoot "lane-7-product-access-approval.md"
+    $morningPath = Join-Path $draftRoot "morning-decision-queue.md"
+    $dailyPath = Join-Path $draftRoot "master-codex-daily-check.md"
+    $docPath = Join-Path $fleetRoot "docs\fleet\TSF_OVERNIGHT_DRAFT_BATCH_V1.md"
+    $consolePath = Join-Path $fleetRoot "docs\fleet\ui\prototype\fleet-console.html"
+    $artifactIndexPath = Join-Path $fleetRoot "docs\fleet\TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md"
+
+    $requiredPaths = @(
+        $indexPath,
+        $privateLensApprovalPath,
+        $privateLensWorkPath,
+        $nytheriaApprovalPath,
+        $nytheriaWorkPath,
+        $pushPath,
+        $lane6Path,
+        $lane7Path,
+        $morningPath,
+        $dailyPath,
+        $docPath,
+        $consolePath,
+        $artifactIndexPath
+    )
+
+    foreach ($path in $requiredPaths) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Overnight draft batch artifact exists: $path"
+    }
+
+    if (!(Test-Path -LiteralPath $indexPath)) {
+        return
+    }
+
+    $indexText = Get-Content -LiteralPath $indexPath -Raw
+    $privateLensApprovalText = Get-Content -LiteralPath $privateLensApprovalPath -Raw
+    $privateLensWorkText = Get-Content -LiteralPath $privateLensWorkPath -Raw
+    $nytheriaApprovalText = Get-Content -LiteralPath $nytheriaApprovalPath -Raw
+    $nytheriaWorkText = Get-Content -LiteralPath $nytheriaWorkPath -Raw
+    $pushText = Get-Content -LiteralPath $pushPath -Raw
+    $lane6Text = Get-Content -LiteralPath $lane6Path -Raw
+    $lane7Text = Get-Content -LiteralPath $lane7Path -Raw
+    $morningText = Get-Content -LiteralPath $morningPath -Raw
+    $dailyText = Get-Content -LiteralPath $dailyPath -Raw
+    $docText = Get-Content -LiteralPath $docPath -Raw
+    $consoleText = Get-Content -LiteralPath $consolePath -Raw
+    $artifactIndexText = Get-Content -LiteralPath $artifactIndexPath -Raw
+    $combinedDraftText = @(
+        $indexText,
+        $privateLensApprovalText,
+        $privateLensWorkText,
+        $nytheriaApprovalText,
+        $nytheriaWorkText,
+        $pushText,
+        $lane6Text,
+        $lane7Text,
+        $morningText,
+        $dailyText,
+        $docText
+    ) -join "`n"
+
+    foreach ($phrase in @(
+        "TSF Overnight Draft Batch V1",
+        "Evidence only; draft queue only; not executable authority or approval.",
+        "privatelens-read-only-inspection-approval.md",
+        "nytheria-slice-1-approval.md",
+        "tsf-push-approval-packet.md",
+        "morning-decision-queue.md",
+        "Generated drafts are proposals, not approval."
+    )) {
+        Assert-True -Condition ($indexText -match [regex]::Escape($phrase)) -Message "Overnight draft batch index preserves phrase: $phrase"
+    }
+
+    Assert-True -Condition ($privateLensApprovalText -match [regex]::Escape("No PrivateLens inspection is authorized until Tim sends exact approval.")) -Message "PrivateLens read-only draft blocks inspection until Tim approval"
+    Assert-True -Condition ($privateLensApprovalText -match [regex]::Escape("read-only inspection scope")) -Message "PrivateLens read-only draft includes scope"
+    Assert-True -Condition ($privateLensApprovalText -match [regex]::Escape("C:\Users\codex-agent\Documents\Codex\2026-06-10\build-a-polished-mvp-called-privatelens\outputs\privatelens")) -Message "PrivateLens read-only draft includes TSF-local repo path evidence"
+    Assert-True -Condition ($privateLensWorkText -match [regex]::Escape("Use only after PrivateLens read-only inspection is completed")) -Message "PrivateLens first work session waits for inspection"
+    Assert-True -Condition ($privateLensWorkText -match [regex]::Escape("Inspection Findings Placeholder")) -Message "PrivateLens first work session includes inspection findings placeholder"
+
+    foreach ($phrase in @(
+        "Nytheria Slice 1 Approval Packet",
+        "deterministic tick 0 through tick 3 concept",
+        "two regions",
+        "two factions",
+        "three scheduled events",
+        "faction clocks",
+        "doom/default timeline track",
+        "event log with evidence/canon labels",
+        "The existing work order does not authorize implementation by itself."
+    )) {
+        Assert-True -Condition ($nytheriaApprovalText -match [regex]::Escape($phrase)) -Message "Nytheria Slice 1 approval preserves phrase: $phrase"
+    }
+
+    Assert-True -Condition ($nytheriaWorkText -match [regex]::Escape("NOT APPROVED. Draft work order only.")) -Message "Nytheria implementation work order is labeled NOT APPROVED"
+    Assert-True -Condition ($nytheriaWorkText -match [regex]::Escape("no real Nytheria repo")) -Message "Nytheria implementation work order blocks real Nytheria repo"
+    Assert-True -Condition ($nytheriaWorkText -match [regex]::Escape("full engine")) -Message "Nytheria implementation work order blocks full engine scope"
+    Assert-True -Condition ($nytheriaWorkText -match [regex]::Escape("AI GM")) -Message "Nytheria implementation work order blocks AI GM"
+
+    Assert-True -Condition ($pushText -match [regex]::Escape("must verify the current HEAD dynamically")) -Message "TSF push packet verifies HEAD dynamically"
+    Assert-True -Condition ($pushText -match [regex]::Escape("This draft does not push.")) -Message "TSF push packet states it does not push"
+    Assert-True -Condition ($pushText -match [regex]::Escape("Do not push from this packet unless Tim sends exact approval")) -Message "TSF push packet requires exact approval"
+
+    Assert-True -Condition ($lane6Text -match [regex]::Escape("Lane 6 remains parked unless triggered by real ambiguity.")) -Message "Lane 6 trigger packet keeps Lane 6 parked"
+    Assert-True -Condition ($lane6Text -match [regex]::Escape("Not Real Triggers")) -Message "Lane 6 trigger packet lists non-triggers"
+    Assert-True -Condition ($lane7Text -match [regex]::Escape("Product repos remain off-limits until Tim selects a project and gives exact approval.")) -Message "Lane 7 product access packet requires exact Tim approval"
+    Assert-True -Condition ($lane7Text -match [regex]::Escape("Archived projects stay locked.")) -Message "Lane 7 product access packet keeps archived projects locked"
+
+    $primaryRecommendationCount = ([regex]::Matches($morningText, "Primary recommendation:")).Count
+    $secondaryDecisionCount = ([regex]::Matches($morningText, "Secondary decision \d:")).Count
+    Assert-Equal -Actual $primaryRecommendationCount -Expected 1 -Message "Morning decision queue has one primary recommendation"
+    Assert-True -Condition ($secondaryDecisionCount -le 3) -Message "Morning decision queue has no more than three secondary decisions"
+    Assert-False -Condition ($morningText -match "Secondary decision 4") -Message "Morning decision queue has no fourth secondary decision"
+    Assert-True -Condition ($morningText -match [regex]::Escape("Push TSF if it is still GREEN")) -Message "Morning decision queue primary recommendation is push if still GREEN"
+
+    foreach ($draftPath in @($requiredPaths | Where-Object { $_ -ne $consolePath -and $_ -ne $artifactIndexPath })) {
+        $text = Get-Content -LiteralPath $draftPath -Raw
+        Assert-True -Condition ($text -match "(?is)(Draft only|Evidence only|NOT APPROVED|Reusable prompt; not approval)") -Message "Draft artifact is labeled proposal/evidence/not approved: $draftPath"
+        Assert-False -Condition ($text -match "(?is)(approves|authorizes|grants|permits).{0,180}(product repo access|product repo mutation|PrivateLens inspection|PrivateLens work|push|deploy|install|migration|secrets|proof runs|all-fleet|background runners|external account|future authority)") -Message "Draft artifact does not grant forbidden authority: $draftPath"
+    }
+
+    foreach ($consolePhrase in @(
+        'id="draft-queue"',
+        "Draft Queue",
+        "Overnight Draft Batch",
+        "Morning Decision Queue",
+        "PrivateLens read-only inspection",
+        "Nytheria Slice 1",
+        "TSF push approval packet",
+        "Product access approval"
+    )) {
+        Assert-True -Condition ($consoleText -match [regex]::Escape($consolePhrase)) -Message "Fleet Console Draft Queue section renders phrase: $consolePhrase"
+    }
+
+    foreach ($forbiddenHtmlPattern in @(
+        '(?i)<\s*(script|iframe|object|embed)\b',
+        '(?i)<\s*form\b',
+        '(?i)\son[a-z]+\s*=',
+        '(?i)javascript\s*:',
+        '(?i)fetch\s*\(',
+        '(?i)XMLHttpRequest',
+        '(?i)<\s*link\b[^>]+\bhref\s*=\s*["'']?\s*(https?:|//)',
+        '(?i)<\s*script\b[^>]+\bsrc\s*=\s*["'']?\s*(https?:|//)'
+    )) {
+        Assert-False -Condition ($consoleText -match $forbiddenHtmlPattern) -Message "Fleet Console Draft Queue integration exposes no executable browser hook: $forbiddenHtmlPattern"
+    }
+
+    Assert-True -Condition ($artifactIndexText -match [regex]::Escape("fleet/status/draft-queue/**")) -Message "Control-plane artifact index maps draft queue"
+    Assert-True -Condition ($artifactIndexText -match [regex]::Escape("Draft packets are proposals Tim can approve, edit, deny, or ignore.")) -Message "Control-plane artifact index marks draft packets as proposals"
+    Assert-True -Condition ($dailyText -match [regex]::Escape("no push/product repo access without explicit approval") -or $dailyText -match [regex]::Escape("push without exact approval")) -Message "Master Codex daily check preserves no push/product access without approval"
+    Assert-True -Condition ($combinedDraftText -match [regex]::Escape("No product repo inspection occurred.")) -Message "Draft batch records no product repo inspection"
+    Assert-True -Condition ($combinedDraftText -match [regex]::Escape("No PrivateLens inspection occurred.")) -Message "Draft batch records no PrivateLens inspection"
+}
+
 function Test-HqTsfAutonomousProjectManagementV1 {
     $docPath = Join-Path $fleetRoot "docs\fleet\TSF_AUTONOMOUS_PROJECT_MANAGEMENT_V1.md"
     $toolPath = Join-Path $fleetRoot "tools\codex-fleet-project-management.ps1"
@@ -16378,7 +16537,7 @@ function Test-HqFleetConsoleStaticPrototypeSafety {
     $returnReview = Get-Content -LiteralPath $returnReviewPath -Raw
     $combined = @($html, $readme, $returnReview) -join "`n"
 
-    $v3CommitSubjects = @(& git -C $fleetRoot log --format=%s -n 30 2>$null)
+    $v3CommitSubjects = @(& git -C $fleetRoot log --format=%s --all --grep "Add desktop fleet console V3" -n 1 2>$null)
     Assert-True -Condition (($v3CommitSubjects -join "`n") -match [regex]::Escape("Add desktop fleet console V3")) -Message "Console V3 local checkpoint commit exists"
 
     foreach ($requiredPhrase in @(
@@ -20478,6 +20637,7 @@ Test-HqTsfRealProjectShapedDryRun
 Test-HqPersonalWebsiteMockupBatch
 Test-HqTsfArtifactIntakeFolderSystem
 Test-HqTsfControlPlaneArtifactIndexV1
+Test-HqTsfOvernightDraftBatchV1
 Test-HqTsfAutonomousProjectManagementV1
 Test-HqPhonePostPublishVerificationPacket
 Test-HqPhoneTravelRequestOnlyFreeze

@@ -40,6 +40,7 @@
       <a href="#tsf-handles">TSF Handles</a>
       <a href="#interrupt-only">Interrupt Rules</a>
       <a href="#decision-queue">Decision Queue</a>
+      <a href="#draft-queue">Draft Queue</a>
       <a href="#away-summary">After Away Mode</a>
       <a href="#project-triage">Project Triage</a>
       <a href="#next-session">Next Session</a>
@@ -571,6 +572,49 @@ Final report format: approve/hold recommendation, risks, required human words, a
             <span>Needs approval</span>
             <strong>Approve risky file scope expansion</strong>
             <p>Work outside the approved file scope requires a new bounded packet.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="draft-queue" class="panel" aria-labelledby="draft-queue-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Draft Queue</p>
+            <h2 id="draft-queue-title">Prepared packets, not approvals</h2>
+          </div>
+          <span class="status-pill">static links</span>
+        </div>
+        <p class="panel-intro">These are quiet draft packets Tim can approve, edit, deny, or ignore. Links are local static references only; they do not run commands or approve work.</p>
+        <div class="decision-list" aria-label="Overnight Draft Batch packet links">
+          <article class="decision-card">
+            <span>Index</span>
+            <strong><a href="../../../../fleet/status/draft-queue/overnight-draft-batch-v1.md">Overnight Draft Batch</a></strong>
+            <p>Lists every prepared draft, whether it needs Tim, and the safe next action.</p>
+          </article>
+          <article class="decision-card">
+            <span>Morning first</span>
+            <strong><a href="../../../../fleet/status/draft-queue/morning-decision-queue.md">Morning Decision Queue</a></strong>
+            <p>Short checklist: push TSF if still GREEN, decide PrivateLens inspection, then decide Nytheria Slice 1.</p>
+          </article>
+          <article class="decision-card">
+            <span>Needs approval</span>
+            <strong><a href="../../../../fleet/status/draft-queue/privatelens-read-only-inspection-approval.md">PrivateLens read-only inspection</a></strong>
+            <p>Exact packet for optional read-only inspection. No inspection is approved by this link.</p>
+          </article>
+          <article class="decision-card">
+            <span>Needs approval</span>
+            <strong><a href="../../../../fleet/status/draft-queue/nytheria-slice-1-approval.md">Nytheria Slice 1</a></strong>
+            <p>Approval packet for the TSF-local text-only world clock toy prototype.</p>
+          </article>
+          <article class="decision-card">
+            <span>Needs approval</span>
+            <strong><a href="../../../../fleet/status/draft-queue/tsf-push-approval-packet.md">TSF push approval packet</a></strong>
+            <p>Prompt for final dynamic checks and push only after exact Tim approval.</p>
+          </article>
+          <article class="decision-card">
+            <span>Template</span>
+            <strong><a href="../../../../fleet/status/draft-queue/lane-7-product-access-approval.md">Product access approval</a></strong>
+            <p>General product repo access template. Archived projects stay locked unless explicitly reactivated.</p>
           </article>
         </div>
       </section>
