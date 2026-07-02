@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "runId": "nwr-experiment-sandbox-v0-2026-07-02",
+  "verdict": "GREEN",
+  "approval": {
+    "action": "NWR isolated duplicate/sandbox experiment",
+    "repoName": "Niners War Room / NWR",
+    "canonicalRepoPath": "C:\\NWR\\Niners-War-Room",
+    "approvedSourceRef": "origin/work/hq-parallel-control",
+    "sandboxPath": "C:\\NWR\\Niners-War-Room-tsf-experiment-sandbox-20260702",
+    "sandboxBranchName": "work/tsf-nwr-experiment-sandbox-20260702",
+    "allowedProductRepoMutation": "YES, but only inside the sandbox worktree path",
+    "canonicalCheckoutMutation": "NO",
+    "nwrPush": "NO",
+    "tsfPush": "NO",
+    "installsMigrationsDeploySecretsProofAllFleetBackgroundRunners": "NO",
+    "expiresAfter": "one sandbox experiment report"
+  },
+  "canonicalRepo": {
+    "path": "C:\\NWR\\Niners-War-Room",
+    "topLevel": "C:/NWR/Niners-War-Room",
+    "originRemote": "https://github.com/scolety1/Niners-War-Room.git",
+    "branchStatus": "work/nfl-usage-target-backtest-v0...origin/work/nfl-usage-target-backtest-v0",
+    "approvedSourceRef": "origin/work/hq-parallel-control",
+    "approvedSourceRefHead": "6f61445665061d6687ced7c29be65b101c4033cc",
+    "dirtyBeforeSandbox": true,
+    "modifiedByRun": false
+  },
+  "sandbox": {
+    "path": "C:\\NWR\\Niners-War-Room-tsf-experiment-sandbox-20260702",
+    "createdOrReused": "created",
+    "branch": "work/tsf-nwr-experiment-sandbox-20260702",
+    "startHead": "6f61445665061d6687ced7c29be65b101c4033cc",
+    "finalHead": "d747ee265239cb29d21eb1e96d03910367eeb9a0",
+    "aheadBehindVsOriginWorkHqParallelControl": {
+      "behind": 0,
+      "ahead": 1
+    },
+    "finalStatus": "clean"
+  },
+  "experimentsCompleted": [
+    "sandbox creation from approved local source ref",
+    "read-only app/docs/status/guardrail orientation",
+    "sandbox-local experiment log",
+    "sandbox-local artifact/surface map"
+  ],
+  "sandboxFilesChanged": [
+    "SANDBOX_EXPERIMENT_LOG.md",
+    "docs/hq/sandbox/NWR_SANDBOX_ARTIFACT_SURFACE_MAP_20260702.md"
+  ],
+  "sandboxCommits": [
+    {
+      "hash": "d747ee265239cb29d21eb1e96d03910367eeb9a0",
+      "message": "docs: add TSF experiment sandbox notes"
+    }
+  ],
+  "tsfArtifacts": [
+    "docs/fleet/product-pilots/NWR_EXPERIMENT_SANDBOX_V0.md",
+    "fleet/runs/product-pilots/nwr-experiment-sandbox-v0-2026-07-02.json"
+  ],
+  "safeFutureWorkOrderCandidates": [
+    "NWR Artifact Map V1",
+    "NWR Evidence Surface Boundary Review V1",
+    "NWR Current Board Gate Inventory V1",
+    "NWR Sandbox Retention Decision Packet"
+  ],
+  "restrictedGatesRemaining": [
+    "canonical checkout mutation",
+    "NWR push",
+    "TSF push",
+    "merge/rebase/reset/restore/clean",
+    "installs/migrations",
+    "app/server/dev-server/runtime work",
+    "tests/proof runs",
+    "all-fleet commands",
+    "deployments",
+    "secrets/auth/payments",
+    "PrivateLens",
+    "external account work",
+    "production ranking changes",
+    "formula/model/source-truth promotion",
+    "hidden sort or recommendation behavior"
+  ],
+  "confirmations": {
+    "canonicalNwrModified": false,
+    "sandboxOnlyProductMutation": true,
+    "nwrPushPerformed": false,
+    "tsfPushPerformed": false,
+    "noDeployInstallMigrationSecretProofAllFleetBackgroundPrivateLensExternalAccountWork": true
+  }
+}
