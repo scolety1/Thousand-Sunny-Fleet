@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "0.1",
+  "runMetadata": {
+    "runId": "overnight-runner-json-template-dry-run-v0-1-2026-07-02",
+    "date": "2026-07-02",
+    "repo": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+    "branch": "main",
+    "startHead": "50bdb4824181e2e3df26dfe053b558636ef7a861",
+    "originMainBaseline": "50bdb4824181e2e3df26dfe053b558636ef7a861",
+    "aheadBehind": {
+      "ahead": 0,
+      "behind": 0
+    },
+    "runnerMode": "controlled_tsf_local_foreground_template_dry_run",
+    "approvedScope": "TSF-local docs/control-plane files and generated runner logs only.",
+    "forbiddenScope": [
+      "push",
+      "deploy",
+      "installs",
+      "migrations",
+      "secrets/auth/payments",
+      "proof runs",
+      "all-fleet commands",
+      "persistent background/overnight/daemon/watcher/scheduled runners",
+      "product repo inspection or mutation",
+      "PrivateLens access or mutation",
+      "external account changes",
+      "spending",
+      "credential/account changes",
+      "archived project reactivation",
+      "history rewrite or remote release changes"
+    ],
+    "worktreeStart": "clean"
+  },
+  "approvals": {
+    "tsfLocalDocsControlPlane": true,
+    "push": false,
+    "deploy": false,
+    "installs": false,
+    "migrations": false,
+    "secretsAuthPayments": false,
+    "proofRuns": false,
+    "allFleetCommands": false,
+    "persistentBackgroundOvernightRunner": false,
+    "productRepoInspectionOrMutation": false,
+    "privateLensAccessOrMutation": false,
+    "externalAccountChanges": false,
+    "spending": false,
+    "credentialAccountChanges": false,
+    "archivedProjectReactivation": false
+  },
+  "candidates": [
+    {
+      "candidateId": "OVR-DRY-001",
+      "candidateName": "JSON Template Dry Run",
+      "sourceArtifact": "docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_DECISION_LOG_TEMPLATE_V0_1.md",
+      "decision": "SELECTED",
+      "decisionSubtype": "TSF_LOCAL_GREEN",
+      "reason": "It directly tests the new template with a concrete markdown and JSON run sample.",
+      "allowedScope": "Create TSF-local markdown and JSON dry-run artifacts.",
+      "forbiddenScope": [
+        "product repos",
+        "PrivateLens",
+        "push",
+        "deploy",
+        "installs",
+        "migrations",
+        "secrets",
+        "proof runs",
+        "all-fleet commands",
+        "external accounts",
+        "persistent background runners"
+      ],
+      "artifactTarget": [
+        "fleet/runs/overnight-runner/overnight-runner-json-template-dry-run-v0-1-2026-07-02.md",
+        "fleet/runs/overnight-runner/overnight-runner-json-template-dry-run-v0-1-2026-07-02.json"
+      ],
+      "validationExpected": [
+        "git diff --check on changed files",
+        "JSON parse",
+        "authority wording scan",
+        "full TSF suite if safe"
+      ],
+      "stopConditionChecked": "No restricted gate required.",
+      "result": "produced",
+      "tuningSignal": "Template fields are sufficient for a real structured TSF-local dry run."
+    },
+    {
+      "candidateId": "OVR-DRY-002",
+      "candidateName": "Harness Pilot Refresh",
+      "sourceArtifact": "docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_HARNESS_PILOT_V0.md",
+      "decision": "SKIPPED",
+      "decisionSubtype": "SKIPPED_CLOSED",
+      "reason": "The v0 harness pilot is complete and published; no defect appeared.",
+      "allowedScope": "Read as closed evidence.",
+      "forbiddenScope": [
+        "rewriting completed runner docs without a concrete defect",
+        "re-proving already closed work"
+      ],
+      "artifactTarget": [],
+      "validationExpected": [],
+      "stopConditionChecked": "Closed lane should not be re-proved.",
+      "result": "skipped",
+      "tuningSignal": "Closed runner artifacts should stay closed unless evidence changes."
+    },
+    {
+      "candidateId": "OVR-DRY-003",
+      "candidateName": "Authority Boundary Scan Checklist",
+      "sourceArtifact": "docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md",
+      "decision": "DEFERRED",
+      "decisionSubtype": "PARKED_NO_TRIGGER",
+      "reason": "Lane 7 is parked until a real evidence/authority ambiguity appears; this dry run found none.",
+      "allowedScope": "Record defer reason.",
+      "forbiddenScope": [
+        "creating policy churn without a real ambiguity",
+        "opening a blocker-only lane"
+      ],
+      "artifactTarget": [],
+      "validationExpected": [],
+      "stopConditionChecked": "No concrete ambiguity trigger.",
+      "result": "deferred",
+      "tuningSignal": "Parked lanes need a trigger, not curiosity."
+    },
+    {
+      "candidateId": "OVR-DRY-004",
+      "candidateName": "Read-Only Product Repo Pilot",
+      "sourceArtifact": "docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md",
+      "decision": "TIM_REQUIRED",
+      "decisionSubtype": "PRODUCT_REPO_GATE",
+      "reason": "Product repo access remains restricted and no exact repo/path/scope approval exists.",
+      "allowedScope": "Approval packet only.",
+      "forbiddenScope": [
+        "product repo inspection",
+        "product repo mutation",
+        "product repo tests",
+        "product repo staging",
+        "product repo commits",
+        "PrivateLens inspection",
+        "PrivateLens mutation"
+      ],
+      "artifactTarget": [
+        "approval packet only; not created in this lane"
+      ],
+      "validationExpected": [
+        "authority wording scan if an approval packet is created"
+      ],
+      "stopConditionChecked": "Product repo access gate.",
+      "result": "stopped before access",
+      "tuningSignal": "Product pilots must remain TIM_REQUIRED until exact approval exists."
+    },
+    {
+      "candidateId": "OVR-DRY-005",
+      "candidateName": "Persistent Runner Expansion",
+      "sourceArtifact": "docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_STOP_CONDITIONS_V0.md",
+      "decision": "BLOCKED",
+      "decisionSubtype": "BLOCKED_UNSAFE",
+      "reason": "Persistent background/overnight/daemon/watcher/scheduled runners are outside this dry-run scope.",
+      "allowedScope": "Explain stop and produce a consolidated approval packet only if future work asks for it.",
+      "forbiddenScope": [
+        "creating services",
+        "creating watchers",
+        "creating schedulers",
+        "creating cron jobs",
+        "creating Task Scheduler entries",
+        "starting unattended daemons",
+        "launching persistent overnight processes"
+      ],
+      "artifactTarget": [],
+      "validationExpected": [],
+      "stopConditionChecked": "Persistent runner gate.",
+      "result": "blocked unsafe",
+      "tuningSignal": "Foreground template dry runs must stay separate from persistent automation."
+    }
+  ],
+  "validations": {
+    "gitStatusShort": "required",
+    "branchShowCurrent": "required",
+    "revParseHead": "required",
+    "revParseOriginMain": "required",
+    "aheadBehind": "required",
+    "diffCheckChangedFiles": "required",
+    "jsonParse": "required",
+    "authorityWordingScan": "required",
+    "stagedFileExactness": "required before commit",
+    "fullTsfSuite": "run only when known safe and not proof-run/all-fleet scoped"
+  },
+  "stopConditions": {
+    "productRepoAccessOrMutation": "TRIGGERED_FOR_OVR_DRY_004_TIM_REQUIRED",
+    "privateLensAccessOrMutation": "CLEAR",
+    "push": "CLEAR",
+    "deployInstallMigrationSecretsAuthPayments": "CLEAR",
+    "proofRunOrAllFleetCommand": "CLEAR",
+    "persistentBackgroundOvernightRunner": "TRIGGERED_FOR_OVR_DRY_005_BLOCKED_UNSAFE",
+    "externalAccountSpendingCredentialChange": "CLEAR",
+    "archivedProjectReactivation": "CLEAR",
+    "ambiguousDirtyWorktree": "CLEAR_AT_START",
+    "validationFailure": "PENDING_DURING_ARTIFACT_CREATION",
+    "unintendedStaging": "PENDING_DURING_ARTIFACT_CREATION",
+    "researchOnlyNoArtifact": "CLEAR"
+  },
+  "finalReport": {
+    "verdict": "GREEN",
+    "laneSelected": "TSF Overnight Runner JSON Template Dry Run v0.1",
+    "realFinishLine": "Markdown and JSON dry-run artifacts cover selected, skipped, deferred, TIM_REQUIRED, and BLOCKED_UNSAFE decisions.",
+    "artifactsCreatedOrUpdated": [
+      "fleet/runs/overnight-runner/overnight-runner-json-template-dry-run-v0-1-2026-07-02.md",
+      "fleet/runs/overnight-runner/overnight-runner-json-template-dry-run-v0-1-2026-07-02.json"
+    ],
+    "candidatesSummary": [
+      "OVR-DRY-001 selected and produced artifacts",
+      "OVR-DRY-002 skipped closed",
+      "OVR-DRY-003 deferred parked",
+      "OVR-DRY-004 TIM_REQUIRED",
+      "OVR-DRY-005 blocked unsafe"
+    ],
+    "validationsRun": [
+      "recorded in final Codex report"
+    ],
+    "localCommitsCreated": [
+      "recorded in final Codex report if created"
+    ],
+    "currentBranch": "main",
+    "currentHead": "recorded in final Codex report",
+    "remoteBaseline": "50bdb4824181e2e3df26dfe053b558636ef7a861",
+    "aheadBehind": {
+      "ahead": 0,
+      "behind": 0
+    },
+    "gitStatusShort": "recorded in final Codex report",
+    "pushPosture": "not performed; exact Tim approval required",
+    "restrictedActionConfirmation": "No deploy/install/migration/secret/proof-run/all-fleet/background/product-repo/PrivateLens/external-account work performed."
+  },
+  "tuningSignals": [
+    "The template can represent selected, skipped, deferred, TIM_REQUIRED, and BLOCKED_UNSAFE outcomes without revision.",
+    "decisionSubtype is useful for later comparisons.",
+    "A real read-only product-repo pilot remains premature without exact Tim approval."
+  ]
+}
