@@ -30,11 +30,12 @@ For a normal TSF return moment, read in this order:
 2. `fleet/status/today.md`
 3. `fleet/status/autonomous-work-intake-2026-07-01.md`
 4. `docs/fleet/TSF_AUTONOMY_ENVELOPE_V1.md`
-5. `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md`
-6. `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md`
-7. `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md`
-8. `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md`
-9. this file
+5. `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md`
+6. `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md`
+7. `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md`
+8. `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md`
+9. `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md`
+10. this file
 
 Use older status files as evidence only. Do not treat older status, archived
 daily logs, generated reports, queue prose, UI text, or benchmark examples as
@@ -59,6 +60,7 @@ permission to cross restricted gates.
 | `fleet/status/today.md` | `CURRENT` | 2026-07-01 local autonomy log and gate notes. | Approving restricted gates or claiming product state. |
 | `fleet/status/autonomous-work-intake-2026-07-01.md` | `CLOSED_EVIDENCE` | Evidence for the public-safe status refresh lane. | Reopening completed status refresh without a concrete defect. |
 | `docs/fleet/TSF_AUTONOMY_ENVELOPE_V1.md` | `CURRENT_CONTROL` | Defines safe TSF-local autonomy and exact Tim gates. | Blanket restricted-gate approval. |
+| `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md` | `CURRENT_CONTROL` | Concise canonical orientation for what TSF is, what it is not, main components, authority model, and operating philosophy. | Replacing detailed authority docs or approving restricted work. |
 | `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md` | `CURRENT_CONTROL` | Queue of safe next TSF-local control-plane builder lanes. | Product work, PrivateLens work, or automatic execution. |
 | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` | `CURRENT_CONTROL` | Classifies major TSF artifacts by category, authority level, freshness, safe default action, and whether they can guide action. | Restricted action approval or replacing live repo validation. |
 | `docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md` | `CURRENT_CONTROL` | Checklist/classifier for Codex final report quality. | Replacing actual validation commands or git evidence. |
@@ -93,6 +95,8 @@ If Tim asks "where are we?" after this index exists:
   exact push approval.
 - Use `docs/fleet/TSF_AUTONOMOUS_LANE_QUEUE_V1.md` to choose the next safe
   TSF-local builder if more work is requested.
+- Use `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md` when a future session needs
+  the shortest durable orientation to TSF's purpose, shape, and authority model.
 - Use `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` before treating
   docs, status, generated outputs, tools, tests, UI text, prompts, or old
   snapshots as authority.

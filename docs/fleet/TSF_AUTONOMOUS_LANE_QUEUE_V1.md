@@ -83,8 +83,9 @@ When starting an autonomous TSF control-plane session:
 | 3 | Prompt Library Refresh | `CLOSED` | TSF has older prompt snippets, but did not have a compact autonomy-era prompt library for intake, local checkpoint, push-prep, and stop packets. | `docs/fleet/TSF_AUTONOMY_PROMPT_LIBRARY_V1.md` |
 | 4 | Safe Stop / Escalation Matrix | `CLOSED` | The autonomy envelope has stop rules; a matrix now makes stop-vs-continue decisions faster for future Codex sessions. | `docs/fleet/TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md` |
 | 5 | Control-Plane Artifact Index | `CLOSED` | The HQ adapter, bench, tuning, gate board, autonomy envelope, and intake files are now mapped in one classification index. | `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` |
-| 6 | Authority Boundary Scan Checklist | `PARKED` | Useful if another doc accidentally blurs evidence and authority. Not urgent while validations are passing. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
-| 7 | Product Repo Onboarding Mock Packet | `TIM_REQUIRED` for real product use; safe only as TSF-local mock | Product repo access remains restricted. A mock can be created later if Tim wants safer onboarding packets without touching product repos. | TSF-local mock work order only; no product files |
+| 6 | Control Plane Overview | `CLOSED` | Tim's north-star TSF summary is canonized as a concise orientation artifact for future Codex/HQ sessions. | `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md` |
+| 7 | Authority Boundary Scan Checklist | `PARKED` | Useful if another doc accidentally blurs evidence and authority. Not urgent while validations are passing. | `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md` |
+| 8 | Product Repo Onboarding Mock Packet | `TIM_REQUIRED` for real product use; safe only as TSF-local mock | Product repo access remains restricted. A mock can be created later if Tim wants safer onboarding packets without touching product repos. | TSF-local mock work order only; no product files |
 
 ## Lane 1 - Report Quality Validator
 
@@ -248,7 +249,32 @@ Exclude and move on:
 - claiming live product state
 - remote publication
 
-## Lane 6 - Authority Boundary Scan Checklist
+## Lane 6 - Control Plane Overview
+
+Status: `CLOSED`
+
+Real finish line:
+
+- Tim's north-star TSF summary is preserved as a concise canonical overview
+- the overview says TSF is not a product repo
+- it names the main TSF components and authority model
+- it preserves exact Tim approval gates for product repos, PrivateLens, push,
+  deploy, installs, migrations, secrets, proof runs, all-fleet commands,
+  background runners, and external accounts
+
+Unblock artifact:
+
+- `docs/fleet/TSF_CONTROL_PLANE_OVERVIEW_V1.md`
+
+Exclude and move on:
+
+- broad policy sprawl
+- product repo truth claims
+- new runtime controls
+- replacing the detailed autonomy, safe-stop, artifact-index, or HQ adapter
+  docs
+
+## Lane 7 - Authority Boundary Scan Checklist
 
 Status: `PARKED`
 
@@ -259,7 +285,7 @@ Unblock artifact:
 
 - `docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md`
 
-## Lane 7 - Product Repo Onboarding Mock Packet
+## Lane 8 - Product Repo Onboarding Mock Packet
 
 Status: `TIM_REQUIRED` for real product access; safe only as a TSF-local mock
 if future work explicitly asks for mock-only planning.
@@ -275,11 +301,12 @@ Stop if:
 
 ## Current Recommended Next Lane
 
-No `READY` lane remains after Lane 5.
+No `READY` lane remains after the Control Plane Overview lane.
 
-Lane 1, Lane 2, Lane 3, Lane 4, and Lane 5 are closed. Lane 6 remains `PARKED`
-until a real report, doc, prompt, or queue creates ambiguity about evidence
-versus authority. Lane 7 remains `TIM_REQUIRED` for real product access.
+Lane 1, Lane 2, Lane 3, Lane 4, Lane 5, and Lane 6 are closed. Lane 7 remains
+`PARKED` until a real report, doc, prompt, or queue creates ambiguity about
+evidence versus authority. Lane 8 remains `TIM_REQUIRED` for real product
+access.
 
 ## Commit Guidance
 
@@ -290,7 +317,8 @@ closed the autonomy prompt library plus this queue update. The fourth
 queue-execution batch closes the safe stop escalation matrix plus queue and
 freshness-index updates. The fifth queue-execution batch closes the
 control-plane artifact index plus queue, freshness-index, and regression-test
-updates.
+updates. The overview checkpoint canonizes Tim's north-star summary plus queue
+and freshness-index updates.
 
 Do not push from this queue. Push remains a separate exact Tim gate.
 
