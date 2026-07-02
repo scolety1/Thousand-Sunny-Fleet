@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "0.1",
+  "templatePurpose": "Reusable TSF-local overnight-runner decision log template. Evidence only; not executable authority or approval.",
+  "runMetadata": {
+    "runId": "overnight-runner-v0-1-YYYY-MM-DD",
+    "date": "YYYY-MM-DD",
+    "repo": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+    "branch": "main",
+    "startHead": "",
+    "originMainBaseline": "",
+    "aheadBehind": {
+      "ahead": 0,
+      "behind": 0
+    },
+    "runnerMode": "controlled_tsf_local_foreground_pilot",
+    "approvedScope": "TSF-local docs/control-plane files and generated runner logs only.",
+    "forbiddenScope": [
+      "push",
+      "deploy",
+      "installs",
+      "migrations",
+      "secrets/auth/payments",
+      "proof runs",
+      "all-fleet commands",
+      "persistent background/overnight/daemon/watcher/scheduled runners",
+      "product repo inspection or mutation",
+      "PrivateLens access or mutation",
+      "external account changes",
+      "spending",
+      "credential/account changes",
+      "archived project reactivation",
+      "history rewrite or remote release changes"
+    ],
+    "worktreeStart": "clean"
+  },
+  "approvals": {
+    "tsfLocalDocsControlPlane": true,
+    "push": false,
+    "deploy": false,
+    "installs": false,
+    "migrations": false,
+    "secretsAuthPayments": false,
+    "proofRuns": false,
+    "allFleetCommands": false,
+    "persistentBackgroundOvernightRunner": false,
+    "productRepoInspectionOrMutation": false,
+    "privateLensAccessOrMutation": false,
+    "externalAccountChanges": false,
+    "spending": false,
+    "credentialAccountChanges": false,
+    "archivedProjectReactivation": false
+  },
+  "candidates": [
+    {
+      "candidateId": "OVR-101",
+      "candidateName": "Selected safe TSF-local docs lane",
+      "sourceArtifact": "docs/fleet/overnight-runner/TSF_OVERNIGHT_RUNNER_HARNESS_PILOT_V0.md",
+      "decision": "SELECTED",
+      "decisionSubtype": "TSF_LOCAL_GREEN",
+      "reason": "The candidate produces a concrete TSF-local control-plane artifact.",
+      "allowedScope": "TSF-local docs/control-plane files and generated runner logs.",
+      "forbiddenScope": [
+        "product repos",
+        "PrivateLens",
+        "push",
+        "deploy",
+        "installs",
+        "migrations",
+        "secrets",
+        "proof runs",
+        "all-fleet commands",
+        "external accounts",
+        "persistent background runners"
+      ],
+      "artifactTarget": "docs/fleet/overnight-runner/example-artifact.md",
+      "validationExpected": [
+        "git diff --check on changed files",
+        "authority wording scan",
+        "JSON parse if structured files changed"
+      ],
+      "stopConditionChecked": "No restricted gate required.",
+      "result": "produced",
+      "tuningSignal": "Stable candidate fields support future runner comparison."
+    },
+    {
+      "candidateId": "OVR-104",
+      "candidateName": "Read-only product repo pilot",
+      "sourceArtifact": "fleet/status/draft-queue/lane-7-product-access-approval.md",
+      "decision": "TIM_REQUIRED",
+      "decisionSubtype": "PRODUCT_REPO_GATE",
+      "reason": "Product repo inspection remains restricted until Tim gives exact repo/path/scope approval.",
+      "allowedScope": "Approval packet only.",
+      "forbiddenScope": [
+        "product repo inspection",
+        "product repo mutation",
+        "product repo tests",
+        "product repo staging",
+        "product repo commits"
+      ],
+      "artifactTarget": "approval packet only",
+      "validationExpected": [
+        "authority wording scan"
+      ],
+      "stopConditionChecked": "Product repo access gate.",
+      "result": "stopped before product repo access",
+      "tuningSignal": "Future product pilots must remain TIM_REQUIRED until exact approval exists."
+    }
+  ],
+  "validations": {
+    "gitStatusShort": "required",
+    "branchShowCurrent": "required",
+    "revParseHead": "required",
+    "revParseOriginMain": "required if available",
+    "aheadBehind": "required if origin/main is available",
+    "diffCheckChangedFiles": "required",
+    "jsonParse": "required when JSON changed",
+    "authorityWordingScan": "required",
+    "stagedFileExactness": "required before commit",
+    "fullTsfSuite": "run only when known safe and not proof-run/all-fleet scoped"
+  },
+  "stopConditions": {
+    "productRepoAccessOrMutation": "TIM_REQUIRED",
+    "privateLensAccessOrMutation": "TIM_REQUIRED",
+    "push": "TIM_REQUIRED",
+    "deployInstallMigrationSecretsAuthPayments": "TIM_REQUIRED",
+    "proofRunOrAllFleetCommand": "TIM_REQUIRED",
+    "persistentBackgroundOvernightRunner": "TIM_REQUIRED",
+    "externalAccountSpendingCredentialChange": "TIM_REQUIRED",
+    "archivedProjectReactivation": "TIM_REQUIRED",
+    "ambiguousDirtyWorktree": "STOP_AND_REPORT",
+    "validationFailure": "STOP_AND_REPORT",
+    "unintendedStaging": "STOP_AND_REPORT",
+    "researchOnlyNoArtifact": "STOP_AND_REPORT",
+    "noUsefulSafeBuilderRemains": "CLOSE_PHASE"
+  },
+  "finalReport": {
+    "verdict": "GREEN|YELLOW|RED|TIM_REQUIRED",
+    "laneSelected": "",
+    "realFinishLine": "",
+    "artifactsCreatedOrUpdated": [],
+    "candidatesSummary": [],
+    "validationsRun": [],
+    "localCommitsCreated": [],
+    "currentBranch": "",
+    "currentHead": "",
+    "remoteBaseline": "",
+    "aheadBehind": {
+      "ahead": 0,
+      "behind": 0
+    },
+    "gitStatusShort": "",
+    "pushPosture": "not performed; exact Tim approval required",
+    "restrictedActionConfirmation": "No deploy/install/migration/secret/proof-run/all-fleet/background/product-repo/PrivateLens/external-account work performed."
+  },
+  "tuningSignals": [
+    "Compare selected versus skipped decisions across runs.",
+    "Patch templates only when repeated runner decision failures appear.",
+    "Do not expand runtime authority through a template change."
+  ]
+}
