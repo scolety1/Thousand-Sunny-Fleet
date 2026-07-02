@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "runId": "nwr-sandbox-work-order-extraction-v0-2026-07-02",
+  "verdict": "GREEN",
+  "approval": {
+    "action": "NWR sandbox-only work-order extraction",
+    "canonicalRepoPath": "C:\\NWR\\Niners-War-Room",
+    "sandboxPath": "C:\\NWR\\Niners-War-Room-tsf-experiment-sandbox-20260702",
+    "allowedProductRepoMutation": "YES, but only inside the existing sandbox worktree and only for sandbox docs/work-order notes",
+    "canonicalCheckoutMutation": "NO",
+    "nwrPush": "NO",
+    "tsfPush": "NO",
+    "installsMigrationsDeploySecretsProofAllFleetBackgroundRunners": "NO",
+    "expiresAfter": "one sandbox work-order extraction report"
+  },
+  "canonicalNwr": {
+    "path": "C:\\NWR\\Niners-War-Room",
+    "statusBefore": "dirty with pre-existing DynastyProcess CSV evidence files",
+    "statusAfter": "dirty with same pre-existing DynastyProcess CSV evidence files",
+    "modifiedByRun": false
+  },
+  "sandbox": {
+    "path": "C:\\NWR\\Niners-War-Room-tsf-experiment-sandbox-20260702",
+    "branch": "work/tsf-nwr-experiment-sandbox-20260702",
+    "startHead": "d747ee265239cb29d21eb1e96d03910367eeb9a0",
+    "finalHead": "5dbaf215d114ea7b679d77f3bacfa1bfedac7a02",
+    "aheadBehindVsTrackingRef": {
+      "ahead": 2,
+      "behind": 6
+    },
+    "finalStatus": "clean"
+  },
+  "sandboxArtifacts": {
+    "created": [
+      "docs/hq/sandbox/NWR_SANDBOX_WORK_ORDER_CANDIDATES_20260702.md",
+      "docs/hq/sandbox/NWR_SANDBOX_GATE_MAP_20260702.md"
+    ],
+    "updated": [
+      "SANDBOX_EXPERIMENT_LOG.md"
+    ]
+  },
+  "sandboxCommit": {
+    "hash": "5dbaf215d114ea7b679d77f3bacfa1bfedac7a02",
+    "message": "docs: add NWR sandbox work-order candidates"
+  },
+  "tsfArtifacts": [
+    "docs/fleet/product-pilots/NWR_SANDBOX_WORK_ORDER_EXTRACTION_V0.md",
+    "fleet/runs/product-pilots/nwr-sandbox-work-order-extraction-v0-2026-07-02.json"
+  ],
+  "topWorkOrderCandidates": [
+    "NWR Artifact Map V1",
+    "NWR Evidence Surface Boundary Review V1",
+    "NWR Current Board Gate Inventory V1",
+    "NWR Sandbox Retention Decision Packet"
+  ],
+  "recommendedNextLane": "NWR Evidence Surface Boundary Review V1",
+  "explicitlyBlockedLanes": [
+    "production ranking/formula/model changes",
+    "hidden sort or recommendations",
+    "app wiring or production route changes",
+    "source-truth promotion",
+    "tests or proof runs",
+    "installs/migrations/runtime/deploy",
+    "secrets/auth/payments",
+    "all-fleet commands or background runners",
+    "NWR push",
+    "canonical checkout mutation",
+    "PrivateLens or external account work"
+  ],
+  "validations": [
+    "canonical NWR status before and after",
+    "sandbox git status --short --branch",
+    "sandbox git diff --check",
+    "sandbox staged-file exactness",
+    "TSF git status --short",
+    "TSF git diff --check",
+    "TSF JSON parse",
+    "authority wording scan",
+    "full TSF suite"
+  ],
+  "confirmations": {
+    "canonicalNwrModified": false,
+    "nwrPushPerformed": false,
+    "tsfPushPerformed": false,
+    "noDeployInstallMigrationSecretProofAllFleetBackgroundPrivateLensExternalAccountWork": true
+  }
+}
