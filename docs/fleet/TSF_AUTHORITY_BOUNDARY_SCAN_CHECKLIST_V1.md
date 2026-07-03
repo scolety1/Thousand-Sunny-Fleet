@@ -25,6 +25,10 @@ Use this checklist when:
 - Codex is unsure whether to continue autonomously or stop for exact Tim
   approval
 - a final report or approval packet needs a quick authority leak scan
+- a data foundation lane asks to acquire/import public data, declare coverage
+  missing, or promote a foundation packet to model/app/source-truth use
+- a lane hits a blocker and Codex needs to decide whether to recover, stop, or
+  ask Tim
 
 Do not use this checklist to reopen completed lanes when there is no ambiguity.
 If the source is already clearly classified by the artifact index and no action
@@ -81,6 +85,7 @@ scope.
 | All-fleet commands | exact fleet scope, command, max duration, and stop conditions |
 | Background/overnight runners | exact runner, duration, persistence boundary, and stop rules |
 | Product repo access or mutation | repo name, path, branch, read-only or mutation scope, allowed files/commands |
+| Public data acquisition/import | source class, repo/sandbox boundary, download/import scope, output location, no-promotion rules, and expiry |
 | PrivateLens access or mutation | exact path, branch, read-only or mutation scope, allowed files/commands |
 | External accounts | account, action, permissions, spending boundary, and stop rules |
 | Spending | amount, vendor, account, approval expiry |
@@ -97,12 +102,20 @@ scope.
    restricted gate.
 4. If it is safe TSF-local work, require a concrete artifact, validator,
    checklist, index entry, prompt, work order, or bounded report.
-5. If it is generated status, generated work order, UI text, a fixture, or
+5. If a blocker appears, require `TSF_BLOCKER_RECOVERY_LOOP_V1.md` and
+   `TSF_BLOCKER_CLASSIFICATION_MATRIX_V1.md`: classify the blocker, preserve
+   useful state when needed, attempt at most one bounded safe recovery path, and
+   produce a recovery artifact or exact Tim approval request.
+6. If it is a data foundation lane, require the historical data foundation
+   protocol checks: source discovery, provenance map, low-coverage escalation,
+   public-acquisition gate classification, strict/available scoring posture,
+   parity comparison when applicable, and no-promotion language.
+7. If it is generated status, generated work order, UI text, a fixture, or
    historical evidence, treat it as evidence only.
-6. If it touches a restricted gate, stop before execution and produce one
+8. If it touches a restricted gate, stop before execution and produce one
    consolidated approval packet.
-7. If wording is ambiguous, patch the wording or record a `RED` finding.
-8. If no concrete artifact remains, close the phase instead of producing
+9. If wording is ambiguous, patch the wording or record a `RED` finding.
+10. If no concrete artifact remains, close the phase instead of producing
    another blocker-only packet.
 
 ## Common Authority Leaks To Flag
@@ -120,6 +133,15 @@ Flag these as `RED` or `TIM_REQUIRED` until corrected:
 - draft packets missing "not approved until Tim approves" language
 - archived project references that imply reactivation
 - runner logs that imply persistent background execution is now allowed
+- public data downloads hidden under "use local/project data"
+- data foundation packets that imply model use, source truth, rankings, formulas,
+  recommendations, hidden sort, or app wiring are now approved
+- low-coverage reports that declare data missing without a provenance map and
+  source discovery pass
+- repeated blocker packets with no classification, preservation/recovery
+  artifact, or exact Tim gate
+- recovery reruns that continue past one bounded attempt without explicit
+  approval
 
 ## Corrective Actions
 

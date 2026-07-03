@@ -31,6 +31,9 @@ docs/control-plane scoped, and no restricted gate is involved:
 - define done-enough finish lines
 - choose concrete unblock artifacts
 - redirect blocker-documentation lanes into builder lanes
+- classify blockers with `TSF_BLOCKER_CLASSIFICATION_MATRIX_V1.md` and run one
+  bounded recovery pass under `TSF_BLOCKER_RECOVERY_LOOP_V1.md` when the
+  recovery is inside current authority
 - close phases when no builder remains and no restricted authority gate remains
 - close gates as `CLOSED_NOT_APPLICABLE`, `CLOSED_ALREADY_DONE`, or
   `CLOSED_NO_ACTION_NEEDED` when local evidence supports that status
@@ -88,20 +91,23 @@ packet, checklist, or recommendation is not approval.
 2. If it is safe TSF-local work, continue without asking Tim.
 3. Read enough local evidence to classify the lane, the finish line, the next
    builder, and the unblock artifact.
-4. If a lane produces only blocker documentation, redirect to a builder or close
+4. If a blocker appears, classify it. If it is not a true authority gate and a
+   bounded safe recovery artifact can be built, run the blocker recovery loop
+   once before creating a blocker-only packet.
+5. If a lane produces only blocker documentation, redirect to a builder or close
    the phase.
-5. If evidence is incomplete but enough to choose a safe review-only builder,
+6. If evidence is incomplete but enough to choose a safe review-only builder,
    choose the builder and state what is excluded for now.
-6. If the worktree is dirty, reconcile it once from local diffs. Classify files,
+7. If the worktree is dirty, reconcile it once from local diffs. Classify files,
    include/exclude scope, risks, and recommended next action instead of asking
    Tim repeatedly.
-7. If validation is available and safe, run the narrowest useful local checks.
-8. If the batch is TSF-local docs/control-plane, validation passes, and staged
+8. If validation is available and safe, run the narrowest useful local checks.
+9. If the batch is TSF-local docs/control-plane, validation passes, and staged
    files can be exact, create a local checkpoint commit when useful.
-9. If a restricted gate appears and is not exactly approved, stop before
+10. If a restricted gate appears and is not exactly approved, stop before
    execution and produce one consolidated approval packet.
-10. If no builder remains and no authority gate remains, close the phase.
-11. Return one final report with evidence, files changed, checks, commit hash if
+11. If no builder remains and no authority gate remains, close the phase.
+12. Return one final report with evidence, files changed, checks, commit hash if
    created, remaining gates, and next action.
 
 ## Anti-Babysitting Rules
@@ -115,6 +121,9 @@ packet, checklist, or recommendation is not approval.
 - No blocker-only lane unless the blocker cannot be attacked directly or the
   output is an exact decision packet, policy matrix, or validator needed by a
   builder.
+- No repeated blocker recovery attempts inside one lane. Try one bounded safe
+  recovery path, then produce a recovered artifact, narrowed artifact, exact
+  Tim approval request, or RED stop report.
 - No re-proving closed gates.
 - No treating YELLOW as failure when it means safe, review-only, and incomplete
   by design.

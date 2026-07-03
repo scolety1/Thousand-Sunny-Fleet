@@ -1,0 +1,44 @@
+{
+  "runId": "nwr-historical-foundation-tsf-recovery-postmortem-v1-2026-07-03",
+  "date": "2026-07-03",
+  "artifactType": "tsf_control_plane_codification",
+  "authority": "evidence_log_only",
+  "createdArtifacts": [
+    "docs/fleet/TSF_HISTORICAL_DATA_FOUNDATION_PROTOCOL_V1.md",
+    "docs/fleet/product-pilots/NWR_HISTORICAL_FOUNDATION_TSF_RECOVERY_POSTMORTEM_V1.md"
+  ],
+  "sourceEvidence": {
+    "oldTsfFailure": "Initial TSF historical foundation run hard-coded four local artifacts and found only 2012, 2018, 2024, and 2025.",
+    "recovery": "Fresh TSF recovery rerun created a 3446-row provenance map and showed no-download coverage remained partial.",
+    "parity": "Exact Tim-approved public nflverse-style acquisition/import reached 2000-2025 row-count parity with independent NWR packet.",
+    "parityPacket": "C:\\NWR_REVIEW\\tsf_historical_nflverse_acquisition_parity_packet_20260703.zip",
+    "parityReport": "C:\\NWR_REVIEW\\TSF_HISTORICAL_NFLVERSE_ACQUISITION_PARITY_VS_NWR_REPORT_20260703.md"
+  },
+  "codifiedRules": [
+    "mandatory_source_discovery_pass",
+    "suspicious_low_coverage_rule",
+    "public_data_acquisition_exact_approval_gate",
+    "source_provenance_map_requirement",
+    "strict_vs_available_component_scoring_rule",
+    "parity_comparison_rule",
+    "no_promotion_rule"
+  ],
+  "restrictedOperationsPerformed": {
+    "nwrMutation": false,
+    "productRepoInspection": false,
+    "publicDownload": false,
+    "modelTuning": false,
+    "rankingChange": false,
+    "appWiring": false,
+    "sourceTruthPromotion": false,
+    "push": false,
+    "deploy": false,
+    "install": false,
+    "migration": false,
+    "secretsAuthPayments": false,
+    "privateLens": false,
+    "allFleetCommand": false,
+    "backgroundRunner": false
+  },
+  "nextRecommendedStep": "Use the protocol in future data-foundation prompts before declaring coverage missing."
+}

@@ -1,0 +1,33 @@
+{
+  "templateId": "blocker-recovery-loop-v1",
+  "artifactType": "tsf_blocker_recovery_run_log_template",
+  "authority": "template_only_not_approval",
+  "blocker": {
+    "summary": "",
+    "classifications": [],
+    "originalObjective": "",
+    "currentAuthority": "",
+    "solvableUnderCurrentApproval": false
+  },
+  "preservation": {
+    "needed": false,
+    "artifactPreserved": "",
+    "packetOpened": false,
+    "checksum": "",
+    "cleanupPath": "",
+    "cleanupApproved": false
+  },
+  "recoveryAttempt": {
+    "attemptNumber": 1,
+    "boundedPath": "",
+    "artifactProduced": "",
+    "validationRun": [],
+    "comparisonAgainstObjective": ""
+  },
+  "result": {
+    "outcome": "recovered_artifact|narrowed_artifact|tim_required|red_stop",
+    "exactTimApprovalRequest": "",
+    "remainingCaveats": [],
+    "restrictedOperationsAvoided": []
+  }
+}

@@ -98,6 +98,18 @@ They push lanes toward artifact-producing builders, batch review-only packets
 into checkpoints, accept safe YELLOW review-only work when incomplete by design,
 and redirect blocker-only lanes into the smallest usable unblock artifact.
 
+### Blocker Recovery Loop
+
+`docs/fleet/TSF_BLOCKER_RECOVERY_LOOP_V1.md` and
+`docs/fleet/TSF_BLOCKER_CLASSIFICATION_MATRIX_V1.md` define what Codex does
+when a lane hits a blocker. Codex must classify the blocker, preserve useful
+state, try one bounded safe recovery path when current authority allows it, and
+produce a recovered artifact, narrowed artifact, exact Tim approval request, or
+RED stop report. The NWR historical foundation miss/recovery is the worked
+example: shallow four-artifact discovery was corrected with preservation,
+fresh sandbox recovery, provenance, comparison, and exact public acquisition
+approval before parity.
+
 ### Control-Plane Artifact Index
 
 `docs/fleet/TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md` classifies important TSF
@@ -190,11 +202,13 @@ The preferred loop is:
 1. Verify repo state.
 2. Read current TSF control-plane truth.
 3. Choose one safe builder.
-4. Produce the concrete unblock artifact.
-5. Exclude optional questions that do not block the finish line.
-6. Validate locally.
-7. Commit locally when safe and exact.
-8. Stop before push or any restricted gate.
+4. If a blocker appears, classify it and run one bounded safe blocker recovery
+   pass when current authority allows it.
+5. Produce the concrete unblock artifact.
+6. Exclude optional questions that do not block the finish line.
+7. Validate locally.
+8. Commit locally when safe and exact.
+9. Stop before push or any restricted gate.
 
 ## How Future Codex Runs Should Use This Overview
 
@@ -207,6 +221,8 @@ This overview does not replace the detailed control docs:
 
 - use the autonomy envelope for autonomous-action boundaries
 - use the safe stop matrix for continue/commit/stop/escalate decisions
+- use the blocker recovery loop and classification matrix before producing
+  blocker-only packets
 - use the artifact index for file-level authority and freshness classification
 - use the HQ adapter for strategic HQ response shape
 - use the lane queue for safe next builders when no user-selected lane exists

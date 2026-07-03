@@ -50,6 +50,8 @@ that restricted gate.
 | Local commits are ready for review but push is not approved. | Push-Readiness Without Push |
 | Tim explicitly approves pushing exact commits. | Exact Push Approval |
 | A restricted action is needed but not approved. | Restricted-Gate Approval Packet |
+| A lane hits a blocker and current authority may allow recovery. | Blocker Recovery Loop |
+| A lane needs to build or audit historical/source data coverage. | Data Foundation Lane |
 | Codex is about to send a final report. | Final Report Quality Self-Check |
 | No useful safe builder remains. | Close-Phase Report |
 
@@ -400,6 +402,131 @@ Final report:
 - artifact blocked
 - no restricted action performed
 - final git status
+```
+
+## Prompt 6A - Data Foundation Lane
+
+Use when Codex needs to build, audit, compare, or recover historical/source data
+coverage.
+
+```text
+You are Codex working under Thousand Sunny Fleet.
+
+Task:
+Run a bounded data foundation lane.
+
+Goal:
+Build or audit a review-only data foundation packet without tuning models,
+changing rankings, wiring the app, promoting source truth, or treating generated
+data as production authority.
+
+Read first:
+- docs/fleet/TSF_HISTORICAL_DATA_FOUNDATION_PROTOCOL_V1.md
+- docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md
+- docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md
+
+Required source discovery:
+- search generated artifacts
+- search raw data directories
+- search ignored-but-present local outputs when safe
+- search builder scripts
+- search loader functions
+- search docs/provenance paths
+- search fixtures and validation data
+- search local cache/source references without downloading
+
+Classify each source as:
+- already built
+- buildable from local raw data
+- buildable from local cached/generated public data
+- buildable only with public download
+- blocked by install/auth/credential
+- missing
+
+Required artifacts:
+- source provenance map
+- coverage matrix or equivalent
+- strict vs available-component scoring posture when scoring is involved
+- comparison report if a benchmark packet exists
+- caveat/no-promotion section
+
+Public data acquisition/import:
+- requires exact Tim approval naming source class, repo/sandbox boundary,
+  allowed download/import scope, output location, no-promotion rules, stop
+  conditions, and expiry
+- is not approved by "use local/project data"
+
+Stop if:
+- product repo mutation would be required without exact approval
+- public download/import is required without exact approval
+- install/auth/credential/private data is required
+- model tuning, ranking/formula changes, source-truth promotion, hidden sort,
+  recommendations, or app wiring would be required
+- source provenance cannot be explained
+
+Final report:
+- verdict
+- source discovery summary
+- provenance map path and row count
+- coverage target vs actual coverage
+- suspicious-low-coverage result if applicable
+- acquisition approval used, or no-download boundary
+- strict vs available-component scoring result
+- benchmark/parity result if applicable
+- caveats
+- restricted-boundary confirmation
+```
+
+## Prompt 6B - Blocker Recovery Loop
+
+Use when a lane hits a blocker and Codex needs to recover without bureaucracy
+or unsafe force-through.
+
+```text
+You are Codex working under Thousand Sunny Fleet.
+
+Task:
+Run a bounded blocker recovery pass.
+
+Goal:
+Classify the blocker, preserve useful state, try one safe recovery path if it
+is inside current authority, and produce a recovered artifact, narrowed
+artifact, exact Tim approval request, or RED stop report.
+
+Read first:
+- docs/fleet/TSF_BLOCKER_RECOVERY_LOOP_V1.md
+- docs/fleet/TSF_BLOCKER_CLASSIFICATION_MATRIX_V1.md
+- docs/fleet/TSF_AUTHORITY_BOUNDARY_SCAN_CHECKLIST_V1.md
+- docs/fleet/TSF_REPORT_QUALITY_VALIDATOR_V1.md
+
+Recovery loop:
+1. Freeze and preserve current state when useful output may be lost.
+2. Record the exact blocker.
+3. Classify blocker class or classes.
+4. Decide whether recovery is solvable under current approval.
+5. Inspect local evidence/provenance before declaring missing.
+6. Try one bounded safe recovery path.
+7. Validate result.
+8. Compare against the original objective.
+9. Produce recovered artifact, narrowed artifact, exact Tim approval request,
+   or RED stop report.
+
+Hard stop:
+- push, merge, deploy, install, migration, secrets/auth/payments, PrivateLens,
+  product repo mutation outside approval, canonical repo mutation, public data
+  acquisition without approval, background runner, all-fleet command,
+  model/ranking/formula/source-truth promotion, or app behavior change
+
+Final report:
+- blocker summary
+- blocker classes
+- preservation action
+- recovery attempt
+- artifact produced
+- validation result
+- comparison to original objective
+- remaining Tim gate, if any
+- restricted-boundary confirmation
 ```
 
 ## Prompt 7 - Final Report Quality Self-Check

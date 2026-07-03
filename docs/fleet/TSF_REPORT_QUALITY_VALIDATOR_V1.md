@@ -32,6 +32,8 @@ Also use it when reviewing a Codex final report after:
 - HQ adapter or tuning work
 - push-readiness review without push
 - exact push after Tim approval
+- data foundation lanes that build, compare, or acquire historical/source data
+- blocker recovery lanes or any lane that encountered a blocker
 
 Do not use this validator as approval for restricted actions. It only checks
 report quality.
@@ -118,6 +120,50 @@ If none happened, say so plainly. If any happened, the report must name the
 exact Tim approval that allowed it. If no exact approval exists, classify the
 report as RED.
 
+## Data Foundation Report Checks
+
+For data foundation lanes, the report must also include:
+
+- whether the lane was data foundation, audit, tuning, app work, or another
+  class
+- source discovery method
+- provenance map path and row count
+- target coverage and actual coverage
+- suspicious-low-coverage result when target coverage is 20+ seasons
+- whether public acquisition/import occurred
+- exact Tim approval used for any public acquisition/import
+- strict scoring completeness when scoring is involved
+- available-component scoring posture when strict scoring is incomplete
+- comparison/parity result when an independent benchmark exists
+- row counts, season coverage, identity issue counts, and caveats
+- no-promotion confirmation for model use, source truth, rankings, formulas,
+  hidden sort, recommendations, and app wiring
+
+If a data foundation lane reports low coverage without a provenance map, classify
+the report as RED. If public acquisition/import occurred without exact Tim
+approval, classify it as RED regardless of other validation.
+
+## Blocker Recovery Report Checks
+
+When a lane encountered a blocker, the final report must include:
+
+- exact blocker summary
+- blocker class or classes from `TSF_BLOCKER_CLASSIFICATION_MATRIX_V1.md`
+- whether the blocker was solvable under current authority
+- preservation action taken before cleanup/deletion/rerun, if applicable
+- one bounded recovery path attempted, or reason recovery was not allowed
+- artifact produced by the recovery pass
+- validation result
+- comparison against the original objective
+- whether the result is recovered, narrowed, TIM_REQUIRED, or RED
+- exact Tim approval request if a true gate remains
+
+If a report repeats `blocked/not approved` without classification and a recovery
+artifact, classify the report as RED unless the blocker is a true authority gate.
+
+If more than one recovery rerun happened in the same lane without explicit user
+approval, classify the report as RED.
+
 ## Commit Reporting Checks
 
 When a local commit is created, the report should include:
@@ -162,6 +208,15 @@ RED failures:
 - treats a report, queue, UI label, or prompt as execution authority
 - hides untracked or unstaged files
 - says push-ready without checking ahead/behind and diff cleanliness
+- declares historical/data coverage missing without mandatory source discovery
+  and a provenance map
+- performs public data acquisition/import without exact Tim approval
+- reports data foundation output as source truth, model-ready, ranking-ready, or
+  app-ready without a separate approval gate
+- produces a blocker-only packet when a safe recovery artifact could have been
+  built under current authority
+- repeats blocker documentation without blocker classification, preservation
+  when needed, one bounded recovery attempt, and a concrete recovery artifact
 - asks Tim to choose normal TSF strategy when the autonomy envelope already
   covers it
 
