@@ -17,6 +17,24 @@ fleet without losing the source-trace discipline:
 
 Research first. Source trace first. Code second.
 
+## Phase 0 Front Door
+
+Repo onboarding is a Phase 0-gated lane. Before TSF suggests or performs any
+repo improvement, the onboarding packet must declare:
+
+- `lane_scope_declaration`
+- `allowed_search_scope`
+- `forbidden_search_scope`
+- `existing_asset_trace`
+- `reuse_decision`
+- `build_permission`
+- `TIM_REQUIRED_SCOPE_EXPANSION` behavior when a useful asset may exist only
+  outside the declared scope
+
+The onboarding packet is review evidence only. It can prove that a later lane
+should reuse, adapt, validate, document, or propose a bounded build; it cannot
+approve product-repo mutation by itself.
+
 ## Existing TSF Assets Reused
 
 - `add-project.ps1` remains the registration path.
@@ -34,7 +52,30 @@ This workflow extends the current TSF framework. It does not replace
 
 ### 1. Register Repo
 
-Use the existing project intake:
+For read-only onboarding, use the metadata-only registration wrapper. It writes
+only TSF metadata and validates that target repo git status is unchanged:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\register-project-metadata-only.ps1 `
+  -Name YourProject `
+  -Repo C:\Dev\your-project `
+  -Profile real-product
+```
+
+Metadata-only decisions:
+
+- `REGISTERED_NEW_METADATA_ONLY`: exact path was added to `projects.json`.
+- `ALREADY_REGISTERED_EXACT_PATH`: name and exact normalized path already match.
+- `EXISTS_DIFFERENT_PATH_REQUIRES_REVIEW`: the project name or exact path
+  conflicts with an existing registry entry, including archived/wrong-path
+  records.
+- `BLOCKED_UNSAFE_TARGET`: target path, config path, or output path would break
+  read-only boundaries.
+- `BLOCKED_VALIDATION_FAILED`: TSF metadata write or target unchanged validation
+  failed.
+
+Use the existing project intake only when harness installation and target-repo
+side effects are approved:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\add-project.ps1 -Name YourProject -Repo C:\Dev\your-project -Profile real-product
@@ -79,6 +120,13 @@ The adapter scans:
 
 The adapter writes only the configured output directory and rejects an output
 directory inside the scanned target repo.
+
+The adapter does not traverse `.venv`, virtual-env, dependency, generated,
+coverage, or cache directories such as `.pytest_cache`, `.ruff_cache`,
+`__pycache__`, `.cache`, `cache`, `node_modules`, `dist`, `build`, and
+`.codex-local`. Excluded directories may be listed as excluded inventory rows
+but their contents are not scanned. Recursive file collection stops at
+`-MaxFiles`; packets record `scan_truncated=true` when that cap is reached.
 
 ### 3. Run Existing-Feature / Source-Trace Scan
 
@@ -147,6 +195,20 @@ Use this handoff before asking a new Codex run to touch the repo.
 ### 6. Produce Review Packet
 
 Required packet files from `tools/write-repo-onboarding-packet.ps1`:
+
+- `repo_identity.json`
+- `repo_baseline_status.txt`
+- `repo_existing_asset_trace.csv`
+- `repo_structure_inventory.csv`
+- `repo_docs_inventory.csv`
+- `repo_tests_commands_inventory.csv`
+- `repo_data_source_inventory.csv`
+- `repo_risk_surface_register.csv`
+- `repo_reuse_decision_matrix.csv`
+- `repo_improvement_queue.csv`
+- `REPO_ONBOARDING_SUMMARY.md`
+
+Compatibility packet files are also produced:
 
 - `repo_inventory.csv`
 - `existing_feature_scan.csv`

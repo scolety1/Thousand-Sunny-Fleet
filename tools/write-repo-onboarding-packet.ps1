@@ -155,15 +155,47 @@ function Test-OnboardingTextFile {
     return ($allowedExtensions -contains $extension)
 }
 
+function Get-OnboardingExcludedDirectoryNames {
+    return @(
+        ".git",
+        ".venv",
+        "venv",
+        "env",
+        "node_modules",
+        "vendor",
+        "dist",
+        "build",
+        "out",
+        ".next",
+        "coverage",
+        "htmlcov",
+        "reports",
+        "cache",
+        "caches",
+        ".cache",
+        "__pycache__",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".mypy_cache",
+        ".tox",
+        ".nox",
+        ".turbo",
+        ".parcel-cache",
+        ".gradle",
+        "target",
+        "tmp",
+        "temp",
+        ".codex-local"
+    )
+}
+
 function Get-OnboardingRepoItems {
     param([string]$RootPath)
 
-    $excludedDirectoryNames = @(
-        ".git", "node_modules", "vendor", "dist", "build", "out", ".next",
-        "coverage", ".cache", ".turbo", ".parcel-cache", ".codex-local"
-    )
+    $excludedDirectoryNames = @(Get-OnboardingExcludedDirectoryNames)
 
     $directories = [System.Collections.Generic.List[object]]::new()
+    $excludedDirectories = [System.Collections.Generic.List[object]]::new()
     $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
     $queue = [System.Collections.Queue]::new()
     $queue.Enqueue((Get-Item -LiteralPath $RootPath))
@@ -182,6 +214,11 @@ function Get-OnboardingRepoItems {
                 }) | Out-Null
 
                 if ($excludedDirectoryNames -contains $child.Name.ToLowerInvariant()) {
+                    $excludedDirectories.Add([pscustomobject]@{
+                        full_path     = $child.FullName
+                        relative_path = $relativeDir
+                        name          = $child.Name
+                    }) | Out-Null
                     continue
                 }
 
@@ -197,9 +234,10 @@ function Get-OnboardingRepoItems {
     }
 
     [pscustomobject]@{
-        files       = @($files)
-        directories = @($directories)
-        truncated   = $truncated
+        files                = @($files)
+        directories          = @($directories)
+        excluded_directories = @($excludedDirectories)
+        truncated            = $truncated
     }
 }
 
@@ -207,12 +245,14 @@ function Get-OnboardingGitSummary {
     param([string]$RootPath)
 
     $summary = [ordered]@{
-        is_git_repo  = $false
-        repo_root    = ""
-        branch       = ""
-        head         = ""
-        status_short = @()
-        notes        = @()
+        is_git_repo                 = $false
+        repo_root                   = ""
+        branch                      = ""
+        head                        = ""
+        status_short                = @()
+        remotes_known_locally       = @()
+        remote_status_checked_local = $false
+        notes                       = @()
     }
 
     try {
@@ -227,6 +267,8 @@ function Get-OnboardingGitSummary {
         $summary.branch = [string](@(git -C $RootPath branch --show-current 2>$null) | Select-Object -First 1)
         $summary.head = [string](@(git -C $RootPath rev-parse --short HEAD 2>$null) | Select-Object -First 1)
         $summary.status_short = @(git -C $RootPath status --short 2>$null)
+        $summary.remotes_known_locally = @(git -C $RootPath remote -v 2>$null | Select-Object -Unique)
+        $summary.remote_status_checked_local = $true
         if ($summary.status_short.Count -eq 0) {
             $summary.notes = @("clean")
         } else {
@@ -371,6 +413,21 @@ function Add-OnboardingOpportunity {
     }) | Out-Null
 }
 
+function Export-OnboardingCsv {
+    param(
+        [object[]]$Rows,
+        [string]$Path,
+        [hashtable]$Placeholder
+    )
+
+    $outputRows = @($Rows)
+    if ($outputRows.Count -eq 0 -and $null -ne $Placeholder) {
+        $outputRows = @([pscustomobject]$Placeholder)
+    }
+
+    $outputRows | Export-Csv -LiteralPath $Path -NoTypeInformation -Encoding UTF8
+}
+
 $resolvedRepo = Resolve-Path -LiteralPath $Repo -ErrorAction Stop
 $repoPath = $resolvedRepo.Path
 if (-not (Test-Path -LiteralPath $repoPath -PathType Container)) {
@@ -396,6 +453,7 @@ New-Item -ItemType Directory -Force -Path $outPath | Out-Null
 $items = Get-OnboardingRepoItems -RootPath $repoPath
 $files = @($items.files)
 $directories = @($items.directories)
+$excludedDirectories = @($items.excluded_directories)
 $gitSummary = Get-OnboardingGitSummary -RootPath $repoPath
 $packageScripts = @(Get-OnboardingPackageScripts -RootPath $repoPath)
 
@@ -403,7 +461,17 @@ $inventoryRows = [System.Collections.Generic.List[object]]::new()
 
 foreach ($topLevelItem in @(Get-ChildItem -LiteralPath $repoPath -Force -ErrorAction SilentlyContinue | Sort-Object Name)) {
     $itemType = if ($topLevelItem.PSIsContainer) { "top_level_directory" } else { "top_level_file" }
-    Add-OnboardingInventoryRow -Rows $inventoryRows -AssetPath $topLevelItem.Name -AssetType $itemType -MatchedTerms "top-level" -ApparentPurpose "Top-level repo structure item" -Notes ""
+    if ($topLevelItem.PSIsContainer -and (@(Get-OnboardingExcludedDirectoryNames) -contains $topLevelItem.Name.ToLowerInvariant())) {
+        $itemType = "excluded_directory"
+    }
+    $notes = if ($itemType -eq "excluded_directory") { "not_traversed_by_onboarding_scanner" } else { "" }
+    Add-OnboardingInventoryRow -Rows $inventoryRows -AssetPath $topLevelItem.Name -AssetType $itemType -MatchedTerms "top-level" -ApparentPurpose "Top-level repo structure item" -Notes $notes
+}
+
+foreach ($directory in $excludedDirectories) {
+    if ($directory.relative_path -ne $directory.name) {
+        Add-OnboardingInventoryRow -Rows $inventoryRows -AssetPath $directory.relative_path -AssetType "excluded_directory" -MatchedTerms "excluded" -ApparentPurpose "Excluded cache, dependency, virtual environment, or generated folder" -Notes "not_traversed_by_onboarding_scanner"
+    }
 }
 
 foreach ($file in $files) {
@@ -586,10 +654,144 @@ $opportunityPath = Join-Path $outPath "improvement_opportunities.csv"
 $handoffPath = Join-Path $outPath "onboarding_handoff.md"
 $reviewPath = Join-Path $outPath "repo_onboarding_review.md"
 $validationPath = Join-Path $outPath "repo_onboarding_validation.json"
+$repoIdentityPath = Join-Path $outPath "repo_identity.json"
+$baselinePath = Join-Path $outPath "repo_baseline_status.txt"
+$assetTracePath = Join-Path $outPath "repo_existing_asset_trace.csv"
+$structureInventoryPath = Join-Path $outPath "repo_structure_inventory.csv"
+$docsInventoryPath = Join-Path $outPath "repo_docs_inventory.csv"
+$testsCommandsInventoryPath = Join-Path $outPath "repo_tests_commands_inventory.csv"
+$dataSourceInventoryPath = Join-Path $outPath "repo_data_source_inventory.csv"
+$riskSurfacePath = Join-Path $outPath "repo_risk_surface_register.csv"
+$reuseDecisionMatrixPath = Join-Path $outPath "repo_reuse_decision_matrix.csv"
+$improvementQueuePath = Join-Path $outPath "repo_improvement_queue.csv"
+$summaryPath = Join-Path $outPath "REPO_ONBOARDING_SUMMARY.md"
 
-$inventoryRows | Export-Csv -LiteralPath $inventoryPath -NoTypeInformation -Encoding UTF8
-$featureRows | Export-Csv -LiteralPath $featurePath -NoTypeInformation -Encoding UTF8
-$opportunities | Export-Csv -LiteralPath $opportunityPath -NoTypeInformation -Encoding UTF8
+$safeCommandList = @(
+    "git -C <repo> rev-parse --show-toplevel",
+    "git -C <repo> branch --show-current",
+    "git -C <repo> rev-parse --short HEAD",
+    "git -C <repo> status --short",
+    "git -C <repo> remote -v",
+    "read-only file and folder inventory",
+    "read bounded text files under the target repo"
+)
+$forbiddenCommandList = @(
+    "git fetch/pull/push/merge/reset",
+    "package install commands",
+    "deploy commands",
+    "migration commands",
+    "secret/auth/payment mutation",
+    "all-fleet commands",
+    "proof runs",
+    "background or overnight runners",
+    "product repo mutation during onboarding"
+)
+
+$repoIdentity = [ordered]@{
+    schema_version              = 1
+    packet_type                 = "tsf_repo_onboarding"
+    created_at_utc             = (Get-Date).ToUniversalTime().ToString("o")
+    project_name               = $ProjectName
+    repo_path                  = $repoPath
+    requested_capability       = $RequestedCapability
+    output_path                = $outPath
+    max_files                  = $MaxFiles
+    max_files_behavior         = "Scanner stops recursive file collection at MaxFiles and records scan_truncated=true when the cap is reached."
+    excluded_directory_names   = @(Get-OnboardingExcludedDirectoryNames)
+    excluded_directories       = @($excludedDirectories.relative_path)
+    phase0_control_rule        = "Research first. Source trace first. Code second."
+    lane_scope_declaration     = [ordered]@{
+        lane_type                                = "repo_onboarding_read_only"
+        allowed_search_scope                     = @($repoPath, $outPath)
+        forbidden_search_scope                   = @("canonical NWR", "normal NWR packets", "PrivateLens", "secrets/auth/payments", "deploy/install/migration", "push/merge/remote fetch or pull", "all-fleet commands", "proof runs", "background or overnight runners")
+        canonical_repo_inspection_allowed        = $false
+        normal_nwr_packet_reads_allowed          = $false
+        cross_lane_comparison_allowed            = $false
+        product_repo_mutation_allowed            = $false
+        tim_approval_required_for_scope_expansion = $true
+    }
+    safe_command_list           = $safeCommandList
+    forbidden_command_list      = $forbiddenCommandList
+    no_build_without_trace_rule = $true
+    output_inside_target_repo   = (Test-OnboardingPathInside -ChildPath $outPath -ParentPath $repoPath)
+}
+
+$structureRows = @($inventoryRows | Where-Object {
+    $_.asset_type -eq "top_level_directory" -or
+    $_.asset_type -eq "top_level_file" -or
+    $_.asset_type -eq "likely_app_entrypoint" -or
+    $_.asset_type -eq "git_status_summary"
+})
+$docsRows = @($inventoryRows | Where-Object {
+    $_.asset_type -eq "important_doc" -or
+    $_.asset_type -eq "project_protocol"
+})
+$testCommandRows = @($inventoryRows | Where-Object {
+    $_.asset_type -eq "test" -or
+    $_.asset_type -eq "likely_test_entrypoint" -or
+    $_.asset_path -match "^package\.json#scripts\."
+})
+$dataRows = @($inventoryRows | Where-Object {
+    $_.asset_type -eq "data_file" -or
+    $_.asset_type -eq "data_folder" -or
+    $_.asset_type -eq "config"
+})
+$reuseRows = @($featureRows | ForEach-Object {
+    [pscustomobject]@{
+        requested_capability      = $_.feature_or_workflow
+        asset_path                = $_.asset_path
+        classification            = $_.classification
+        reuse_decision            = $_.reuse_decision
+        new_build_allowed_now     = "false"
+        why_new_build_is_blocked  = "Repo onboarding is source trace only; future build work needs a bounded lane and Tim-approved scope."
+        evidence                  = $_.evidence
+    }
+})
+$queueRows = @($opportunities | ForEach-Object {
+    [pscustomobject]@{
+        queue_id                  = $_.opportunity_id
+        classification            = "REVIEW_ONLY_CANDIDATE"
+        area                      = $_.area
+        evidence                  = $_.evidence
+        existing_assets_involved  = $_.existing_assets_involved
+        risk                      = $_.risk
+        suggested_next_step       = $_.suggested_next_step
+        coding_allowed_now        = $_.coding_allowed_now
+        phase0_required_next      = "true"
+        tim_approval_required     = "true"
+    }
+})
+
+$repoIdentity | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $repoIdentityPath -Encoding UTF8
+
+@(
+    "Repo baseline status",
+    "",
+    "Project: $ProjectName",
+    "Repo path: $repoPath",
+    "Requested capability: $RequestedCapability",
+    "Is git repo: $($gitSummary.is_git_repo)",
+    "Repo root: $($gitSummary.repo_root)",
+    "Branch: $($gitSummary.branch)",
+    "HEAD: $($gitSummary.head)",
+    "Status short:",
+    $(if ($gitSummary.status_short.Count -eq 0) { "  clean" } else { @($gitSummary.status_short | ForEach-Object { "  $_" }) }),
+    "Remotes known locally only:",
+    $(if ($gitSummary.remotes_known_locally.Count -eq 0) { "  none" } else { @($gitSummary.remotes_known_locally | ForEach-Object { "  $_" }) }),
+    "No fetch, pull, push, merge, install, deploy, migration, proof run, all-fleet command, or background runner was performed."
+) | Set-Content -LiteralPath $baselinePath -Encoding UTF8
+
+Export-OnboardingCsv -Rows $inventoryRows -Path $inventoryPath -Placeholder ([ordered]@{ asset_path = "_none"; asset_type = "none"; matched_terms = ""; apparent_purpose = "No inventory rows produced."; notes = "" })
+Export-OnboardingCsv -Rows $featureRows -Path $featurePath -Placeholder ([ordered]@{ feature_or_workflow = $RequestedCapability; asset_path = "_none"; asset_type = "none"; matched_terms = ""; evidence = "No trace rows produced."; classification = "not_found"; reuse_decision = "NEW_BUILD_MAY_BE_NEEDED_LATER"; notes = "" })
+Export-OnboardingCsv -Rows $opportunities -Path $opportunityPath -Placeholder ([ordered]@{ opportunity_id = "OPP-000"; area = "none"; evidence = "No opportunities produced."; existing_assets_involved = ""; risk = ""; suggested_next_step = "Review manually."; coding_allowed_now = "false"; why_or_why_not = "Onboarding never approves coding." })
+Export-OnboardingCsv -Rows $featureRows -Path $assetTracePath -Placeholder ([ordered]@{ feature_or_workflow = $RequestedCapability; asset_path = "_none"; asset_type = "none"; matched_terms = ""; evidence = "No trace rows produced."; classification = "not_found"; reuse_decision = "NEW_BUILD_MAY_BE_NEEDED_LATER"; notes = "" })
+Export-OnboardingCsv -Rows $structureRows -Path $structureInventoryPath -Placeholder ([ordered]@{ asset_path = "_none"; asset_type = "none"; matched_terms = ""; apparent_purpose = "No structure rows produced."; notes = "" })
+Export-OnboardingCsv -Rows $docsRows -Path $docsInventoryPath -Placeholder ([ordered]@{ asset_path = "_none"; asset_type = "none"; matched_terms = ""; apparent_purpose = "No docs found."; notes = "" })
+Export-OnboardingCsv -Rows $testCommandRows -Path $testsCommandsInventoryPath -Placeholder ([ordered]@{ asset_path = "_none"; asset_type = "none"; matched_terms = ""; apparent_purpose = "No tests or validation commands found."; notes = "" })
+Export-OnboardingCsv -Rows $dataRows -Path $dataSourceInventoryPath -Placeholder ([ordered]@{ asset_path = "_none"; asset_type = "none"; matched_terms = ""; apparent_purpose = "No data or source registry files found."; notes = "" })
+Export-OnboardingCsv -Rows $riskRows -Path $riskSurfacePath -Placeholder ([ordered]@{ asset_path = "_none"; asset_type = "risk_area"; matched_terms = ""; apparent_purpose = "No obvious risk surfaces detected."; notes = "review manually" })
+Export-OnboardingCsv -Rows $reuseRows -Path $reuseDecisionMatrixPath -Placeholder ([ordered]@{ requested_capability = $RequestedCapability; asset_path = "_none"; classification = "not_found"; reuse_decision = "NEW_BUILD_MAY_BE_NEEDED_LATER"; new_build_allowed_now = "false"; why_new_build_is_blocked = "Onboarding is source trace only."; evidence = "" })
+Export-OnboardingCsv -Rows $queueRows -Path $improvementQueuePath -Placeholder ([ordered]@{ queue_id = "OPP-000"; classification = "REVIEW_ONLY_CANDIDATE"; area = "none"; evidence = "No opportunities produced."; existing_assets_involved = ""; risk = ""; suggested_next_step = "Review manually."; coding_allowed_now = "false"; phase0_required_next = "true"; tim_approval_required = "true" })
 
 $doNotRebuild = @($featureRows | Where-Object {
     $_.classification -eq "already_exists_operational" -or
@@ -670,6 +872,17 @@ $reviewLines.Add("- Git: $gitStatusText") | Out-Null
 $reviewLines.Add("") | Out-Null
 $reviewLines.Add("## Output Artifacts") | Out-Null
 $reviewLines.Add("") | Out-Null
+$reviewLines.Add('- `repo_identity.json`') | Out-Null
+$reviewLines.Add('- `repo_baseline_status.txt`') | Out-Null
+$reviewLines.Add('- `repo_existing_asset_trace.csv`') | Out-Null
+$reviewLines.Add('- `repo_structure_inventory.csv`') | Out-Null
+$reviewLines.Add('- `repo_docs_inventory.csv`') | Out-Null
+$reviewLines.Add('- `repo_tests_commands_inventory.csv`') | Out-Null
+$reviewLines.Add('- `repo_data_source_inventory.csv`') | Out-Null
+$reviewLines.Add('- `repo_risk_surface_register.csv`') | Out-Null
+$reviewLines.Add('- `repo_reuse_decision_matrix.csv`') | Out-Null
+$reviewLines.Add('- `repo_improvement_queue.csv`') | Out-Null
+$reviewLines.Add('- `REPO_ONBOARDING_SUMMARY.md`') | Out-Null
 $reviewLines.Add('- `repo_inventory.csv`') | Out-Null
 $reviewLines.Add('- `existing_feature_scan.csv`') | Out-Null
 $reviewLines.Add('- `improvement_opportunities.csv`') | Out-Null
@@ -693,7 +906,80 @@ $reviewLines.Add("") | Out-Null
 $reviewLines.Add("This packet is the review boundary before product-repo mutation. It does not approve coding, installs, migrations, push, merge, deploy, all-fleet commands, background runners, or secret access.") | Out-Null
 $reviewLines | Set-Content -LiteralPath $reviewPath -Encoding UTF8
 
+$summaryLines = [System.Collections.Generic.List[string]]::new()
+$summaryLines.Add("# Repo Onboarding Summary - $ProjectName") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("Evidence only; not executable authority or product-repo mutation approval.") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Phase 0 Gate") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("Research first. Source trace first. Code second.") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add('- `lane_scope_declaration`: repo onboarding read-only') | Out-Null
+$summaryLines.Add('- `allowed_search_scope`: target repo read-only scan plus TSF output packet') | Out-Null
+$summaryLines.Add('- `forbidden_search_scope`: canonical NWR, normal NWR packets, PrivateLens, secrets/auth/payments, deploy/install/migration, push/merge/remote fetch or pull, all-fleet, proof runs, background runners') | Out-Null
+$summaryLines.Add('- `existing_asset_trace`: `repo_existing_asset_trace.csv`') | Out-Null
+$summaryLines.Add('- `reuse_decision`: `repo_reuse_decision_matrix.csv`') | Out-Null
+$summaryLines.Add('- `build_permission`: no build is approved by onboarding') | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Repo Identity") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add(('- Repo path: `{0}`' -f $repoPath)) | Out-Null
+$summaryLines.Add(('- Requested capability/workflow: `{0}`' -f $RequestedCapability)) | Out-Null
+$summaryLines.Add(('- Output packet: `{0}`' -f $outPath)) | Out-Null
+$summaryLines.Add(('- MaxFiles cap: `{0}`' -f $MaxFiles)) | Out-Null
+$summaryLines.Add(('- Scan truncated: `{0}`' -f $items.truncated)) | Out-Null
+$summaryLines.Add(('- Excluded directories noted: `{0}`' -f $excludedDirectories.Count)) | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Baseline") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add(('- Git repo: `{0}`' -f $gitSummary.is_git_repo)) | Out-Null
+$summaryLines.Add(('- Branch: `{0}`' -f $gitSummary.branch)) | Out-Null
+$summaryLines.Add(('- HEAD: `{0}`' -f $gitSummary.head)) | Out-Null
+$summaryLines.Add(('- Dirty baseline: `{0}`' -f $gitStatusText)) | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Required Inventories") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add('- `repo_structure_inventory.csv`') | Out-Null
+$summaryLines.Add('- `repo_docs_inventory.csv`') | Out-Null
+$summaryLines.Add('- `repo_tests_commands_inventory.csv`') | Out-Null
+$summaryLines.Add('- `repo_data_source_inventory.csv`') | Out-Null
+$summaryLines.Add('- `repo_risk_surface_register.csv`') | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Do Not Rebuild Findings") | Out-Null
+$summaryLines.Add("") | Out-Null
+if ($doNotRebuild.Count -eq 0) {
+    $summaryLines.Add("- No reusable implementation was proven by this packet; future work still needs Phase 0 and Tim-approved scope.") | Out-Null
+} else {
+    foreach ($finding in $doNotRebuild) {
+        $summaryLines.Add(('- Do not rebuild `{0}` before reviewing `{1}` (`{2}`).' -f $finding.feature_or_workflow, $finding.asset_path, $finding.classification)) | Out-Null
+    }
+}
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Next Safe Queue") | Out-Null
+$summaryLines.Add("") | Out-Null
+foreach ($opportunity in ($queueRows | Select-Object -First 20)) {
+    $summaryLines.Add(('- `{0}` `{1}`: {2} Coding allowed now: `{3}`.' -f $opportunity.queue_id, $opportunity.area, $opportunity.evidence, $opportunity.coding_allowed_now)) | Out-Null
+}
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("## Stop Conditions") | Out-Null
+$summaryLines.Add("") | Out-Null
+$summaryLines.Add("- Stop before product repo mutation, installs, migrations, secrets, push, merge, deploy, all-fleet commands, proof runs, background runners, or risk-area edits.") | Out-Null
+$summaryLines.Add('- Stop if a future lane needs a useful asset outside the declared scope and return `TIM_REQUIRED_SCOPE_EXPANSION`.') | Out-Null
+$summaryLines | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+
 $requiredFiles = @(
+    $repoIdentityPath,
+    $baselinePath,
+    $assetTracePath,
+    $structureInventoryPath,
+    $docsInventoryPath,
+    $testsCommandsInventoryPath,
+    $dataSourceInventoryPath,
+    $riskSurfacePath,
+    $reuseDecisionMatrixPath,
+    $improvementQueuePath,
+    $summaryPath,
     $inventoryPath,
     $featurePath,
     $opportunityPath,
@@ -713,7 +999,11 @@ $validation = [ordered]@{
     directories_noted           = $directories.Count
     scan_truncated              = [bool]$items.truncated
     max_files                   = $MaxFiles
+    max_files_behavior          = "Recursive file collection stops at MaxFiles; scan_truncated records whether the cap was reached."
     max_bytes_per_file          = $MaxBytesPerFile
+    excluded_directory_names    = @(Get-OnboardingExcludedDirectoryNames)
+    excluded_directories        = @($excludedDirectories.relative_path)
+    excluded_directory_count    = $excludedDirectories.Count
     output_inside_target_repo   = (Test-OnboardingPathInside -ChildPath $outPath -ParentPath $repoPath)
     target_repo_mutated         = $false
     product_repos_mutated       = $false
@@ -722,6 +1012,17 @@ $validation = [ordered]@{
     push_merge_deploy_run       = $false
     all_fleet_run               = $false
     background_runners_started  = $false
+    phase0_linkage_enforced     = $true
+    lane_scope_declaration      = $repoIdentity.lane_scope_declaration
+    allowed_search_scope        = $repoIdentity.lane_scope_declaration.allowed_search_scope
+    forbidden_search_scope      = $repoIdentity.lane_scope_declaration.forbidden_search_scope
+    existing_asset_trace        = [System.IO.Path]::GetFileName($assetTracePath)
+    reuse_decision_matrix       = [System.IO.Path]::GetFileName($reuseDecisionMatrixPath)
+    safe_command_list           = $safeCommandList
+    forbidden_command_list      = $forbiddenCommandList
+    dirty_worktree_baseline     = @($gitSummary.status_short)
+    no_build_without_trace_rule = $true
+    improvement_queue_classification = "REVIEW_ONLY_CANDIDATE"
     required_files_created      = @($requiredFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) })
     git_summary                 = $gitSummary
     stop_conditions_hit         = @()

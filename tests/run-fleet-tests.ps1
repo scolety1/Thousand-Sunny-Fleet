@@ -17439,13 +17439,16 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
     $coderDocPath = Join-Path $fleetRoot "docs\fleet\TSF_CODER_UPGRADE_PACK_V1.md"
     $artifactIndexPath = Join-Path $fleetRoot "docs\fleet\TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md"
     $scriptPath = Join-Path $fleetRoot "tools\write-repo-onboarding-packet.ps1"
+    $metadataScriptPath = Join-Path $fleetRoot "tools\register-project-metadata-only.ps1"
     $fixtureRepo = Join-Path $fleetRoot "tests\fixtures\fleet\repo-onboarding\sample-app"
 
-    foreach ($path in @($workflowDocPath, $howToAddPath, $coderDocPath, $artifactIndexPath, $scriptPath, $fixtureRepo)) {
+    foreach ($path in @($workflowDocPath, $howToAddPath, $coderDocPath, $artifactIndexPath, $scriptPath, $metadataScriptPath, $fixtureRepo)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Repo onboarding framework input exists: $path"
     }
 
     $scriptText = Get-Content -LiteralPath $scriptPath -Raw
+    $metadataScriptText = Get-Content -LiteralPath $metadataScriptPath -Raw
+    $combinedScriptText = @($scriptText, $metadataScriptText) -join "`n"
     foreach ($forbiddenOperation in @(
         "Invoke-Expression",
         "Start-Process",
@@ -17459,11 +17462,23 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
         "git reset",
         "Remove-Item"
     )) {
-        Assert-False -Condition ($scriptText -match [regex]::Escape($forbiddenOperation)) -Message "Repo onboarding adapter avoids forbidden operation: $forbiddenOperation"
+        Assert-False -Condition ($combinedScriptText -match [regex]::Escape($forbiddenOperation)) -Message "Repo onboarding adapters avoid forbidden operation: $forbiddenOperation"
     }
 
     foreach ($requiredPhrase in @(
         "OutDirectory must be outside the target repo",
+        "repo_identity.json",
+        "repo_baseline_status.txt",
+        "repo_existing_asset_trace.csv",
+        "repo_structure_inventory.csv",
+        "repo_docs_inventory.csv",
+        "repo_tests_commands_inventory.csv",
+        "repo_data_source_inventory.csv",
+        "repo_risk_surface_register.csv",
+        "repo_reuse_decision_matrix.csv",
+        "repo_improvement_queue.csv",
+        "REPO_ONBOARDING_SUMMARY.md",
+        "no_build_without_trace_rule",
         "existing_feature_scan.csv",
         "improvement_opportunities.csv",
         "onboarding_handoff.md",
@@ -17473,6 +17488,35 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
         "NEW_BUILD_MAY_BE_NEEDED_LATER"
     )) {
         Assert-True -Condition ($scriptText -match [regex]::Escape($requiredPhrase)) -Message "Repo onboarding adapter contains phrase: $requiredPhrase"
+    }
+
+    $metadataText = Get-Content -LiteralPath $metadataScriptPath -Raw
+    foreach ($forbiddenOperation in @(
+        "install-harness.ps1",
+        "Add-LocalExclude",
+        "run-checkpoint-loop.ps1",
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "git push",
+        "git merge",
+        "git reset"
+    )) {
+        Assert-False -Condition ($metadataText -match [regex]::Escape($forbiddenOperation)) -Message "Metadata-only registration avoids forbidden operation: $forbiddenOperation"
+    }
+
+    foreach ($requiredPhrase in @(
+        "REGISTERED_NEW_METADATA_ONLY",
+        "ALREADY_REGISTERED_EXACT_PATH",
+        "EXISTS_DIFFERENT_PATH_REQUIRES_REVIEW",
+        "BLOCKED_UNSAFE_TARGET",
+        "BLOCKED_VALIDATION_FAILED",
+        "ConfigPath must be outside the target repo",
+        "OutFile must be outside the target repo",
+        "metadataOnlyRegistration"
+    )) {
+        Assert-True -Condition ($metadataText -match [regex]::Escape($requiredPhrase)) -Message "Metadata-only registration contains phrase: $requiredPhrase"
     }
 
     function Get-RepoOnboardingFixtureSnapshot {
@@ -17490,10 +17534,97 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
         )
     }
 
+    function New-MetadataOnlyGitFixture {
+        param([string]$Path)
+
+        New-Item -ItemType Directory -Force -Path $Path | Out-Null
+        Set-Content -LiteralPath (Join-Path $Path "README.md") -Value "# Metadata Fixture" -Encoding UTF8
+        $gitInit = Invoke-Checked -FilePath "git" -Arguments @("-C", $Path, "init") -TimeoutSeconds 30
+        Assert-Equal -Actual $gitInit.ExitCode -Expected 0 -Message "Metadata-only fixture git init succeeds: $Path"
+    }
+
     $beforeSnapshot = @(Get-RepoOnboardingFixtureSnapshot -Path $fixtureRepo)
     $outRoot = Join-Path $fixtureRoot ("repo-onboarding-" + [guid]::NewGuid().ToString("N"))
 
     try {
+        $metadataTargetA = Join-Path $outRoot "metadata-target-a"
+        $metadataTargetB = Join-Path $outRoot "metadata-target-b"
+        New-MetadataOnlyGitFixture -Path $metadataTargetA
+        New-MetadataOnlyGitFixture -Path $metadataTargetB
+
+        $metadataConfig = Join-Path $outRoot "metadata-projects.json"
+        $metadataNewResultPath = Join-Path $outRoot "metadata-new-result.json"
+        $metadataNewRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $metadataScriptPath,
+            "-Name", "FixtureMeta",
+            "-Repo", $metadataTargetA,
+            "-Profile", "docs-only",
+            "-ConfigPath", $metadataConfig,
+            "-OutFile", $metadataNewResultPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $metadataNewRun.ExitCode -Expected 0 -Message "Metadata-only registration creates new fixture entry"
+        $metadataNewResult = Get-Content -LiteralPath $metadataNewResultPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $metadataNewResult.decision -Expected "REGISTERED_NEW_METADATA_ONLY" -Message "Metadata-only registration reports new entry"
+        Assert-False -Condition ([bool]$metadataNewResult.target_repo_mutated) -Message "Metadata-only registration records no target mutation for new entry"
+        Assert-True -Condition (Test-Path -LiteralPath $metadataConfig) -Message "Metadata-only registration writes fixture config"
+        $metadataProjects = @(Get-Content -LiteralPath $metadataConfig -Raw | ConvertFrom-Json)
+        Assert-True -Condition (@($metadataProjects | Where-Object { $_.name -eq "FixtureMeta" -and $_.metadataOnlyRegistration.targetRepoReadOnly -eq $true }).Count -eq 1) -Message "Metadata-only fixture config records read-only metadata"
+
+        $metadataExactResultPath = Join-Path $outRoot "metadata-exact-result.json"
+        $metadataExactRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $metadataScriptPath,
+            "-Name", "FixtureMeta",
+            "-Repo", $metadataTargetA,
+            "-Profile", "docs-only",
+            "-ConfigPath", $metadataConfig,
+            "-OutFile", $metadataExactResultPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $metadataExactRun.ExitCode -Expected 0 -Message "Metadata-only exact path rerun succeeds"
+        $metadataExactResult = Get-Content -LiteralPath $metadataExactResultPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $metadataExactResult.decision -Expected "ALREADY_REGISTERED_EXACT_PATH" -Message "Metadata-only registration detects already-registered exact path"
+
+        $metadataDifferentResultPath = Join-Path $outRoot "metadata-different-result.json"
+        $metadataDifferentRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $metadataScriptPath,
+            "-Name", "FixtureMeta",
+            "-Repo", $metadataTargetB,
+            "-Profile", "docs-only",
+            "-ConfigPath", $metadataConfig,
+            "-OutFile", $metadataDifferentResultPath
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $metadataDifferentRun.ExitCode -Expected 0 -Message "Metadata-only different-path review decision exits cleanly"
+        $metadataDifferentResult = Get-Content -LiteralPath $metadataDifferentResultPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $metadataDifferentResult.decision -Expected "EXISTS_DIFFERENT_PATH_REQUIRES_REVIEW" -Message "Metadata-only registration blocks same-name different-path overwrite"
+        $metadataProjectsAfterDifferent = @(Get-Content -LiteralPath $metadataConfig -Raw | ConvertFrom-Json)
+        Assert-Equal -Actual (@($metadataProjectsAfterDifferent | Where-Object { $_.name -eq "FixtureMeta" }).Count) -Expected 1 -Message "Metadata-only different-path decision does not add duplicate name"
+
+        $unsafeOutFile = Join-Path $metadataTargetA "unsafe-result.json"
+        $metadataUnsafeOutRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $metadataScriptPath,
+            "-Name", "FixtureUnsafeOut",
+            "-Repo", $metadataTargetA,
+            "-Profile", "docs-only",
+            "-ConfigPath", $metadataConfig,
+            "-OutFile", $unsafeOutFile
+        ) -TimeoutSeconds 30
+        Assert-True -Condition ($metadataUnsafeOutRun.ExitCode -ne 0) -Message "Metadata-only registration blocks output inside target"
+        Assert-False -Condition (Test-Path -LiteralPath $unsafeOutFile) -Message "Metadata-only registration writes no blocked output inside target"
+
+        $unsafeConfig = Join-Path $metadataTargetA "projects.json"
+        $metadataUnsafeConfigResultPath = Join-Path $outRoot "metadata-unsafe-config-result.json"
+        $metadataUnsafeConfigRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $metadataScriptPath,
+            "-Name", "FixtureUnsafeConfig",
+            "-Repo", $metadataTargetA,
+            "-Profile", "docs-only",
+            "-ConfigPath", $unsafeConfig,
+            "-OutFile", $metadataUnsafeConfigResultPath
+        ) -TimeoutSeconds 30
+        Assert-True -Condition ($metadataUnsafeConfigRun.ExitCode -ne 0) -Message "Metadata-only registration blocks config inside target"
+        Assert-False -Condition (Test-Path -LiteralPath $unsafeConfig) -Message "Metadata-only registration writes no config inside target"
+        $metadataUnsafeConfigResult = Get-Content -LiteralPath $metadataUnsafeConfigResultPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $metadataUnsafeConfigResult.decision -Expected "BLOCKED_UNSAFE_TARGET" -Message "Metadata-only unsafe config returns blocked status"
+
         $result = Invoke-Checked -FilePath "powershell" -Arguments @(
             "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath,
             "-Repo", $fixtureRepo,
@@ -17504,6 +17635,17 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
 
         Assert-Equal -Actual $result.ExitCode -Expected 0 -Message "Repo onboarding packet generator runs on fixture"
 
+        $identityPath = Join-Path $outRoot "repo_identity.json"
+        $baselinePath = Join-Path $outRoot "repo_baseline_status.txt"
+        $assetTracePath = Join-Path $outRoot "repo_existing_asset_trace.csv"
+        $structureInventoryPath = Join-Path $outRoot "repo_structure_inventory.csv"
+        $docsInventoryPath = Join-Path $outRoot "repo_docs_inventory.csv"
+        $testsCommandsInventoryPath = Join-Path $outRoot "repo_tests_commands_inventory.csv"
+        $dataSourceInventoryPath = Join-Path $outRoot "repo_data_source_inventory.csv"
+        $riskSurfacePath = Join-Path $outRoot "repo_risk_surface_register.csv"
+        $reuseMatrixPath = Join-Path $outRoot "repo_reuse_decision_matrix.csv"
+        $improvementQueuePath = Join-Path $outRoot "repo_improvement_queue.csv"
+        $summaryPath = Join-Path $outRoot "REPO_ONBOARDING_SUMMARY.md"
         $inventoryPath = Join-Path $outRoot "repo_inventory.csv"
         $featurePath = Join-Path $outRoot "existing_feature_scan.csv"
         $opportunityPath = Join-Path $outRoot "improvement_opportunities.csv"
@@ -17511,7 +17653,7 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
         $reviewPath = Join-Path $outRoot "repo_onboarding_review.md"
         $validationPath = Join-Path $outRoot "repo_onboarding_validation.json"
 
-        foreach ($path in @($inventoryPath, $featurePath, $opportunityPath, $handoffPath, $reviewPath, $validationPath)) {
+        foreach ($path in @($identityPath, $baselinePath, $assetTracePath, $structureInventoryPath, $docsInventoryPath, $testsCommandsInventoryPath, $dataSourceInventoryPath, $riskSurfacePath, $reuseMatrixPath, $improvementQueuePath, $summaryPath, $inventoryPath, $featurePath, $opportunityPath, $handoffPath, $reviewPath, $validationPath)) {
             Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Repo onboarding output exists: $path"
         }
 
@@ -17528,6 +17670,30 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
             "git_status_summary"
         )) {
             Assert-True -Condition (@($inventory | Where-Object { $_.asset_type -eq $assetType }).Count -gt 0) -Message "Repo onboarding inventory captures asset type: $assetType"
+        }
+
+        $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $identity.packet_type -Expected "tsf_repo_onboarding" -Message "Repo onboarding identity records packet type"
+        Assert-Equal -Actual $identity.phase0_control_rule -Expected "Research first. Source trace first. Code second." -Message "Repo onboarding identity records Phase 0 control rule"
+        Assert-True -Condition (@($identity.lane_scope_declaration.allowed_search_scope).Count -gt 0) -Message "Repo onboarding identity records allowed search scope"
+        Assert-True -Condition (@($identity.lane_scope_declaration.forbidden_search_scope).Count -gt 0) -Message "Repo onboarding identity records forbidden search scope"
+        Assert-Equal -Actual $identity.no_build_without_trace_rule -Expected $true -Message "Repo onboarding identity blocks build without trace"
+
+        $baselineText = Get-Content -LiteralPath $baselinePath -Raw
+        Assert-True -Condition ($baselineText -match "No fetch, pull, push, merge") -Message "Repo onboarding baseline forbids remote-changing operations"
+
+        $assetTrace = @(Import-Csv -LiteralPath $assetTracePath)
+        Assert-True -Condition (@($assetTrace | Where-Object { $_.feature_or_workflow -eq "report export" }).Count -gt 0) -Message "Repo onboarding required asset trace records requested capability"
+
+        $reuseMatrix = @(Import-Csv -LiteralPath $reuseMatrixPath)
+        Assert-True -Condition (@($reuseMatrix | Where-Object { $_.new_build_allowed_now -eq "false" }).Count -gt 0) -Message "Repo onboarding reuse matrix blocks immediate build"
+
+        $improvementQueue = @(Import-Csv -LiteralPath $improvementQueuePath)
+        Assert-True -Condition (@($improvementQueue | Where-Object { $_.classification -eq "REVIEW_ONLY_CANDIDATE" }).Count -gt 0) -Message "Repo onboarding improvement queue is review-only"
+
+        $summaryText = Get-Content -LiteralPath $summaryPath -Raw
+        foreach ($phrase in @("Phase 0 Gate", "Do Not Rebuild Findings", "Next Safe Queue", "TIM_REQUIRED_SCOPE_EXPANSION")) {
+            Assert-True -Condition ($summaryText -match [regex]::Escape($phrase)) -Message "Repo onboarding summary contains phrase: $phrase"
         }
 
         $features = @(Import-Csv -LiteralPath $featurePath)
@@ -17561,6 +17727,15 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
         Assert-False -Condition ([bool]$validation.migrations_run) -Message "Repo onboarding validation records no migrations"
         Assert-False -Condition ([bool]$validation.push_merge_deploy_run) -Message "Repo onboarding validation records no push/merge/deploy"
         Assert-False -Condition ([bool]$validation.all_fleet_run) -Message "Repo onboarding validation records no all-fleet run"
+        Assert-Equal -Actual $validation.phase0_linkage_enforced -Expected $true -Message "Repo onboarding validation records Phase 0 linkage"
+        Assert-True -Condition (@($validation.allowed_search_scope).Count -gt 0) -Message "Repo onboarding validation records allowed search scope"
+        Assert-True -Condition (@($validation.forbidden_search_scope).Count -gt 0) -Message "Repo onboarding validation records forbidden search scope"
+        Assert-Equal -Actual $validation.existing_asset_trace -Expected "repo_existing_asset_trace.csv" -Message "Repo onboarding validation records existing asset trace file"
+        Assert-Equal -Actual $validation.reuse_decision_matrix -Expected "repo_reuse_decision_matrix.csv" -Message "Repo onboarding validation records reuse decision matrix"
+        Assert-True -Condition (@($validation.safe_command_list).Count -gt 0) -Message "Repo onboarding validation records safe command list"
+        Assert-True -Condition (@($validation.forbidden_command_list).Count -gt 0) -Message "Repo onboarding validation records forbidden command list"
+        Assert-Equal -Actual $validation.no_build_without_trace_rule -Expected $true -Message "Repo onboarding validation blocks build without trace"
+        Assert-Equal -Actual $validation.improvement_queue_classification -Expected "REVIEW_ONLY_CANDIDATE" -Message "Repo onboarding validation classifies improvement queue as review-only"
 
         $blockedOut = Join-Path $fixtureRepo "blocked-output"
         $blockedResult = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -17574,6 +17749,34 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
         Assert-True -Condition ($blockedResult.ExitCode -ne 0) -Message "Repo onboarding adapter stops when output would be inside target repo"
         Assert-False -Condition (Test-Path -LiteralPath $blockedOut) -Message "Blocked repo onboarding run creates no target output"
 
+        $scannerTarget = Join-Path $outRoot "scanner-exclusion-target"
+        New-Item -ItemType Directory -Force -Path (Join-Path $scannerTarget ".venv\Scripts") | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $scannerTarget ".pytest_cache\v") | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $scannerTarget "cache\nested") | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $scannerTarget "src") | Out-Null
+        Set-Content -LiteralPath (Join-Path $scannerTarget "README.md") -Value "# Scanner Fixture" -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $scannerTarget ".venv\Scripts\hidden.py") -Value "hidden venv report export" -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $scannerTarget ".pytest_cache\v\cache.txt") -Value "hidden cache report export" -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $scannerTarget "cache\nested\cache.txt") -Value "hidden generic cache report export" -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $scannerTarget "src\index.js") -Value "console.log('report export');" -Encoding UTF8
+        $scannerOut = Join-Path $outRoot "scanner-exclusion-out"
+        $scannerRun = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath,
+            "-Repo", $scannerTarget,
+            "-ProjectName", "ScannerExclusion",
+            "-RequestedCapability", "report export",
+            "-OutDirectory", $scannerOut
+        ) -TimeoutSeconds 30
+        Assert-Equal -Actual $scannerRun.ExitCode -Expected 0 -Message "Repo onboarding scanner exclusion fixture runs"
+        $scannerInventory = @(Import-Csv -LiteralPath (Join-Path $scannerOut "repo_inventory.csv"))
+        Assert-Equal -Actual (@($scannerInventory | Where-Object { $_.asset_path -match '^\.venv\\|^\.pytest_cache\\|^cache\\' }).Count) -Expected 0 -Message "Repo onboarding scanner does not inventory files inside excluded venv/cache directories"
+        Assert-True -Condition (@($scannerInventory | Where-Object { $_.asset_type -eq "excluded_directory" -and $_.asset_path -in @(".venv", ".pytest_cache", "cache") }).Count -ge 3) -Message "Repo onboarding scanner records excluded venv/cache directories"
+        $scannerValidation = Get-Content -LiteralPath (Join-Path $scannerOut "repo_onboarding_validation.json") -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($scannerValidation.excluded_directory_names) -contains ".venv") -Message "Repo onboarding validation records .venv exclusion"
+        Assert-True -Condition (@($scannerValidation.excluded_directory_names) -contains ".pytest_cache") -Message "Repo onboarding validation records .pytest_cache exclusion"
+        Assert-True -Condition (@($scannerValidation.excluded_directory_names) -contains "cache") -Message "Repo onboarding validation records cache exclusion"
+        Assert-True -Condition ($scannerValidation.max_files_behavior -match "MaxFiles") -Message "Repo onboarding validation explains MaxFiles behavior"
+
         $afterSnapshot = @(Get-RepoOnboardingFixtureSnapshot -Path $fixtureRepo)
         Assert-Equal -Actual ($afterSnapshot -join "|") -Expected ($beforeSnapshot -join "|") -Message "Repo onboarding fixture repo remains unchanged"
     } finally {
@@ -17583,11 +17786,21 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
     $workflowDoc = Get-Content -LiteralPath $workflowDocPath -Raw
     foreach ($docPhrase in @(
         "Register the repo",
+        "metadata-only registration wrapper",
+        "REGISTERED_NEW_METADATA_ONLY",
+        "EXISTS_DIFFERENT_PATH_REQUIRES_REVIEW",
         "Run a read-only inventory",
+        "MaxFiles",
+        ".venv",
         "Search for existing features",
         "Produce improvement opportunities",
         "Create continuation/handoff context",
         "Stop before product repo mutation",
+        "Phase 0 Front Door",
+        "repo_existing_asset_trace.csv",
+        "repo_reuse_decision_matrix.csv",
+        "repo_improvement_queue.csv",
+        "REPO_ONBOARDING_SUMMARY.md",
         "Research first. Source trace first. Code second.",
         "add-project.ps1",
         "projects.json",
@@ -17599,7 +17812,16 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
     $howToAddDoc = Get-Content -LiteralPath $howToAddPath -Raw
     foreach ($docPhrase in @(
         "Run the repo onboarding packet",
+        "register-project-metadata-only.ps1",
+        "REGISTERED_NEW_METADATA_ONLY",
+        "EXISTS_DIFFERENT_PATH_REQUIRES_REVIEW",
         "TSF_REPO_ONBOARDING_WORKFLOW_V1.md",
+        "repo_identity.json",
+        "repo_baseline_status.txt",
+        "repo_existing_asset_trace.csv",
+        "repo_reuse_decision_matrix.csv",
+        "repo_improvement_queue.csv",
+        "REPO_ONBOARDING_SUMMARY.md",
         "existing_feature_scan.csv",
         "improvement_opportunities.csv",
         "onboarding_handoff.md"
@@ -17614,7 +17836,9 @@ function Test-HqTsfRepoOnboardingFrameworkV1 {
     foreach ($indexPhrase in @(
         "TSF_REPO_ONBOARDING_WORKFLOW_V1.md",
         "fleet/status/repo-onboarding/**",
+        "tools/register-project-metadata-only.ps1",
         "tools/write-repo-onboarding-packet.ps1",
+        "repo onboarding identity, baseline, existing-asset trace",
         "tests/fixtures/fleet/repo-onboarding/**"
     )) {
         Assert-True -Condition ($artifactIndex -match [regex]::Escape($indexPhrase)) -Message "Artifact index classifies repo onboarding artifact: $indexPhrase"
