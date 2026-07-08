@@ -32,6 +32,8 @@ Service Sync Studio preparation is local evidence-only model and spike planning 
 
 The token projection helper is local pressure evidence only. Use `docs/fleet/TOKEN_PROJECTION_TOOL_SPEC.md` and `tools/codex-fleet-token-projection.ps1` to estimate prompt/read/patch/validation/output reserve size before long bounded runs. It does not call model APIs, prove billing, verify model availability, approve product work, approve execution, weaken validation, override required `readFirst` files, touch product repos, run all-fleet commands, run overnight runners, stage, commit, push, deploy, install packages, run migrations, touch secrets/auth/payments/deploy work, delete locks, widen permissions, create/send packages, bind runtime commands, or grant future authority.
 
+The Phase 0 Existing-Asset Trace Gate is now a TSF front-door requirement. Use `docs/fleet/PHASE0_EXISTING_ASSET_TRACE_GATE.md` before any build, design, report, adapter, packet, formula, schema, validator, or repo work. Future task packets must carry a `phase0Gate` record with lane scope declaration, allowed search scope, forbidden search scope, existing-asset trace, classification, reuse decision, build permission explanation, and `TIM_REQUIRED_SCOPE_EXPANSION` stop behavior when a useful asset may exist only in forbidden scope.
+
 Travel-mode Codex sessions should use `docs/fleet/REMOTE_TRAVEL_CODEX_THIN_PROMPT_PACKET.md` as the compact operating packet after a secure human-controlled remote desktop session is already open. The packet preserves one bounded task per run, requires the task id or selected task, `readFirst`, `allowedFiles`, `validationCommands`, `stopIf`, and report format before editing, stops after validation, and reports BLOCKED for HQ repacketization when the same uncertainty, failing validation, missing context, or scope question appears twice. Remote access grants no extra authority, and operational travel readiness remains YELLOW until Tuesday's off-network test is performed and recorded.
 
 Use `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md` as orientation evidence for terms such as evidence, approval, manifest, prompt, validation summary, audit report, fixture, dry-run record, package, package sending, and future authority. The glossary is evidence only; it does not approve execution, create or send packages, select product repos, bind runtime commands, bypass validation, or grant future authority.
@@ -79,13 +81,14 @@ GREEN audits, passing tests, dry-run outcomes, UI text, package manifests, revie
 
 Each implementation run must:
 
-1. Select exactly one eligible task from the active queue section.
-2. Patch only files listed in that task's `allowedFiles`, plus `docs/fleet/HQ_REPAIR_TASK_QUEUE.md` only to update that same task status after validation.
-3. Run only the task's `validationCommands`, plus JSON parsing checks for schemas created or edited by that task.
-4. Patch only failures caused by that task.
-5. Stop after exactly one task.
-6. Mark the task `done` only after validation passes.
-7. Mark only that task `blocked` if the work needs broader scope, a forbidden operation, new authority, or human input.
+1. Confirm the selected task or packet includes a valid `phase0Gate`.
+2. Select exactly one eligible task from the active queue section.
+3. Patch only files listed in that task's `allowedFiles`, plus `docs/fleet/HQ_REPAIR_TASK_QUEUE.md` only to update that same task status after validation.
+4. Run only the task's `validationCommands`, plus JSON parsing checks for schemas created or edited by that task.
+5. Patch only failures caused by that task.
+6. Stop after exactly one task.
+7. Mark the task `done` only after validation passes.
+8. Mark only that task `blocked` if the work needs broader scope, a forbidden operation, new authority, or human input.
 
 Future implementation tasks should use Stable Context Capsule plus a thin task packet by default. Thin task packets must preserve the one-task boundary, name bounded files and validation, include stop conditions, and avoid treating evidence or queue prose as authority. Broad exploratory tasks need an explicit exploration-only exception and must not become hidden implementation work.
 
@@ -95,6 +98,7 @@ Stop and mark or report blocked when the task needs:
 
 - files outside `allowedFiles`
 - broader repo review than the task permits
+- useful existing assets that may exist only in forbidden scope, reported as `TIM_REQUIRED_SCOPE_EXPANSION`
 - product-repo access or mutation
 - all-fleet execution
 - launch/deploy/install/migration/secrets/auth/payments/deploy work
@@ -131,6 +135,7 @@ Human approval must be exact-action-bound, current, single-use where applicable,
 - `docs/fleet/EVIDENCE_NON_AUTHORITY_GLOSSARY.md`
 - `docs/fleet/HQ_IMPORT_RECON.md`
 - `docs/fleet/TOKEN_CONTROL_OPERATING_MODEL.md`
+- `docs/fleet/PHASE0_EXISTING_ASSET_TRACE_GATE.md`
 - `docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md`
 - `docs/fleet/RUNTIME_POLICY_DECISION_CONTRACT.md`
 - `docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md`

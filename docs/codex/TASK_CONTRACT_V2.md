@@ -2,6 +2,25 @@
 
 Task Contract V2 is the fleet's compact task grammar for unattended work. It borrows the useful part of agent-skills: explicit workflow, small slices, proof requirements, and named stop conditions.
 
+## Phase 0 Front Door
+
+Before any task packet, implementation task, design/report lane, adapter, validation, formula, schema, or repo work can become runnable, it must pass the local Phase 0 Existing-Asset Trace Gate in `docs/fleet/PHASE0_EXISTING_ASSET_TRACE_GATE.md`.
+
+The packet or lane must include a `phase0Gate` record with:
+
+- lane scope declaration
+- allowed search scope
+- forbidden search scope
+- existing-asset trace
+- asset classification
+- reuse/admission/adapter/null-fence/validation/stop/new-build decision
+- explanation of why new build is or is not allowed
+- `TIM_REQUIRED_SCOPE_EXPANSION` stop behavior when a useful asset may exist only in forbidden scope
+
+For validation reports and review packets, these concepts may be named as `phase0`, `lane_scope_declaration`, `allowed_search_scope`, `forbidden_search_scope`, `existing_asset_trace`, `reuse_decision`, and `build_permission`. Packet JSON keeps the camelCase `phase0Gate` field family defined by the schemas.
+
+Task Contract V2 checklist fields are not a substitute for Phase 0. They are runnable only after the Phase 0 trace says reuse, admission, adapter, null-fence, validation, documentation, or new build is allowed inside the declared scope.
+
 ## Required Fields
 
 Every new implementation task should include these fields in the checklist line:

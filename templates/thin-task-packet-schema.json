@@ -10,6 +10,7 @@
     "mode",
     "goal",
     "stableContextCapsuleRef",
+    "phase0Gate",
     "allowedFiles",
     "readFirst",
     "acceptance",
@@ -52,6 +53,9 @@
     "stableContextCapsuleRef": {
       "type": "string",
       "const": "docs/fleet/STABLE_CONTEXT_CAPSULE.md"
+    },
+    "phase0Gate": {
+      "$ref": "#/$defs/phase0Gate"
     },
     "allowedFiles": {
       "type": "array",
@@ -166,6 +170,194 @@
     }
   },
   "$defs": {
+    "phase0Gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "laneScopeDeclaration",
+        "existingAssetTrace",
+        "reuseDecision",
+        "buildPermission",
+        "scopeExpansionRule"
+      ],
+      "properties": {
+        "laneScopeDeclaration": {
+          "$ref": "#/$defs/laneScopeDeclaration"
+        },
+        "existingAssetTrace": {
+          "$ref": "#/$defs/existingAssetTrace"
+        },
+        "reuseDecision": {
+          "$ref": "#/$defs/reuseDecision"
+        },
+        "buildPermission": {
+          "$ref": "#/$defs/buildPermission"
+        },
+        "scopeExpansionRule": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500,
+          "pattern": "TIM_REQUIRED_SCOPE_EXPANSION"
+        }
+      }
+    },
+    "laneScopeDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "laneType",
+        "allowedSearchScope",
+        "forbiddenSearchScope",
+        "canonicalRepoInspectionAllowed",
+        "normalNwrPacketReadsAllowed",
+        "crossLaneComparisonAllowed",
+        "mutationAllowed",
+        "timApprovalRequiredForScopeExpansion"
+      ],
+      "properties": {
+        "laneType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "allowedSearchScope": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "forbiddenSearchScope": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "canonicalRepoInspectionAllowed": {
+          "type": "boolean"
+        },
+        "normalNwrPacketReadsAllowed": {
+          "type": "boolean"
+        },
+        "crossLaneComparisonAllowed": {
+          "type": "boolean"
+        },
+        "mutationAllowed": {
+          "type": "boolean"
+        },
+        "timApprovalRequiredForScopeExpansion": {
+          "type": "boolean"
+        }
+      }
+    },
+    "existingAssetTrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "searchedLocations",
+        "matchingFilesOrFolders",
+        "relevantExistingArtifacts",
+        "classification",
+        "reuseDecision",
+        "whyNewBuildIsOrIsNotAllowed",
+        "restrictedScopeExclusions"
+      ],
+      "properties": {
+        "searchedLocations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "matchingFilesOrFolders": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "relevantExistingArtifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "classification": {
+          "$ref": "#/$defs/assetClassification"
+        },
+        "reuseDecision": {
+          "$ref": "#/$defs/reuseDecision"
+        },
+        "whyNewBuildIsOrIsNotAllowed": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 1000
+        },
+        "restrictedScopeExclusions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    },
+    "buildPermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "newBuildAllowed",
+        "whyNewBuildIsOrIsNotAllowed"
+      ],
+      "properties": {
+        "newBuildAllowed": {
+          "type": "boolean"
+        },
+        "whyNewBuildIsOrIsNotAllowed": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 1000
+        }
+      }
+    },
+    "assetClassification": {
+      "type": "string",
+      "enum": [
+        "already_exists_admitted",
+        "exists_display_only",
+        "exists_review_only",
+        "exists_not_joined",
+        "exists_wrong_scope",
+        "exists_stale",
+        "exists_conflicting",
+        "exists_duplicate",
+        "not_found"
+      ]
+    },
+    "reuseDecision": {
+      "type": "string",
+      "enum": [
+        "REUSE",
+        "ADMIT_OR_GATE",
+        "ADAPTER_NEEDED",
+        "NULL_FENCE_NEEDED",
+        "VALIDATION_NEEDED",
+        "NEW_BUILD_ALLOWED",
+        "STOP"
+      ]
+    },
     "localPath": {
       "type": "string",
       "minLength": 1,

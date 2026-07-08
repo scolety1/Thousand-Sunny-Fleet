@@ -94,6 +94,7 @@ What should the later HQ/Codex review prove before any work starts?
 ## Later HQ/Codex Review Must Produce
 
 - task id or selected task
+- Phase 0 gate with lane scope declaration, allowed search scope, forbidden search scope, existing-asset trace, classification, reuse decision, build permission explanation, and `TIM_REQUIRED_SCOPE_EXPANSION` stop behavior
 - readFirst files
 - allowedFiles
 - validationCommands

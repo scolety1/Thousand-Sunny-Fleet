@@ -20,8 +20,10 @@ Protect boundaries first: no product-repo work, no all-fleet commands, no overni
 
 ## Request Handling Rule
 
-Any phone request must be repacketized into one bounded Codex task before work starts. The task packet must name readFirst files, allowedFiles, validationCommands, stopIf conditions, and the report format.
+Any phone request must be repacketized into one bounded Codex task before work starts. The task packet must name a Phase 0 gate, readFirst files, allowedFiles, validationCommands, stopIf conditions, and the report format.
+
+The Phase 0 gate must declare lane scope, allowed search scope, forbidden search scope, existing-asset trace, asset classification, reuse decision, build permission explanation, and `TIM_REQUIRED_SCOPE_EXPANSION` behavior before any build/design/report/repo work begins.
 
 ## Next Checkpoint
 
-Before any work starts, confirm the repo state, read the relevant task packet, run only the named validation commands, and stop after one task.
+Before any work starts, confirm the repo state, read the relevant task packet, confirm its Phase 0 gate, run only the named validation commands, and stop after one task.
