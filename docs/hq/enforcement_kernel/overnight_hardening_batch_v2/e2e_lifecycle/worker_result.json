@@ -1,0 +1,23 @@
+﻿{
+    "schema_version":  1,
+    "mission_id":  "tsf-kernel-v2-codex-fixture-worker-pilot",
+    "worker_status":  "CODEX_CLI_NONZERO",
+    "codex_cli_detected":  true,
+    "codex_cli_invoked":  true,
+    "codex_exit_code":  1,
+    "files_touched":  [
+
+                      ],
+    "files_created":  [
+
+                      ],
+    "unexpected_touched_files":  [
+
+                                 ],
+    "restricted_actions_attempted":  [
+
+                                     ],
+    "blocked_reasons":  [
+                            "Codex CLI fixture pilot exited nonzero: 1"
+                        ]
+}

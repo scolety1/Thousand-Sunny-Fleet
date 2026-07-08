@@ -1,0 +1,23 @@
+﻿{
+    "verdict":  "YELLOW_TSF_KERNEL_V2_COMPLETE_CODEX_CLI_PILOT_BLOCKED",
+    "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+    "branch":  "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+    "starting_head":  "0b113bd538cdb4faeab78987bfe6db2e310b9a08",
+    "current_head":  "a1d9da4c978e9a40485d67f72d235b8b33f55ad2",
+    "codex_cli_detected":  true,
+    "codex_cli_invoked":  true,
+    "codex_exit_code":  1,
+    "codex_adapter_status":  "TIM_REQUIRED_CODEX_CLI_CONFIG_OR_EXECUTION_APPROVAL",
+    "e2e_mission_result":  "RED",
+    "expected_artifact_created":  false,
+    "failure_mode_regression_result":  "GREEN_FAILURE_MODES_FAIL_CLOSED",
+    "hq_escalation_packet_schema_status":  "GREEN_SCHEMA_CREATED_NO_API",
+    "background_runners_started":  false,
+    "canonical_nwr_mutated":  false,
+    "product_repos_mutated":  false,
+    "push_merge_deploy_install_migration_secrets_privatelens_all_fleet":  "no",
+    "stop_conditions_hit":  [
+                                "codex_cli_auth_or_execution_approval",
+                                "expected_artifact_missing"
+                            ]
+}

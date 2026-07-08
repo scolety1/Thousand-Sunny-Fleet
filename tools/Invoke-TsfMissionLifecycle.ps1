@@ -225,8 +225,14 @@ Return a concise status after the file is written.
                             $blockedReasons.Add("Codex CLI fixture pilot timed out.") | Out-Null
                             $workerStatus = "CODEX_CLI_TIMEOUT"
                         } elseif ($codexExitCode -ne 0) {
-                            $blockedReasons.Add("Codex CLI fixture pilot exited nonzero: $codexExitCode") | Out-Null
-                            $workerStatus = "CODEX_CLI_NONZERO"
+                            $codexOutputText = (($codexResult.output | ForEach-Object { [string]$_ }) -join "`n")
+                            if ($codexOutputText -match "(?i)(auth|login|credential|config\.toml|service_tier|permission|approval)") {
+                                $blockedReasons.Add("Codex CLI fixture pilot requires config/auth/permission review before execution can be trusted: $($codexOutputText -replace '\s+', ' ')") | Out-Null
+                                $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
+                            } else {
+                                $blockedReasons.Add("Codex CLI fixture pilot exited nonzero: $codexExitCode") | Out-Null
+                                $workerStatus = "CODEX_CLI_NONZERO"
+                            }
                         } elseif ($unexpectedTouched.Count -gt 0) {
                             $blockedReasons.Add("Codex CLI touched paths outside the allowed fixture output: $($unexpectedTouched -join ', ')") | Out-Null
                             $workerStatus = "CODEX_CLI_TOUCHED_FORBIDDEN_PATH"

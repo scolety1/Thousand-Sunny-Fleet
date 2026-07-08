@@ -1,0 +1,2 @@
+"invocation_id","command","codex_cli_detected","codex_cli_invoked","exit_code","status","expected_artifact","expected_artifact_created","files_touched","blocked_reason"
+"tsf-kernel-v2-codex-fixture-worker-pilot","codex exec --ephemeral --cd <TSF_REPO> --sandbox workspace-write --output-last-message <local-log> --json -","True","True","1","CODEX_CLI_NONZERO","tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt","False","","Codex CLI fixture pilot exited nonzero: 1"

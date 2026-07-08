@@ -1,0 +1,9 @@
+Command: codex exec --ephemeral --cd C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet --sandbox workspace-write --output-last-message .\.codex-local\mission-lifecycle\tsf-kernel-v2-codex-fixture-worker-pilot\codex_worker_last_message.txt --json -
+Resolved command: cmd.exe /d /c C:\Users\codex-agent\AppData\Roaming\npm\codex.cmd exec --ephemeral --cd C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet --sandbox workspace-write --output-last-message .\.codex-local\mission-lifecycle\tsf-kernel-v2-codex-fixture-worker-pilot\codex_worker_last_message.txt --json -
+Working directory: C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet
+Timeout seconds: 180
+Timed out: False
+Exit code: 1
+
+Error loading config.toml: unknown variant `default`, expected `fast` or `flex`
+in `service_tier`
