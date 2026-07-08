@@ -1,0 +1,10 @@
+{
+  "name": "repo-onboarding-sample-app",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node src/index.js",
+    "test": "node tests/report-export.test.js",
+    "export:report": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/export-report.ps1"
+  }
+}

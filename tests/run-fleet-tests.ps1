@@ -17433,6 +17433,194 @@ function Test-HqTsfCoderUpgradePackV1 {
     }
 }
 
+function Test-HqTsfRepoOnboardingFrameworkV1 {
+    $workflowDocPath = Join-Path $fleetRoot "docs\fleet\TSF_REPO_ONBOARDING_WORKFLOW_V1.md"
+    $howToAddPath = Join-Path $fleetRoot "docs\HOW_TO_ADD_PROJECT.md"
+    $coderDocPath = Join-Path $fleetRoot "docs\fleet\TSF_CODER_UPGRADE_PACK_V1.md"
+    $artifactIndexPath = Join-Path $fleetRoot "docs\fleet\TSF_CONTROL_PLANE_ARTIFACT_INDEX_V1.md"
+    $scriptPath = Join-Path $fleetRoot "tools\write-repo-onboarding-packet.ps1"
+    $fixtureRepo = Join-Path $fleetRoot "tests\fixtures\fleet\repo-onboarding\sample-app"
+
+    foreach ($path in @($workflowDocPath, $howToAddPath, $coderDocPath, $artifactIndexPath, $scriptPath, $fixtureRepo)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Repo onboarding framework input exists: $path"
+    }
+
+    $scriptText = Get-Content -LiteralPath $scriptPath -Raw
+    foreach ($forbiddenOperation in @(
+        "Invoke-Expression",
+        "Start-Process",
+        "Invoke-WebRequest",
+        "Invoke-RestMethod",
+        "npm install",
+        "pnpm install",
+        "yarn install",
+        "git push",
+        "git merge",
+        "git reset",
+        "Remove-Item"
+    )) {
+        Assert-False -Condition ($scriptText -match [regex]::Escape($forbiddenOperation)) -Message "Repo onboarding adapter avoids forbidden operation: $forbiddenOperation"
+    }
+
+    foreach ($requiredPhrase in @(
+        "OutDirectory must be outside the target repo",
+        "existing_feature_scan.csv",
+        "improvement_opportunities.csv",
+        "onboarding_handoff.md",
+        "repo_onboarding_validation.json",
+        "already_exists_operational",
+        "exists_duplicate",
+        "NEW_BUILD_MAY_BE_NEEDED_LATER"
+    )) {
+        Assert-True -Condition ($scriptText -match [regex]::Escape($requiredPhrase)) -Message "Repo onboarding adapter contains phrase: $requiredPhrase"
+    }
+
+    function Get-RepoOnboardingFixtureSnapshot {
+        param([string]$Path)
+
+        $root = (Resolve-Path -LiteralPath $Path).Path.TrimEnd("\") + "\"
+        return @(
+            Get-ChildItem -LiteralPath $Path -Recurse -File -Force |
+                Sort-Object FullName |
+                ForEach-Object {
+                    $relative = $_.FullName.Substring($root.Length)
+                    $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+                    "$relative::$hash"
+                }
+        )
+    }
+
+    $beforeSnapshot = @(Get-RepoOnboardingFixtureSnapshot -Path $fixtureRepo)
+    $outRoot = Join-Path $fixtureRoot ("repo-onboarding-" + [guid]::NewGuid().ToString("N"))
+
+    try {
+        $result = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath,
+            "-Repo", $fixtureRepo,
+            "-ProjectName", "FixtureOnboarding",
+            "-RequestedCapability", "report export",
+            "-OutDirectory", $outRoot
+        ) -TimeoutSeconds 30
+
+        Assert-Equal -Actual $result.ExitCode -Expected 0 -Message "Repo onboarding packet generator runs on fixture"
+
+        $inventoryPath = Join-Path $outRoot "repo_inventory.csv"
+        $featurePath = Join-Path $outRoot "existing_feature_scan.csv"
+        $opportunityPath = Join-Path $outRoot "improvement_opportunities.csv"
+        $handoffPath = Join-Path $outRoot "onboarding_handoff.md"
+        $reviewPath = Join-Path $outRoot "repo_onboarding_review.md"
+        $validationPath = Join-Path $outRoot "repo_onboarding_validation.json"
+
+        foreach ($path in @($inventoryPath, $featurePath, $opportunityPath, $handoffPath, $reviewPath, $validationPath)) {
+            Assert-True -Condition (Test-Path -LiteralPath $path) -Message "Repo onboarding output exists: $path"
+        }
+
+        $inventory = @(Import-Csv -LiteralPath $inventoryPath)
+        foreach ($assetType in @(
+            "important_doc",
+            "script_or_tool",
+            "test",
+            "ci_workflow",
+            "package_or_build_file",
+            "config",
+            "data_folder",
+            "generated_artifact_folder",
+            "git_status_summary"
+        )) {
+            Assert-True -Condition (@($inventory | Where-Object { $_.asset_type -eq $assetType }).Count -gt 0) -Message "Repo onboarding inventory captures asset type: $assetType"
+        }
+
+        $features = @(Import-Csv -LiteralPath $featurePath)
+        Assert-True -Condition (@($features | Where-Object { $_.feature_or_workflow -eq "report export" }).Count -gt 0) -Message "Existing-feature scan records requested capability"
+        Assert-True -Condition (@($features | Where-Object { $_.classification -eq "exists_duplicate" -or $_.classification -eq "already_exists_operational" }).Count -gt 0) -Message "Existing-feature scan detects operational or duplicate capability"
+        Assert-True -Condition (@($features | Where-Object { $_.reuse_decision -eq "STOP" -or $_.reuse_decision -eq "REUSE" }).Count -gt 0) -Message "Existing-feature scan recommends rebuild prevention"
+
+        $opportunities = @(Import-Csv -LiteralPath $opportunityPath)
+        Assert-True -Condition ($opportunities.Count -gt 0) -Message "Repo onboarding improvement opportunities are produced"
+        Assert-Equal -Actual (@($opportunities | Where-Object { [string]$_.coding_allowed_now -ne "false" }).Count) -Expected 0 -Message "Improvement opportunities default to no coding"
+
+        $handoffText = Get-Content -LiteralPath $handoffPath -Raw
+        foreach ($phrase in @(
+            "What Was Scanned",
+            "What Already Exists",
+            "What Should Not Be Rebuilt",
+            "Gaps Remaining",
+            "Safe Future Lanes",
+            "Requires Tim Approval",
+            "Product Repo Boundaries"
+        )) {
+            Assert-True -Condition ($handoffText -match [regex]::Escape($phrase)) -Message "Repo onboarding handoff contains section: $phrase"
+        }
+
+        $validation = Get-Content -LiteralPath $validationPath -Raw | ConvertFrom-Json
+        Assert-Equal -Actual $validation.verdict -Expected "GREEN_REPO_ONBOARDING_PACKET_CREATED" -Message "Repo onboarding validation verdict is green"
+        Assert-False -Condition ([bool]$validation.output_inside_target_repo) -Message "Repo onboarding output is outside fixture target"
+        Assert-False -Condition ([bool]$validation.target_repo_mutated) -Message "Repo onboarding validation records no target mutation"
+        Assert-False -Condition ([bool]$validation.product_repos_mutated) -Message "Repo onboarding validation records no product repo mutation"
+        Assert-False -Condition ([bool]$validation.installs_run) -Message "Repo onboarding validation records no installs"
+        Assert-False -Condition ([bool]$validation.migrations_run) -Message "Repo onboarding validation records no migrations"
+        Assert-False -Condition ([bool]$validation.push_merge_deploy_run) -Message "Repo onboarding validation records no push/merge/deploy"
+        Assert-False -Condition ([bool]$validation.all_fleet_run) -Message "Repo onboarding validation records no all-fleet run"
+
+        $blockedOut = Join-Path $fixtureRepo "blocked-output"
+        $blockedResult = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath,
+            "-Repo", $fixtureRepo,
+            "-ProjectName", "FixtureOnboarding",
+            "-RequestedCapability", "report export",
+            "-OutDirectory", $blockedOut
+        ) -TimeoutSeconds 30
+
+        Assert-True -Condition ($blockedResult.ExitCode -ne 0) -Message "Repo onboarding adapter stops when output would be inside target repo"
+        Assert-False -Condition (Test-Path -LiteralPath $blockedOut) -Message "Blocked repo onboarding run creates no target output"
+
+        $afterSnapshot = @(Get-RepoOnboardingFixtureSnapshot -Path $fixtureRepo)
+        Assert-Equal -Actual ($afterSnapshot -join "|") -Expected ($beforeSnapshot -join "|") -Message "Repo onboarding fixture repo remains unchanged"
+    } finally {
+        Remove-Item -LiteralPath $outRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $workflowDoc = Get-Content -LiteralPath $workflowDocPath -Raw
+    foreach ($docPhrase in @(
+        "Register the repo",
+        "Run a read-only inventory",
+        "Search for existing features",
+        "Produce improvement opportunities",
+        "Create continuation/handoff context",
+        "Stop before product repo mutation",
+        "Research first. Source trace first. Code second.",
+        "add-project.ps1",
+        "projects.json",
+        "write-repo-onboarding-packet.ps1"
+    )) {
+        Assert-True -Condition ($workflowDoc -match [regex]::Escape($docPhrase)) -Message "Repo onboarding workflow doc contains phrase: $docPhrase"
+    }
+
+    $howToAddDoc = Get-Content -LiteralPath $howToAddPath -Raw
+    foreach ($docPhrase in @(
+        "Run the repo onboarding packet",
+        "TSF_REPO_ONBOARDING_WORKFLOW_V1.md",
+        "existing_feature_scan.csv",
+        "improvement_opportunities.csv",
+        "onboarding_handoff.md"
+    )) {
+        Assert-True -Condition ($howToAddDoc -match [regex]::Escape($docPhrase)) -Message "How To Add Project doc points to onboarding route: $docPhrase"
+    }
+
+    $coderDoc = Get-Content -LiteralPath $coderDocPath -Raw
+    Assert-True -Condition ($coderDoc -match [regex]::Escape('Repo onboarding packets: `fleet/status/repo-onboarding/`')) -Message "Coder Upgrade doc includes repo onboarding packet output"
+
+    $artifactIndex = Get-Content -LiteralPath $artifactIndexPath -Raw
+    foreach ($indexPhrase in @(
+        "TSF_REPO_ONBOARDING_WORKFLOW_V1.md",
+        "fleet/status/repo-onboarding/**",
+        "tools/write-repo-onboarding-packet.ps1",
+        "tests/fixtures/fleet/repo-onboarding/**"
+    )) {
+        Assert-True -Condition ($artifactIndex -match [regex]::Escape($indexPhrase)) -Message "Artifact index classifies repo onboarding artifact: $indexPhrase"
+    }
+}
+
 function Test-HqTsfGameForgeV1 {
     $helperPath = Join-Path $fleetRoot "tools\codex-fleet-game-forge.ps1"
     $packScriptPath = Join-Path $fleetRoot "tools\write-game-forge-pack.ps1"
@@ -20770,6 +20958,7 @@ Test-HqFleetConsoleMockStateSchemaAndFixtures
 Test-HqFleetConsoleStaticPrototypeSafety
 Test-HqTsfDailyDriverPackV1
 Test-HqTsfCoderUpgradePackV1
+Test-HqTsfRepoOnboardingFrameworkV1
 Test-HqTsfGameForgeV1
 Test-HqPhoneModeStaticMockSafety
 Test-HqUiSafetyFixtureMatrix
