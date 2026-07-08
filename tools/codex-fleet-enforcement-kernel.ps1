@@ -723,6 +723,14 @@ function Invoke-TsfKernelPreflight {
                 $message = if ($gitState.dirty) { "Git status captured; worktree is dirty and must be considered by worker." } else { "Git branch, HEAD, and status captured." }
                 if ($gitState.dirty) { $warnings.Add("Mission repo worktree is dirty.") | Out-Null }
                 $checks.Add((New-TsfKernelCheck -Name "git.status.capture" -Status $status -Message $message -Evidence ([string]$gitState.branch))) | Out-Null
+                if ($mission.PSObject.Properties.Name -contains "required_branch" -and ![string]::IsNullOrWhiteSpace([string]$mission.required_branch)) {
+                    if ([string]::Equals([string]$gitState.branch, [string]$mission.required_branch, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        $checks.Add((New-TsfKernelCheck -Name "git.branch.required" -Status "PASS" -Message "Mission required_branch matches current branch." -Evidence ([string]$gitState.branch))) | Out-Null
+                    } else {
+                        $checks.Add((New-TsfKernelCheck -Name "git.branch.required" -Status "FAIL" -Message "Mission required_branch does not match current branch." -Evidence "required=$($mission.required_branch); actual=$($gitState.branch)")) | Out-Null
+                        $blockedReasons.Add("Mission required_branch does not match current branch.") | Out-Null
+                    }
+                }
             } else {
                 $checks.Add((New-TsfKernelCheck -Name "git.status.capture" -Status "FAIL" -Message "Git status could not be captured safely." -Evidence ([string]$gitState.error))) | Out-Null
                 $blockedReasons.Add("Git status could not be captured safely.") | Out-Null
@@ -944,8 +952,25 @@ function Invoke-TsfKernelPostRunVerify {
 
     if ($worker.PSObject.Properties.Name -contains "files_touched") {
         $filesTouched = @(ConvertTo-TsfKernelArray -Value $worker.files_touched)
+        $allowedWriteScopes = @(ConvertTo-TsfKernelArray -Value $mission.allowed_writes)
         foreach ($file in $filesTouched) {
             $filePath = Get-TsfKernelFullPath -Path ([string]$file) -BasePath $repoPath
+            $allowed = $false
+            foreach ($allowedWrite in $allowedWriteScopes) {
+                $allowedWritePath = Get-TsfKernelFullPath -Path ([string]$allowedWrite) -BasePath $repoPath
+                if (Test-TsfKernelPathInside -ChildPath $filePath -ParentPath $allowedWritePath) {
+                    $allowed = $true
+                    break
+                }
+            }
+
+            if ($allowed) {
+                $checks.Add((New-TsfKernelCheck -Name "postrun.allowed_write_scope" -Status "PASS" -Message "Touched file is inside allowed_writes." -Evidence $filePath)) | Out-Null
+            } else {
+                $checks.Add((New-TsfKernelCheck -Name "postrun.allowed_write_scope" -Status "FAIL" -Message "Touched file is outside allowed_writes." -Evidence $filePath)) | Out-Null
+                $blockedReasons.Add("Touched file outside allowed_writes: $file") | Out-Null
+            }
+
             foreach ($forbidden in @(ConvertTo-TsfKernelArray -Value $mission.forbidden_writes)) {
                 $forbiddenPath = Get-TsfKernelFullPath -Path ([string]$forbidden) -BasePath $repoPath
                 if (Test-TsfKernelPathInside -ChildPath $filePath -ParentPath $forbiddenPath) {

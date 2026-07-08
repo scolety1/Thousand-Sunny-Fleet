@@ -141,6 +141,13 @@ $missingClaimVerifier = Invoke-TsfKernelPostRunVerify -MissionPath $validMission
 Assert-Equal -Actual $missingClaimVerifier.verdict -Expected "RED" -Message "Verifier fails when worker result does not claim expected artifact"
 Assert-True -Condition (($missingClaimVerifier.blocked_reasons -join "`n") -match "did not claim expected artifact") -Message "Verifier records expected artifact claim failure"
 
+$outsideAllowedWorkerResultPath = Join-Path $testRoot "worker-result.outside-allowed-write.json"
+Copy-Item -LiteralPath (Join-Path $fixtureDir "worker-result.outside-allowed-write.json") -Destination $outsideAllowedWorkerResultPath -Force
+$outsideAllowedVerifierPath = Join-Path $testRoot "verifier.outside-allowed-write.json"
+$outsideAllowedVerifier = Invoke-TsfKernelPostRunVerify -MissionPath $validMissionPath -WorkerResultPath $outsideAllowedWorkerResultPath -OutFile $outsideAllowedVerifierPath -StateRoot $stateRoot
+Assert-Equal -Actual $outsideAllowedVerifier.verdict -Expected "RED" -Message "Verifier fails when worker touches outside allowed_writes"
+Assert-True -Condition (($outsideAllowedVerifier.blocked_reasons -join "`n") -match "outside allowed_writes") -Message "Verifier records allowed-write scope failure"
+
 $validWorkerResultPath = Join-Path $testRoot "worker-result.valid.json"
 Copy-Item -LiteralPath (Join-Path $fixtureDir "worker-result.valid.json") -Destination $validWorkerResultPath -Force
 $greenVerifier = Invoke-TsfKernelPostRunVerify -MissionPath $validMissionPath -WorkerResultPath $validWorkerResultPath -OutFile $greenVerifierPath -StateRoot $stateRoot

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "ledger_id": "tsf-kernel-v2-codex-fixture-pilot-ledger",
+  "notes": "Exact local approval for the TSF Kernel V2 fixture-only foreground Codex CLI pilot. This grants no product repo, NWR, push, merge, deploy, install, migration, secrets, PrivateLens, all-fleet, background, API, or source-truth authority.",
+  "approvals": [
+    {
+      "approval_id": "tim-20260708-tsf-codex-fixture-worker-pilot",
+      "approved_by": "Tim",
+      "approved_at": "2026-07-08T00:00:00-06:00",
+      "expires_at": "2026-07-09T12:00:00-06:00",
+      "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+      "lane": "MASTER_TSF_CONTROL_PLANE",
+      "exact_action": "codex_cli_fixture_worker_invocation",
+      "allowed_files_or_paths": [
+        "tests/fixtures/fleet/enforcement-kernel/worker-output"
+      ],
+      "required_verifier": "tsf-kernel-postrun-verify.ps1",
+      "sample_fixture_only": false,
+      "notes": "One foreground fixture-only Codex CLI invocation maximum; expected artifact is tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt."
+    }
+  ]
+}

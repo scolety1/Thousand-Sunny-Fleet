@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "case_id": "malformed_mission",
+      "mode": "malformed_missing_fields",
+      "expected_verdict": "RED"
+    },
+    {
+      "case_id": "missing_approval",
+      "mode": "approval_required",
+      "exact_action": "codex_cli_fixture_worker_invocation",
+      "expected_verdict": "TIM_REQUIRED"
+    },
+    {
+      "case_id": "forbidden_action_requested",
+      "mode": "approval_required",
+      "exact_action": "deploy",
+      "expected_verdict": "TIM_REQUIRED"
+    },
+    {
+      "case_id": "forbidden_write_path_requested",
+      "mode": "forbidden_write_path",
+      "expected_verdict": "RED"
+    },
+    {
+      "case_id": "expected_artifact_missing",
+      "mode": "postrun_missing_artifact",
+      "expected_verdict": "RED"
+    },
+    {
+      "case_id": "branch_mismatch",
+      "mode": "branch_mismatch",
+      "expected_verdict": "RED"
+    },
+    {
+      "case_id": "background_runner_requested",
+      "mode": "approval_required",
+      "exact_action": "background_runner",
+      "expected_verdict": "TIM_REQUIRED"
+    },
+    {
+      "case_id": "product_repo_mutation_requested",
+      "mode": "approval_required",
+      "exact_action": "product_repo_mutation",
+      "expected_verdict": "TIM_REQUIRED"
+    },
+    {
+      "case_id": "canonical_nwr_mutation_requested",
+      "mode": "approval_required",
+      "exact_action": "canonical_nwr_mutation",
+      "expected_verdict": "TIM_REQUIRED"
+    },
+    {
+      "case_id": "all_fleet_requested",
+      "mode": "approval_required",
+      "exact_action": "all_fleet",
+      "expected_verdict": "TIM_REQUIRED"
+    },
+    {
+      "case_id": "push_merge_requested",
+      "mode": "approval_required",
+      "exact_action": "push",
+      "expected_verdict": "TIM_REQUIRED"
+    }
+  ]
+}
