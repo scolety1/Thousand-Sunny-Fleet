@@ -1,0 +1,93 @@
+{
+  "mission_id": "tsf-kernel-fixture-valid-0001",
+  "project_id": "TSF_CONTROL_PLANE",
+  "repo_path": "__REPO_PATH__",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "mission_type": "tsf_infrastructure",
+  "allowed_reads": [
+    "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1",
+    "tools/codex-fleet-enforcement-kernel.ps1"
+  ],
+  "allowed_writes": [
+    "expected/fixture-artifact.txt"
+  ],
+  "forbidden_reads": [
+    "C:/NWR/Niners-War-Room",
+    "C:/NWR_REVIEW/normal-nwr-packets"
+  ],
+  "forbidden_writes": [
+    "C:/NWR/Niners-War-Room",
+    "C:/Dev",
+    "C:/Users/codex-agent/Documents/ProductRepos"
+  ],
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "privatelens",
+    "proof_run",
+    "all_fleet",
+    "background_runner",
+    "persistent_runner",
+    "canonical_nwr_inspection",
+    "canonical_nwr_mutation",
+    "normal_nwr_packet_read",
+    "product_repo_inspection",
+    "product_repo_mutation",
+    "api_bridge",
+    "open_network_port",
+    "credential_change",
+    "app_wiring",
+    "ranking_formula_source_truth_promotion",
+    "hidden_sort",
+    "recommendation_behavior"
+  ],
+  "expected_artifacts": [
+    "expected/fixture-artifact.txt"
+  ],
+  "required_preflight_checks": [
+    "schema",
+    "repo_exists",
+    "path_scope",
+    "restricted_action_coverage",
+    "git_status_capture",
+    "approval_ledger"
+  ],
+  "required_postrun_checks": [
+    "mission_id_match",
+    "expected_artifacts_exist",
+    "restricted_actions_absent",
+    "forbidden_outputs_absent"
+  ],
+  "stop_conditions": [
+    {
+      "id": "missing-required-artifact",
+      "check_type": "artifact_exists",
+      "description": "Stop if an expected artifact is missing."
+    },
+    {
+      "id": "git-status-not-captured",
+      "check_type": "git_status_captured",
+      "description": "Stop if branch and status cannot be captured."
+    },
+    {
+      "id": "forbidden-action-attempted",
+      "check_type": "forbidden_action_absent",
+      "description": "Stop if a restricted action is attempted."
+    }
+  ],
+  "approval_requirements": [],
+  "hq_escalation_policy": {
+    "default": "local_only_no_api",
+    "escalate_on": [
+      "RED",
+      "TIM_REQUIRED"
+    ],
+    "notes": "Fixture mission uses no API or HQ bridge."
+  },
+  "created_by": "fixture",
+  "created_at": "2026-07-08T00:00:00Z"
+}

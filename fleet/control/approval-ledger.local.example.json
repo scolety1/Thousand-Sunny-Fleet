@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "ledger_id": "approval-ledger-local-example",
+  "notes": "Example format only. This file grants no authority and contains no active approvals.",
+  "approvals": []
+}

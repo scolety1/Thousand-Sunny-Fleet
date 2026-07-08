@@ -1,0 +1,77 @@
+{
+  "mission_id": "tsf-kernel-fixture-approval-0001",
+  "project_id": "TSF_CONTROL_PLANE",
+  "repo_path": "__REPO_PATH__",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "mission_type": "tsf_infrastructure",
+  "allowed_reads": [
+    "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1"
+  ],
+  "allowed_writes": [
+    "src/product-change.txt"
+  ],
+  "forbidden_reads": [
+    "C:/NWR/Niners-War-Room"
+  ],
+  "forbidden_writes": [
+    "C:/NWR/Niners-War-Room"
+  ],
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "privatelens",
+    "proof_run",
+    "all_fleet",
+    "background_runner",
+    "persistent_runner",
+    "canonical_nwr_inspection",
+    "canonical_nwr_mutation",
+    "normal_nwr_packet_read",
+    "product_repo_inspection",
+    "api_bridge",
+    "open_network_port",
+    "credential_change",
+    "app_wiring",
+    "ranking_formula_source_truth_promotion",
+    "hidden_sort",
+    "recommendation_behavior"
+  ],
+  "expected_artifacts": [
+    "src/product-change.txt"
+  ],
+  "required_preflight_checks": [
+    "schema",
+    "approval_ledger"
+  ],
+  "required_postrun_checks": [
+    "expected_artifacts_exist"
+  ],
+  "stop_conditions": [
+    {
+      "id": "missing-product-mutation-approval",
+      "check_type": "approval_required",
+      "description": "Stop unless exact product_repo_mutation approval is active."
+    }
+  ],
+  "approval_requirements": [
+    {
+      "exact_action": "product_repo_mutation",
+      "required": true,
+      "reason": "Fixture validates that restricted actions need exact approval.",
+      "approval_id": "fixture-product-mutation-approval"
+    }
+  ],
+  "hq_escalation_policy": {
+    "default": "tim_required",
+    "escalate_on": [
+      "TIM_REQUIRED"
+    ],
+    "notes": "Fixture requires exact approval and does not grant it."
+  },
+  "created_by": "fixture",
+  "created_at": "2026-07-08T00:00:00Z"
+}

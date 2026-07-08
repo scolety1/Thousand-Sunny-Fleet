@@ -1,0 +1,7 @@
+{
+  "mission_id": "bad",
+  "project_id": "TSF_CONTROL_PLANE",
+  "repo_path": "__REPO_PATH__",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "mission_type": "tsf_infrastructure"
+}
