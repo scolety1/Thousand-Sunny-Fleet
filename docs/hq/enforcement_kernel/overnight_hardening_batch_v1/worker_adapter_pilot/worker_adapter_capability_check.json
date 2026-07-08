@@ -1,0 +1,17 @@
+﻿{
+    "generated_at":  "2026-07-08T02:12:36.2436368-06:00",
+    "codex_command_detected":  true,
+    "codex_command_path":  "C:\\Users\\codex-agent\\AppData\\Roaming\\npm\\codex.ps1",
+    "codex_version_check_run":  true,
+    "codex_version_exit_code":  0,
+    "codex_version_output":  [
+                                 "codex-cli 0.124.0"
+                             ],
+    "adapter_status":  "CLI_DETECTED_VERSION_ONLY_EXECUTION_NOT_APPROVED",
+    "codex_exec_invoked":  false,
+    "reason":  "Only local discovery and --version were allowed. codex exec was not invoked because foreground worker execution/auth/network semantics require a later exact adapter approval.",
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false
+}

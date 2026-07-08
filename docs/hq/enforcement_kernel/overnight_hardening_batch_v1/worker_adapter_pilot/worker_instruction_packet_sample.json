@@ -1,0 +1,94 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-08T02:13:31.2977619-06:00",
+    "mission_id":  "tsf-kernel-fixture-valid-0001",
+    "adapter_status":  "STUB_READY_CODEX_CLI_BLOCKED",
+    "codex_cli_invocation_started":  false,
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "intended_command":  "Manual foreground Codex worker handoff only. Direct Codex CLI invocation is intentionally blocked in V1.",
+    "command_preview":  "NOT RUN IN V1: codex exec --cd \"C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\.codex-local\\fixtures\\overnight-hardening-dogfood\\repo\" \u003c worker_instruction_packet.md",
+    "allowed_scope_summary":  {
+                                  "allowed_reads":  "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1; tools/codex-fleet-enforcement-kernel.ps1",
+                                  "allowed_writes":  "expected/fixture-artifact.txt"
+                              },
+    "forbidden_action_summary":  "push; merge; deploy; install_packages; migration; secrets; privatelens; proof_run; all_fleet; background_runner; persistent_runner; canonical_nwr_inspection; canonical_nwr_mutation; normal_nwr_packet_read; product_repo_inspection; product_repo_mutation; api_bridge; open_network_port; credential_change; app_wiring; ranking_formula_source_truth_promotion; hidden_sort; recommendation_behavior",
+    "expected_artifact_contract":  "expected/fixture-artifact.txt",
+    "postrun_verifier_instruction":  "After foreground worker output exists, run: powershell -NoProfile -ExecutionPolicy Bypass -File .\\tsf-kernel-postrun-verify.ps1 -MissionPath \u003cmission.json\u003e -WorkerResultPath \u003cworker-result.json\u003e -OutFile \u003cverifier-result.json\u003e",
+    "worker_instruction":  "Use only the mission packet scope. Do not run background, all-fleet, product repo mutation, push, merge, deploy, install, migration, secrets, PrivateLens, canonical NWR, or normal NWR packet work.",
+    "handoff_packet":  {
+                           "mission_id":  "tsf-kernel-fixture-valid-0001",
+                           "project_id":  "TSF_CONTROL_PLANE",
+                           "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\.codex-local\\fixtures\\overnight-hardening-dogfood\\repo",
+                           "lane":  "MASTER_TSF_CONTROL_PLANE",
+                           "mission_type":  "tsf_infrastructure",
+                           "allowed_reads":  [
+                                                 "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1",
+                                                 "tools/codex-fleet-enforcement-kernel.ps1"
+                                             ],
+                           "allowed_writes":  [
+                                                  "expected/fixture-artifact.txt"
+                                              ],
+                           "forbidden_reads":  [
+                                                   "C:/NWR/Niners-War-Room",
+                                                   "C:/NWR_REVIEW/normal-nwr-packets"
+                                               ],
+                           "forbidden_writes":  [
+                                                    "C:/NWR/Niners-War-Room",
+                                                    "C:/Dev",
+                                                    "C:/Users/codex-agent/Documents/ProductRepos"
+                                                ],
+                           "forbidden_actions":  [
+                                                     "push",
+                                                     "merge",
+                                                     "deploy",
+                                                     "install_packages",
+                                                     "migration",
+                                                     "secrets",
+                                                     "privatelens",
+                                                     "proof_run",
+                                                     "all_fleet",
+                                                     "background_runner",
+                                                     "persistent_runner",
+                                                     "canonical_nwr_inspection",
+                                                     "canonical_nwr_mutation",
+                                                     "normal_nwr_packet_read",
+                                                     "product_repo_inspection",
+                                                     "product_repo_mutation",
+                                                     "api_bridge",
+                                                     "open_network_port",
+                                                     "credential_change",
+                                                     "app_wiring",
+                                                     "ranking_formula_source_truth_promotion",
+                                                     "hidden_sort",
+                                                     "recommendation_behavior"
+                                                 ],
+                           "expected_artifacts":  [
+                                                      "expected/fixture-artifact.txt"
+                                                  ],
+                           "stop_conditions":  [
+                                                   {
+                                                       "id":  "missing-required-artifact",
+                                                       "check_type":  "artifact_exists",
+                                                       "description":  "Stop if an expected artifact is missing."
+                                                   },
+                                                   {
+                                                       "id":  "git-status-not-captured",
+                                                       "check_type":  "git_status_captured",
+                                                       "description":  "Stop if branch and status cannot be captured."
+                                                   },
+                                                   {
+                                                       "id":  "forbidden-action-attempted",
+                                                       "check_type":  "forbidden_action_absent",
+                                                       "description":  "Stop if a restricted action is attempted."
+                                                   }
+                                               ],
+                           "required_postrun_checks":  [
+                                                           "mission_id_match",
+                                                           "expected_artifacts_exist",
+                                                           "restricted_actions_absent",
+                                                           "forbidden_outputs_absent"
+                                                       ]
+                       }
+}

@@ -1,0 +1,60 @@
+﻿{
+    "verdict":  "GREEN_TSF_ENFORCEMENT_KERNEL_OVERNIGHT_HARDENING_COMPLETE",
+    "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+    "branch":  "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+    "starting_head":  "d87c1502a91a139e28ea9a1d3b5cdce90fbf00e9",
+    "checkpoint_commit":  "4cc8b33",
+    "final_commit":  "PENDING_AFTER_FINAL_VALIDATION",
+    "phases_completed":  [
+                             "Phase 0 branch containment",
+                             "Phase 1 V1 checkpoint",
+                             "Phase 2 dogfood audit",
+                             "Phase 3 mission authoring utility",
+                             "Phase 4 worker adapter pilot",
+                             "Phase 5 verifier hardening",
+                             "Phase 6 roadmap and final packet"
+                         ],
+    "dogfood_audit_result":  "GREEN_DOGFOOD_AUDIT_PASSED",
+    "mission_authoring_utility_status":  "GREEN_MISSION_AUTHORING_HELPER_ADDED",
+    "codex_adapter_status":  "YELLOW_CODEX_WORKER_ADAPTER_PILOT_STUB_HARDENED",
+    "postrun_verifier_status":  "GREEN_POSTRUN_VERIFIER_HARDENED",
+    "validations_planned":  [
+                                "git status --short",
+                                "git branch --show-current",
+                                "git log --oneline -5",
+                                "PowerShell parser checks",
+                                "JSON parse checks",
+                                "tests/run-minimum-viable-kernel-tests.ps1",
+                                "git diff --check"
+                            ],
+    "restricted_actions":  {
+                               "background_runners_started":  false,
+                               "canonical_nwr_mutated":  false,
+                               "canonical_nwr_inspected":  false,
+                               "normal_nwr_packets_read":  false,
+                               "product_repos_mutated":  false,
+                               "push_performed":  false,
+                               "merge_performed":  false,
+                               "deploy_performed":  false,
+                               "install_performed":  false,
+                               "migration_performed":  false,
+                               "secrets_accessed":  false,
+                               "privatelens_used":  false,
+                               "all_fleet_run":  false
+                           },
+    "caveats":  [
+                    "codex --version was run for local capability detection; codex exec was not invoked",
+                    "Final hardening commit hash is recorded in final response after commit creation"
+                ],
+    "final_validation_passed":  true,
+    "final_validation_completed_at":  "2026-07-08T02:17:07.8916370-06:00",
+    "final_validation_commands_run":  [
+                                          "git status --short --untracked-files=all",
+                                          "git branch --show-current",
+                                          "git log --oneline -5",
+                                          "PowerShell parser checks for new/changed scripts",
+                                          "JSON parse checks for new/changed JSON files",
+                                          "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-minimum-viable-kernel-tests.ps1",
+                                          "git diff --check"
+                                      ]
+}

@@ -116,6 +116,11 @@ $adapter = New-TsfKernelWorkerInstruction -MissionPath $validMissionPath -Prefli
 Assert-Equal -Actual $adapter.adapter_status -Expected "STUB_READY_CODEX_CLI_BLOCKED" -Message "Approved mission creates safe Codex adapter stub"
 Assert-True -Condition (!$adapter.background_runner_started) -Message "Adapter does not start background runner"
 Assert-True -Condition (!$adapter.all_fleet_started) -Message "Adapter does not start all-fleet"
+Assert-True -Condition ([string]$adapter.command_preview -match "NOT RUN IN V1") -Message "Adapter produces a non-executed command preview"
+Assert-True -Condition ([string]$adapter.allowed_scope_summary.allowed_reads -match "docs/hq") -Message "Adapter summarizes allowed reads"
+Assert-True -Condition ([string]$adapter.forbidden_action_summary -match "push") -Message "Adapter summarizes forbidden actions"
+Assert-True -Condition ([string]$adapter.expected_artifact_contract -match "fixture-artifact") -Message "Adapter summarizes expected artifacts"
+Assert-True -Condition ([string]$adapter.postrun_verifier_instruction -match "tsf-kernel-postrun-verify.ps1") -Message "Adapter includes post-run verifier instruction"
 
 $refused = New-TsfKernelWorkerInstruction -MissionPath $approvalMissionPath -PreflightResultPath $blockedPreflightPath -OutFile $refusedAdapterPath -StateRoot $stateRoot
 Assert-Equal -Actual $refused.adapter_status -Expected "REFUSED_PREFLIGHT_FAILED" -Message "Adapter refuses failed preflight"
@@ -129,11 +134,19 @@ Assert-True -Condition (!$missingVerifier.verified) -Message "Missing artifact i
 $artifactPath = Join-Path $repoPath "expected\fixture-artifact.txt"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $artifactPath) | Out-Null
 Set-Content -LiteralPath $artifactPath -Encoding UTF8 -Value "fixture artifact"
+$missingClaimWorkerResultPath = Join-Path $testRoot "worker-result.missing-created-claim.json"
+Copy-Item -LiteralPath (Join-Path $fixtureDir "worker-result.missing-created-claim.json") -Destination $missingClaimWorkerResultPath -Force
+$missingClaimVerifierPath = Join-Path $testRoot "verifier.missing-created-claim.json"
+$missingClaimVerifier = Invoke-TsfKernelPostRunVerify -MissionPath $validMissionPath -WorkerResultPath $missingClaimWorkerResultPath -OutFile $missingClaimVerifierPath -StateRoot $stateRoot
+Assert-Equal -Actual $missingClaimVerifier.verdict -Expected "RED" -Message "Verifier fails when worker result does not claim expected artifact"
+Assert-True -Condition (($missingClaimVerifier.blocked_reasons -join "`n") -match "did not claim expected artifact") -Message "Verifier records expected artifact claim failure"
+
 $validWorkerResultPath = Join-Path $testRoot "worker-result.valid.json"
 Copy-Item -LiteralPath (Join-Path $fixtureDir "worker-result.valid.json") -Destination $validWorkerResultPath -Force
 $greenVerifier = Invoke-TsfKernelPostRunVerify -MissionPath $validMissionPath -WorkerResultPath $validWorkerResultPath -OutFile $greenVerifierPath -StateRoot $stateRoot
 Assert-Equal -Actual $greenVerifier.verdict -Expected "GREEN" -Message "Verifier passes when required artifact exists"
 Assert-True -Condition ([bool]$greenVerifier.verified) -Message "Green verifier marks result verified"
+Assert-Equal -Actual $greenVerifier.final_state -Expected "complete_green" -Message "Verifier writes deterministic final state"
 
 $preserveOut = Join-Path $testRoot "preservation"
 $preservation = Write-TsfKernelPreservationPacket -MissionPath $validMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $validWorkerResultPath -VerifierResultPath $greenVerifierPath -OutputDirectory $preserveOut -ExactNextAction "Fixture preservation complete."
@@ -145,6 +158,33 @@ $cliPreflightPath = Join-Path $testRoot "preflight.cli.json"
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "tsf-kernel-preflight.ps1") -MissionPath $validMissionPath -OutFile $cliPreflightPath -StateRoot $stateRoot | Out-Null
 Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Preflight wrapper exits 0 for valid mission"
 Assert-True -Condition (Test-Path -LiteralPath $cliPreflightPath) -Message "Preflight wrapper writes JSON result"
+
+$authorRepoPath = Join-Path $testRoot "author-repo"
+New-Item -ItemType Directory -Force -Path $authorRepoPath | Out-Null
+& git -C $authorRepoPath init | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "git init failed for authoring fixture repo"
+}
+$authoredMissionPath = Join-Path $testRoot "mission.authored.json"
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "tools\New-TsfMissionPacket.ps1") `
+    -MissionId "tsf-kernel-fixture-authored-0001" `
+    -ProjectId "TSF_CONTROL_PLANE" `
+    -RepoPath $authorRepoPath `
+    -Lane "MASTER_TSF_CONTROL_PLANE" `
+    -MissionType "tsf_infrastructure" `
+    -AllowedReads "docs/hq/enforcement_kernel" `
+    -AllowedWrites "expected/authored-fixture-artifact.txt" `
+    -ExpectedArtifacts "expected/authored-fixture-artifact.txt" `
+    -StopCondition "expected-artifact|artifact_exists|Expected artifact must exist after worker run." `
+    -OutFile $authoredMissionPath `
+    -ValidateShape | Out-Null
+$authoringExitCode = $LASTEXITCODE
+Assert-Equal -Actual $authoringExitCode -Expected 0 -Message "Mission authoring helper exits 0 for safe fixture packet"
+Assert-True -Condition (Test-Path -LiteralPath $authoredMissionPath) -Message "Mission authoring helper writes packet"
+$authoredMission = Read-TsfKernelJson -Path $authoredMissionPath
+Assert-Equal -Actual $authoredMission.mission_id -Expected "tsf-kernel-fixture-authored-0001" -Message "Authored mission preserves requested id"
+$authoredPreflight = Invoke-TsfKernelPreflight -MissionPath $authoredMissionPath -StateRoot $stateRoot
+Assert-Equal -Actual $authoredPreflight.verdict -Expected "GREEN" -Message "Authored mission passes kernel preflight"
 
 if ($script:Failures.Count -gt 0) {
     Write-Host ""

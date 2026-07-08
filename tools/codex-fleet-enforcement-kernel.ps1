@@ -842,6 +842,13 @@ function New-TsfKernelWorkerInstruction {
         required_postrun_checks = @(ConvertTo-TsfKernelArray -Value $mission.required_postrun_checks)
     }
 
+    $allowedReadSummary = (@(ConvertTo-TsfKernelArray -Value $mission.allowed_reads) -join "; ")
+    $allowedWriteSummary = (@(ConvertTo-TsfKernelArray -Value $mission.allowed_writes) -join "; ")
+    $forbiddenActionSummary = (@(ConvertTo-TsfKernelArray -Value $mission.forbidden_actions) -join "; ")
+    $expectedArtifactSummary = (@(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts) -join "; ")
+    $postrunVerifierInstruction = "After foreground worker output exists, run: powershell -NoProfile -ExecutionPolicy Bypass -File .\tsf-kernel-postrun-verify.ps1 -MissionPath <mission.json> -WorkerResultPath <worker-result.json> -OutFile <verifier-result.json>"
+    $commandPreview = "NOT RUN IN V1: codex exec --cd `"$([string]$mission.repo_path)`" < worker_instruction_packet.md"
+
     $result = [pscustomobject]@{
         schema_version = 1
         generated_at = (Get-Date).ToString("o")
@@ -852,6 +859,14 @@ function New-TsfKernelWorkerInstruction {
         all_fleet_started = $false
         product_repos_mutated = $false
         intended_command = "Manual foreground Codex worker handoff only. Direct Codex CLI invocation is intentionally blocked in V1."
+        command_preview = $commandPreview
+        allowed_scope_summary = [pscustomobject]@{
+            allowed_reads = $allowedReadSummary
+            allowed_writes = $allowedWriteSummary
+        }
+        forbidden_action_summary = $forbiddenActionSummary
+        expected_artifact_contract = $expectedArtifactSummary
+        postrun_verifier_instruction = $postrunVerifierInstruction
         worker_instruction = "Use only the mission packet scope. Do not run background, all-fleet, product repo mutation, push, merge, deploy, install, migration, secrets, PrivateLens, canonical NWR, or normal NWR packet work."
         handoff_packet = $handoff
     }
@@ -877,6 +892,7 @@ function Invoke-TsfKernelPostRunVerify {
     $checks = [System.Collections.Generic.List[object]]::new()
     $blockedReasons = [System.Collections.Generic.List[string]]::new()
     $warnings = [System.Collections.Generic.List[string]]::new()
+    $expectedArtifacts = @(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts)
 
     if ([string]$worker.mission_id -eq [string]$mission.mission_id) {
         $checks.Add((New-TsfKernelCheck -Name "postrun.mission_id" -Status "PASS" -Message "Worker result mission_id matches mission packet.")) | Out-Null
@@ -885,7 +901,7 @@ function Invoke-TsfKernelPostRunVerify {
         $blockedReasons.Add("Worker result mission_id mismatch.") | Out-Null
     }
 
-    foreach ($artifact in @(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts)) {
+    foreach ($artifact in $expectedArtifacts) {
         $artifactPath = Get-TsfKernelFullPath -Path ([string]$artifact) -BasePath $repoPath
         if (Test-Path -LiteralPath $artifactPath) {
             $checks.Add((New-TsfKernelCheck -Name "postrun.artifact.exists" -Status "PASS" -Message "Expected artifact exists." -Evidence $artifactPath)) | Out-Null
@@ -895,9 +911,28 @@ function Invoke-TsfKernelPostRunVerify {
         }
     }
 
+    if ($worker.PSObject.Properties.Name -contains "files_created") {
+        $createdArtifacts = @(ConvertTo-TsfKernelArray -Value $worker.files_created | ForEach-Object { ([string]$_).Replace("\", "/").Trim() })
+        foreach ($artifact in $expectedArtifacts) {
+            $normalizedArtifact = ([string]$artifact).Replace("\", "/").Trim()
+            if ($createdArtifacts -contains $normalizedArtifact) {
+                $checks.Add((New-TsfKernelCheck -Name "postrun.expected_artifact_claimed" -Status "PASS" -Message "Worker result claims expected artifact." -Evidence $normalizedArtifact)) | Out-Null
+            } else {
+                $checks.Add((New-TsfKernelCheck -Name "postrun.expected_artifact_claimed" -Status "FAIL" -Message "Worker result does not claim expected artifact in files_created." -Evidence $normalizedArtifact)) | Out-Null
+                $blockedReasons.Add("Worker result did not claim expected artifact: $artifact") | Out-Null
+            }
+        }
+    } else {
+        $checks.Add((New-TsfKernelCheck -Name "postrun.files_created" -Status "FAIL" -Message "Worker result must include files_created evidence.")) | Out-Null
+        $blockedReasons.Add("Worker result missing files_created evidence.") | Out-Null
+    }
+
     $attemptedRestrictedActions = @()
     if ($worker.PSObject.Properties.Name -contains "restricted_actions_attempted") {
         $attemptedRestrictedActions = @(ConvertTo-TsfKernelArray -Value $worker.restricted_actions_attempted)
+    } else {
+        $checks.Add((New-TsfKernelCheck -Name "postrun.restricted_actions_evidence" -Status "FAIL" -Message "Worker result must include restricted_actions_attempted evidence.")) | Out-Null
+        $blockedReasons.Add("Worker result missing restricted_actions_attempted evidence.") | Out-Null
     }
 
     if ($attemptedRestrictedActions.Count -eq 0) {
@@ -940,6 +975,16 @@ function Invoke-TsfKernelPostRunVerify {
         $verdict = "YELLOW"
     }
 
+    $finalState = if ($verdict -eq "GREEN") {
+        "complete_green"
+    } elseif ($verdict -eq "YELLOW") {
+        "complete_yellow"
+    } elseif ($verdict -eq "TIM_REQUIRED") {
+        "blocked_tim_required"
+    } else {
+        "blocked_red"
+    }
+
     Copy-TsfKernelMissionToState -MissionPath $MissionPath -MissionId ([string]$mission.mission_id) -StateRoot $StateRoot -State "postrun-pending" | Out-Null
     if ($verified) {
         Copy-TsfKernelMissionToState -MissionPath $MissionPath -MissionId ([string]$mission.mission_id) -StateRoot $StateRoot -State "completed" | Out-Null
@@ -952,6 +997,7 @@ function Invoke-TsfKernelPostRunVerify {
         generated_at = (Get-Date).ToString("o")
         mission_id = [string]$mission.mission_id
         verdict = $verdict
+        final_state = $finalState
         verified = $verified
         checks = @($checks)
         blocked_reasons = @($blockedReasons)
