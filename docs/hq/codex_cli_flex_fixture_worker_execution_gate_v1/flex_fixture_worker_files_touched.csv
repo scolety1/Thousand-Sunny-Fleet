@@ -1,0 +1,2 @@
+"path","expected","created","touched_by_worker","content_matches","notes"
+"tests/fixtures/fleet/enforcement-kernel/worker-output/flex_gate_fixture_worker_result.txt","true","false","false","false","Worker invocation returned nonzero before artifact creation."

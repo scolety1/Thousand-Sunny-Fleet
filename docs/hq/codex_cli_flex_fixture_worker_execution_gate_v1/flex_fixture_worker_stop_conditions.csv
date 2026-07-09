@@ -1,0 +1,8 @@
+"stop_condition","status","notes"
+"branch_containment_failed","not_hit","Branch and HEAD matched before gate."
+"codex_config_parse_failed","not_hit","codex exec --help parsed with service_tier flex."
+"preflight_failed","not_hit","Kernel preflight and role preflight were GREEN."
+"codex_exec_nonzero","hit_fail_closed","The single worker invocation returned nonzero before artifact creation."
+"second_worker_invocation_forbidden","hit_stop","No retry was run."
+"expected_artifact_missing","hit_fail_closed","Verifier returned RED because expected artifact was missing."
+"api_background_push_merge_product_canonical","not_hit","No forbidden external or protected-scope action occurred."

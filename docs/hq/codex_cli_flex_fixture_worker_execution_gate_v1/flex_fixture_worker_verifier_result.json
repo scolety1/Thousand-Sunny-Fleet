@@ -1,0 +1,72 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-09T13:15:51.9041278-06:00",
+    "mission_id":  "tsf-flex-gate-fixture-worker-20260709",
+    "verdict":  "RED",
+    "final_state":  "blocked_red",
+    "verified":  false,
+    "checks":  [
+                   {
+                       "name":  "postrun.mission_id",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result mission_id matches mission packet.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.artifact.exists",
+                       "status":  "FAIL",
+                       "passed":  false,
+                       "message":  "Expected artifact is missing.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\tests\\fixtures\\fleet\\enforcement-kernel\\worker-output\\flex_gate_fixture_worker_result.txt"
+                   },
+                   {
+                       "name":  "postrun.expected_artifact_claimed",
+                       "status":  "FAIL",
+                       "passed":  false,
+                       "message":  "Worker result does not claim expected artifact in files_created.",
+                       "evidence":  "tests/fixtures/fleet/enforcement-kernel/worker-output/flex_gate_fixture_worker_result.txt"
+                   },
+                   {
+                       "name":  "postrun.restricted_actions",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "No restricted actions attempted in worker result evidence.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.files_touched",
+                       "status":  "WARN",
+                       "passed":  true,
+                       "message":  "Worker reported no touched files.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.worker_role",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result role matches mission role.",
+                       "evidence":  "builder_worker"
+                   },
+                   {
+                       "name":  "postrun.role_output_contract",
+                       "status":  "FAIL",
+                       "passed":  false,
+                       "message":  "Worker result does not satisfy the role output contract.",
+                       "evidence":  "Create exactly the flex gate fixture artifact with exact content and no other repo changes."
+                   }
+               ],
+    "blocked_reasons":  [
+                            "Expected artifact missing: tests/fixtures/fleet/enforcement-kernel/worker-output/flex_gate_fixture_worker_result.txt",
+                            "Worker result did not claim expected artifact: tests/fixtures/fleet/enforcement-kernel/worker-output/flex_gate_fixture_worker_result.txt",
+                            "Role output contract was not satisfied."
+                        ],
+    "warnings":  [
+                     "Worker reported no touched files."
+                 ],
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}
