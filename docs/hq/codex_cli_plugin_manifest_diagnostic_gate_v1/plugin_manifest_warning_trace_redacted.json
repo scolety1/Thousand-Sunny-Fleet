@@ -1,0 +1,33 @@
+{
+  "trace_type": "redacted_plugin_manifest_warning",
+  "source_gate": "TSF Codex CLI Flex Fixture Worker Execution Gate V1",
+  "source_gate_packet": "docs/hq/codex_cli_flex_fixture_worker_execution_gate_v1/",
+  "prior_gate_verdict": "YELLOW_TSF_CODEX_CLI_FLEX_WORKER_FAILED_CLOSED",
+  "prior_invocation_count": 1,
+  "prior_invocation_result": "nonzero before JSON events, final worker message, or expected artifact",
+  "warning_summary": "codex_core_plugins::manifest ignored interface.defaultPrompt because maximum of 3 prompts is supported",
+  "warning_source_path": "C:\\Users\\codex-agent\\.codex\\plugins\\cache\\openai-primary-runtime\\template-creator\\26.630.12135\\.codex-plugin\\plugin.json",
+  "source_classification": "Codex-local",
+  "redactions_applied": [
+    "No secrets, tokens, auth values, API keys, account IDs, or credentials were copied into this trace."
+  ],
+  "diagnostic_reproduction": {
+    "codex_version": "codex-cli 0.124.0",
+    "codex_exec_help_exit_code": 0,
+    "codex_exec_help_stderr_observed": false,
+    "real_worker_execution_rerun": false
+  },
+  "manifest_findings": {
+    "manifest_exists": true,
+    "json_parse_status": "PASS",
+    "plugin_name": "template-creator",
+    "default_prompt_count": 4,
+    "max_supported_default_prompts_observed": 3,
+    "default_prompts": [
+      "Create a personal template from this document",
+      "Create a personal template from this presentation",
+      "Create a personal template from this spreadsheet",
+      "Update this personal artifact template"
+    ]
+  }
+}

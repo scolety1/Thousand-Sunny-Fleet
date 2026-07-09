@@ -1,0 +1,11 @@
+stop_condition,status,evidence,notes
+"branch_head_containment_failed",not_hit,"Expected branch and HEAD verified",""
+"unexpected_dirty_worktree",not_hit,"Initial worktree clean",""
+"real_codex_worker_execution_requested",not_hit,"No real codex exec worker execution was invoked",""
+"plugin_warning_unidentified",not_hit,"Warning source path identified",""
+"secret_or_credential_access_required",not_hit,"Only service_tier line and plugin manifests were inspected","No secrets printed"
+"product_repo_mutation_required",not_hit,"No product repo touched",""
+"canonical_nwr_mutation_required",not_hit,"No canonical NWR touched",""
+"push_merge_deploy_required",not_hit,"No push, merge, or deploy performed",""
+"install_migration_network_required",not_hit,"No install, migration, or network change performed",""
+"safe_fix_uncertain_without_tim",hit,"Issue is schema compatibility rather than syntax/stale path","Fix not performed; Tim approval required"
