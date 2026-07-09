@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "ambiguous-request",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Continue research until it feels right.",
+    "requested_goal":  "Continue research until it feels right.",
+    "proposed_worker_role":  "researcher_source_tracer_worker",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/ambiguous-request-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "NEEDS_MAIN_BOT_REVIEW"
+}

@@ -38,6 +38,46 @@ function Get-TsfRoleArray {
     return @([string]$Value)
 }
 
+function Get-TsfRoleFullPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string]$BasePath = ""
+    )
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+    if ([string]::IsNullOrWhiteSpace($BasePath)) {
+        $BasePath = (Get-Location).Path
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $BasePath $Path))
+}
+
+function Test-TsfRolePathInside {
+    param(
+        [Parameter(Mandatory = $true)][string]$ChildPath,
+        [Parameter(Mandatory = $true)][string]$ParentPath
+    )
+    $child = [System.IO.Path]::GetFullPath($ChildPath)
+    $parent = [System.IO.Path]::GetFullPath($ParentPath)
+    $trimChars = [char[]]@('\', '/')
+    $childTrimmed = $child.TrimEnd($trimChars)
+    $parentTrimmed = $parent.TrimEnd($trimChars)
+    if ([string]::Equals($childTrimmed, $parentTrimmed, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    return $child.StartsWith(($parentTrimmed + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-TsfRolePathTokenSafe {
+    param([string]$Path)
+    $value = ([string]$Path).Trim()
+    if ([string]::IsNullOrWhiteSpace($value)) { return $false }
+    if ($value -in @("*", ".", "\", "/", "all", "ALL")) { return $false }
+    if ($value -match "(^|[\\/])\.\.([\\/]|$)") { return $false }
+    if ($value -match "[\x00-\x1F\x7F]") { return $false }
+    return $true
+}
+
 $draft = Read-TsfRoleJson -Path $MissionDraftPath
 $registry = Read-TsfRoleJson -Path $RegistryPath
 $profiles = Read-TsfRoleJson -Path $PermissionProfilesPath
@@ -76,6 +116,15 @@ if (![string]::IsNullOrWhiteSpace($roleId) -and $null -ne $profiles.profiles.PSO
     $blockedReasons.Add("Missing role permission profile: $roleId") | Out-Null
 }
 
+if ($null -ne $extension -and ![string]::IsNullOrWhiteSpace([string]$extension.role_permission_profile_id)) {
+    if ([string]$extension.role_permission_profile_id -eq $roleId) {
+        Add-TsfRoleCheck -Checks $checks -Name "profile.id_matches_role" -Status "PASS" -Message "Role permission profile id matches worker role." -Evidence $roleId
+    } else {
+        Add-TsfRoleCheck -Checks $checks -Name "profile.id_matches_role" -Status "FAIL" -Message "Role permission profile id does not match worker role." -Evidence "role=$roleId; profile=$($extension.role_permission_profile_id)"
+        $blockedReasons.Add("Role permission profile id mismatch.") | Out-Null
+    }
+}
+
 $missionForbidden = @(Get-TsfRoleArray $mission.forbidden_actions | ForEach-Object { $_.ToLowerInvariant() })
 $restricted = @(Get-TsfRoleArray $profiles.restricted_actions | ForEach-Object { $_.ToLowerInvariant() })
 $missingForbidden = @($restricted | Where-Object { $missionForbidden -notcontains $_ })
@@ -100,6 +149,35 @@ if (($checks | Where-Object { $_.name -eq "protected_path.blocked" -and $_.statu
     Add-TsfRoleCheck -Checks $checks -Name "protected_path.blocked" -Status "PASS" -Message "No protected path or lane requested."
 }
 
+$repoPath = ""
+if ($mission.PSObject.Properties.Name -contains "repo_path" -and ![string]::IsNullOrWhiteSpace([string]$mission.repo_path)) {
+    $repoPath = Get-TsfRoleFullPath -Path ([string]$mission.repo_path)
+} else {
+    $repoPath = Get-TsfRoleFullPath -Path (Join-Path $PSScriptRoot "..")
+}
+
+foreach ($path in $requestedPaths) {
+    if (!(Test-TsfRolePathTokenSafe -Path $path)) {
+        Add-TsfRoleCheck -Checks $checks -Name "path.token_safe" -Status "FAIL" -Message "Requested path is unsafe or too broad." -Evidence $path
+        $blockedReasons.Add("Unsafe or broad requested path: $path") | Out-Null
+        continue
+    }
+
+    if ([System.IO.Path]::IsPathRooted([string]$path)) {
+        $resolved = Get-TsfRoleFullPath -Path ([string]$path)
+        if (!(Test-TsfRolePathInside -ChildPath $resolved -ParentPath $repoPath)) {
+            Add-TsfRoleCheck -Checks $checks -Name "path.inside_repo" -Status "FAIL" -Message "Absolute requested path is outside mission repo." -Evidence $resolved
+            $timRequiredReasons.Add("Requested path outside mission repo: $resolved") | Out-Null
+        }
+    }
+}
+if (($checks | Where-Object { $_.name -eq "path.token_safe" -and $_.status -eq "FAIL" }).Count -eq 0) {
+    Add-TsfRoleCheck -Checks $checks -Name "path.token_safe" -Status "PASS" -Message "Requested read/write path tokens are bounded."
+}
+if (($checks | Where-Object { $_.name -eq "path.inside_repo" -and $_.status -eq "FAIL" }).Count -eq 0) {
+    Add-TsfRoleCheck -Checks $checks -Name "path.inside_repo" -Status "PASS" -Message "No absolute requested path escapes the mission repo."
+}
+
 if ($null -ne $profile) {
     if ([bool]$profile.may_invoke_codex_cli) {
         Add-TsfRoleCheck -Checks $checks -Name "codex_cli.blocked_by_default" -Status "WARN" -Message "Role profile allows Codex CLI; separate approval is still required."
@@ -121,6 +199,21 @@ if ($null -ne $profile) {
         $blockedReasons.Add("Role cannot spawn or coordinate sibling workers: $roleId") | Out-Null
     } else {
         Add-TsfRoleCheck -Checks $checks -Name "spawn_workers.allowed" -Status "PASS" -Message "Sibling lane/spawn request does not exceed role profile."
+    }
+
+    $requestedForbidden = @($missionForbidden | ForEach-Object { $_.Trim().ToLowerInvariant() })
+    $profileMandatory = @(Get-TsfRoleArray $profile.mandatory_forbidden_actions | ForEach-Object { $_.Trim().ToLowerInvariant() })
+    $missingProfileFence = @()
+    foreach ($action in $profileMandatory) {
+        if ($action -match "^[a-z0-9_]+$" -and $restricted -contains $action -and $requestedForbidden -notcontains $action) {
+            $missingProfileFence += $action
+        }
+    }
+    if ($missingProfileFence.Count -gt 0) {
+        Add-TsfRoleCheck -Checks $checks -Name "profile.forbidden_fence" -Status "FAIL" -Message "Mission does not carry all machine-readable forbidden actions required by the role profile." -Evidence ($missingProfileFence -join ";")
+        $blockedReasons.Add("Missing role-profile forbidden action fence entries: $($missingProfileFence -join ', ')") | Out-Null
+    } else {
+        Add-TsfRoleCheck -Checks $checks -Name "profile.forbidden_fence" -Status "PASS" -Message "Mission carries the role profile forbidden-action fence."
     }
 }
 

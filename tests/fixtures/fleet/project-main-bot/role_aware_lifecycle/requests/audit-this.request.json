@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "audit-this",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Audit this TSF-local control-plane packet and report risks.",
+    "requested_goal":  "Audit this TSF-local control-plane packet and report risks.",
+    "proposed_worker_role":  "auditor_worker",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/audit-this-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "SAFE_LOCAL_MISSION"
+}

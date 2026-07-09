@@ -1,0 +1,2 @@
+"stop_condition","status","notes"
+"none","not_hit","Generated packet stayed within local TSF role-aware lifecycle scope."

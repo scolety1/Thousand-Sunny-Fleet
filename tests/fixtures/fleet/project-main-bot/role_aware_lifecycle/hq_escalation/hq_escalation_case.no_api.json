@@ -1,0 +1,29 @@
+﻿{
+    "schema_version":  "hq_escalation_packet_v1",
+    "mission_summary":  "Ambiguous role-aware mission requiring strategic HQ judgment.",
+    "preflight_result":  "YELLOW",
+    "verifier_result":  "not_run",
+    "blocker_register":  [
+                             "conflicting worker reports",
+                             "architecture switch"
+                         ],
+    "changed_files_summary":  [
+
+                              ],
+    "evidence_snippets":  [
+                              "No API call is made by this fixture."
+                          ],
+    "exact_decision_requested":  "Should the Project Main Bot escalate to Tim or continue local dry-run?",
+    "allowed_verdicts":  [
+                             "GREEN",
+                             "YELLOW",
+                             "RED",
+                             "TIM_REQUIRED"
+                         ],
+    "required_json_response_shape":  {
+                                         "verdict":  "string",
+                                         "rationale":  "string",
+                                         "next_action":  "string"
+                                     },
+    "api_called":  false
+}

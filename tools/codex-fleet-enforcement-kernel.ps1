@@ -848,6 +848,7 @@ function New-TsfKernelWorkerInstruction {
         expected_artifacts = @(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts)
         stop_conditions = @(ConvertTo-TsfKernelArray -Value $mission.stop_conditions)
         required_postrun_checks = @(ConvertTo-TsfKernelArray -Value $mission.required_postrun_checks)
+        role_extension = if ($mission.PSObject.Properties.Name -contains "role_extension") { $mission.role_extension } else { $null }
     }
 
     $allowedReadSummary = (@(ConvertTo-TsfKernelArray -Value $mission.allowed_reads) -join "; ")
@@ -856,11 +857,22 @@ function New-TsfKernelWorkerInstruction {
     $expectedArtifactSummary = (@(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts) -join "; ")
     $postrunVerifierInstruction = "After foreground worker output exists, run: powershell -NoProfile -ExecutionPolicy Bypass -File .\tsf-kernel-postrun-verify.ps1 -MissionPath <mission.json> -WorkerResultPath <worker-result.json> -OutFile <verifier-result.json>"
     $commandPreview = "NOT RUN IN V1: codex exec --cd `"$([string]$mission.repo_path)`" < worker_instruction_packet.md"
+    $workerRole = ""
+    $roleContract = ""
+    $verifierRole = ""
+    if ($mission.PSObject.Properties.Name -contains "role_extension" -and $null -ne $mission.role_extension) {
+        $workerRole = [string]$mission.role_extension.worker_role
+        $roleContract = [string]$mission.role_extension.role_output_contract
+        $verifierRole = [string]$mission.role_extension.verifier_role
+    }
 
     $result = [pscustomobject]@{
         schema_version = 1
         generated_at = (Get-Date).ToString("o")
         mission_id = [string]$mission.mission_id
+        worker_role = $workerRole
+        role_output_contract = $roleContract
+        verifier_role = $verifierRole
         adapter_status = "STUB_READY_CODEX_CLI_BLOCKED"
         codex_cli_invocation_started = $false
         background_runner_started = $false
@@ -875,7 +887,7 @@ function New-TsfKernelWorkerInstruction {
         forbidden_action_summary = $forbiddenActionSummary
         expected_artifact_contract = $expectedArtifactSummary
         postrun_verifier_instruction = $postrunVerifierInstruction
-        worker_instruction = "Use only the mission packet scope. Do not run background, all-fleet, product repo mutation, push, merge, deploy, install, migration, secrets, PrivateLens, canonical NWR, or normal NWR packet work."
+        worker_instruction = "Use only the mission packet scope. Do not exceed role authority. Do not run background, all-fleet, product repo mutation, push, merge, deploy, install, migration, secrets, PrivateLens, canonical NWR, or normal NWR packet work."
         handoff_packet = $handoff
     }
 
@@ -989,6 +1001,24 @@ function Invoke-TsfKernelPostRunVerify {
     } else {
         $checks.Add((New-TsfKernelCheck -Name "postrun.files_touched" -Status "WARN" -Message "Worker result did not include touched-file evidence.")) | Out-Null
         $warnings.Add("Worker result did not include touched-file evidence.") | Out-Null
+    }
+
+    if ($mission.PSObject.Properties.Name -contains "role_extension" -and $null -ne $mission.role_extension) {
+        $expectedRole = [string]$mission.role_extension.worker_role
+        $actualRole = if ($worker.PSObject.Properties.Name -contains "worker_role") { [string]$worker.worker_role } else { "" }
+        if (![string]::IsNullOrWhiteSpace($expectedRole) -and [string]::Equals($expectedRole, $actualRole, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $checks.Add((New-TsfKernelCheck -Name "postrun.worker_role" -Status "PASS" -Message "Worker result role matches mission role." -Evidence $expectedRole)) | Out-Null
+        } else {
+            $checks.Add((New-TsfKernelCheck -Name "postrun.worker_role" -Status "FAIL" -Message "Worker result role is missing or does not match mission role." -Evidence "expected=$expectedRole; actual=$actualRole")) | Out-Null
+            $blockedReasons.Add("Worker role mismatch or missing.") | Out-Null
+        }
+
+        if ($worker.PSObject.Properties.Name -contains "role_output_contract_satisfied" -and [bool]$worker.role_output_contract_satisfied) {
+            $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "PASS" -Message "Worker result claims role output contract was satisfied." -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
+        } else {
+            $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "FAIL" -Message "Worker result does not satisfy the role output contract." -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
+            $blockedReasons.Add("Role output contract was not satisfied.") | Out-Null
+        }
     }
 
     $verdict = "GREEN"

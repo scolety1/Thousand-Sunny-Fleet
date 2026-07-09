@@ -1,0 +1,114 @@
+﻿{
+    "draft_schema":  "project_main_bot_mission_draft_v1",
+    "classification":  "SAFE_LOCAL_MISSION",
+    "natural_request":  "Dry-run role-aware lifecycle fixture for Builder Worker.",
+    "normalized_intent":  {
+                              "requested_goal":  "Validate role-aware lifecycle handling for Builder Worker.",
+                              "proposed_worker_role":  "builder_worker",
+                              "lane":  "MASTER_TSF_CONTROL_PLANE",
+                              "hard_gate_detected":  false
+                          },
+    "mission_packet":  {
+                           "mission_id":  "role-aware-builder_worker-fixture-0001",
+                           "project_id":  "thousand-sunny-fleet",
+                           "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+                           "lane":  "MASTER_TSF_CONTROL_PLANE",
+                           "mission_type":  "tsf_infrastructure",
+                           "allowed_reads":  [
+                                                 "docs/hq",
+                                                 "fleet/control",
+                                                 "tests/fixtures/fleet/project-main-bot"
+                                             ],
+                           "allowed_writes":  [
+                                                  "docs/hq/role_aware_mission_lifecycle_integration_v1/fixture_outputs/builder_worker.md"
+                                              ],
+                           "forbidden_reads":  [
+                                                   "C:\\NWR\\Niners-War-Room",
+                                                   "normal NWR packets",
+                                                   "product repos"
+                                               ],
+                           "forbidden_writes":  [
+                                                    "C:\\NWR\\Niners-War-Room",
+                                                    "product repos"
+                                                ],
+                           "forbidden_actions":  [
+                                                     "push",
+                                                     "merge",
+                                                     "deploy",
+                                                     "install_packages",
+                                                     "migration",
+                                                     "secrets",
+                                                     "privatelens",
+                                                     "proof_run",
+                                                     "all_fleet",
+                                                     "background_runner",
+                                                     "persistent_runner",
+                                                     "canonical_nwr_inspection",
+                                                     "canonical_nwr_mutation",
+                                                     "normal_nwr_packet_read",
+                                                     "product_repo_inspection",
+                                                     "product_repo_mutation",
+                                                     "api_bridge",
+                                                     "open_network_port",
+                                                     "credential_change",
+                                                     "app_wiring",
+                                                     "ranking_formula_source_truth_promotion",
+                                                     "hidden_sort",
+                                                     "recommendation_behavior"
+                                                 ],
+                           "expected_artifacts":  [
+                                                      "docs/hq/role_aware_mission_lifecycle_integration_v1/fixture_outputs/builder_worker.md"
+                                                  ],
+                           "required_preflight_checks":  [
+                                                             "schema",
+                                                             "repo_exists",
+                                                             "path_scope",
+                                                             "restricted_action_coverage",
+                                                             "git_status_capture",
+                                                             "approval_ledger",
+                                                             "worker_role_permission"
+                                                         ],
+                           "required_postrun_checks":  [
+                                                           "expected_artifacts",
+                                                           "forbidden_actions_absent",
+                                                           "worker_role_contract"
+                                                       ],
+                           "stop_conditions":  [
+                                                   {
+                                                       "id":  "scope-crosses-role",
+                                                       "check_type":  "approval_required",
+                                                       "description":  "Stop if requested work exceeds role permission profile."
+                                                   }
+                                               ],
+                           "approval_requirements":  [
+
+                                                     ],
+                           "hq_escalation_policy":  {
+                                                        "default":  "local_only_no_api",
+                                                        "escalate_on":  [
+                                                                            "RED",
+                                                                            "TIM_REQUIRED",
+                                                                            "scope_conflict"
+                                                                        ],
+                                                        "notes":  "No API call is approved by this fixture."
+                                                    },
+                           "created_by":  "role_aware_lifecycle_fixture_v1",
+                           "created_at":  "2026-07-09T00:00:00-06:00"
+                       },
+    "role_extension":  {
+                           "requested_by":  "tim",
+                           "project_main_bot_id":  "project_main_bot.default",
+                           "worker_role":  "builder_worker",
+                           "translator_used":  true,
+                           "context_capsule_id":  "sample-tsf-role-foundation-context-20260709",
+                           "lane_id":  "role-aware-builder_worker",
+                           "parent_mission_id":  "",
+                           "sibling_lane_ids":  [
+
+                                                ],
+                           "role_permission_profile_id":  "builder_worker",
+                           "role_output_contract":  "Changed files plus validation evidence and preservation handoff.",
+                           "verifier_role":  "verifier_worker",
+                           "escalation_policy_id":  "local_only_no_api"
+                       }
+}

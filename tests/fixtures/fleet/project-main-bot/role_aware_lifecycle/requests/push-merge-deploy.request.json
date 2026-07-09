@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "push-merge-deploy",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Push, merge, and deploy this branch.",
+    "requested_goal":  "Push, merge, and deploy this branch.",
+    "proposed_worker_role":  "release_preservation_worker",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/push-merge-deploy-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "NEEDS_TIM_APPROVAL"
+}

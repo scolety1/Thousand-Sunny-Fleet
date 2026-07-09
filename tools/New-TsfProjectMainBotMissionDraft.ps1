@@ -95,6 +95,9 @@ function Resolve-TsfDraftClassification {
     if ($allText -match "(?i)\b(architecture switch|conflicting worker|conflicting reports|repeated blocker|ambiguous yellow|source[- ]truth|ranking|formula|model promotion|app wiring|hidden sort|recommendation)\b") {
         return "NEEDS_CHATGPT_HQ"
     }
+    if ($allText -match "(?i)\b(feels right|no finish line|continue research|not sure|whatever seems best|open ended|open-ended)\b") {
+        return "NEEDS_MAIN_BOT_REVIEW"
+    }
     if ([string]::IsNullOrWhiteSpace($WorkerRole) -or [string]::IsNullOrWhiteSpace($Request)) {
         return "NEEDS_MAIN_BOT_REVIEW"
     }
@@ -133,7 +136,7 @@ $missionPacket = [pscustomobject]@{
     project_id = $ProjectId
     repo_path = $RepoPath
     lane = $Lane
-    mission_type = "docs_control_plane"
+    mission_type = "tsf_infrastructure"
     allowed_reads = @(ConvertTo-TsfDraftArray $AllowedReads)
     allowed_writes = @(ConvertTo-TsfDraftArray $AllowedWrites)
     forbidden_reads = @("C:\NWR\Niners-War-Room", "normal NWR packets", "product repos")

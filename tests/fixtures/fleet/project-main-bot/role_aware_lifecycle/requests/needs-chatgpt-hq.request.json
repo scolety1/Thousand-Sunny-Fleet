@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "needs-chatgpt-hq",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Resolve a major architecture switch with conflicting worker reports and an ambiguous YELLOW.",
+    "requested_goal":  "Resolve a major architecture switch with conflicting worker reports and an ambiguous YELLOW.",
+    "proposed_worker_role":  "chatgpt_api_hq_escalation_judge",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/needs-chatgpt-hq-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "NEEDS_CHATGPT_HQ"
+}

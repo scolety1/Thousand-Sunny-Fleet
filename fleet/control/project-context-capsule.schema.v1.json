@@ -75,6 +75,18 @@
                                                                },
                                                      "type":  "array"
                                                  },
+                       "artifacts_created":  {
+                                                 "items":  {
+                                                               "type":  "string"
+                                                           },
+                                                 "type":  "array"
+                                             },
+                       "last_worker_role":  {
+                                                "type":  "string"
+                                            },
+                       "last_mission_result":  {
+                                                   "type":  "string"
+                                               },
                        "updated_at":  {
                                           "type":  "string"
                                       }

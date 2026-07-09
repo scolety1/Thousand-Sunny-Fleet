@@ -1,0 +1,12 @@
+﻿{
+    "case_id":  "research-no-finish",
+    "repeated_same_blocker_count":  0,
+    "artifact_only_iterations":  0,
+    "lifecycle_progress":  false,
+    "forbidden_action_repeats":  0,
+    "worker_green_verifier_red":  false,
+    "duplicate_system_proposed":  false,
+    "reusable_component_exists":  true,
+    "continue_research_no_finish_line":  true,
+    "expected_decision":  "NEEDS_MAIN_BOT_REVIEW"
+}
