@@ -1,0 +1,8 @@
+"gate","status","reason","next_action"
+"push_or_pr_publication","remaining","This gate is no-push and no-PR by design.","Requires separate Tim-approved push/PR gate."
+"broader_codex_worker_execution","remaining","Only one fixture-only worker execution is proven GREEN.","Require exact scoped approval per future worker mission."
+"operator_console_build","remaining","Only skeleton decision packet exists.","Wait for explicit Operator Console implementation scope."
+"api_hq_transport","remaining","Cost guardrail policy exists; no API transport built or called.","Wait for explicit API/HQ transport approval."
+"product_repo_missions","blocked","Product repo mutation and inspection were outside this branch scope.","Requires exact Tim approval."
+"canonical_nwr_mutation","blocked","Canonical NWR mutation was outside this branch scope.","Requires exact Tim approval."
+"background_or_persistent_runner","blocked","No persistent runner is approved or needed for this publication readiness gate.","Do not build until separately approved."
