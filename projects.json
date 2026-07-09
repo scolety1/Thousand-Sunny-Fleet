@@ -356,6 +356,40 @@
         "archived":  true
     },
     {
+        "name":  "NinersWarRoomCanonical",
+        "repo":  "C:\\NWR\\Niners-War-Room",
+        "rounds":  99,
+        "briefScript":  "scripts\\codex-brief.ps1",
+        "loopScript":  "scripts\\codex-night-loop.ps1",
+        "buildDirectory":  "app-vNext",
+        "buildCommand":  "npm.cmd run build",
+        "profile":  "real-product",
+        "projectType":  "full-stack-web",
+        "riskTier":  "production-adjacent",
+        "capabilities":  {
+                             "canEditPackageFiles":  false,
+                             "canAddDependencies":  false,
+                             "canEditBackendCode":  false,
+                             "canEditMigrations":  false,
+                             "canEditAuthPolicy":  false,
+                             "canEditDeploymentConfig":  false,
+                             "canUseNetworkApis":  false,
+                             "canOpenPullRequests":  false,
+                             "canDeploy":  false
+                         },
+        "metadataOnlyRegistration":  {
+                                         "registeredBy":  "tools/register-project-metadata-only.ps1",
+                                         "registeredAtUtc":  "2026-07-08T07:56:37.1227857Z",
+                                         "targetRepoReadOnly":  true,
+                                         "harnessInstallSkipped":  true,
+                                         "localGitExcludeMutationSkipped":  true,
+                                         "checkpointValidationSkipped":  true,
+                                         "buildCheckSkipped":  true,
+                                         "exactPathRegistrationRequired":  true,
+                                         "archivedDifferentPathOverwriteBlocked":  true
+                                     }
+    },
+    {
         "name":  "OrderPilot",
         "repo":  "C:\\Dev\\cellar-orderpilot-lite",
         "rounds":  99,

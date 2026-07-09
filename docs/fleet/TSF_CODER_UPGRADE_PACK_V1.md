@@ -10,6 +10,10 @@ shape better Codex work orders, review risk before approval, learn from bugs,
 split messy goals, and recover from stuck states without rebuilding context by
 hand.
 
+Repo onboarding uses the same discipline: source trace first, reusable assets
+first, and no product-repo mutation until a review packet and exact approval
+exist.
+
 The tools are TSF-local generators. They read TSF registry/status files and
 repo-local fixtures. They do not inspect product repos, mutate product repos,
 push, deploy, install packages, run migrations, touch secrets, add remote
@@ -24,13 +28,18 @@ commands, or start daemons.
 - Coding lessons journal: `fleet/status/coding-lessons/lessons-learned.md`
 - Work-order splits: `fleet/status/work-order-splits/`
 - Stuck-state playbooks: `fleet/status/stuck-playbooks/`
+- Repo onboarding packets: `fleet/status/repo-onboarding/` with
+  `repo_identity.json`, `repo_existing_asset_trace.csv`,
+  `repo_reuse_decision_matrix.csv`, `repo_improvement_queue.csv`, and
+  `REPO_ONBOARDING_SUMMARY.md`
 
 ## Before Coding
 
 1. Open Fleet Console.
 2. Open Repo X-Ray for the project.
 3. Open Context Pack.
-4. Copy one work order.
+4. For newly registered repos, open the Repo Onboarding Packet.
+5. Copy one work order.
 
 The Repo X-Ray explains what TSF knows about the project without opening the
 product repo. The Context Pack keeps Codex from needing a giant pasted context
@@ -84,6 +93,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\write-work-order-spl
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\write-stuck-playbooks.ps1 -ProjectName PrivateLens
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\write-diff-risk-review.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\write-coding-lessons.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\register-project-metadata-only.ps1 -Name YourProject -Repo C:\Dev\your-project -Profile real-product
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\write-repo-onboarding-packet.ps1 -Repo C:\Dev\your-project -ProjectName YourProject -RequestedCapability "feature or workflow to trace" -OutDirectory .\fleet\status\repo-onboarding\your-project
 ```
 
 These commands write TSF-local markdown/json-style evidence. They do not approve

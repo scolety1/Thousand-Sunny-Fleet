@@ -36,7 +36,61 @@ For EasyLife-style repos where the app lives in a subfolder:
 
 If the repo already has uncommitted changes, commit them first. Use `-Force` only when you intentionally want to install/register despite a dirty tree.
 
-## 2. Edit the task queue
+For read-only onboarding or when a repo may already be dirty, use the
+metadata-only route instead. It writes only TSF metadata and refuses
+same-name/different-path overwrites:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\register-project-metadata-only.ps1 `
+  -Name YourProject `
+  -Repo C:\Dev\your-project `
+  -Profile real-product
+```
+
+Metadata-only decisions:
+
+- `REGISTERED_NEW_METADATA_ONLY`
+- `ALREADY_REGISTERED_EXACT_PATH`
+- `EXISTS_DIFFERENT_PATH_REQUIRES_REVIEW`
+- `BLOCKED_UNSAFE_TARGET`
+- `BLOCKED_VALIDATION_FAILED`
+
+## 2. Run the repo onboarding packet
+
+Before product-repo changes, run the canonical repo onboarding route in
+`docs/fleet/TSF_REPO_ONBOARDING_WORKFLOW_V1.md`.
+
+The route is:
+
+1. register repo with `tools/register-project-metadata-only.ps1` for read-only
+   onboarding, or `add-project.ps1` only when harness installation is approved
+2. run read-only repo inventory
+3. run existing-feature/source-trace scan
+4. generate improvement opportunity register
+5. create continuation/handoff context
+6. produce review packet
+7. stop before product repo mutation unless Tim approves exact scope
+
+Use the TSF-local packet generator:
+
+```powershell
+cd C:\Dev\codex-fleet
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\write-repo-onboarding-packet.ps1 `
+  -Repo C:\Dev\your-project `
+  -ProjectName YourProject `
+  -RequestedCapability "feature or workflow to trace" `
+  -OutDirectory .\fleet\status\repo-onboarding\your-project
+```
+
+The packet generator writes only the configured output directory and rejects an
+output directory inside the scanned target repo. Review `repo_identity.json`,
+`repo_baseline_status.txt`, `repo_existing_asset_trace.csv`,
+`repo_reuse_decision_matrix.csv`, `repo_improvement_queue.csv`, and
+`REPO_ONBOARDING_SUMMARY.md` before any coding lane. Compatibility files such
+as `existing_feature_scan.csv`, `improvement_opportunities.csv`, and
+`onboarding_handoff.md` remain evidence-only support.
+
+## 3. Edit the task queue
 
 For serious software ships, create the Phase 1 architecture pack before broad implementation:
 
@@ -93,7 +147,7 @@ Add small unchecked tasks using:
 - [ ] Narrow task: describe exactly one safe change. Do not add backend, auth, payment, secrets, deployment, dependencies, or broad rewrites.
 ```
 
-## 3. Prove the project with one task first
+## 4. Prove the project with one task first
 
 ```powershell
 cd C:\Dev\codex-fleet
@@ -112,7 +166,7 @@ Then choose longer settings based on risk:
 .\run-checkpoint-loop.ps1 -Project YourProject -BatchSize 3 -MaxBatches 4
 ```
 
-## 4. Validate or review anytime
+## 5. Validate or review anytime
 
 ```powershell
 .\run-checkpoint-loop.ps1 -Project YourProject -ValidateOnly
@@ -120,7 +174,7 @@ Then choose longer settings based on risk:
 .\fleet-status.ps1
 ```
 
-## 5. Generate next-task request
+## 6. Generate next-task request
 
 ```powershell
 cd C:\Dev\codex-fleet
@@ -133,7 +187,7 @@ Paste `docs/codex/NEXT_TASK_REQUEST.md` into ChatGPT Pro, or run the Codex CLI p
 .\planner\run-planner.ps1 -Repo C:\Dev\your-project
 ```
 
-## 6. Import proposed tasks
+## 7. Import proposed tasks
 
 Review:
 
