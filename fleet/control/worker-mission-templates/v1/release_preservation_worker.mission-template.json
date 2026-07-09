@@ -1,0 +1,112 @@
+﻿{
+    "template_schema":  "worker_mission_template_v1",
+    "role_id":  "release_preservation_worker",
+    "role_name":  "Release / Preservation Worker",
+    "classification":  "DRAFT_TEMPLATE_ONLY",
+    "mission_packet_template":  {
+                                    "mission_id":  "template-release_preservation_worker-0001",
+                                    "project_id":  "thousand-sunny-fleet",
+                                    "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+                                    "lane":  "MASTER_TSF_CONTROL_PLANE",
+                                    "mission_type":  "docs_control_plane",
+                                    "allowed_reads":  [
+                                                          "docs/hq",
+                                                          "fleet/control",
+                                                          "tools",
+                                                          "tests/fixtures/fleet/project-main-bot"
+                                                      ],
+                                    "allowed_writes":  [
+                                                           "docs/hq/project_main_bot_worker_role_foundation_overnight_v1",
+                                                           "fleet/control",
+                                                           "tests/fixtures/fleet/project-main-bot"
+                                                       ],
+                                    "forbidden_reads":  [
+                                                            "C:\\NWR\\Niners-War-Room",
+                                                            "normal NWR packets",
+                                                            "product repos"
+                                                        ],
+                                    "forbidden_writes":  [
+                                                             "C:\\NWR\\Niners-War-Room",
+                                                             "product repos"
+                                                         ],
+                                    "forbidden_actions":  [
+                                                              "push",
+                                                              "merge",
+                                                              "deploy",
+                                                              "install_packages",
+                                                              "migration",
+                                                              "secrets",
+                                                              "privatelens",
+                                                              "proof_run",
+                                                              "all_fleet",
+                                                              "background_runner",
+                                                              "persistent_runner",
+                                                              "canonical_nwr_inspection",
+                                                              "canonical_nwr_mutation",
+                                                              "normal_nwr_packet_read",
+                                                              "product_repo_inspection",
+                                                              "product_repo_mutation",
+                                                              "api_bridge",
+                                                              "open_network_port",
+                                                              "credential_change",
+                                                              "app_wiring",
+                                                              "ranking_formula_source_truth_promotion",
+                                                              "hidden_sort",
+                                                              "recommendation_behavior"
+                                                          ],
+                                    "expected_artifacts":  [
+                                                               "bounded role output artifact"
+                                                           ],
+                                    "required_preflight_checks":  [
+                                                                      "schema",
+                                                                      "repo_exists",
+                                                                      "path_scope",
+                                                                      "restricted_action_coverage",
+                                                                      "git_status_capture",
+                                                                      "approval_ledger",
+                                                                      "worker_role_permission"
+                                                                  ],
+                                    "required_postrun_checks":  [
+                                                                    "expected_artifacts",
+                                                                    "forbidden_actions_absent",
+                                                                    "worker_role_contract"
+                                                                ],
+                                    "stop_conditions":  [
+                                                            {
+                                                                "check_type":  "approval_required",
+                                                                "description":  "Stop if requested work exceeds role permission profile.",
+                                                                "id":  "scope-crosses-role"
+                                                            }
+                                                        ],
+                                    "approval_requirements":  [
+
+                                                              ],
+                                    "hq_escalation_policy":  {
+                                                                 "default":  "local_only_no_api",
+                                                                 "escalate_on":  [
+                                                                                     "RED",
+                                                                                     "TIM_REQUIRED",
+                                                                                     "scope_conflict"
+                                                                                 ],
+                                                                 "notes":  "No API call approved by template."
+                                                             },
+                                    "created_by":  "project_main_bot_role_foundation_template",
+                                    "created_at":  "2026-07-09T00:00:00-06:00"
+                                },
+    "role_extension":  {
+                           "requested_by":  "template",
+                           "project_main_bot_id":  "project_main_bot.default",
+                           "worker_role":  "release_preservation_worker",
+                           "translator_used":  false,
+                           "context_capsule_id":  "",
+                           "lane_id":  "template-lane",
+                           "parent_mission_id":  "",
+                           "sibling_lane_ids":  [
+
+                                                ],
+                           "role_permission_profile_id":  "release_preservation_worker",
+                           "role_output_contract":  "Durable packet with manifest, final decision, and next action.",
+                           "verifier_role":  "verifier_worker",
+                           "escalation_policy_id":  "local_only_no_api"
+                       }
+}

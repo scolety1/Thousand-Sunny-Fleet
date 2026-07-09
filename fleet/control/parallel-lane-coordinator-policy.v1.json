@@ -1,0 +1,23 @@
+﻿{
+    "schema_version":  "parallel_lane_coordinator_policy_v1",
+    "dry_run_only":  true,
+    "checks":  [
+                   "lane_names",
+                   "branch_names",
+                   "worktree_paths",
+                   "file_ownership",
+                   "collision_risk",
+                   "checkpoint_recommendation",
+                   "stop_conditions"
+               ],
+    "stop_conditions":  [
+                            "actual_branch_creation",
+                            "actual_worktree_creation",
+                            "merge",
+                            "push",
+                            "product_repo_access",
+                            "canonical_nwr_access",
+                            "normal_nwr_packet_read",
+                            "background_runner"
+                        ]
+}

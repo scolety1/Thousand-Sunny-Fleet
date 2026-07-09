@@ -1,0 +1,63 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "title":  "TSF Role-Aware Mission Extension V1",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "requested_by",
+                     "project_main_bot_id",
+                     "worker_role",
+                     "role_permission_profile_id",
+                     "role_output_contract",
+                     "verifier_role",
+                     "escalation_policy_id"
+                 ],
+    "properties":  {
+                       "requested_by":  {
+                                            "minLength":  1,
+                                            "type":  "string"
+                                        },
+                       "project_main_bot_id":  {
+                                                   "minLength":  1,
+                                                   "type":  "string"
+                                               },
+                       "worker_role":  {
+                                           "minLength":  1,
+                                           "type":  "string"
+                                       },
+                       "translator_used":  {
+                                               "type":  "boolean"
+                                           },
+                       "context_capsule_id":  {
+                                                  "type":  "string"
+                                              },
+                       "lane_id":  {
+                                       "type":  "string"
+                                   },
+                       "parent_mission_id":  {
+                                                 "type":  "string"
+                                             },
+                       "sibling_lane_ids":  {
+                                                "items":  {
+                                                              "type":  "string"
+                                                          },
+                                                "type":  "array"
+                                            },
+                       "role_permission_profile_id":  {
+                                                          "minLength":  1,
+                                                          "type":  "string"
+                                                      },
+                       "role_output_contract":  {
+                                                    "minLength":  1,
+                                                    "type":  "string"
+                                                },
+                       "verifier_role":  {
+                                             "minLength":  1,
+                                             "type":  "string"
+                                         },
+                       "escalation_policy_id":  {
+                                                    "minLength":  1,
+                                                    "type":  "string"
+                                                }
+                   }
+}

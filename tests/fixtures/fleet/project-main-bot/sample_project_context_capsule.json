@@ -1,0 +1,33 @@
+﻿{
+    "completed_missions":  [
+                               "bot-orchestration-inventory-and-adaptation-v1"
+                           ],
+    "capsule_id":  "sample-tsf-role-foundation-context-20260709",
+    "do_not_repeat_lessons":  [
+                                  "do not rebuild kernel",
+                                  "do not treat docs as authority",
+                                  "do not start persistent runners"
+                              ],
+    "known_risks":  [
+                        "duplicate orchestration system risk",
+                        "role registry drift",
+                        "mission schema compatibility"
+                    ],
+    "active_blockers":  [
+                            "Codex CLI worker execution not approved",
+                            "API/HQ transport not approved",
+                            "Operator Console not approved"
+                        ],
+    "updated_at":  "2026-07-09T00:00:00-06:00",
+    "hq_escalation_history":  [
+
+                              ],
+    "project_id":  "thousand-sunny-fleet",
+    "next_recommended_action":  "Validate role-aware mission intake and permission preflight.",
+    "current_lane":  "project-main-bot-worker-role-foundation-overnight-v1",
+    "project_goal":  "Make Project Main Bot and worker roles operational through TSF mission governance.",
+    "approvals":  [
+                      "TSF-local docs/schemas/scripts/tests/local commits for this batch"
+                  ],
+    "current_branch":  "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708"
+}

@@ -1,0 +1,6 @@
+﻿{
+    "expected":  "NEEDS_TIM_APPROVAL",
+    "worker":  "release_preservation_worker",
+    "id":  "unsafe_push_request",
+    "text":  "Push and merge the role foundation branch."
+}
