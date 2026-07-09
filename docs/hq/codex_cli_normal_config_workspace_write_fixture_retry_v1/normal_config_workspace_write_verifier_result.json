@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "mission_id": "tsf-normal-config-workspace-write-fixture-worker-20260709",
+  "verdict": "RED",
+  "final_state": "blocked_red",
+  "verified": false,
+  "checks_summary": [
+    {
+      "name": "postrun.mission_id",
+      "status": "PASS",
+      "message": "Worker result mission_id matches mission packet."
+    },
+    {
+      "name": "postrun.artifact.exists",
+      "status": "FAIL",
+      "message": "Expected artifact is missing."
+    },
+    {
+      "name": "postrun.expected_artifact_claimed",
+      "status": "FAIL",
+      "message": "Worker result does not claim expected artifact in files_created."
+    },
+    {
+      "name": "postrun.restricted_actions",
+      "status": "PASS",
+      "message": "No restricted actions attempted in worker result evidence."
+    },
+    {
+      "name": "postrun.worker_role",
+      "status": "PASS",
+      "message": "Worker result role matches mission role."
+    },
+    {
+      "name": "postrun.role_output_contract",
+      "status": "FAIL",
+      "message": "Worker result does not satisfy the role output contract."
+    }
+  ],
+  "blocked_reasons": [
+    "Expected artifact missing: tests/fixtures/fleet/enforcement-kernel/worker-output/normal_config_workspace_write_fixture_worker_result.txt",
+    "Worker result did not claim expected artifact: tests/fixtures/fleet/enforcement-kernel/worker-output/normal_config_workspace_write_fixture_worker_result.txt",
+    "Role output contract was not satisfied."
+  ],
+  "warnings": [
+    "Worker reported no touched files."
+  ],
+  "guardrails": {
+    "background_runner_started": false,
+    "all_fleet_started": false,
+    "product_repos_mutated": false,
+    "canonical_nwr_mutated": false,
+    "push_merge_deploy_attempted": false
+  }
+}
