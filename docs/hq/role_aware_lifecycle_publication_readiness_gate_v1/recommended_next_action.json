@@ -1,0 +1,19 @@
+{
+  "recommended_next_action": "OPEN_TIM_APPROVED_PUSH_OR_PR_GATE",
+  "target_branch": "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+  "target_head": "9056919edb6efc0069c9622ee54202fa05e69fc9",
+  "readiness_verdict": "GREEN_READY_FOR_TIM_APPROVED_PUSH_OR_PR_GATE",
+  "include_readiness_packet_in_publication": "TIM_DECISION",
+  "exact_tim_approval_needed": "Tim approves a push/PR gate for branch work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708 at commit 9056919edb6efc0069c9622ee54202fa05e69fc9. Do not push, create PRs, merge, deploy, install, migrate, access secrets, use PrivateLens, run all-fleet/proof/background runners, invoke Codex CLI, call APIs, mutate product repos, mutate canonical NWR, or read normal NWR packets beyond the exact approved gate.",
+  "publication_blockers": [],
+  "non_blocking_caveats": [
+    "Older Codex CLI fixture pilot caveat remains fail-closed and does not block publication.",
+    "This no-push readiness packet is local audit evidence unless Tim chooses to include it in a later commit."
+  ],
+  "do_not_do_next": [
+    "Do not push without exact Tim approval.",
+    "Do not merge without exact Tim approval.",
+    "Do not retry Codex CLI without exact Tim approval.",
+    "Do not start Operator Console, API transport, product repo missions, or background workers in this lane."
+  ]
+}
