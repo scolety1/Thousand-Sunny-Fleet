@@ -1,0 +1,12 @@
+stop_condition,status,evidence,notes
+"branch_head_containment_failed",not_hit,"Expected branch and HEAD verified",""
+"dirty_tsf_worktree_before_fix",not_hit,"TSF worktree clean before fix",""
+"plugin_manifest_missing",not_hit,"Manifest exists at approved path",""
+"plugin_manifest_not_json",not_hit,"Manifest parsed before and after fix",""
+"defaultPrompt_unexpected_shape",not_hit,"Before count exactly 4; after count exactly 3",""
+"backup_failed",not_hit,"Backup created at approved path",""
+"unapproved_manifest_field_change",not_hit,"Only interface.defaultPrompt intentionally changed",""
+"codex_exec_help_failed",not_hit,"codex exec --help exited 0",""
+"real_worker_execution_attempted",not_hit,"No real codex exec worker task was run",""
+"push_merge_deploy_install_migration_secret_required",not_hit,"No forbidden publication or environment action performed",""
+"product_or_canonical_repo_mutation_required",not_hit,"No product repo or canonical NWR mutation occurred",""

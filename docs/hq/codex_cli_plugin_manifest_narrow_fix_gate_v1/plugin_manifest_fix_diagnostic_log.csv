@@ -1,0 +1,11 @@
+step,action,result,exit_code,details
+1,"Verify TSF branch","PASS",0,"Branch work/tsf-pack-and-go-autonomous-deployment-v1-20260709"
+2,"Verify TSF HEAD","PASS",0,"HEAD cf3abfd15d13454fdf6967cbdb5772f538ff118e"
+3,"Verify TSF worktree clean","PASS",0,"No dirty files before fix"
+4,"Parse plugin manifest before fix","PASS",0,"template-creator defaultPrompt count 4"
+5,"Create manifest backup","PASS",0,"C:\NWR_REVIEW\tsf_codex_cli_plugin_manifest_fix_backup_20260709\plugin.json.before_defaultPrompt_fix"
+6,"Apply approved manifest edit","PASS",0,"Reduced interface.defaultPrompt from 4 entries to 3"
+7,"Parse plugin manifest after fix","PASS",0,"template-creator defaultPrompt count 3"
+8,"Run codex --version","PASS",0,"codex-cli 0.124.0"
+9,"Run codex exec --help","PASS",0,"stderr bytes 0; no plugin manifest warning observed"
+10,"Run real codex exec worker task","NOT_RUN",,"Not approved in this gate"

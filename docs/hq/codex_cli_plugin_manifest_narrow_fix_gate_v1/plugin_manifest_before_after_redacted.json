@@ -1,0 +1,30 @@
+{
+  "redaction_note": "Only non-secret plugin manifest fields relevant to interface.defaultPrompt are recorded.",
+  "plugin_manifest_path": "C:\\Users\\codex-agent\\.codex\\plugins\\cache\\openai-primary-runtime\\template-creator\\26.630.12135\\.codex-plugin\\plugin.json",
+  "backup_path": "C:\\NWR_REVIEW\\tsf_codex_cli_plugin_manifest_fix_backup_20260709\\plugin.json.before_defaultPrompt_fix",
+  "before": {
+    "plugin_name": "template-creator",
+    "default_prompt_count": 4,
+    "default_prompts": [
+      "Create a personal template from this document",
+      "Create a personal template from this presentation",
+      "Create a personal template from this spreadsheet",
+      "Update this personal artifact template"
+    ]
+  },
+  "after": {
+    "plugin_name": "template-creator",
+    "default_prompt_count": 3,
+    "default_prompts": [
+      "Create a personal template from this document",
+      "Create a personal template from this presentation",
+      "Create a personal template from this spreadsheet"
+    ]
+  },
+  "changed_field": "interface.defaultPrompt",
+  "removed_prompt": "Update this personal artifact template",
+  "unchanged_checks": {
+    "plugin_name_unchanged": true,
+    "version_unchanged": true
+  }
+}
