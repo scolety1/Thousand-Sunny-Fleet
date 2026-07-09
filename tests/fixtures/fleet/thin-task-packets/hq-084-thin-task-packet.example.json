@@ -5,6 +5,64 @@
   "mode": "validation_only",
   "goal": "Rerun the interrupted post-HQ-082 fleet validation once and reconcile status only.",
   "stableContextCapsuleRef": "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+  "phase0Gate": {
+    "laneScopeDeclaration": {
+      "laneType": "TSF validation-only thin task packet",
+      "allowedSearchScope": [
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+        "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md",
+        "docs/fleet/STABLE_CONTEXT_CAPSULE.md",
+        "tests/fixtures/fleet/thin-task-packets/hq-084-thin-task-packet.example.json"
+      ],
+      "forbiddenSearchScope": [
+        "product repos",
+        "canonical NWR",
+        "normal NWR packets",
+        "secrets/auth/payments",
+        "deploy/install/migration/push/merge",
+        "all-fleet commands",
+        "background runners"
+      ],
+      "canonicalRepoInspectionAllowed": false,
+      "normalNwrPacketReadsAllowed": false,
+      "crossLaneComparisonAllowed": false,
+      "mutationAllowed": false,
+      "timApprovalRequiredForScopeExpansion": true
+    },
+    "existingAssetTrace": {
+      "searchedLocations": [
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+        "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md",
+        "docs/fleet/STABLE_CONTEXT_CAPSULE.md"
+      ],
+      "matchingFilesOrFolders": [
+        "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
+        "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",
+        "docs/fleet/HQ_EXTERNAL_AUDIT_FINDINGS_LEDGER.md"
+      ],
+      "relevantExistingArtifacts": [
+        "HQ-084 queue/status materials already define the validation-only rerun and reconciliation boundary."
+      ],
+      "classification": "already_exists_admitted",
+      "reuseDecision": "REUSE",
+      "whyNewBuildIsOrIsNotAllowed": "The existing queue and status materials should be reused; no new build is allowed for this validation-only packet.",
+      "restrictedScopeExclusions": [
+        "product repos",
+        "canonical NWR",
+        "normal NWR packets",
+        "secrets/auth/payments",
+        "push/merge/deploy/install/migration"
+      ]
+    },
+    "reuseDecision": "REUSE",
+    "buildPermission": {
+      "newBuildAllowed": false,
+      "whyNewBuildIsOrIsNotAllowed": "This packet is validation-only and reuses existing TSF status materials; it does not authorize implementation or production behavior."
+    },
+    "scopeExpansionRule": "Return TIM_REQUIRED_SCOPE_EXPANSION before reading forbidden materials."
+  },
   "allowedFiles": [
     "docs/fleet/HQ_REPAIR_TASK_QUEUE.md",
     "docs/fleet/DEMO_READY_TRIAL_GO_NO_GO.md",

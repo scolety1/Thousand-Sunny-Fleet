@@ -7514,6 +7514,58 @@ function Test-GoldenGameplanStageOneToFourSupport {
 
         $head = [string](git -C $repo rev-parse --short HEAD)
         $validTask = "- [ ] User pain: reviewer found one safe missing proof task. Skill: fleet-evidence. Target: docs/codex/RUN_SUMMARY.md. Change: add one concise proof note from the latest run. Guardrails: docs/codex only and no sensitive systems. Acceptance: RUN_SUMMARY.md includes the proof note. Proof: ingest report accepts this task. Stop if: repo state is not clean or the packet is stale. Check: powershell -NoProfile -ExecutionPolicy Bypass -File .\write-run-evidence.ps1 -Repo . [class:proof risk:low mode:single scope:docs/codex/]"
+        $validPhase0Gate = [pscustomobject]@{
+            laneScopeDeclaration = [pscustomobject]@{
+                laneType = "TSF external audit task intake fixture"
+                allowedSearchScope = @(
+                    "templates/task-packet-schema.json",
+                    "docs/codex/TASK_CONTRACT_V2.md",
+                    "fixture repo docs/codex/RUN_SUMMARY.md"
+                )
+                forbiddenSearchScope = @(
+                    "product repos outside the configured fixture",
+                    "canonical NWR",
+                    "normal NWR packets",
+                    "secrets/auth/payments",
+                    "push/merge/deploy/install/migration"
+                )
+                canonicalRepoInspectionAllowed = $false
+                normalNwrPacketReadsAllowed = $false
+                crossLaneComparisonAllowed = $false
+                mutationAllowed = $false
+                timApprovalRequiredForScopeExpansion = $true
+            }
+            existingAssetTrace = [pscustomobject]@{
+                searchedLocations = @(
+                    "templates/task-packet-schema.json",
+                    "docs/codex/TASK_CONTRACT_V2.md",
+                    "fixture repo docs/codex/RUN_SUMMARY.md"
+                )
+                matchingFilesOrFolders = @(
+                    "templates/task-packet-schema.json",
+                    "docs/codex/TASK_CONTRACT_V2.md"
+                )
+                relevantExistingArtifacts = @(
+                    "Task packet schema and Task Contract V2 define the existing intake path."
+                )
+                classification = "not_found"
+                reuseDecision = "NEW_BUILD_ALLOWED"
+                whyNewBuildIsOrIsNotAllowed = "The fixture proof note is not present in the allowed fixture docs, and the bounded docs/codex task is allowed by the packet trace."
+                restrictedScopeExclusions = @(
+                    "product repos outside the configured fixture",
+                    "canonical NWR",
+                    "normal NWR packets",
+                    "secrets/auth/payments",
+                    "push/merge/deploy/install/migration"
+                )
+            }
+            reuseDecision = "NEW_BUILD_ALLOWED"
+            buildPermission = [pscustomobject]@{
+                newBuildAllowed = $true
+                whyNewBuildIsOrIsNotAllowed = "The trace proves the fixture proof note is absent inside the allowed scope and keeps the action bounded to docs/codex."
+            }
+            scopeExpansionRule = "Return TIM_REQUIRED_SCOPE_EXPANSION before reading forbidden materials."
+        }
         $packetId = "packet-valid-" + [guid]::NewGuid().ToString("N")
         $packetPath = Join-Path $goldenRoot "valid-packet.json"
         [pscustomobject]@{
@@ -7521,6 +7573,7 @@ function Test-GoldenGameplanStageOneToFourSupport {
             generatedAt = (Get-Date).ToUniversalTime().ToString("o")
             project = "GoldenFixture"
             baseCommit = $head
+            phase0Gate = $validPhase0Gate
             tasks = @([pscustomobject]@{ id = "task-1"; title = "Add proof note"; checklistLine = $validTask })
         } | ConvertTo-Json -Depth 8 | Set-Content -Path $packetPath -Encoding UTF8
         $ingestRun = Invoke-Checked -FilePath "powershell" -Arguments @(
@@ -7544,6 +7597,27 @@ function Test-GoldenGameplanStageOneToFourSupport {
         ) -TimeoutSeconds 60
         Assert-Equal -Actual $duplicateRun.ExitCode -Expected 1 -Message "Stage 4 rejects duplicate packet ID in apply mode"
 
+        $missingPhase0PacketId = "packet-missing-phase0-" + [guid]::NewGuid().ToString("N")
+        $missingPhase0PacketPath = Join-Path $goldenRoot "missing-phase0-packet.json"
+        [pscustomobject]@{
+            packetId = $missingPhase0PacketId
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            project = "GoldenFixture"
+            baseCommit = $head
+            tasks = @([pscustomobject]@{ id = "task-1"; title = "Add proof note"; checklistLine = $validTask })
+        } | ConvertTo-Json -Depth 8 | Set-Content -Path $missingPhase0PacketPath -Encoding UTF8
+        $missingPhase0Run = Invoke-Checked -FilePath "powershell" -Arguments @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $fleetRoot "ingest-task-packet.ps1"),
+            "-PacketPath", $missingPhase0PacketPath,
+            "-ConfigPath", $configPath,
+            "-Apply"
+        ) -TimeoutSeconds 60
+        Assert-Equal -Actual $missingPhase0Run.ExitCode -Expected 1 -Message "Stage 4 rejects packets missing Phase 0 gate"
+        $missingPhase0Report = Get-Content -LiteralPath (Join-Path $fleetRoot ".codex-local\packets\$missingPhase0PacketId.INGEST.json") -Raw | ConvertFrom-Json
+        Assert-True -Condition (@($missingPhase0Report.phase0GateIssues) -contains "Missing phase0Gate.") -Message "Stage 4 reports missing Phase 0 gate as the rejection reason"
+
         $badPacketId = "packet-bad-" + [guid]::NewGuid().ToString("N")
         $badPacketPath = Join-Path $goldenRoot "bad-packet.json"
         [pscustomobject]@{
@@ -7551,6 +7625,7 @@ function Test-GoldenGameplanStageOneToFourSupport {
             generatedAt = (Get-Date).ToUniversalTime().ToString("o")
             project = "GoldenFixture"
             baseCommit = "stale"
+            phase0Gate = $validPhase0Gate
             tasks = @([pscustomobject]@{ id = "bad-1"; title = "Bad"; checklistLine = "- [ ] vague task" })
         } | ConvertTo-Json -Depth 8 | Set-Content -Path $badPacketPath -Encoding UTF8
         $queueBeforeBad = Get-Content (Join-Path $repo "docs/codex/TASK_QUEUE.md") -Raw
@@ -13299,6 +13374,7 @@ function Test-HqSchemaFailClosedNegativeFixtures {
             "generatedAt",
             "project",
             "baseCommit",
+            "phase0Gate",
             "tasks"
         )
         "templates\mobile-request-schema.json" = @(
@@ -13376,6 +13452,12 @@ function Test-HqSchemaFailClosedNegativeFixtures {
     }
 
     $taskPacketSchema = Get-Content -LiteralPath (Join-Path $fleetRoot "templates\task-packet-schema.json") -Raw | ConvertFrom-Json
+    Assert-True -Condition ($taskPacketSchema.properties.PSObject.Properties.Name -contains "phase0Gate") -Message "Task packet schema defines Phase 0 gate"
+    Assert-True -Condition (@($taskPacketSchema.'$defs'.phase0Gate.required) -contains "laneScopeDeclaration") -Message "Task packet Phase 0 gate requires lane scope declaration"
+    Assert-True -Condition (@($taskPacketSchema.'$defs'.phase0Gate.required) -contains "existingAssetTrace") -Message "Task packet Phase 0 gate requires existing asset trace"
+    Assert-True -Condition (@($taskPacketSchema.'$defs'.phase0Gate.required) -contains "reuseDecision") -Message "Task packet Phase 0 gate requires reuse decision"
+    Assert-True -Condition (@($taskPacketSchema.'$defs'.buildPermission.required) -contains "whyNewBuildIsOrIsNotAllowed") -Message "Task packet Phase 0 gate requires build-permission explanation"
+    Assert-True -Condition ($taskPacketSchema.'$defs'.phase0Gate.properties.scopeExpansionRule.pattern -eq "TIM_REQUIRED_SCOPE_EXPANSION") -Message "Task packet Phase 0 gate requires forbidden-scope stop marker"
     Assert-False -Condition ([bool]$taskPacketSchema.properties.tasks.items.additionalProperties) -Message "Task packet item schema rejects unknown task fields"
     foreach ($taskField in @("id", "title", "checklistLine")) {
         Assert-True -Condition (@($taskPacketSchema.properties.tasks.items.required) -contains $taskField) -Message "Task packet item requires $taskField"
@@ -15432,6 +15514,7 @@ function Test-ThinTaskPacketSchemaAndExample {
         "mode",
         "goal",
         "stableContextCapsuleRef",
+        "phase0Gate",
         "allowedFiles",
         "readFirst",
         "acceptance",
@@ -15454,11 +15537,18 @@ function Test-ThinTaskPacketSchemaAndExample {
     Assert-Equal -Actual $statusRules.onScopeExpansion.const -Expected "mark_this_task_blocked_and_stop" -Message "Thin task packet scope expansion blocks and stops"
     Assert-Equal -Actual $statusRules.queueFile.const -Expected "docs/fleet/HQ_REPAIR_TASK_QUEUE.md" -Message "Thin task packet status updates target HQ queue"
     Assert-Equal -Actual $statusRules.oneTaskOnly.const -Expected $true -Message "Thin task packet enforces one-task-only"
+    Assert-True -Condition (@($schema.'$defs'.phase0Gate.required) -contains "laneScopeDeclaration") -Message "Thin task packet Phase 0 gate requires lane scope declaration"
+    Assert-True -Condition (@($schema.'$defs'.phase0Gate.required) -contains "existingAssetTrace") -Message "Thin task packet Phase 0 gate requires existing asset trace"
+    Assert-True -Condition (@($schema.'$defs'.phase0Gate.required) -contains "reuseDecision") -Message "Thin task packet Phase 0 gate requires reuse decision"
+    Assert-True -Condition ($schema.'$defs'.phase0Gate.properties.scopeExpansionRule.pattern -eq "TIM_REQUIRED_SCOPE_EXPANSION") -Message "Thin task packet Phase 0 gate requires forbidden-scope stop marker"
 
     Assert-Equal -Actual $example.schemaVersion -Expected 1 -Message "HQ-084 thin packet example uses schema version 1"
     Assert-Equal -Actual $example.taskId -Expected "HQ-084" -Message "HQ-084 thin packet example models HQ-084"
     Assert-Equal -Actual $example.mode -Expected "validation_only" -Message "HQ-084 thin packet example is validation-only"
     Assert-Equal -Actual $example.stableContextCapsuleRef -Expected "docs/fleet/STABLE_CONTEXT_CAPSULE.md" -Message "HQ-084 thin packet example references capsule path"
+    Assert-Equal -Actual $example.phase0Gate.reuseDecision -Expected "REUSE" -Message "HQ-084 thin packet example reuses existing allowed TSF materials"
+    Assert-Equal -Actual $example.phase0Gate.laneScopeDeclaration.canonicalRepoInspectionAllowed -Expected $false -Message "HQ-084 thin packet example forbids canonical repo inspection"
+    Assert-True -Condition ($example.phase0Gate.scopeExpansionRule -match "TIM_REQUIRED_SCOPE_EXPANSION") -Message "HQ-084 thin packet example carries scope expansion stop marker"
     Assert-True -Condition (@($example.allowedFiles) -contains "docs/fleet/HQ_REPAIR_TASK_QUEUE.md") -Message "HQ-084 thin packet includes queue file"
     Assert-True -Condition (@($example.validationCommands) -contains 'powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-fleet-tests.ps1') -Message "HQ-084 thin packet includes fleet validation command"
     Assert-Equal -Actual $example.statusUpdateRules.oneTaskOnly -Expected $true -Message "HQ-084 thin packet is one-task-only"
