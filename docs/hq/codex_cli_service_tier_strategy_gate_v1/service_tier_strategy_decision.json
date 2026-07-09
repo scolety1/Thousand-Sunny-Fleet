@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "classification": "GREEN_RETRY_WITH_SERVICE_TIER_FAST_OVERRIDE",
+  "fast_parser_help_clean": true,
+  "flex_parser_help_clean": true,
+  "why_not_flex": "Flex is parser/help-clean, but prior real execution evidence showed Unsupported service_tier: flex before worker action.",
+  "why_not_null": "Null was rejected by config parsing as an unknown service_tier variant.",
+  "why_not_ignore_user_config": "Ignoring user config previously bypassed trusted-project and Windows sandbox behavior and led to effective read-only worker execution.",
+  "why_not_remove_config_field_now": "A parser/help-clean override is available, and this gate did not approve config mutation.",
+  "recommended_next_worker_command_shape": "codex exec -c service_tier=fast --sandbox workspace-write --ephemeral --cd \"C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\" --output-last-message <scratch-output-file> --json -",
+  "requires_tim_approval_before_worker_retry": true,
+  "config_edited": false,
+  "danger_full_access_needed": false,
+  "worker_execution_invoked": false
+}

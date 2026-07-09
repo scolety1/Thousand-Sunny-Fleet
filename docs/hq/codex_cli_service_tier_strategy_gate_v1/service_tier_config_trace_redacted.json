@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "config_path": "C:\\Users\\codex-agent\\.codex\\config.toml",
+  "secret_values_printed": false,
+  "auth_files_read": false,
+  "api_keys_or_tokens_read": false,
+  "credentials_read": false,
+  "account_ids_read": false,
+  "endpoints_read": false,
+  "relevant_keys": {
+    "top_level_service_tier": "\"flex\"",
+    "tsf_project_trust": {
+      "path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+      "trust_level": "\"trusted\""
+    },
+    "windows_sandbox": {
+      "sandbox": "\"elevated\""
+    }
+  },
+  "interpretation": [
+    "Normal user config should be preserved because it carries TSF project trust and Windows sandbox behavior.",
+    "The existing service_tier value remains flex.",
+    "The next retry should override only service_tier to fast rather than editing config in this gate."
+  ]
+}
