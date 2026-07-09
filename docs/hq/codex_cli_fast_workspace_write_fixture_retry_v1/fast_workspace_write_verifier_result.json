@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "mission_id": "tsf-fast-workspace-write-fixture-worker-20260709",
+  "verdict": "GREEN",
+  "final_state": "complete_green",
+  "verified": true,
+  "checks_summary": [
+    {
+      "name": "postrun.mission_id",
+      "status": "PASS",
+      "message": "Worker result mission_id matches mission packet."
+    },
+    {
+      "name": "postrun.artifact.exists",
+      "status": "PASS",
+      "message": "Expected artifact exists."
+    },
+    {
+      "name": "postrun.expected_artifact_claimed",
+      "status": "PASS",
+      "message": "Worker result claims expected artifact."
+    },
+    {
+      "name": "postrun.restricted_actions",
+      "status": "PASS",
+      "message": "No restricted actions attempted in worker result evidence."
+    },
+    {
+      "name": "postrun.allowed_write_scope",
+      "status": "PASS",
+      "message": "Touched file is inside allowed_writes."
+    },
+    {
+      "name": "postrun.files_touched",
+      "status": "PASS",
+      "message": "Worker provided touched-file evidence."
+    },
+    {
+      "name": "postrun.worker_role",
+      "status": "PASS",
+      "message": "Worker result role matches mission role."
+    },
+    {
+      "name": "postrun.role_output_contract",
+      "status": "PASS",
+      "message": "Worker result claims role output contract was satisfied."
+    }
+  ],
+  "blocked_reasons": [],
+  "warnings": [],
+  "guardrails": {
+    "background_runner_started": false,
+    "all_fleet_started": false,
+    "product_repos_mutated": false,
+    "canonical_nwr_mutated": false,
+    "push_merge_deploy_attempted": false
+  }
+}
