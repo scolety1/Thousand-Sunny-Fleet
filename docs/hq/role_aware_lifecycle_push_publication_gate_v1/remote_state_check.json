@@ -1,0 +1,18 @@
+{
+  "remote": "origin",
+  "remote_url": "https://github.com/scolety1/Thousand-Sunny-Fleet.git",
+  "target_branch": "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+  "remote_branch_exists": true,
+  "remote_head_before_push": "7e72e3a226d3628a7e8b6d275fa70e4b9c2398a3",
+  "local_head_before_packet_commit": "fb9ca6d0cf961a90ec9973f5da525a65384408f3",
+  "remote_is_ancestor_of_local": true,
+  "local_is_ancestor_of_remote": false,
+  "force_push_required": false,
+  "divergence_detected": false,
+  "safe_to_push_if_validations_pass": true,
+  "remote_check_method": [
+    "git ls-remote --heads origin work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+    "git fetch --no-tags origin refs/heads/work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708:refs/remotes/origin/work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+    "git merge-base --is-ancestor"
+  ]
+}
