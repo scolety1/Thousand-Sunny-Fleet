@@ -1,0 +1,36 @@
+{
+  "schema_version": "project_main_bot_self_continuation_policy_v1",
+  "default_mode": "foreground_dry_run_only",
+  "allowed_decisions": [
+    "choose_worker_role",
+    "create_mission_draft",
+    "run_dry_run_lifecycle",
+    "call_tester_or_auditor_dry_run",
+    "retry_once_after_recoverable_local_failure",
+    "preserve_and_stop",
+    "update_context_capsule",
+    "create_local_commit_after_validation",
+    "classify_green_yellow_red_tim_required"
+  ],
+  "requires_tim": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets_or_credentials",
+    "product_repo_access_or_mutation",
+    "canonical_nwr_access_or_mutation",
+    "chatgpt_openai_api",
+    "paid_external_api",
+    "background_runner",
+    "all_fleet",
+    "broad_parallel_worker_execution",
+    "source_truth_ranking_model_promotion",
+    "app_wiring"
+  ],
+  "max_retries_per_mission": 1,
+  "worker_execution_default": "dry_run_only",
+  "codex_cli_worker_execution_allowed": false,
+  "api_allowed": false
+}

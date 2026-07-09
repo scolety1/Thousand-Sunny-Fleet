@@ -1,0 +1,27 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "require_true_lanes": true,
+  "requested_actions": [
+    "dry_run_validate"
+  ],
+  "lanes": [
+    {
+      "lane_id": "lane_a",
+      "codex_agent_id": "codex-agent-shared",
+      "branch": "work/lane-a-20260709",
+      "worktree_path": "C:\\TSF_WORKTREES\\shared",
+      "owned_files": [
+        "docs/hq/colliding.md"
+      ]
+    },
+    {
+      "lane_id": "lane_b",
+      "codex_agent_id": "codex-agent-shared",
+      "branch": "work/lane-b-20260709",
+      "worktree_path": "C:\\TSF_WORKTREES\\shared",
+      "owned_files": [
+        "docs/hq/colliding.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "redaction_policy": "Only non-secret service_tier key was inspected and recorded.",
+  "config_path": "C:\\Users\\codex-agent\\.codex\\config.toml",
+  "before": {
+    "service_tier": "priority"
+  },
+  "after": {
+    "service_tier": "priority"
+  },
+  "changed": false
+}

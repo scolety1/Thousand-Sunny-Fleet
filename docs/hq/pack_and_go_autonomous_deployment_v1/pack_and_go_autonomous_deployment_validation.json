@@ -1,0 +1,26 @@
+{
+  "verdict": "YELLOW_TSF_PACK_AND_GO_PARTIAL_CODEX_CLI_BLOCKED",
+  "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "starting_branch": "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+  "starting_head": "f5e9d986100311686203e2135c8bdce56ab3246b",
+  "deployment_branch": "work/tsf-pack-and-go-autonomous-deployment-v1-20260709",
+  "branch_base": "origin/main",
+  "branch_base_head": "4217efb4fda6965ac280335d9575f4cf46408ba4",
+  "codex_cli_config_gate": "YELLOW_NOT_EDITED_SERVICE_TIER_PRIORITY",
+  "codex_cli_worker_execution_invoked": false,
+  "fixture_worker_pilot": "SKIPPED_CONFIG_GATE_NOT_GREEN",
+  "main_bot_self_continuation": "CREATED",
+  "mission_queue": "CREATED",
+  "parallel_lane_coordinator": "DRY_RUN_CREATED",
+  "operator_console_skeleton_decision": "CREATED_READ_ONLY_FIRST",
+  "hq_api_cost_guardrail": "CREATED_NO_API_CALLED",
+  "api_called": false,
+  "background_runners_started": false,
+  "push_merge_deploy_attempted": false,
+  "install_migration_secrets_privatelens_all_fleet": false,
+  "product_repos_mutated": false,
+  "canonical_nwr_mutated": false,
+  "stop_conditions_hit": [
+    "CODEX_CLI_FIXTURE_PILOT_SKIPPED_CONFIG_GATE_NOT_GREEN"
+  ]
+}

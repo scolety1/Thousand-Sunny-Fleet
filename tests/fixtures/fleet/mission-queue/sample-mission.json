@@ -1,0 +1,6 @@
+{
+  "mission_id": "mission-queue-sample-001",
+  "project_id": "thousand-sunny-fleet",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "mission_type": "tsf_infrastructure"
+}

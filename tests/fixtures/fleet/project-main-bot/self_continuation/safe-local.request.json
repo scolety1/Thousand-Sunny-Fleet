@@ -1,0 +1,23 @@
+{
+  "case_id": "self-continuation-safe-local",
+  "project_id": "thousand-sunny-fleet",
+  "natural_request": "Audit this local TSF control-plane packet and write a bounded review note.",
+  "requested_goal": "Audit a local TSF packet",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "proposed_worker_role": "auditor_worker",
+  "allowed_reads": [
+    "docs/hq",
+    "fleet/control"
+  ],
+  "allowed_writes": [
+    "docs/hq/pack_and_go_autonomous_deployment_v1/main_bot_self_continuation"
+  ],
+  "forbidden_actions": [],
+  "expected_artifacts": [
+    "docs/hq/pack_and_go_autonomous_deployment_v1/main_bot_self_continuation/self-continuation-audit.md"
+  ],
+  "stop_conditions": [
+    "scope_gate|approval_required|Stop if the request crosses the approved local TSF scope."
+  ],
+  "approval_requirements": []
+}

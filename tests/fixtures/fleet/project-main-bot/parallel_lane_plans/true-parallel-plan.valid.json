@@ -1,0 +1,31 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "require_true_lanes": true,
+  "requested_actions": [
+    "dry_run_validate"
+  ],
+  "lanes": [
+    {
+      "lane_id": "docs_lane",
+      "codex_agent_id": "codex-agent-docs-001",
+      "branch": "work/docs-lane-20260709",
+      "worktree_path": "C:\\TSF_WORKTREES\\docs-lane-20260709",
+      "owned_files": [
+        "docs/hq/example-docs-lane.md"
+      ],
+      "checkpoint_policy": "local_commit_after_validation",
+      "merge_recommendation_rule": "recommend_only_after_green"
+    },
+    {
+      "lane_id": "tests_lane",
+      "codex_agent_id": "codex-agent-tests-001",
+      "branch": "work/tests-lane-20260709",
+      "worktree_path": "C:\\TSF_WORKTREES\\tests-lane-20260709",
+      "owned_files": [
+        "tests/fixtures/fleet/example-tests-lane.json"
+      ],
+      "checkpoint_policy": "local_commit_after_validation",
+      "merge_recommendation_rule": "recommend_only_after_green"
+    }
+  ]
+}

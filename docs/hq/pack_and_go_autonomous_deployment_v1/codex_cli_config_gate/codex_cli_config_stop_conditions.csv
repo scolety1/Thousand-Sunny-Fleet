@@ -1,0 +1,7 @@
+"stop_condition","status","notes"
+"config_path_unclear","not_hit","Local config path was identified."
+"service_tier_default_to_flex_or_fast_possible","not_hit","Current value was priority, not default."
+"auth_or_credentials_needed","not_hit","No auth or credential changes were attempted."
+"secrets_inspection_needed","not_hit","Only service_tier was inspected."
+"codex_worker_execution_safe","not_hit","Real worker pilot skipped because config gate was not GREEN."
+"tim_required_for_config_mutation","hit_for_future","Changing priority to another value requires a separate exact approval."
