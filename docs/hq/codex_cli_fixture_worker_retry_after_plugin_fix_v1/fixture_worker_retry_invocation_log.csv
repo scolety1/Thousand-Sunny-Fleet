@@ -1,0 +1,2 @@
+order,invocation_type,command,service_tier,exit_status,exit_code,timed_out,output_summary,second_invocation_run
+1,codex_exec_worker_attempt,"codex exec --ephemeral --cd <TSF repo> --sandbox workspace-write --output-last-message <scratch> --json -",flex,nonzero,1,false,"Unsupported service_tier: flex; no final worker message; no expected artifact",false

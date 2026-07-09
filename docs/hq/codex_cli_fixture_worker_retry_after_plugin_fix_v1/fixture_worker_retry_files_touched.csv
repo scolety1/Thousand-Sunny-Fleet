@@ -1,0 +1,2 @@
+path,source,classification,allowed,notes
+"(none)","git status after worker before review packet","NO_FILES_TOUCHED",true,"Worker exited before creating or modifying repo files"
