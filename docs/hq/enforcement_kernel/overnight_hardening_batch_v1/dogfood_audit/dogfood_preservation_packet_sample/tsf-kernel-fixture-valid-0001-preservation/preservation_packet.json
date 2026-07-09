@@ -1,0 +1,38 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-08T02:08:51.7505370-06:00",
+    "mission_id":  "tsf-kernel-fixture-valid-0001",
+    "final_decision":  "GREEN",
+    "mission_packet":  "mission_packet.json",
+    "preflight_result":  "preflight_result.json",
+    "worker_result_or_instruction":  "worker_result_or_instruction.json",
+    "verifier_result":  "verifier_result.json",
+    "expected_artifacts":  [
+                               "expected/fixture-artifact.txt"
+                           ],
+    "stop_conditions":  [
+                            {
+                                "id":  "missing-required-artifact",
+                                "check_type":  "artifact_exists",
+                                "description":  "Stop if an expected artifact is missing."
+                            },
+                            {
+                                "id":  "git-status-not-captured",
+                                "check_type":  "git_status_captured",
+                                "description":  "Stop if branch and status cannot be captured."
+                            },
+                            {
+                                "id":  "forbidden-action-attempted",
+                                "check_type":  "forbidden_action_absent",
+                                "description":  "Stop if a restricted action is attempted."
+                            }
+                        ],
+    "exact_next_action":  "Dogfood preservation packet complete; use kernel mission packets for future TSF-governed work.",
+    "restricted_action_confirmation":  {
+                                           "background_runner_started":  false,
+                                           "all_fleet_started":  false,
+                                           "product_repos_mutated":  false,
+                                           "canonical_nwr_mutated":  false,
+                                           "push_merge_deploy_attempted":  false
+                                       }
+}

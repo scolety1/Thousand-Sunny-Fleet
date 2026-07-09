@@ -1,0 +1,58 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-08T02:30:25.6185933-06:00",
+    "mission_id":  "tsf-kernel-v2-codex-fixture-worker-pilot",
+    "mission_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\docs\\hq\\enforcement_kernel\\overnight_hardening_batch_v2\\fixture_pilot\\mission.codex-fixture-worker-pilot.json",
+    "approval_ledger_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\docs\\hq\\enforcement_kernel\\overnight_hardening_batch_v2\\fixture_pilot\\approval-ledger.codex-fixture-pilot.json",
+    "out_directory":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot",
+    "final_decision":  "RED",
+    "preflight_verdict":  "GREEN",
+    "preflight_approved":  true,
+    "worker_status":  "CODEX_CLI_NONZERO",
+    "codex_cli_detected":  true,
+    "codex_cli_invoked":  true,
+    "codex_exit_code":  1,
+    "worker_result_path":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\worker_result.json",
+    "verifier_verdict":  "RED",
+    "preservation_packet_path":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\preservation\\tsf-kernel-v2-codex-fixture-worker-pilot-preservation",
+    "events":  [
+                   {
+                       "step":  "preflight",
+                       "status":  "GREEN",
+                       "message":  "Preflight completed.",
+                       "evidence":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\preflight_result.json"
+                   },
+                   {
+                       "step":  "worker_instruction",
+                       "status":  "STUB_READY_CODEX_CLI_BLOCKED",
+                       "message":  "Worker instruction generated.",
+                       "evidence":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\worker_instruction.json"
+                   },
+                   {
+                       "step":  "worker_execution",
+                       "status":  "CODEX_CLI_NONZERO",
+                       "message":  "Fixture worker step completed or blocked.",
+                       "evidence":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\codex_worker_events.jsonl"
+                   },
+                   {
+                       "step":  "postrun_verify",
+                       "status":  "RED",
+                       "message":  "Post-run verifier completed.",
+                       "evidence":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\verifier_result.json"
+                   },
+                   {
+                       "step":  "preserve",
+                       "status":  "RED",
+                       "message":  "Preservation packet written.",
+                       "evidence":  ".\\.codex-local\\mission-lifecycle\\tsf-kernel-v2-codex-fixture-worker-pilot\\preservation\\tsf-kernel-v2-codex-fixture-worker-pilot-preservation"
+                   }
+               ],
+    "blocked_reasons":  [
+                            "Codex CLI fixture pilot exited nonzero: 1"
+                        ],
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}

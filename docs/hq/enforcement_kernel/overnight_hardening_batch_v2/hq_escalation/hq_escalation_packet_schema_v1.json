@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TSF HQ Escalation Packet V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_id",
+    "created_at",
+    "mission_summary",
+    "preflight_result",
+    "verifier_result",
+    "blocker_register",
+    "changed_files_summary",
+    "evidence_snippets",
+    "exact_decision_requested",
+    "allowed_verdicts",
+    "required_json_response_shape"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "mission_summary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "preflight_result": { "type": "object" },
+    "verifier_result": { "type": "object" },
+    "blocker_register": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["blocker_id", "severity", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "blocker_id": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        }
+      }
+    },
+    "changed_files_summary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file_path", "change_summary"],
+        "additionalProperties": false,
+        "properties": {
+          "file_path": { "type": "string", "minLength": 1 },
+          "change_summary": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        }
+      }
+    },
+    "evidence_snippets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "source_path", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "source_path": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 1500 }
+        }
+      }
+    },
+    "exact_decision_requested": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "allowed_verdicts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "enum": ["GREEN", "YELLOW", "RED", "TIM_REQUIRED"] },
+      "uniqueItems": true
+    },
+    "required_json_response_shape": {
+      "type": "object",
+      "required": ["verdict", "rationale", "required_tim_gate", "safe_next_action"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": { "type": "string", "enum": ["GREEN", "YELLOW", "RED", "TIM_REQUIRED"] },
+        "rationale": { "type": "string" },
+        "required_tim_gate": { "type": "string" },
+        "safe_next_action": { "type": "string" }
+      }
+    }
+  }
+}

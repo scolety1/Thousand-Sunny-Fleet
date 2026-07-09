@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "mission_id": "tsf-kernel-fixture-valid-0001",
+  "worker_status": "COMPLETED",
+  "files_touched": [
+    "unexpected/outside-allowed-write.txt"
+  ],
+  "files_created": [
+    "expected/fixture-artifact.txt"
+  ],
+  "restricted_actions_attempted": []
+}

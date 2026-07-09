@@ -1,0 +1,5 @@
+"case_id","failure_type","expected_result","observed_result","passed","evidence"
+"malformed_mission","schema_shape","RED","RED","True","C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet\.codex-local\fixtures\overnight-hardening-dogfood\preflight.invalid.json"
+"missing_approval","approval_gate","TIM_REQUIRED","TIM_REQUIRED","True","C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet\.codex-local\fixtures\overnight-hardening-dogfood\preflight.approval-blocked.json"
+"fixture_approval_not_authority","sample_ledger_non_authority","TIM_REQUIRED","TIM_REQUIRED","True","C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet\.codex-local\fixtures\overnight-hardening-dogfood\preflight.fixture-not-authority.json"
+"missing_artifact_verifier","missing_required_artifact","RED","RED","True","C:\Users\codex-agent\Documents\Vacation\Thousand-Sunny-Fleet\.codex-local\fixtures\overnight-hardening-dogfood\verifier.missing-artifact.json"

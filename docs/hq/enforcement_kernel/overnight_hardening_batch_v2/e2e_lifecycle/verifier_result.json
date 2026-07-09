@@ -1,0 +1,57 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-08T02:30:25.5965023-06:00",
+    "mission_id":  "tsf-kernel-v2-codex-fixture-worker-pilot",
+    "verdict":  "RED",
+    "final_state":  "blocked_red",
+    "verified":  false,
+    "checks":  [
+                   {
+                       "name":  "postrun.mission_id",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result mission_id matches mission packet.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.artifact.exists",
+                       "status":  "FAIL",
+                       "passed":  false,
+                       "message":  "Expected artifact is missing.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\tests\\fixtures\\fleet\\enforcement-kernel\\worker-output\\fixture_worker_result.txt"
+                   },
+                   {
+                       "name":  "postrun.expected_artifact_claimed",
+                       "status":  "FAIL",
+                       "passed":  false,
+                       "message":  "Worker result does not claim expected artifact in files_created.",
+                       "evidence":  "tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt"
+                   },
+                   {
+                       "name":  "postrun.restricted_actions",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "No restricted actions attempted in worker result evidence.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.files_touched",
+                       "status":  "WARN",
+                       "passed":  true,
+                       "message":  "Worker reported no touched files.",
+                       "evidence":  ""
+                   }
+               ],
+    "blocked_reasons":  [
+                            "Expected artifact missing: tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt",
+                            "Worker result did not claim expected artifact: tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt"
+                        ],
+    "warnings":  [
+                     "Worker reported no touched files."
+                 ],
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}

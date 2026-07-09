@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Minimum Viable Local TSF Approval Ledger V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ledger_id",
+    "approvals"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "ledger_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "approval_id",
+          "approved_by",
+          "approved_at",
+          "repo_path",
+          "lane",
+          "exact_action",
+          "allowed_files_or_paths",
+          "required_verifier",
+          "notes"
+        ],
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "approved_by": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scope_limit": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "repo_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lane": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "exact_action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "allowed_files_or_paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "required_verifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "sample_fixture_only": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "expires_at"
+            ]
+          },
+          {
+            "required": [
+              "scope_limit"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-08T02:08:51.7360094-06:00",
+    "mission_id":  "tsf-kernel-fixture-valid-0001",
+    "verdict":  "GREEN",
+    "verified":  true,
+    "checks":  [
+                   {
+                       "name":  "postrun.mission_id",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result mission_id matches mission packet.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.artifact.exists",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Expected artifact exists.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet\\.codex-local\\fixtures\\overnight-hardening-dogfood\\repo\\expected\\fixture-artifact.txt"
+                   },
+                   {
+                       "name":  "postrun.restricted_actions",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "No restricted actions attempted in worker result evidence.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.files_touched",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker provided touched-file evidence.",
+                       "evidence":  ""
+                   }
+               ],
+    "blocked_reasons":  [
+
+                        ],
+    "warnings":  [
+
+                 ],
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}

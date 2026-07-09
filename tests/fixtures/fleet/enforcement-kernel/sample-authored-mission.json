@@ -1,0 +1,79 @@
+{
+  "mission_id": "sample-authored-tsf-mission-0001",
+  "project_id": "TSF_CONTROL_PLANE",
+  "repo_path": "__REPO_PATH__",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "mission_type": "tsf_infrastructure",
+  "allowed_reads": [
+    "docs/hq/enforcement_kernel"
+  ],
+  "allowed_writes": [
+    "expected/authored-fixture-artifact.txt"
+  ],
+  "forbidden_reads": [
+    "C:/NWR/Niners-War-Room"
+  ],
+  "forbidden_writes": [
+    "C:/NWR/Niners-War-Room"
+  ],
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "privatelens",
+    "proof_run",
+    "all_fleet",
+    "background_runner",
+    "persistent_runner",
+    "canonical_nwr_inspection",
+    "canonical_nwr_mutation",
+    "normal_nwr_packet_read",
+    "product_repo_inspection",
+    "product_repo_mutation",
+    "api_bridge",
+    "open_network_port",
+    "credential_change",
+    "app_wiring",
+    "ranking_formula_source_truth_promotion",
+    "hidden_sort",
+    "recommendation_behavior"
+  ],
+  "expected_artifacts": [
+    "expected/authored-fixture-artifact.txt"
+  ],
+  "required_preflight_checks": [
+    "schema",
+    "repo_exists",
+    "path_scope",
+    "restricted_action_coverage",
+    "git_status_capture",
+    "approval_ledger"
+  ],
+  "required_postrun_checks": [
+    "mission_id_match",
+    "expected_artifacts_exist",
+    "restricted_actions_absent",
+    "forbidden_outputs_absent"
+  ],
+  "stop_conditions": [
+    {
+      "id": "expected-artifact",
+      "check_type": "artifact_exists",
+      "description": "Expected artifact must exist after worker run."
+    }
+  ],
+  "approval_requirements": [],
+  "hq_escalation_policy": {
+    "default": "local_only_no_api",
+    "escalate_on": [
+      "RED",
+      "TIM_REQUIRED"
+    ],
+    "notes": "Sample authored mission fixture."
+  },
+  "created_by": "fixture",
+  "created_at": "2026-07-08T00:00:00Z"
+}
