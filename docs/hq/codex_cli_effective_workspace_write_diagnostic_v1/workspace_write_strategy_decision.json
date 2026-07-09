@@ -1,0 +1,32 @@
+{
+  "classification": "GREEN_RETRY_WITHOUT_IGNORE_USER_CONFIG",
+  "recommended_next_worker_retry_command_shape": "codex exec -c service_tier=null --sandbox workspace-write --ephemeral --cd <TSF repo> --output-last-message <scratch> --json -",
+  "why_not_ignore_user_config": [
+    "--ignore-user-config bypasses the invalid service_tier, but also bypasses TSF project trust and [windows] sandbox = \"elevated\".",
+    "The failed worker saw a read-only sandbox despite --sandbox workspace-write.",
+    "Normal shell could write the fixture directory, and TSF mission/approval checks passed."
+  ],
+  "why_service_tier_override": [
+    "Current user config contains service_tier = \"flex\", which previously failed during runtime.",
+    "Local help accepts -c service_tier=null with --sandbox workspace-write.",
+    "This preserves user config while overriding the known bad service-tier key without editing config."
+  ],
+  "approval_mode_flag_available": "local help exposes --full-auto but no separate named approval-mode flag",
+  "full_auto_recommended_now": false,
+  "full_auto_reason": "Do not expand beyond the narrower config-preserving service-tier override until that path is tried or disproven.",
+  "danger_full_access_recommended": false,
+  "temporary_sanitized_config_recommended": false,
+  "temporary_sanitized_config_reason": "A command-line service_tier override is narrower than creating or swapping config files.",
+  "config_edit_recommended": false,
+  "tim_approval_required_before_worker_retry": true,
+  "worker_retry_cap": "one foreground fixture-only codex exec invocation maximum",
+  "guardrails": [
+    "no danger-full-access",
+    "no product repo mutation",
+    "no canonical NWR mutation",
+    "no API call",
+    "no push or merge",
+    "no background runner",
+    "fixture output path only"
+  ]
+}

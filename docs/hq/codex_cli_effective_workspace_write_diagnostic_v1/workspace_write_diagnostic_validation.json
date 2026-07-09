@@ -1,0 +1,40 @@
+{
+  "verdict": "GREEN_WORKSPACE_WRITE_STRATEGY_READY_FOR_FIXTURE_RETRY",
+  "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "branch": "work/tsf-pack-and-go-autonomous-deployment-v1-20260709",
+  "starting_head": "ee662687d8f71288fd495255d46a7e4d06c66cf1",
+  "diagnostic_packet_path": "docs/hq/codex_cli_effective_workspace_write_diagnostic_v1/",
+  "exact_failed_command_inspected": true,
+  "effective_read_only_cause": "Using --ignore-user-config bypassed local trusted-project and Windows sandbox config, including [windows] sandbox = \"elevated\".",
+  "recommended_next_strategy": "GREEN_RETRY_WITHOUT_IGNORE_USER_CONFIG",
+  "recommended_command_shape": "codex exec -c service_tier=null --sandbox workspace-write --ephemeral --cd <TSF repo> --output-last-message <scratch> --json -",
+  "config_edited": false,
+  "codex_worker_execution_invoked": false,
+  "danger_full_access_used": false,
+  "api_called": false,
+  "background_runners_started": false,
+  "push_performed": false,
+  "merge_performed": false,
+  "deploy_install_migration_secrets_privatelens_all_fleet": false,
+  "product_repos_mutated": false,
+  "canonical_nwr_mutated": false,
+  "normal_nwr_packets_read": false,
+  "validation": {
+    "json_parse": "PASS",
+    "csv_import": "PASS",
+    "markdown_artifacts": "PASS",
+    "powershell_parser_checks": "not_applicable_no_scripts_changed",
+    "focused_tsf_tests": {
+      "tests/run-minimum-viable-kernel-tests.ps1": "PASS",
+      "tests/run-tsf-kernel-v2-tests.ps1": "PASS",
+      "tests/run-project-main-bot-role-foundation-tests.ps1": "PASS",
+      "tests/run-role-aware-lifecycle-integration-tests.ps1": "PASS",
+      "tests/run-tsf-main-bot-self-continuation-tests.ps1": "PASS",
+      "tests/run-tsf-mission-queue-tests.ps1": "PASS",
+      "tests/run-tsf-parallel-lane-dry-run-tests.ps1": "PASS"
+    },
+    "git_diff_check": "PASS",
+    "git_diff_cached_check": "PASS"
+  },
+  "stop_conditions_hit": []
+}

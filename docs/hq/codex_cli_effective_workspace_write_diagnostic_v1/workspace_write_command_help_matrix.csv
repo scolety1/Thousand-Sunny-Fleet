@@ -1,0 +1,9 @@
+command_name,command_shape,exit_code,stderr_present,local_help_finding,diagnostic_result
+"normal_exec_help","codex exec --help",0,false,"Shows exec options including --sandbox, --cd, --add-dir, --profile, --config, --full-auto, --ignore-user-config.","PASS"
+"ignore_user_config_workspace_write_help","codex exec --ignore-user-config --sandbox workspace-write --help",0,false,"Parses successfully; confirms syntax is accepted.","PASS"
+"ignore_user_config_full_auto_help","codex exec --ignore-user-config --full-auto --help",0,false,"Parses successfully; --full-auto is exposed as low-friction sandboxed automatic execution.","PASS"
+"normal_config_service_tier_null_workspace_write_help","codex exec -c service_tier=null --sandbox workspace-write --help",0,false,"Parses successfully; candidate next strategy to preserve user config while overriding bad service_tier.","PASS"
+"normal_config_service_tier_empty_workspace_write_help","codex exec -c service_tier=\"\" --sandbox workspace-write --help",0,false,"Parses successfully but empty service_tier runtime behavior is unknown.","PASS_WITH_CAVEAT"
+"ignore_user_config_config_sandbox_workspace_write_help","codex exec --ignore-user-config -c sandbox=\"workspace-write\" --help",0,false,"Parses successfully but still ignores project trust and Windows sandbox config.","PASS_WITH_CAVEAT"
+"ignore_user_config_config_approval_never_help","codex exec --ignore-user-config -c approval_policy=\"never\" --help",0,false,"Parses successfully but does not address missing trusted/elevated Windows sandbox config.","PASS_WITH_CAVEAT"
+"ignore_user_config_config_approval_on_request_help","codex exec --ignore-user-config -c approval_policy=\"on-request\" --help",0,false,"Parses successfully but a non-interactive worker cannot rely on approval prompts.","PASS_WITH_CAVEAT"

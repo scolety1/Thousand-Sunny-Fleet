@@ -1,0 +1,11 @@
+stop_condition,status,evidence,action
+"branch_containment_failed",not_hit,"Branch and HEAD matched expected state.","continued"
+"worker_retry_required",not_hit,"No prompt-bearing codex exec worker task was run.","continued"
+"danger_full_access_required",not_hit,"A safer config-preserving command shape exists; danger-full-access is not recommended.","continued"
+"config_edit_required",not_hit,"No config edit was performed or recommended before the next retry.","continued"
+"auth_or_secret_inspection_required",not_hit,"Only non-secret config keys related to project trust, Windows sandbox, model, and service_tier were inspected.","continued"
+"project_rules_forced_read_only",not_hit,"No TSF AGENTS.md, .rules, *.rules, execpolicy, or exec-policy files found.","continued"
+"normal_shell_cannot_write_fixture_dir",not_hit,"Normal shell temp create/remove probe passed in fixture output directory.","continued"
+"tsf_permission_mismatch",not_hit,"Mission, approval ledger, kernel preflight, and role preflight all allowed the exact fixture path.","continued"
+"product_repo_or_canonical_nwr_required",not_hit,"No product repo or canonical NWR mutation was needed.","continued"
+"api_or_background_runner_required",not_hit,"No API call or background runner was needed.","continued"
