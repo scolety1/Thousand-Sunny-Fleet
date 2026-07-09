@@ -1,0 +1,8 @@
+"step_order","step","input","output","fail_closed"
+"1","translator_intake","Tim-style request","mission draft","yes"
+"2","kernel_preflight","effective mission packet","GREEN/YELLOW/RED/TIM_REQUIRED","yes"
+"3","role_permission_preflight","role extension and permission profile","GREEN/RED/TIM_REQUIRED","yes"
+"4","approval_ledger","approval requirements","matched or blocked","yes"
+"5","worker_instruction","approved mission","dry-run instruction packet","yes"
+"6","verifier","worker result evidence","GREEN/YELLOW/RED","yes"
+"7","preservation_context","results","packet and context update","yes"

@@ -1,0 +1,6 @@
+﻿{
+    "expected":  "NEEDS_MAIN_BOT_REVIEW",
+    "worker":  "organizer_worker",
+    "id":  "cleanup_request",
+    "text":  "Clean up duplicate TSF status docs without touching product repos."
+}

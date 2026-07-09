@@ -24,6 +24,11 @@ $fleetRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $fleetRoot "tools\codex-fleet-enforcement-kernel.ps1")
 . (Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1")
 
+function Test-LifecycleProperty {
+    param([object]$Value, [string]$Name)
+    return ($null -ne $Value -and $Value.PSObject.Properties.Name -contains $Name)
+}
+
 function New-LifecycleEvent {
     param(
         [string]$Step,
@@ -121,7 +126,15 @@ function Test-LifecycleFixturePilotMission {
     return @($reasons)
 }
 
-$mission = Read-TsfKernelJson -Path $MissionPath
+$inputDocument = Read-TsfKernelJson -Path $MissionPath
+$mission = if (Test-LifecycleProperty -Value $inputDocument -Name "mission_packet") { $inputDocument.mission_packet } else { $inputDocument }
+$roleExtension = if (Test-LifecycleProperty -Value $inputDocument -Name "role_extension") {
+    $inputDocument.role_extension
+} elseif (Test-LifecycleProperty -Value $mission -Name "role_extension") {
+    $mission.role_extension
+} else {
+    $null
+}
 $missionId = [string]$mission.mission_id
 if ([string]::IsNullOrWhiteSpace($OutDirectory)) {
     $safeMissionId = $missionId -replace "[^A-Za-z0-9._:-]", "_"
@@ -136,16 +149,28 @@ if ([string]::IsNullOrWhiteSpace($OutFile)) {
 
 New-Item -ItemType Directory -Force -Path $OutDirectory | Out-Null
 $events = [System.Collections.Generic.List[object]]::new()
+$effectiveMissionPath = $MissionPath
+$rolePreflightPath = Join-Path $OutDirectory "role_permission_preflight.json"
 $workerResultPath = Join-Path $OutDirectory "worker_result.json"
 $preflightPath = Join-Path $OutDirectory "preflight_result.json"
 $workerInstructionPath = Join-Path $OutDirectory "worker_instruction.json"
 $verifierPath = Join-Path $OutDirectory "verifier_result.json"
 $preservationRoot = Join-Path $OutDirectory "preservation"
 
-$preflight = Invoke-TsfKernelPreflight -MissionPath $MissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $preflightPath -StateRoot $StateRoot
+if (Test-LifecycleProperty -Value $inputDocument -Name "mission_packet") {
+    if ($null -ne $roleExtension -and !(Test-LifecycleProperty -Value $mission -Name "role_extension")) {
+        $mission | Add-Member -NotePropertyName "role_extension" -NotePropertyValue $roleExtension -Force
+    }
+    $effectiveMissionPath = Join-Path $OutDirectory "mission_packet.effective.json"
+    Write-TsfKernelJson -Value $mission -Path $effectiveMissionPath
+    $events.Add((New-LifecycleEvent -Step "mission_normalize" -Status "PASS" -Message "Project Main Bot draft normalized to mission packet for kernel lifecycle." -Evidence $effectiveMissionPath)) | Out-Null
+}
+
+$preflight = Invoke-TsfKernelPreflight -MissionPath $effectiveMissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $preflightPath -StateRoot $StateRoot
 $events.Add((New-LifecycleEvent -Step "preflight" -Status ([string]$preflight.verdict) -Message "Preflight completed." -Evidence $preflightPath)) | Out-Null
 
 $workerInstruction = $null
+$rolePreflight = $null
 $verifier = $null
 $preservation = $null
 $workerStatus = "NOT_RUN_DRY_RUN"
@@ -157,44 +182,68 @@ $workerFilesTouched = @()
 $workerFilesCreated = @()
 $unexpectedTouched = @()
 $blockedReasons = [System.Collections.Generic.List[string]]::new()
+$rolePreflightApproved = $true
+$rolePreflightVerdict = "NOT_REQUIRED"
+$requiresRolePreflight = $false
+if ($null -ne $roleExtension) {
+    $requiresRolePreflight = $true
+}
+if (@(ConvertTo-TsfKernelArray -Value $mission.required_preflight_checks | Where-Object { [string]$_ -eq "worker_role_permission" }).Count -gt 0) {
+    $requiresRolePreflight = $true
+}
 
 if (!([bool]$preflight.preflight_approved)) {
     $blockedReasons.Add("Preflight did not approve mission.") | Out-Null
     $events.Add((New-LifecycleEvent -Step "worker_adapter" -Status "SKIPPED_PREFLIGHT_NOT_APPROVED" -Message "Worker adapter skipped because preflight failed.")) | Out-Null
 } else {
-    $workerInstruction = New-TsfKernelWorkerInstruction -MissionPath $MissionPath -PreflightResultPath $preflightPath -OutFile $workerInstructionPath -StateRoot $StateRoot
-    $events.Add((New-LifecycleEvent -Step "worker_instruction" -Status ([string]$workerInstruction.adapter_status) -Message "Worker instruction generated." -Evidence $workerInstructionPath)) | Out-Null
+    if ($requiresRolePreflight) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "tools\Test-TsfWorkerRolePermission.ps1") -MissionDraftPath $effectiveMissionPath -OutFile $rolePreflightPath | Out-Null
+        $rolePreflight = Read-TsfKernelJson -Path $rolePreflightPath
+        $rolePreflightVerdict = [string]$rolePreflight.verdict
+        $rolePreflightApproved = [bool]$rolePreflight.role_preflight_approved
+        $events.Add((New-LifecycleEvent -Step "worker_role_permission" -Status $rolePreflightVerdict -Message "Role-aware permission preflight completed." -Evidence $rolePreflightPath)) | Out-Null
+        if (!$rolePreflightApproved) {
+            foreach ($reason in @(ConvertTo-TsfKernelArray -Value $rolePreflight.blocked_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
+            foreach ($reason in @(ConvertTo-TsfKernelArray -Value $rolePreflight.tim_required_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
+            $workerStatus = if ($rolePreflightVerdict -eq "TIM_REQUIRED") { "TIM_REQUIRED_ROLE_PERMISSION" } else { "BLOCKED_ROLE_PERMISSION" }
+            $events.Add((New-LifecycleEvent -Step "worker_adapter" -Status "SKIPPED_ROLE_PERMISSION_NOT_APPROVED" -Message "Worker instruction generation skipped because role permission failed.")) | Out-Null
+        }
+    }
 
-    if (!$RunApprovedFixtureWorker) {
-        $events.Add((New-LifecycleEvent -Step "worker_execution" -Status "DRY_RUN_NO_WORKER" -Message "Default lifecycle mode does not invoke a worker.")) | Out-Null
-        $workerStatus = "DRY_RUN_NO_WORKER"
-    } else {
-        $fixtureErrors = @(Test-LifecycleFixturePilotMission -Mission $mission -Preflight $preflight)
-        if ($fixtureErrors.Count -gt 0) {
-            foreach ($reason in $fixtureErrors) { $blockedReasons.Add($reason) | Out-Null }
-            $workerStatus = "BLOCKED_FIXTURE_SAFETY_CHECK_FAILED"
-            $events.Add((New-LifecycleEvent -Step "fixture_safety" -Status $workerStatus -Message ($fixtureErrors -join "; "))) | Out-Null
+    if ($rolePreflightApproved) {
+        $workerInstruction = New-TsfKernelWorkerInstruction -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -OutFile $workerInstructionPath -StateRoot $StateRoot
+        $events.Add((New-LifecycleEvent -Step "worker_instruction" -Status ([string]$workerInstruction.adapter_status) -Message "Worker instruction generated." -Evidence $workerInstructionPath)) | Out-Null
+
+        if (!$RunApprovedFixtureWorker) {
+            $events.Add((New-LifecycleEvent -Step "worker_execution" -Status "DRY_RUN_NO_WORKER" -Message "Default lifecycle mode does not invoke a worker.")) | Out-Null
+            $workerStatus = "DRY_RUN_NO_WORKER"
         } else {
-            $codexCommand = Get-Command "codex" -ErrorAction SilentlyContinue
-            $codexCliDetected = ($null -ne $codexCommand)
-            if (!$codexCliDetected) {
-                $blockedReasons.Add("Codex CLI was not detected.") | Out-Null
-                $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
+            $fixtureErrors = @(Test-LifecycleFixturePilotMission -Mission $mission -Preflight $preflight)
+            if ($fixtureErrors.Count -gt 0) {
+                foreach ($reason in $fixtureErrors) { $blockedReasons.Add($reason) | Out-Null }
+                $workerStatus = "BLOCKED_FIXTURE_SAFETY_CHECK_FAILED"
+                $events.Add((New-LifecycleEvent -Step "fixture_safety" -Status $workerStatus -Message ($fixtureErrors -join "; "))) | Out-Null
             } else {
-                $versionOutput = @(codex --version 2>&1)
-                if ($LASTEXITCODE -ne 0) {
-                    $blockedReasons.Add("Codex CLI version check failed: $($versionOutput -join ' ')") | Out-Null
+                $codexCommand = Get-Command "codex" -ErrorAction SilentlyContinue
+                $codexCliDetected = ($null -ne $codexCommand)
+                if (!$codexCliDetected) {
+                    $blockedReasons.Add("Codex CLI was not detected.") | Out-Null
                     $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
                 } else {
-                    $repoPath = Get-TsfKernelFullPath -Path ([string]$mission.repo_path)
-                    $statusBefore = @(Get-LifecycleRelativeGitStatusPaths -RepoPath $repoPath)
-                    if ($statusBefore.Count -gt 0) {
-                        $blockedReasons.Add("Fixture pilot requires clean TSF repo status before worker invocation.") | Out-Null
-                        $workerStatus = "BLOCKED_DIRTY_REPO_BEFORE_WORKER"
+                    $versionOutput = @(codex --version 2>&1)
+                    if ($LASTEXITCODE -ne 0) {
+                        $blockedReasons.Add("Codex CLI version check failed: $($versionOutput -join ' ')") | Out-Null
+                        $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
                     } else {
-                        $expectedArtifact = "tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt"
-                        $expectedFull = Get-TsfKernelFullPath -Path $expectedArtifact -BasePath $repoPath
-                        $prompt = @"
+                        $repoPath = Get-TsfKernelFullPath -Path ([string]$mission.repo_path)
+                        $statusBefore = @(Get-LifecycleRelativeGitStatusPaths -RepoPath $repoPath)
+                        if ($statusBefore.Count -gt 0) {
+                            $blockedReasons.Add("Fixture pilot requires clean TSF repo status before worker invocation.") | Out-Null
+                            $workerStatus = "BLOCKED_DIRTY_REPO_BEFORE_WORKER"
+                        } else {
+                            $expectedArtifact = "tests/fixtures/fleet/enforcement-kernel/worker-output/fixture_worker_result.txt"
+                            $expectedFull = Get-TsfKernelFullPath -Path $expectedArtifact -BasePath $repoPath
+                            $prompt = @"
 You are a foreground TSF fixture worker.
 
 Within the current TSF repo, create exactly this one file:
@@ -210,49 +259,50 @@ Do not read normal NWR packets.
 Do not run installs, package managers, migrations, deploys, push, merge, all-fleet commands, servers, background processes, or network-port commands.
 Return a concise status after the file is written.
 "@
-                        $lastMessagePath = Join-Path $OutDirectory "codex_worker_last_message.txt"
-                        $codexOutputPath = Join-Path $OutDirectory "codex_worker_events.jsonl"
-                        $codexCliInvoked = $true
-                        $codexResult = Invoke-FleetProcess -FilePath "codex" -Arguments @("exec", "--ephemeral", "--cd", $repoPath, "--sandbox", "workspace-write", "--output-last-message", $lastMessagePath, "--json", "-") -InputText $prompt -WorkingDirectory $repoPath -LogPath $codexOutputPath -TimeoutSeconds $WorkerTimeoutSeconds
-                        $codexExitCode = $codexResult.exitCode
-                        $statusAfter = @(Get-LifecycleRelativeGitStatusPaths -RepoPath $repoPath)
-                        $workerFilesTouched = @($statusAfter)
-                        if (Test-Path -LiteralPath $expectedFull) {
-                            $workerFilesCreated = @($expectedArtifact)
-                        }
-                        $unexpectedTouched = @($statusAfter | Where-Object { $_ -ne $expectedArtifact })
-                        if ($codexResult.timedOut) {
-                            $blockedReasons.Add("Codex CLI fixture pilot timed out.") | Out-Null
-                            $workerStatus = "CODEX_CLI_TIMEOUT"
-                        } elseif ($codexExitCode -ne 0) {
-                            $codexOutputText = (($codexResult.output | ForEach-Object { [string]$_ }) -join "`n")
-                            if ($codexOutputText -match "(?i)(auth|login|credential|config\.toml|service_tier|permission|approval)") {
-                                $blockedReasons.Add("Codex CLI fixture pilot requires config/auth/permission review before execution can be trusted: $($codexOutputText -replace '\s+', ' ')") | Out-Null
-                                $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
-                            } else {
-                                $blockedReasons.Add("Codex CLI fixture pilot exited nonzero: $codexExitCode") | Out-Null
-                                $workerStatus = "CODEX_CLI_NONZERO"
+                            $lastMessagePath = Join-Path $OutDirectory "codex_worker_last_message.txt"
+                            $codexOutputPath = Join-Path $OutDirectory "codex_worker_events.jsonl"
+                            $codexCliInvoked = $true
+                            $codexResult = Invoke-FleetProcess -FilePath "codex" -Arguments @("exec", "--ephemeral", "--cd", $repoPath, "--sandbox", "workspace-write", "--output-last-message", $lastMessagePath, "--json", "-") -InputText $prompt -WorkingDirectory $repoPath -LogPath $codexOutputPath -TimeoutSeconds $WorkerTimeoutSeconds
+                            $codexExitCode = $codexResult.exitCode
+                            $statusAfter = @(Get-LifecycleRelativeGitStatusPaths -RepoPath $repoPath)
+                            $workerFilesTouched = @($statusAfter)
+                            if (Test-Path -LiteralPath $expectedFull) {
+                                $workerFilesCreated = @($expectedArtifact)
                             }
-                        } elseif ($unexpectedTouched.Count -gt 0) {
-                            $blockedReasons.Add("Codex CLI touched paths outside the allowed fixture output: $($unexpectedTouched -join ', ')") | Out-Null
-                            $workerStatus = "CODEX_CLI_TOUCHED_FORBIDDEN_PATH"
-                        } elseif (!(Test-Path -LiteralPath $expectedFull)) {
-                            $blockedReasons.Add("Codex CLI did not create the expected fixture artifact.") | Out-Null
-                            $workerStatus = "CODEX_CLI_EXPECTED_ARTIFACT_MISSING"
-                        } else {
-                            $content = (Get-Content -LiteralPath $expectedFull -Raw).Trim()
-                            if ($content -ne "TSF foreground worker pilot complete.") {
-                                $blockedReasons.Add("Codex CLI created artifact with unexpected content.") | Out-Null
-                                $workerStatus = "CODEX_CLI_UNEXPECTED_ARTIFACT_CONTENT"
+                            $unexpectedTouched = @($statusAfter | Where-Object { $_ -ne $expectedArtifact })
+                            if ($codexResult.timedOut) {
+                                $blockedReasons.Add("Codex CLI fixture pilot timed out.") | Out-Null
+                                $workerStatus = "CODEX_CLI_TIMEOUT"
+                            } elseif ($codexExitCode -ne 0) {
+                                $codexOutputText = (($codexResult.output | ForEach-Object { [string]$_ }) -join "`n")
+                                if ($codexOutputText -match "(?i)(auth|login|credential|config\.toml|service_tier|permission|approval)") {
+                                    $blockedReasons.Add("Codex CLI fixture pilot requires config/auth/permission review before execution can be trusted: $($codexOutputText -replace '\s+', ' ')") | Out-Null
+                                    $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
+                                } else {
+                                    $blockedReasons.Add("Codex CLI fixture pilot exited nonzero: $codexExitCode") | Out-Null
+                                    $workerStatus = "CODEX_CLI_NONZERO"
+                                }
+                            } elseif ($unexpectedTouched.Count -gt 0) {
+                                $blockedReasons.Add("Codex CLI touched paths outside the allowed fixture output: $($unexpectedTouched -join ', ')") | Out-Null
+                                $workerStatus = "CODEX_CLI_TOUCHED_FORBIDDEN_PATH"
+                            } elseif (!(Test-Path -LiteralPath $expectedFull)) {
+                                $blockedReasons.Add("Codex CLI did not create the expected fixture artifact.") | Out-Null
+                                $workerStatus = "CODEX_CLI_EXPECTED_ARTIFACT_MISSING"
                             } else {
-                                $workerStatus = "CODEX_CLI_FIXTURE_WORKER_GREEN"
+                                $content = (Get-Content -LiteralPath $expectedFull -Raw).Trim()
+                                if ($content -ne "TSF foreground worker pilot complete.") {
+                                    $blockedReasons.Add("Codex CLI created artifact with unexpected content.") | Out-Null
+                                    $workerStatus = "CODEX_CLI_UNEXPECTED_ARTIFACT_CONTENT"
+                                } else {
+                                    $workerStatus = "CODEX_CLI_FIXTURE_WORKER_GREEN"
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            $events.Add((New-LifecycleEvent -Step "worker_execution" -Status $workerStatus -Message "Fixture worker step completed or blocked." -Evidence $codexOutputPath)) | Out-Null
+                $events.Add((New-LifecycleEvent -Step "worker_execution" -Status $workerStatus -Message "Fixture worker step completed or blocked." -Evidence $codexOutputPath)) | Out-Null
+            }
         }
     }
 }
@@ -260,6 +310,8 @@ Return a concise status after the file is written.
 $workerResult = [pscustomobject]@{
     schema_version = 1
     mission_id = $missionId
+    worker_role = if ($null -ne $roleExtension) { [string]$roleExtension.worker_role } else { "" }
+    role_output_contract_satisfied = $false
     worker_status = $workerStatus
     codex_cli_detected = $codexCliDetected
     codex_cli_invoked = $codexCliInvoked
@@ -273,7 +325,7 @@ $workerResult = [pscustomobject]@{
 Write-TsfKernelJson -Value $workerResult -Path $workerResultPath
 
 if ([bool]$preflight.preflight_approved -and $RunApprovedFixtureWorker) {
-    $verifier = Invoke-TsfKernelPostRunVerify -MissionPath $MissionPath -WorkerResultPath $workerResultPath -OutFile $verifierPath -StateRoot $StateRoot
+    $verifier = Invoke-TsfKernelPostRunVerify -MissionPath $effectiveMissionPath -WorkerResultPath $workerResultPath -OutFile $verifierPath -StateRoot $StateRoot
     $events.Add((New-LifecycleEvent -Step "postrun_verify" -Status ([string]$verifier.verdict) -Message "Post-run verifier completed." -Evidence $verifierPath)) | Out-Null
 }
 
@@ -282,7 +334,11 @@ $exactNextAction = if ($RunApprovedFixtureWorker) {
 } else {
     "Dry-run lifecycle complete. Run with -RunApprovedFixtureWorker only for the approved fixture pilot."
 }
-$preservation = Write-TsfKernelPreservationPacket -MissionPath $MissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory $preservationRoot -ExactNextAction $exactNextAction
+$preservation = Write-TsfKernelPreservationPacket -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory $preservationRoot -ExactNextAction $exactNextAction
+if ($requiresRolePreflight -and (Test-Path -LiteralPath $rolePreflightPath)) {
+    $roleCopy = Join-Path ([string]$preservation.packet_directory) "role_permission_preflight.json"
+    Copy-Item -LiteralPath $rolePreflightPath -Destination $roleCopy -Force
+}
 $events.Add((New-LifecycleEvent -Step "preserve" -Status ([string]$preservation.final_decision) -Message "Preservation packet written." -Evidence ([string]$preservation.packet_directory))) | Out-Null
 
 $finalDecision = "YELLOW"
@@ -301,11 +357,16 @@ $result = [pscustomobject]@{
     generated_at = (Get-Date).ToString("o")
     mission_id = $missionId
     mission_path = (Get-TsfKernelFullPath -Path $MissionPath)
+    effective_mission_path = (Get-TsfKernelFullPath -Path $effectiveMissionPath)
     approval_ledger_path = if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) { "" } else { Get-TsfKernelFullPath -Path $ApprovalLedgerPath }
     out_directory = (Get-TsfKernelFullPath -Path $OutDirectory)
     final_decision = $finalDecision
     preflight_verdict = [string]$preflight.verdict
     preflight_approved = [bool]$preflight.preflight_approved
+    role_preflight_required = $requiresRolePreflight
+    role_preflight_verdict = $rolePreflightVerdict
+    role_preflight_approved = $rolePreflightApproved
+    role_preflight_path = if ($requiresRolePreflight) { $rolePreflightPath } else { "" }
     worker_status = $workerStatus
     codex_cli_detected = $codexCliDetected
     codex_cli_invoked = $codexCliInvoked

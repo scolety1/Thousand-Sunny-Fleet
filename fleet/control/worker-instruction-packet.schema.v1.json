@@ -1,0 +1,74 @@
+﻿{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "title":  "TSF Worker Instruction Packet V1",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "mission_id",
+                     "worker_role",
+                     "allowed_reads",
+                     "allowed_writes",
+                     "forbidden_actions",
+                     "exact_task",
+                     "expected_artifacts",
+                     "stop_conditions",
+                     "verifier_contract",
+                     "escalation_triggers",
+                     "do_not_exceed_role_authority"
+                 ],
+    "properties":  {
+                       "mission_id":  {
+                                          "type":  "string",
+                                          "minLength":  1
+                                      },
+                       "worker_role":  {
+                                           "type":  "string",
+                                           "minLength":  1
+                                       },
+                       "allowed_reads":  {
+                                             "type":  "array",
+                                             "items":  {
+                                                           "type":  "string"
+                                                       }
+                                         },
+                       "allowed_writes":  {
+                                              "type":  "array",
+                                              "items":  {
+                                                            "type":  "string"
+                                                        }
+                                          },
+                       "forbidden_actions":  {
+                                                 "type":  "array",
+                                                 "items":  {
+                                                               "type":  "string"
+                                                           }
+                                             },
+                       "exact_task":  {
+                                          "type":  "string",
+                                          "minLength":  1
+                                      },
+                       "expected_artifacts":  {
+                                                  "type":  "array",
+                                                  "items":  {
+                                                                "type":  "string"
+                                                            }
+                                              },
+                       "stop_conditions":  {
+                                               "type":  "array"
+                                           },
+                       "verifier_contract":  {
+                                                 "type":  "string",
+                                                 "minLength":  1
+                                             },
+                       "escalation_triggers":  {
+                                                   "type":  "array",
+                                                   "items":  {
+                                                                 "type":  "string"
+                                                             }
+                                               },
+                       "do_not_exceed_role_authority":  {
+                                                            "type":  "boolean",
+                                                            "const":  true
+                                                        }
+                   }
+}

@@ -1,0 +1,1103 @@
+﻿{
+    "schema_version":  "worker_role_registry_v1",
+    "generated_from":  "docs/hq/project_main_bot_worker_system_inventory_and_adaptation_v1/worker_role_registry_v1.csv",
+    "default_posture":  "fail_closed",
+    "roles":  [
+                  {
+                      "role_id":  "project_main_bot",
+                      "role_name":  "Project Main Bot",
+                      "purpose":  "Own one project\u0027s goal, state, routing, loop prevention, and worker assignment.",
+                      "when_to_call":  "Whenever Tim starts or resumes a project lane.",
+                      "allowed_reads":  [
+                                            "TSF repo control docs",
+                                            "project registry",
+                                            "mission packets",
+                                            "project status",
+                                            "preservation packets",
+                                            "approved inbox evidence"
+                                        ],
+                      "allowed_writes":  [
+                                             "TSF mission drafts",
+                                             "routing notes",
+                                             "project-main-bot status artifacts"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "all-fleet",
+                                                "api_bridge",
+                                                "app/model/ranking/source-truth promotion",
+                                                "app_wiring",
+                                                "background runner",
+                                                "background_runner",
+                                                "canonical NWR",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal NWR packets",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "PrivateLens",
+                                                "product repo mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "One bounded mission packet or TIM_REQUIRED packet with routing rationale.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  true,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Any restricted action, product direction ambiguity, cross-lane expansion, or remote/API action."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "translator_helper_bot",
+                      "role_name":  "Translator Helper Bot",
+                      "purpose":  "Convert Tim natural language into mission intent and convert technical results back into Tim-readable summary.",
+                      "when_to_call":  "When a user request is fuzzy, broad, multi-part, or not yet structured.",
+                      "allowed_reads":  [
+                                            "Tim prompt",
+                                            "TSF control docs",
+                                            "quick mission",
+                                            "work-order inbox",
+                                            "project passports"
+                                        ],
+                      "allowed_writes":  [
+                                             "Mission intent draft",
+                                             "questions register",
+                                             "summary note"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "command execution",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets",
+                                                "treating user prose as approval"
+                                            ],
+                      "output_contract":  "Mission intent with goal, allowed scope, excluded scope, stop conditions, and exact questions if needed.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  false,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Ambiguous product direction, missing authority, or unclear project identity."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "context_memory_steward",
+                      "role_name":  "Context / Memory Steward",
+                      "purpose":  "Maintain current project memory, freshness, handoff, and source trace.",
+                      "when_to_call":  "Before mission authoring, after preservation, or when context is stale.",
+                      "allowed_reads":  [
+                                            "project passports",
+                                            "next-session cards",
+                                            "status freshness index",
+                                            "preservation packets",
+                                            "artifact index"
+                                        ],
+                      "allowed_writes":  [
+                                             "Context capsule",
+                                             "freshness note",
+                                             "do-not-rebuild register"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential access",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal NWR reads",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product repo mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets",
+                                                "source-truth promotion"
+                                            ],
+                      "output_contract":  "Freshness-scored context bundle and exclusions.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Access to product/private repos, stale/conflicting source truth, or archived reactivation."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "parallel_lane_coordinator",
+                      "role_name":  "Parallel Lane Coordinator",
+                      "purpose":  "Coordinate branch/worktree lane isolation and collision detection.",
+                      "when_to_call":  "When more than one lane or worker could touch overlapping files.",
+                      "allowed_reads":  [
+                                            "git status",
+                                            "branch metadata",
+                                            "worktree boundary records",
+                                            "mission allowed writes"
+                                        ],
+                      "allowed_writes":  [
+                                             "Lane split plan",
+                                             "collision matrix",
+                                             "branch/worktree recommendation"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "all-fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background runner",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "creating/deleting worktrees without approval",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "rebase",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Lane plan with ownership, collision result, stop signs, and merge recommendation.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  true,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Any actual worktree creation/deletion, merge, push, rebase, or conflicting scope."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "organizer_worker",
+                      "role_name":  "Organizer Worker",
+                      "purpose":  "Organize files, packets, manifests, checklists, and status surfaces.",
+                      "when_to_call":  "When evidence exists but is hard to navigate.",
+                      "allowed_reads":  [
+                                            "TSF docs",
+                                            "review packets",
+                                            "status files",
+                                            "artifact indexes"
+                                        ],
+                      "allowed_writes":  [
+                                             "TSF-local docs, manifests, indexes, status summaries"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical NWR mutation",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product repo mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Sorted index, manifest, or checklist with source trace.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Deleting, moving, or overwriting user/canonical work."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "builder_worker",
+                      "role_name":  "Builder Worker",
+                      "purpose":  "Implement bounded TSF-local infrastructure or docs/control-plane changes.",
+                      "when_to_call":  "When a mission has exact allowed writes and validation.",
+                      "allowed_reads":  [
+                                            "Allowed mission reads only"
+                                        ],
+                      "allowed_writes":  [
+                                             "Allowed mission writes only"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background runner",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "outside allowed writes",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product repo mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Changed files plus validation evidence and preservation handoff.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Any scope expansion or restricted action."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "ui_builder_worker",
+                      "role_name":  "UI Builder Worker",
+                      "purpose":  "Build or adapt TSF UI/prototype surfaces when explicitly scoped.",
+                      "when_to_call":  "When the mission is UI/prototype only and no runtime binding is approved.",
+                      "allowed_reads":  [
+                                            "TSF UI docs/prototypes",
+                                            "allowed assets"
+                                        ],
+                      "allowed_writes":  [
+                                             "Allowed UI/prototype files"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "auth",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "network ports",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "runtime command binding",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Static UI artifact or prototype review packet with no command authority.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Real Operator Console wiring, command execution, remote auth, deploy, or product repo access."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "ai_builder_worker",
+                      "role_name":  "AI Builder Worker",
+                      "purpose":  "Design or implement AI prompt/adapter/schema components inside TSF scope.",
+                      "when_to_call":  "When a bounded mission needs AI routing, prompts, or HQ packet structure.",
+                      "allowed_reads":  [
+                                            "TSF prompt docs",
+                                            "HQ adapter docs",
+                                            "schemas"
+                                        ],
+                      "allowed_writes":  [
+                                             "Prompt docs",
+                                             "packet schemas",
+                                             "fixture examples"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "API calls",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential creation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "model/source-truth promotion",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "production ranking behavior",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Prompt/schema artifact with non-authority and validation notes.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "API usage, credentials, model behavior changes, production use."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "stats_data_worker",
+                      "role_name":  "Stats/Data Worker",
+                      "purpose":  "Create review-only data audits, missingness tables, and validation summaries.",
+                      "when_to_call":  "When a mission is data/source trace or formula review-only.",
+                      "allowed_reads":  [
+                                            "Approved review-only data",
+                                            "TSF/NWR approved packets if scoped"
+                                        ],
+                      "allowed_writes":  [
+                                             "Review-only reports, CSVs, validation artifacts"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical NWR mutation",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "formula promotion",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal NWR packet reads without approval",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "production rankings",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets",
+                                                "source truth promotion"
+                                            ],
+                      "output_contract":  "Review-only dataset/report with source trace, missingness, caveats, and blocked uses.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Source promotion, production/model use, canonical/normal NWR expansion."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "tester_worker",
+                      "role_name":  "Tester Worker",
+                      "purpose":  "Run or create bounded tests and validation harness checks.",
+                      "when_to_call":  "When a mission has safe local test scope.",
+                      "allowed_reads":  [
+                                            "Allowed test files",
+                                            "fixtures",
+                                            "changed files"
+                                        ],
+                      "allowed_writes":  [
+                                             "Allowed tests/fixtures/reports"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "all-fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background runner",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product tests without approval",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof runs",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Test result report with commands, pass/fail, and failures.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Proof runs, installs, product repo tests, broad fleet tests."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "auditor_worker",
+                      "role_name":  "Auditor Worker",
+                      "purpose":  "Review changed scope, risks, evidence, and missing tests.",
+                      "when_to_call":  "Before ready/merge decisions or when risk is unclear.",
+                      "allowed_reads":  [
+                                            "Allowed diffs",
+                                            "review packets",
+                                            "validation output"
+                                        ],
+                      "allowed_writes":  [
+                                             "Audit report",
+                                             "risk register",
+                                             "recommendation JSON"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "approval on Tim\u0027s behalf",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Findings-first audit with merge/readiness recommendation and caveats.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  false,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Approving or executing restricted actions."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "export_creator_worker",
+                      "role_name":  "Export Creator Worker",
+                      "purpose":  "Create packets, manifests, summaries, or review bundles.",
+                      "when_to_call":  "When a mission needs durable handoff/export evidence.",
+                      "allowed_reads":  [
+                                            "Allowed artifacts",
+                                            "manifests",
+                                            "reports"
+                                        ],
+                      "allowed_writes":  [
+                                             "Output packet folder",
+                                             "manifest",
+                                             "summary"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "external account changes",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets",
+                                                "sending/uploading packages"
+                                            ],
+                      "output_contract":  "Export packet with manifest and no-authority confirmation.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Sending/uploading, external account changes, private data, or package publication."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "researcher_source_tracer_worker",
+                      "role_name":  "Researcher / Source Tracer Worker",
+                      "purpose":  "Find existing assets and source evidence before build work.",
+                      "when_to_call":  "At Phase 0 or before any claim something is missing.",
+                      "allowed_reads":  [
+                                            "Allowed TSF docs",
+                                            "approved project materials",
+                                            "registries",
+                                            "packets"
+                                        ],
+                      "allowed_writes":  [
+                                             "Trace section",
+                                             "source map",
+                                             "do-not-rebuild register"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "forbidden cross-lane reads",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal NWR packets without scope",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product repo access without approval",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Existing-asset trace with classification and reuse decision.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Cross-lane expansion or protected repo/source access."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "verifier_worker",
+                      "role_name":  "Verifier Worker",
+                      "purpose":  "Verify expected artifacts, scope, forbidden actions, and final state.",
+                      "when_to_call":  "After any worker result or before preservation/commit.",
+                      "allowed_reads":  [
+                                            "Mission packet",
+                                            "worker result",
+                                            "git status",
+                                            "expected artifacts"
+                                        ],
+                      "allowed_writes":  [
+                                             "Verifier result",
+                                             "validation matrix"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "approving future work",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "mutating product repos",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets",
+                                                "weakening checks"
+                                            ],
+                      "output_contract":  "GREEN/YELLOW/RED/TIM_REQUIRED verifier result with evidence.",
+                      "verifier_required":  false,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  false,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Any verifier needing forbidden reads or product access."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "refactor_worker",
+                      "role_name":  "Refactor Worker",
+                      "purpose":  "Perform bounded cleanup that preserves behavior and scope.",
+                      "when_to_call":  "When exact files and tests are known.",
+                      "allowed_reads":  [
+                                            "Allowed source/docs/tests"
+                                        ],
+                      "allowed_writes":  [
+                                             "Allowed files only"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "broad redesign",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "hidden behavior change",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation without approval",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Small diff, unchanged behavior statement, tests.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Behavior changes, broad scope, product repos, or missing tests."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "documentation_worker",
+                      "role_name":  "Documentation Worker",
+                      "purpose":  "Write or update TSF docs, policies, role registries, and handoffs.",
+                      "when_to_call":  "When the output is a durable local doc/control-plane artifact.",
+                      "allowed_reads":  [
+                                            "TSF docs",
+                                            "review packets",
+                                            "schemas"
+                                        ],
+                      "allowed_writes":  [
+                                             "TSF docs/control-plane artifacts"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "evidence-as-authority",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Doc artifact with inputs, status, exclusions, and non-authority statement.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Docs that imply restricted-action approval or production authority."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "release_preservation_worker",
+                      "role_name":  "Release / Preservation Worker",
+                      "purpose":  "Preserve packets, handoffs, release notes, and final status.",
+                      "when_to_call":  "Before cleanup, after validation, or before publication gates.",
+                      "allowed_reads":  [
+                                            "Mission artifacts",
+                                            "verifier results",
+                                            "git metadata"
+                                        ],
+                      "allowed_writes":  [
+                                             "Preservation packet",
+                                             "status summary",
+                                             "approval packet draft"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "branch deletion",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "external publication without approval",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets"
+                                            ],
+                      "output_contract":  "Durable packet with manifest, final decision, and next action.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  true,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Actual push, merge, deploy, branch cleanup, or external publication."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  },
+                  {
+                      "role_id":  "chatgpt_api_hq_escalation_judge",
+                      "role_name":  "ChatGPT/API HQ Escalation Judge",
+                      "purpose":  "Provide strategic judgment for major choke points from a compact packet.",
+                      "when_to_call":  "Only for major architecture switch, ambiguous YELLOW, source-truth/model promotion, repeated loop, or conflicting workers.",
+                      "allowed_reads":  [
+                                            "HQ escalation packet",
+                                            "summarized evidence only"
+                                        ],
+                      "allowed_writes":  [
+                                             "Strategic decision JSON",
+                                             "no local file mutation unless transcribed by TSF worker"
+                                         ],
+                      "forbidden_actions":  [
+                                                "all_fleet",
+                                                "API call without approval",
+                                                "api_bridge",
+                                                "app_wiring",
+                                                "background_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "credential_change",
+                                                "deploy",
+                                                "execution authority",
+                                                "hidden_sort",
+                                                "install_packages",
+                                                "merge",
+                                                "migration",
+                                                "normal_nwr_packet_read",
+                                                "open_network_port",
+                                                "persistent_runner",
+                                                "privatelens",
+                                                "product mutation",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "proof_run",
+                                                "push",
+                                                "ranking_formula_source_truth_promotion",
+                                                "recommendation_behavior",
+                                                "secrets",
+                                                "source-truth promotion"
+                                            ],
+                      "output_contract":  "GREEN/YELLOW/RED/TIM_REQUIRED strategic decision with allowed verdicts.",
+                      "verifier_required":  true,
+                      "may_spawn_workers":  false,
+                      "may_commit_locally":  false,
+                      "may_invoke_codex_cli":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false,
+                      "tim_required_for":  [
+                                               "Any API call, credentials, source-truth/model/ranking promotion, or restricted action."
+                                           ],
+                      "escalation_triggers":  [
+                                                  "approval_gap",
+                                                  "scope_conflict",
+                                                  "unsafe_request",
+                                                  "validation_failure",
+                                                  "repeated_blocker"
+                                              ]
+                  }
+              ]
+}

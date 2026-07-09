@@ -1,0 +1,13 @@
+﻿{
+    "escalation_case":  "unsafe_expansion_request",
+    "packet_schema":  "hq_escalation_packet_v1",
+    "api_called":  false,
+    "exact_decision_requested":  "Return GREEN/YELLOW/RED/TIM_REQUIRED strategic verdict only.",
+    "allowed_verdicts":  [
+                             "GREEN",
+                             "YELLOW",
+                             "RED",
+                             "TIM_REQUIRED"
+                         ],
+    "role_context":  "chatgpt_api_hq_escalation_judge"
+}

@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "fix-codex-cli-config",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Fix the Codex CLI config and retry execution.",
+    "requested_goal":  "Fix the Codex CLI config and retry execution.",
+    "proposed_worker_role":  "ai_builder_worker",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/fix-codex-cli-config-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "NEEDS_TIM_APPROVAL"
+}

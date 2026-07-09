@@ -1,0 +1,114 @@
+﻿{
+    "schema_version":  "main_bot_decision_authority_v1",
+    "default":  "fail_closed",
+    "decisions":  [
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Routine role assignment from intent and scope.",
+                          "decision_type":  "worker routing"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Allowed only for bounded local recovery.",
+                          "decision_type":  "retry once"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Auditor worker can review evidence.",
+                          "decision_type":  "audit needed"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  true,
+                          "reason":  "Safe local closeout.",
+                          "decision_type":  "preserve and stop"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Dry-run planning only.",
+                          "decision_type":  "split safe lane"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Worker routing.",
+                          "decision_type":  "ask tester or auditor"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Verifier can fail closed.",
+                          "decision_type":  "reject weak worker report"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  false,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  true,
+                          "worker_can_decide":  false,
+                          "reason":  "Allowed by autonomy envelope after validation and exact staging.",
+                          "decision_type":  "local docs schema test commit"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  true,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  false,
+                          "worker_can_decide":  false,
+                          "reason":  "Publication and release gate.",
+                          "decision_type":  "push merge deploy"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  true,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  false,
+                          "worker_can_decide":  false,
+                          "reason":  "Protected product scope.",
+                          "decision_type":  "product repo mutation"
+                      },
+                      {
+                          "requires_chatgpt_hq":  false,
+                          "requires_tim":  true,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  false,
+                          "worker_can_decide":  false,
+                          "reason":  "Canonical repos protected.",
+                          "decision_type":  "canonical repo mutation"
+                      },
+                      {
+                          "requires_chatgpt_hq":  true,
+                          "requires_tim":  true,
+                          "requires_verifier":  true,
+                          "main_bot_can_decide":  false,
+                          "worker_can_decide":  false,
+                          "reason":  "Hard gates and strategic promotion risk.",
+                          "decision_type":  "secrets installs migration background API spending source truth ranking model app wiring"
+                      }
+                  ]
+}

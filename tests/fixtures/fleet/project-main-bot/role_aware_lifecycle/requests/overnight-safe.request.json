@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "overnight-safe",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Run as much as possible overnight within TSF-local docs, schemas, and tests only.",
+    "requested_goal":  "Run as much as possible overnight within TSF-local docs, schemas, and tests only.",
+    "proposed_worker_role":  "project_main_bot",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/overnight-safe-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "SAFE_LOCAL_MISSION"
+}

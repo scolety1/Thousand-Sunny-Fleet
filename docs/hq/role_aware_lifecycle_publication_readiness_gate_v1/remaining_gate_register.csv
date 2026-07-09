@@ -1,0 +1,7 @@
+"gate_id","gate","status","blocking","reason","next_action"
+"GATE-001","Exact Tim approval for push or PR","REQUIRED","true","No push or PR creation is approved by this readiness gate.","Return with an exact push/PR execution prompt if Tim wants publication."
+"GATE-002","Remote branch state verification","PENDING_FUTURE_PUBLICATION_GATE","true","This gate used local state only and did not fetch, pull, or push.","Verify remote state in the future push/PR gate using allowed remote-read checks."
+"GATE-003","Codex CLI fixture pilot caveat","NON_BLOCKING_CAVEAT","false","Older V2 Codex CLI fixture pilot remained blocked by local config parsing but failed closed; latest role-aware lifecycle batch did not invoke Codex CLI.","Retry only under a separate exact Tim approval for Codex CLI adapter work."
+"GATE-004","Operator Console/API transport","NOT_REQUIRED_FOR_PUBLICATION","false","Current work is foreground local TSF infrastructure; UI/API transport is intentionally deferred.","Do not build until Tim opens a dedicated UI/API lane."
+"GATE-005","Product repo/canonical NWR authority","NOT_GRANTED","true","Publication readiness does not grant product repo or canonical NWR access.","Keep blocked unless Tim grants exact scoped approval."
+"GATE-006","Secrets/install/deploy/migration/all-fleet/background","NOT_GRANTED","true","None were needed and none were performed.","Keep blocked unless Tim grants exact scoped approval."

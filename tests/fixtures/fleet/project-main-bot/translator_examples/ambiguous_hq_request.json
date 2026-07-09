@@ -1,0 +1,6 @@
+﻿{
+    "expected":  "NEEDS_CHATGPT_HQ",
+    "worker":  "chatgpt_api_hq_escalation_judge",
+    "id":  "ambiguous_hq_request",
+    "text":  "Resolve conflicting worker reports about a source-truth promotion."
+}

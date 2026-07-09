@@ -1,0 +1,25 @@
+﻿{
+    "requested_actions":  [
+                              "dry_run"
+                          ],
+    "lanes":  [
+                  {
+                      "branch":  "work/lane-a",
+                      "lane_id":  "lane-a",
+                      "owned_files":  [
+                                          "docs/hq/a.md",
+                                          "fleet/control/a.json"
+                                      ],
+                      "worktree_path":  "C:\\TSF_WORKTREES\\lane-a"
+                  },
+                  {
+                      "branch":  "work/lane-b",
+                      "lane_id":  "lane-b",
+                      "owned_files":  [
+                                          "docs/hq/b.md",
+                                          "fleet/control/b.json"
+                                      ],
+                      "worktree_path":  "C:\\TSF_WORKTREES\\lane-b"
+                  }
+              ]
+}

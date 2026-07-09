@@ -1,0 +1,36 @@
+﻿{
+    "schema_version":  "main_bot_loop_prevention_rules_v1",
+    "default_posture":  "fail_closed",
+    "rules":  [
+                  {
+                      "rule_id":  "repeat-same-blocker",
+                      "trigger":  "same blocker repeated three or more times",
+                      "decision":  "STOP_AND_PRESERVE"
+                  },
+                  {
+                      "rule_id":  "artifact-only-no-progress",
+                      "trigger":  "artifact-only work repeated with no lifecycle progress",
+                      "decision":  "STOP_AND_PRESERVE"
+                  },
+                  {
+                      "rule_id":  "forbidden-action-repeat",
+                      "trigger":  "forbidden action requested again without approval",
+                      "decision":  "NEEDS_TIM_APPROVAL"
+                  },
+                  {
+                      "rule_id":  "worker-green-verifier-red",
+                      "trigger":  "worker says GREEN but verifier says RED",
+                      "decision":  "RED_UNSAFE"
+                  },
+                  {
+                      "rule_id":  "duplicate-system-with-reuse",
+                      "trigger":  "new duplicate system proposed when reusable component exists",
+                      "decision":  "STOP_AND_PRESERVE"
+                  },
+                  {
+                      "rule_id":  "research-no-finish-line",
+                      "trigger":  "continue research with no artifact-producing finish line",
+                      "decision":  "NEEDS_MAIN_BOT_REVIEW"
+                  }
+              ]
+}

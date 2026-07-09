@@ -1,0 +1,6 @@
+﻿{
+    "expected":  "SAFE_LOCAL_MISSION",
+    "worker":  "auditor_worker",
+    "id":  "audit_request",
+    "text":  "Review the role foundation for scope risk."
+}

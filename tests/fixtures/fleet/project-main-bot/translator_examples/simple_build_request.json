@@ -1,0 +1,6 @@
+﻿{
+    "expected":  "SAFE_LOCAL_MISSION",
+    "worker":  "builder_worker",
+    "id":  "simple_build_request",
+    "text":  "Add the role registry docs and tests for TSF only."
+}

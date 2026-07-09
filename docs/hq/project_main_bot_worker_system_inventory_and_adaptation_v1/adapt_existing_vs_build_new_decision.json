@@ -1,0 +1,43 @@
+{
+  "verdict": "YELLOW_PARTIAL_TSF_BOT_ORCHESTRATION_FOUND_ADAPTATION_NEEDED",
+  "output_path": "docs/hq/project_main_bot_worker_system_inventory_and_adaptation_v1/",
+  "existing_system_found": "partial",
+  "directly_usable_components": [
+    "mission_schema_v1.json",
+    "tools/codex-fleet-enforcement-kernel.ps1",
+    "tools/Invoke-TsfMissionLifecycle.ps1",
+    "tools/New-TsfMissionPacket.ps1",
+    "hq_escalation_packet_schema_v1.json",
+    "TSF_AUTONOMY_ENVELOPE_V1.md",
+    "TSF_SAFE_STOP_ESCALATION_MATRIX_V1.md",
+    "TSF_BLOCKER_RECOVERY_LOOP_V1.md",
+    "tools/codex-fleet-lanes.ps1",
+    "tools/codex-fleet-project-management.ps1"
+  ],
+  "components_to_adapt": [
+    "TSF_OPERATING_MODEL.md into Project Main Bot goal/state model",
+    "TSF_HQ_ADAPTER_MODE.md into HQ escalation policy",
+    "project passports and next-session cards into context memory inputs",
+    "specialized lane taxonomy into worker routing",
+    "external-agent audit roles into auditor/verifier worker profiles",
+    "worktree boundary contract into lane collision checks"
+  ],
+  "components_missing": [
+    "single Project Main Bot role runtime",
+    "role-aware mission packet fields",
+    "role profile preflight validation",
+    "lane collision validator for mission write scopes",
+    "persistent project conversation state",
+    "Operator Console implementation",
+    "API/HQ transport implementation"
+  ],
+  "duplicate_system_risk": "medium",
+  "recommended_next_build": "Build a thin Project Main Bot mission-intake adapter that reuses the existing TSF kernel, mission authoring helper, specialized lane resolver, and project-management helper. Do not build a new runner or second mission schema.",
+  "implementation_started": "limited",
+  "background_runner_started": false,
+  "codex_cli_invoked": false,
+  "canonical_nwr_mutated": false,
+  "product_repos_mutated": false,
+  "push_merge_deploy_attempted": false,
+  "confidence": "high"
+}

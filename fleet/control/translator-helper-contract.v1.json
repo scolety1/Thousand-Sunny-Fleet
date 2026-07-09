@@ -1,0 +1,31 @@
+﻿{
+    "schema_version":  "translator_helper_contract_v1",
+    "flow":  [
+                 "tim_natural_language",
+                 "normalized_intent",
+                 "mission_draft",
+                 "tim_readable_result_summary"
+             ],
+    "output_classifications":  [
+                                   "SAFE_LOCAL_MISSION",
+                                   "NEEDS_MAIN_BOT_REVIEW",
+                                   "NEEDS_TIM_APPROVAL",
+                                   "NEEDS_CHATGPT_HQ",
+                                   "BLOCKED_UNSAFE"
+                               ],
+    "ask_tim_only_for":  [
+                             "missing project identity",
+                             "product direction ambiguity",
+                             "restricted action approval",
+                             "protected repo access",
+                             "cross-lane expansion"
+                         ],
+    "never_treat_as_approval":  [
+                                    "user prose",
+                                    "docs",
+                                    "status files",
+                                    "review packets",
+                                    "UI labels",
+                                    "generated mission drafts"
+                                ]
+}

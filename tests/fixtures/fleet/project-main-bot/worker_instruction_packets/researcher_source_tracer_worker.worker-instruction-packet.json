@@ -1,0 +1,54 @@
+﻿{
+    "mission_id":  "sample-instruction-researcher_source_tracer_worker-0001",
+    "worker_role":  "researcher_source_tracer_worker",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1/sample_researcher_source_tracer_worker.md"
+                       ],
+    "forbidden_actions":  [
+                              "push",
+                              "merge",
+                              "deploy",
+                              "install_packages",
+                              "migration",
+                              "secrets",
+                              "privatelens",
+                              "proof_run",
+                              "all_fleet",
+                              "background_runner",
+                              "persistent_runner",
+                              "canonical_nwr_inspection",
+                              "canonical_nwr_mutation",
+                              "normal_nwr_packet_read",
+                              "product_repo_inspection",
+                              "product_repo_mutation",
+                              "api_bridge",
+                              "open_network_port",
+                              "credential_change",
+                              "app_wiring",
+                              "ranking_formula_source_truth_promotion",
+                              "hidden_sort",
+                              "recommendation_behavior"
+                          ],
+    "exact_task":  "Produce the bounded dry-run output for researcher_source_tracer_worker.",
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/sample_researcher_source_tracer_worker.md"
+                           ],
+    "stop_conditions":  [
+                            {
+                                "id":  "role-scope",
+                                "check_type":  "approval_required",
+                                "description":  "Stop if role authority would be exceeded."
+                            }
+                        ],
+    "verifier_contract":  "Verifier must check artifact existence, role match, forbidden actions absent, and preservation packet.",
+    "escalation_triggers":  [
+                                "RED",
+                                "TIM_REQUIRED",
+                                "scope_conflict"
+                            ],
+    "do_not_exceed_role_authority":  true
+}

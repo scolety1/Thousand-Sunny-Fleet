@@ -1,0 +1,28 @@
+﻿{
+    "case_id":  "organize-project",
+    "project_id":  "thousand-sunny-fleet",
+    "natural_request":  "Organize this project packet and create an index.",
+    "requested_goal":  "Organize this project packet and create an index.",
+    "proposed_worker_role":  "organizer_worker",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "allowed_reads":  [
+                          "docs/hq",
+                          "fleet/control"
+                      ],
+    "allowed_writes":  [
+                           "docs/hq/role_aware_mission_lifecycle_integration_v1"
+                       ],
+    "forbidden_actions":  [
+
+                          ],
+    "expected_artifacts":  [
+                               "docs/hq/role_aware_mission_lifecycle_integration_v1/organize-project-result.md"
+                           ],
+    "stop_conditions":  [
+                            "scope-gate|approval_required|Stop if scope crosses a hard TSF gate."
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "expected_classification":  "SAFE_LOCAL_MISSION"
+}
