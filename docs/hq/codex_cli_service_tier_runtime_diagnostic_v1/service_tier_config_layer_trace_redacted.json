@@ -1,0 +1,55 @@
+{
+  "trace_type": "redacted_non_secret_config_layer_trace",
+  "active_user_config": {
+    "path": "C:\\Users\\codex-agent\\.codex\\config.toml",
+    "exists": true,
+    "inspected_fields": [
+      "service_tier"
+    ],
+    "current_service_tier": "flex",
+    "auth_or_secret_fields_inspected": false
+  },
+  "cli": {
+    "version": "codex-cli 0.124.0",
+    "wrapper_path": "C:\\Users\\codex-agent\\AppData\\Roaming\\npm\\codex.ps1",
+    "package_path": "C:\\Users\\codex-agent\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex",
+    "help_exposes_service_tier_values": false,
+    "ignore_user_config_supported": true,
+    "ignore_user_config_help_exit_code": 0,
+    "ignore_user_config_description": "Do not load $CODEX_HOME/config.toml; auth still uses CODEX_HOME"
+  },
+  "preserved_failed_worker_packet": {
+    "path": "docs/hq/codex_cli_fixture_worker_retry_after_plugin_fix_v1/",
+    "codex_exit_code": 1,
+    "observed_error": "Unsupported service_tier: flex",
+    "expected_artifact_created": false,
+    "verifier_verdict": "RED"
+  },
+  "plugin_manifest_warning_trace": [
+    {
+      "path": "C:\\Users\\codex-agent\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin\\plugin.json",
+      "source_classification": "runtime_cache",
+      "json_parses": true,
+      "redacted_issue": "interface.defaultPrompt still appears to exceed current manifest constraint in runtime cache",
+      "considered_hard_blocker_for_this_gate": false
+    },
+    {
+      "path": "C:\\Users\\codex-agent\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin\\plugin.json",
+      "source_classification": "codex_tmp_plugin_cache",
+      "json_parses": true,
+      "redacted_issue": "default prompt text appears longer than current manifest constraint",
+      "considered_hard_blocker_for_this_gate": false
+    }
+  ],
+  "environment_variable_trace": {
+    "service_tier_env_var_found": false,
+    "auth_or_secret_values_printed": false,
+    "codex_env_var_names_observed_redacted": [
+      "CODEX_CI",
+      "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
+      "CODEX_SHELL",
+      "CODEX_THREAD_ID"
+    ]
+  },
+  "conclusion": "The next safest execution strategy is to bypass user config with --ignore-user-config for a separate one-attempt fixture retry rather than guessing another service_tier value."
+}
