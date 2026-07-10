@@ -1,0 +1,111 @@
+{
+  "schema_version": "controlled_multi_lane_foreground_execution_policy_v1",
+  "default_posture": "fail_closed",
+  "execution_mode": "foreground_sequential_fixture_only",
+  "max_lane_count": 3,
+  "max_worker_invocations": 3,
+  "worktree_root": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES",
+  "allowed_source_branch": "work/controlled-multi-lane-foreground-execution-v1-20260709",
+  "required_exact_action": "codex_cli_parallel_lane_fixture_worker_invocation",
+  "allowed_worker_roles": [
+    "builder_worker",
+    "tester_worker",
+    "auditor_worker"
+  ],
+  "allowed_fixture_output_root": "tests/fixtures/fleet/multi-lane/worker-output",
+  "codex_command_shape": {
+    "service_tier": "fast",
+    "sandbox": "workspace-write",
+    "normal_user_config": true,
+    "ignore_user_config": false,
+    "danger_full_access": false,
+    "ephemeral": true,
+    "json_events": true
+  },
+  "lane_rules": {
+    "branches_must_be_unique": true,
+    "worktrees_must_be_unique": true,
+    "expected_artifacts_must_be_unique": true,
+    "allowed_write_scopes_must_be_unique": true,
+    "execute_sequentially": true,
+    "background_execution_allowed": false,
+    "merge_lane_branches_allowed": false,
+    "push_allowed": false,
+    "create_pr_allowed": false,
+    "delete_remote_branches_allowed": false,
+    "retain_local_lane_branches_for_audit": true
+  },
+  "verifier_requirements": [
+    "role_preflight_green",
+    "kernel_preflight_green",
+    "expected_artifact_exists",
+    "expected_content_matches",
+    "worker_result_claims_expected_artifact",
+    "verifier_green",
+    "restricted_actions_absent"
+  ],
+  "context_update_requirements": [
+    "lane_results_recorded",
+    "collision_review_recorded",
+    "integration_recommendation_recorded",
+    "next_action_recorded"
+  ],
+  "preservation_requirements": [
+    "per_lane_preservation_packet",
+    "coordinator_result_index",
+    "worktree_cleanup_decision",
+    "no_merge_confirmation"
+  ],
+  "integration_review_rules": {
+    "green_if_all_lanes_green_and_no_collision": true,
+    "yellow_if_evidence_complete_but_cleanup_deferred": true,
+    "red_if_collision_or_missing_evidence": true,
+    "tim_required_if_auth_sandbox_or_scope_unclear": true
+  },
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "create_pr",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "privatelens",
+    "all_fleet",
+    "background_runner",
+    "persistent_runner",
+    "canonical_nwr_inspection",
+    "canonical_nwr_mutation",
+    "normal_nwr_packet_read",
+    "product_repo_inspection",
+    "product_repo_mutation",
+    "api_bridge",
+    "open_network_port",
+    "credential_change",
+    "app_wiring",
+    "ranking_formula_source_truth_promotion",
+    "hidden_sort",
+    "recommendation_behavior",
+    "danger_full_access",
+    "ignore_user_config"
+  ],
+  "stop_conditions": [
+    "origin_main_mismatch",
+    "dirty_coordinator_branch",
+    "lane_count_exceeds_policy",
+    "worker_budget_exceeded",
+    "lane_plan_collision",
+    "lane_branch_already_exists",
+    "lane_worktree_path_already_exists",
+    "worktree_branch_mismatch",
+    "worktree_dirty_before_worker",
+    "role_preflight_red_or_tim_required",
+    "kernel_preflight_red_or_tim_required",
+    "missing_exact_approval",
+    "codex_cli_auth_or_execution_unclear",
+    "unexpected_file_touch",
+    "verifier_red",
+    "missing_preservation_packet",
+    "push_merge_or_background_requested"
+  ]
+}

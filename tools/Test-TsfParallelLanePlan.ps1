@@ -53,7 +53,7 @@ if ($plan.PSObject.Properties.Name -contains "require_true_lanes") {
     $requireTrueLanes = [bool]$plan.require_true_lanes
 }
 $requireWorktreePilotFields = $false
-if ($plan.PSObject.Properties.Name -contains "pilot_mode" -and [string]$plan.pilot_mode -eq "real_isolated_worktree_fixture_pilot") {
+if ($plan.PSObject.Properties.Name -contains "pilot_mode" -and [string]$plan.pilot_mode -in @("real_isolated_worktree_fixture_pilot", "controlled_multi_lane_foreground_execution")) {
     $requireWorktreePilotFields = $true
 }
 foreach ($lane in $lanes) {
