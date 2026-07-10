@@ -1,0 +1,29 @@
+{
+  "case_id": "bounded-main-bot-self-continuation-fixture-worker",
+  "project_id": "thousand-sunny-fleet",
+  "natural_request": "Build and verify a tiny TSF fixture artifact using the Project Main Bot and approved worker roles.",
+  "requested_goal": "Build and verify a tiny TSF fixture artifact through bounded Project Main Bot self-continuation.",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "proposed_worker_role": "builder_worker",
+  "allowed_reads": [
+    "docs/hq",
+    "fleet/control",
+    "tests/fixtures/fleet/project-main-bot"
+  ],
+  "allowed_writes": [
+    "tests/fixtures/fleet/project-main-bot/self-continuation/worker-output/main_bot_builder_result.txt"
+  ],
+  "forbidden_actions": [],
+  "expected_artifacts": [
+    "tests/fixtures/fleet/project-main-bot/self-continuation/worker-output/main_bot_builder_result.txt"
+  ],
+  "stop_conditions": [
+    "scope_gate|approval_required|Stop if the request crosses approved TSF-local fixture scope.",
+    "worker_budget|approval_required|Stop if more than two worker invocations would be needed.",
+    "codex_auth_gate|approval_required|Stop if Codex CLI asks for auth, credentials, installs, broader permissions, or danger-full-access."
+  ],
+  "approval_requirements": [
+    "codex_cli_bounded_self_continuation_fixture_worker_invocation|true|Tim approved one bounded fixture-only foreground Codex worker invocation for this lane.|tim-approval-bounded-main-bot-self-continuation-20260709"
+  ],
+  "expected_worker_output_content": "TSF Project Main Bot builder worker self-continuation complete."
+}

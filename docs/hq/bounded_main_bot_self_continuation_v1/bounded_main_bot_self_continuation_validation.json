@@ -1,0 +1,58 @@
+{
+  "schema_version": "bounded_main_bot_self_continuation_validation_v1",
+  "verdict": "GREEN_TSF_BOUNDED_MAIN_BOT_SELF_CONTINUATION_COMPLETE",
+  "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "branch": "work/bounded-main-bot-self-continuation-v1-20260709",
+  "starting_origin_main_head": "4429af3ea717d5fc0045cb3aa37de01c843a8d08",
+  "implementation_commit": "cc6aeaeccd5b32b6d1602359aacb3065a3953154",
+  "mission_id": "thousand-sunny-fleet-20260709183243",
+  "request_fixture": "tests/fixtures/fleet/project-main-bot/self_continuation/bounded-fixture-worker.request.json",
+  "policy": "fleet/control/project-main-bot-bounded-self-continuation.v1.json",
+  "runner": "tools/Invoke-TsfProjectMainBotSelfContinuation.ps1",
+  "worker_invocations_used": 1,
+  "max_worker_invocations": 2,
+  "codex_cli": {
+    "invoked": true,
+    "worker_execution_invoked": true,
+    "exit_code": 0,
+    "service_tier_fast_used": true,
+    "sandbox_workspace_write_used": true,
+    "ignore_user_config_used": false,
+    "danger_full_access_used": false
+  },
+  "builder_fixture": {
+    "path": "tests/fixtures/fleet/project-main-bot/self-continuation/worker-output/main_bot_builder_result.txt",
+    "expected_content": "TSF Project Main Bot builder worker self-continuation complete.",
+    "created": true,
+    "content_matched": true
+  },
+  "tester_auditor_fixture": {
+    "created": false,
+    "reason": "Not needed. Builder result plus TSF verifier was enough, preserving one unused worker invocation."
+  },
+  "verifier": {
+    "verdict": "GREEN",
+    "verified": true
+  },
+  "context_capsule_update": {
+    "written": true,
+    "result_path": ".codex-local/bounded-main-bot-self-continuation-v1/run/context_capsule.updated.json"
+  },
+  "loop_prevention": {
+    "decision": "PASS_NO_LOOP",
+    "result_path": ".codex-local/bounded-main-bot-self-continuation-v1/run/loop_prevention_result.json"
+  },
+  "preservation_packet": {
+    "written": true,
+    "path": ".codex-local/bounded-main-bot-self-continuation-v1/run/preservation/thousand-sunny-fleet-20260709183243-preservation"
+  },
+  "guardrails": {
+    "api_called": false,
+    "background_runner_started": false,
+    "push_merge_deploy_attempted": false,
+    "install_migration_secrets_privatelens_all_fleet": false,
+    "product_repos_mutated": false,
+    "canonical_nwr_mutated": false
+  },
+  "stop_conditions_hit": []
+}

@@ -1,0 +1,78 @@
+{
+  "schema_version": "project_main_bot_bounded_self_continuation_policy_v1",
+  "policy_id": "project-main-bot-bounded-self-continuation-v1-20260709",
+  "default_posture": "fail_closed",
+  "execution_mode": "foreground_only",
+  "max_worker_invocations": 2,
+  "approved_worker_command_shape": "codex exec -c service_tier=fast --sandbox workspace-write --ephemeral --cd <TSF repo> --output-last-message <scratch-output-file> --json -",
+  "forbidden_command_flags": [
+    "--ignore-user-config",
+    "danger-full-access"
+  ],
+  "main_bot_may_decide": [
+    "choose_worker_role",
+    "create_mission_draft",
+    "run_role_aware_preflight",
+    "run_one_approved_fixture_worker",
+    "call_tester_or_auditor_after_green_builder_if_budget_remains",
+    "retry_once_for_deterministic_local_validation_failure",
+    "update_context_capsule",
+    "preserve_and_stop",
+    "classify_green_yellow_red_tim_required"
+  ],
+  "main_bot_must_escalate_for": [
+    "push",
+    "merge",
+    "deploy",
+    "product_repo_mutation",
+    "canonical_repo_mutation",
+    "install_packages",
+    "migrations",
+    "secrets_or_credentials",
+    "api_usage_or_spending",
+    "background_runner",
+    "all_fleet",
+    "real_parallel_codex_agents_or_worktrees",
+    "source_truth_ranking_model_app_wiring_promotion",
+    "more_than_two_worker_invocations",
+    "unclear_auth_credential_sandbox_behavior"
+  ],
+  "approved_fixture_paths": {
+    "builder_worker": {
+      "path": "tests/fixtures/fleet/project-main-bot/self-continuation/worker-output/main_bot_builder_result.txt",
+      "content": "TSF Project Main Bot builder worker self-continuation complete."
+    },
+    "tester_or_auditor_worker": {
+      "path": "tests/fixtures/fleet/project-main-bot/self-continuation/worker-output/main_bot_tester_audit_result.txt",
+      "content": "TSF Project Main Bot tester/auditor self-continuation check complete.",
+      "optional": true
+    }
+  },
+  "required_pre_worker_checks": [
+    "mission_schema_validation",
+    "project_lane_validation",
+    "role_registry_lookup",
+    "permission_profile_lookup",
+    "role_aware_permission_preflight",
+    "approval_ledger_exact_action_match",
+    "clean_worktree_before_worker",
+    "fixture_path_scope_check",
+    "worker_budget_check"
+  ],
+  "required_post_worker_checks": [
+    "expected_artifact_exists",
+    "artifact_content_matches",
+    "touched_files_within_allowed_writes",
+    "role_output_contract_satisfied",
+    "postrun_verifier_green",
+    "context_capsule_updated",
+    "loop_prevention_passes",
+    "preservation_packet_written"
+  ],
+  "approved_exact_action": "codex_cli_bounded_self_continuation_fixture_worker_invocation",
+  "api_allowed": false,
+  "background_runner_allowed": false,
+  "product_repo_mutation_allowed": false,
+  "canonical_nwr_mutation_allowed": false,
+  "push_merge_deploy_allowed": false
+}
