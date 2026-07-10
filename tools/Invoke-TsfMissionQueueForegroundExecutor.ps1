@@ -429,7 +429,7 @@ Return a concise status after the file is written.
                     Write-QueueExecutorJson -Value $workerResult -Path $workerResultPath
 
                     $transitionPath = Join-Path $OutDirectory "transition_worker_running_to_postrun_pending.json"
-                    $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "worker_running" -ToState "postrun_pending" -QueueRootPath $QueueRoot -OutPath $transitionPath -DryRunTransition:$false
+                    $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "worker_running" -ToState "postrun_pending" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
                     Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "worker_running -> postrun_pending" -Evidence $transitionPath
                     $currentMissionPath = [string]$transition.destination_path
                     $currentState = "postrun_pending"
@@ -449,7 +449,8 @@ Return a concise status after the file is written.
                     }
 
                     $transitionPath = Join-Path $OutDirectory ("transition_postrun_pending_to_$finalState.json")
-                    Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "postrun_pending" -ToState $finalState -QueueRootPath $QueueRoot -OutPath $transitionPath -DryRunTransition:$false | Out-Null
+                    $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "postrun_pending" -ToState $finalState -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
+                    $currentMissionPath = [string]$transition.destination_path
                     Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "postrun_pending -> $finalState" -Evidence $transitionPath
                 }
             }

@@ -1,0 +1,14 @@
+{
+  "schema_version": "queue_dogfood_context_update_result_v1",
+  "context_capsule_update_configured": false,
+  "context_capsule_update_written": false,
+  "reason": "The dogfood run intentionally used an isolated .codex-local queue and did not mutate a persistent context capsule.",
+  "mission_results_preserved": true,
+  "preservation_packets": [
+    ".codex-local/mission-queue-dogfood-v1/runs/builder/preservation-repaired/queue-dogfood-builder-001-preservation",
+    ".codex-local/mission-queue-dogfood-v1/runs/tester/preservation/queue-dogfood-tester-001-preservation",
+    ".codex-local/mission-queue-dogfood-v1/runs/auditor/preservation/queue-dogfood-auditor-001-preservation"
+  ],
+  "background_runner_started": false,
+  "api_called": false
+}
