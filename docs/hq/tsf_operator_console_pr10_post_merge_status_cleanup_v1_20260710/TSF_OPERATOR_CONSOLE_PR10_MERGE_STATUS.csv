@@ -1,0 +1,12 @@
+item,status,value,notes
+pr_10,merged,https://github.com/scolety1/Thousand-Sunny-Fleet/pull/10,GitHub merge completed before this packet
+origin_main,verified,6f9430201dda9c87ae71b6eae2ccea397a22f1c9,Origin main is at the PR10 merge commit
+source_branch_local,exists,work/operator-console-chatroom-control-plane-v1-20260709,Retained for auditability
+source_branch_remote,exists,origin/work/operator-console-chatroom-control-plane-v1-20260709,Retained for auditability
+source_branch_head,verified,11c4940491879f498a6e43f44ad03a6439c7c352,Local and remote source branch heads match
+worktree_pre_packet,clean,yes,No unexpected dirty or untracked files before packet creation
+product_repo_mutation,none,no,Scope remained TSF infrastructure only
+canonical_nwr_mutation,none,no,No canonical NWR mutation
+codex_worker_execution,none,no,No Codex worker execution in cleanup gate
+api_call,none,no,No ChatGPT/OpenAI API call
+background_runner,none,no,No background runner started
