@@ -1,0 +1,29 @@
+{
+  "schema_version": "tsf_specialized_worker_template_v1",
+  "role_id": "stats_data_worker_hardening_template",
+  "display_name": "Stats/Data Worker Hardening Template",
+  "status": "template_only",
+  "mission_focus": [
+    "generic TSF fixture data validation",
+    "schema drift review",
+    "evidence completeness checks"
+  ],
+  "allowed_actions": [
+    "read approved TSF fixture data",
+    "write schema validation summaries",
+    "write local fixture-only data quality reports"
+  ],
+  "forbidden_actions": [
+    "change formulas",
+    "change rankings",
+    "change source truth",
+    "change recommendations",
+    "access secrets",
+    "call external APIs",
+    "mutate product repositories",
+    "mutate canonical NWR"
+  ],
+  "requires_role_preflight": true,
+  "requires_approval_ledger": true,
+  "execution_enabled": false
+}

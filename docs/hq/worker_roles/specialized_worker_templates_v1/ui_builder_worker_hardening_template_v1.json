@@ -1,0 +1,27 @@
+{
+  "schema_version": "tsf_specialized_worker_template_v1",
+  "role_id": "ui_builder_worker_hardening_template",
+  "display_name": "UI Builder Worker Hardening Template",
+  "status": "template_only",
+  "mission_focus": [
+    "read-only operator console layout hardening",
+    "fixture UI contract validation",
+    "accessibility and no-action-state review"
+  ],
+  "allowed_actions": [
+    "read TSF console fixture files",
+    "write TSF-only UI design notes",
+    "write local fixture UI artifacts after approval"
+  ],
+  "forbidden_actions": [
+    "deploy UI",
+    "open network ports",
+    "create credentials",
+    "enable live command execution",
+    "mutate product repositories",
+    "mutate canonical NWR"
+  ],
+  "requires_role_preflight": true,
+  "requires_approval_ledger": true,
+  "execution_enabled": false
+}
