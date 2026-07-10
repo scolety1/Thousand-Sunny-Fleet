@@ -1,12 +1,12 @@
 {
     "schema_version":  "operator_console_status_summary_v1",
-    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "generated_at":  "2026-07-10T01:41:28.2613327-06:00",
     "status":  {
                    "verdict":  "YELLOW",
                    "summary":  "TSF local operator console data export complete.",
                    "origin_main_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
                    "current_branch":  "work/operator-console-chatroom-control-plane-v1-20260709",
-                   "local_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+                   "local_head":  "7b6ffbc3121ae2dc31b00c978f208bb8a54c79dd",
                    "next_recommended_milestone":  "Operator Console Read-Only Skeleton V1"
                },
     "merged_prs":  [
@@ -105,6 +105,10 @@
                        "canonical_nwr_mutation"
                    ],
     "review_packets":  [
+                           "background_runner_future_gate_design_v1",
+                           "worker_roles",
+                           "hq_chokepoint_adapter_no_api_v1",
+                           "controlled_multi_lane_hardening_v2",
                            "operator_console_readonly_chatroom_v1",
                            "controlled_multi_lane_foreground_execution_v1",
                            "true_parallel_lane_isolated_worktree_pilot_v1",
@@ -112,10 +116,6 @@
                            "local_mission_queue_foreground_executor_v1",
                            "bounded_main_bot_self_continuation_v1",
                            "pack_and_go_branch_publication_readiness_gate_v1",
-                           "codex_cli_fast_workspace_write_fixture_retry_v1",
-                           "codex_cli_service_tier_strategy_gate_v1",
-                           "codex_cli_normal_config_workspace_write_fixture_retry_v1",
-                           "codex_cli_effective_workspace_write_diagnostic_v1",
-                           "codex_cli_workspace_write_fixture_worker_retry_v1"
+                           "codex_cli_fast_workspace_write_fixture_retry_v1"
                        ]
 }

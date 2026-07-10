@@ -1,11 +1,31 @@
 {
     "schema_version":  "operator_console_recent_packets_summary_v1",
-    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "generated_at":  "2026-07-10T01:41:28.2613327-06:00",
     "packets":  [
+                    {
+                        "name":  "background_runner_future_gate_design_v1",
+                        "path":  "docs\\hq\\background_runner_future_gate_design_v1",
+                        "last_write_time":  "2026-07-10T01:35:39.4699255-06:00"
+                    },
+                    {
+                        "name":  "worker_roles",
+                        "path":  "docs\\hq\\worker_roles",
+                        "last_write_time":  "2026-07-10T01:35:20.5455697-06:00"
+                    },
+                    {
+                        "name":  "hq_chokepoint_adapter_no_api_v1",
+                        "path":  "docs\\hq\\hq_chokepoint_adapter_no_api_v1",
+                        "last_write_time":  "2026-07-10T01:31:42.7332072-06:00"
+                    },
+                    {
+                        "name":  "controlled_multi_lane_hardening_v2",
+                        "path":  "docs\\hq\\controlled_multi_lane_hardening_v2",
+                        "last_write_time":  "2026-07-10T01:30:22.4992635-06:00"
+                    },
                     {
                         "name":  "operator_console_readonly_chatroom_v1",
                         "path":  "docs\\hq\\operator_console_readonly_chatroom_v1",
-                        "last_write_time":  "2026-07-10T01:24:41.6472142-06:00"
+                        "last_write_time":  "2026-07-10T01:27:31.8213758-06:00"
                     },
                     {
                         "name":  "controlled_multi_lane_foreground_execution_v1",
@@ -41,26 +61,6 @@
                         "name":  "codex_cli_fast_workspace_write_fixture_retry_v1",
                         "path":  "docs\\hq\\codex_cli_fast_workspace_write_fixture_retry_v1",
                         "last_write_time":  "2026-07-09T17:34:30.2331499-06:00"
-                    },
-                    {
-                        "name":  "codex_cli_service_tier_strategy_gate_v1",
-                        "path":  "docs\\hq\\codex_cli_service_tier_strategy_gate_v1",
-                        "last_write_time":  "2026-07-09T17:26:10.9607830-06:00"
-                    },
-                    {
-                        "name":  "codex_cli_normal_config_workspace_write_fixture_retry_v1",
-                        "path":  "docs\\hq\\codex_cli_normal_config_workspace_write_fixture_retry_v1",
-                        "last_write_time":  "2026-07-09T17:19:56.9561431-06:00"
-                    },
-                    {
-                        "name":  "codex_cli_effective_workspace_write_diagnostic_v1",
-                        "path":  "docs\\hq\\codex_cli_effective_workspace_write_diagnostic_v1",
-                        "last_write_time":  "2026-07-09T14:53:57.3758729-06:00"
-                    },
-                    {
-                        "name":  "codex_cli_workspace_write_fixture_worker_retry_v1",
-                        "path":  "docs\\hq\\codex_cli_workspace_write_fixture_worker_retry_v1",
-                        "last_write_time":  "2026-07-09T14:43:59.2191196-06:00"
                     }
                 ]
 }
