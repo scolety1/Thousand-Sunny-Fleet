@@ -1,0 +1,4 @@
+"sequence","mission_id","worker_role","codex_cli_invoked","service_tier_fast","sandbox_workspace_write","ignore_user_config","danger_full_access","exit_code","worker_status","result_path"
+"1","queue-dogfood-builder-001","builder_worker","true","true","true","false","false","0","CODEX_CLI_QUEUE_FIXTURE_GREEN",".codex-local/mission-queue-dogfood-v1/runs/builder/worker_result.json"
+"2","queue-dogfood-tester-001","tester_worker","true","true","true","false","false","0","CODEX_CLI_QUEUE_FIXTURE_GREEN",".codex-local/mission-queue-dogfood-v1/runs/tester/worker_result.json"
+"3","queue-dogfood-auditor-001","auditor_worker","true","true","true","false","false","0","CODEX_CLI_QUEUE_FIXTURE_GREEN",".codex-local/mission-queue-dogfood-v1/runs/auditor/worker_result.json"

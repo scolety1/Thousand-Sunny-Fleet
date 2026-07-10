@@ -1,0 +1,4 @@
+"mission_id","worker_role","executor_final_decision","final_state","artifact","artifact_content_matched","notes"
+"queue-dogfood-builder-001","builder_worker","GREEN_WORKER_VERIFIER_WITH_PRESERVATION_REPAIR","complete_review_only","tests/fixtures/fleet/mission-queue/worker-output/queue_builder_result.txt","true","Worker and verifier were GREEN; preservation was repaired after executor path bug without rerunning worker."
+"queue-dogfood-tester-001","tester_worker","GREEN_QUEUE_WORKER_VERIFIED","complete_review_only","tests/fixtures/fleet/mission-queue/worker-output/queue_tester_result.txt","true","Completed through repaired executor path."
+"queue-dogfood-auditor-001","auditor_worker","GREEN_QUEUE_WORKER_VERIFIED","complete_review_only","tests/fixtures/fleet/mission-queue/worker-output/queue_auditor_result.txt","true","Completed through repaired executor path."

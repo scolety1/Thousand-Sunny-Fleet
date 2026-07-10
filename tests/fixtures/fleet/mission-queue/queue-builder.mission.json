@@ -1,0 +1,117 @@
+{
+  "mission_id": "queue-dogfood-builder-001",
+  "project_id": "TSF_CONTROL_PLANE",
+  "repo_path": ".",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "mission_type": "tsf_infrastructure",
+  "allowed_reads": [
+    "fleet/control",
+    "tools",
+    "tests/fixtures/fleet/mission-queue"
+  ],
+  "allowed_writes": [
+    "tests/fixtures/fleet/mission-queue/worker-output/queue_builder_result.txt"
+  ],
+  "forbidden_reads": [
+    "C:\\NWR\\Niners-War-Room",
+    "normal NWR packets",
+    "product repos"
+  ],
+  "forbidden_writes": [
+    "C:\\NWR\\Niners-War-Room",
+    "product repos",
+    "main"
+  ],
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "privatelens",
+    "proof_run",
+    "all_fleet",
+    "background_runner",
+    "persistent_runner",
+    "canonical_nwr_inspection",
+    "canonical_nwr_mutation",
+    "normal_nwr_packet_read",
+    "product_repo_inspection",
+    "product_repo_mutation",
+    "api_bridge",
+    "open_network_port",
+    "credential_change",
+    "app_wiring",
+    "ranking_formula_source_truth_promotion",
+    "hidden_sort",
+    "recommendation_behavior"
+  ],
+  "expected_artifacts": [
+    "tests/fixtures/fleet/mission-queue/worker-output/queue_builder_result.txt"
+  ],
+  "required_preflight_checks": [
+    "mission_schema",
+    "project_registration_or_tsf_internal",
+    "git_status",
+    "worker_role_permission",
+    "approval_ledger_exact_action_match",
+    "forbidden_actions_absent"
+  ],
+  "required_postrun_checks": [
+    "expected_artifacts",
+    "allowed_write_scope",
+    "restricted_actions_absent",
+    "verifier_green"
+  ],
+  "stop_conditions": [
+    {
+      "id": "missing_exact_approval",
+      "check_type": "approval_required"
+    },
+    {
+      "id": "unexpected_file_touch",
+      "check_type": "manual"
+    },
+    {
+      "id": "codex_cli_auth_or_execution_unclear",
+      "check_type": "manual"
+    },
+    {
+      "id": "verifier_red",
+      "check_type": "manual"
+    },
+    {
+      "id": "forbidden_action_requested",
+      "check_type": "forbidden_action_absent"
+    }
+  ],
+  "approval_requirements": [
+    {
+      "required": true,
+      "approval_id": "tim-approval-queue-dogfood-20260709",
+      "exact_action": "codex_cli_queue_fixture_worker_invocation"
+    }
+  ],
+  "hq_escalation_policy": "local_only_no_api",
+  "created_by": "Master TSF Queue Executor Runway",
+  "created_at": "2026-07-09T00:00:00-06:00",
+  "queue_final_state": "complete_review_only",
+  "queue_executor_fixture": {
+    "expected_content": "TSF queue builder worker foreground executor complete."
+  },
+  "role_extension": {
+    "requested_by": "Tim",
+    "project_main_bot_id": "project-main-bot-tsf",
+    "worker_role": "builder_worker",
+    "translator_used": false,
+    "context_capsule_id": "queue-dogfood-context",
+    "lane_id": "MASTER_TSF_CONTROL_PLANE",
+    "parent_mission_id": "queue-dogfood-v1",
+    "sibling_lane_ids": [],
+    "role_permission_profile_id": "builder_worker",
+    "role_output_contract": "Create exactly one bounded queue builder fixture artifact.",
+    "verifier_role": "verifier_worker",
+    "escalation_policy_id": "local_only_no_api"
+  }
+}

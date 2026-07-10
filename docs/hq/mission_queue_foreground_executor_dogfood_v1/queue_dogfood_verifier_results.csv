@@ -1,0 +1,4 @@
+"mission_id","worker_role","verifier_verdict","verified","restricted_actions_attempted","allowed_write_scope","artifact_exists","verifier_path"
+"queue-dogfood-builder-001","builder_worker","GREEN","true","none","PASS","PASS",".codex-local/mission-queue-dogfood-v1/runs/builder/verifier_result.json"
+"queue-dogfood-tester-001","tester_worker","GREEN","true","none","PASS","PASS",".codex-local/mission-queue-dogfood-v1/runs/tester/verifier_result.json"
+"queue-dogfood-auditor-001","auditor_worker","GREEN","true","none","PASS","PASS",".codex-local/mission-queue-dogfood-v1/runs/auditor/verifier_result.json"
