@@ -1,0 +1,7 @@
+step,result,evidence
+idea_intake,GREEN,idea-agent-of-agents-architecture-v1
+plan_generation,GREEN,three bounded prompts
+export_package,GREEN,required files and ZIPs created in scratch
+report_import,GREEN,three synthetic reports imported
+synthesis,GREEN,advisory decision produced
+authority_gate,GREEN,research grants no approval

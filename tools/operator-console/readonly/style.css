@@ -409,6 +409,53 @@ button[type="button"] {
   gap: 12px;
 }
 
+.research-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+}
+
+.research-list {
+  display: grid;
+  gap: 12px;
+}
+
+.research-card {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.research-card[data-status="GREEN"] {
+  border-left-color: var(--green);
+}
+
+.research-card[data-status="TIM_REQUIRED"] {
+  border-left-color: var(--blue);
+}
+
+.research-card[data-status="YELLOW"] {
+  border-left-color: var(--yellow);
+}
+
+.research-card p {
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 8px;
+}
+
+.research-form {
+  display: grid;
+  gap: 10px;
+}
+
+.research-form label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 pre {
   background: #101828;
   border-radius: 8px;
@@ -426,7 +473,8 @@ pre {
   .topbar,
   .hero-panel,
   .two-column,
-  .chat-grid {
+  .chat-grid,
+  .research-grid {
     grid-template-columns: 1fr;
   }
 

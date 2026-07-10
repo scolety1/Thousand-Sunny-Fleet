@@ -1,0 +1,33 @@
+{
+  "schema_version": "operator_console_research_inbox_sample_v1",
+  "cards": [
+    {
+      "id": "idea-inbox",
+      "label": "Idea Inbox",
+      "status": "GREEN",
+      "summary": "Local idea capture is draft-only.",
+      "detail": "Original wording is preserved and classified before any export."
+    },
+    {
+      "id": "deep-research-export",
+      "label": "Deep Research Export",
+      "status": "TIM_REQUIRED",
+      "summary": "Packets can be prepared, not submitted.",
+      "detail": "External submission remains a Tim/HQ gate."
+    },
+    {
+      "id": "research-import",
+      "label": "Report Import",
+      "status": "GREEN",
+      "summary": "Reports are hashed, preserved, and mapped to prompt IDs.",
+      "detail": "Unmatched or unsafe reports are quarantined by local tooling."
+    },
+    {
+      "id": "synthesis",
+      "label": "Synthesis",
+      "status": "GREEN",
+      "summary": "Recommendations are advisory only.",
+      "detail": "Synthesis cannot approve push, merge, API, background, or source-truth changes."
+    }
+  ]
+}

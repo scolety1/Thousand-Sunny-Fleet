@@ -1,0 +1,10 @@
+decision,item,rationale,gate_required
+KEEP,Project Main Bot supervisor,Existing TSF control plane aligns with supervisor-specialist pattern,no
+KEEP,Foreground-only execution gates,They preserve local containment,no
+CHANGE,Operator Console,Add read-only research inbox/status supervision,no
+ADD,Research Intake Coordinator,Needed for idea normalization and prompt-count control,no
+ADD,Deep Research Import/Export Coordinator,Needed for packet export and immutable report import,no
+ADD,Research Synthesis Engine,Needed to compare reports and produce advisory decisions,no
+REMOVE,Any implicit research-as-approval path,Research evidence cannot bypass Tim/HQ gates,no
+DELAY,Automatic Deep Research submission,Requires API/spending/external transport approval,yes
+DELAY,Background research runner,Requires separate runner gate,yes

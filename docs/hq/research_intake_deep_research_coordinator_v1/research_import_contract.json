@@ -1,0 +1,23 @@
+{
+  "schema_version": "tsf_research_import_contract_v1",
+  "approved_roots": [
+    "C:\\NWR_REVIEW\\TSF_DEEP_RESEARCH_RETURNS",
+    "tests/fixtures/fleet/research-pipeline",
+    ".codex-local/research-pipeline"
+  ],
+  "preserve_original_report": true,
+  "hash_algorithm": "SHA256",
+  "required_report_fields": [
+    "research_project_id",
+    "prompt_id",
+    "sources"
+  ],
+  "quarantine_conditions": [
+    "wrong_project",
+    "duplicate_report",
+    "missing_citations",
+    "unsafe_or_malicious_instruction",
+    "path_outside_approved_root"
+  ],
+  "research_grants_approval": false
+}

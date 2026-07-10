@@ -1,0 +1,7 @@
+decision,item,rationale
+KEEP,Project Main Bot hierarchy,Supervisor pattern fits TSF
+ADD,Research Intake Coordinator,Needed for normalization and prompt limits
+ADD,Deep Research Import/Export Coordinator,Needed for packet and report lifecycle
+CHANGE,Operator Console,Add research cards without execution
+REMOVE,Research-as-approval,Would bypass HQ gates
+DELAY,Automatic external submission,Requires API/cost approval

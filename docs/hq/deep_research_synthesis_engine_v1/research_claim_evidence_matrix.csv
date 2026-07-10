@@ -1,0 +1,4 @@
+claim_id,claim,supporting_prompts,confidence,adoption_gate
+claim-001,Research is advisory only,all,high,Tim-approved implementation gate
+claim-002,Export packets must be compressed and protected,baseline,high,Local validation gate
+claim-003,Operator Console should supervise without executing,operator-console-supervision-and-risk,medium,UI publication gate

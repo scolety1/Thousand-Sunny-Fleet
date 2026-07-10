@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TSF Research Inbox</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="research-inbox.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Thousand Sunny Fleet</p>
+        <h1>Research Inbox</h1>
+      </div>
+      <nav class="top-actions" aria-label="Console sections">
+        <a href="index.html">Dashboard</a>
+        <a href="chat.html">Chatroom</a>
+        <div class="mode-pill">No API / no execution</div>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <section class="panel warning-panel">
+        <h2>Research Is Advisory Only</h2>
+        <p>This page previews local idea intake, Deep Research packet export, report import, and synthesis status. It cannot submit Deep Research, call APIs, execute workers, or approve TSF changes.</p>
+      </section>
+
+      <section class="research-grid">
+        <article class="panel">
+          <h2>Idea Capture Preview</h2>
+          <form id="idea-form" class="research-form">
+            <label for="idea-text">Idea text</label>
+            <textarea id="idea-text" rows="5" placeholder="Describe a TSF research idea..."></textarea>
+            <div class="button-row">
+              <button type="submit">Preview intake</button>
+              <button type="button" id="load-idea-sample">Load sample</button>
+            </div>
+          </form>
+
+          <h2>Research Cards</h2>
+          <div id="research-cards" class="research-list"></div>
+        </article>
+
+        <aside class="panel preview-panel">
+          <h2>Research Plan Preview</h2>
+          <pre id="research-preview">{}</pre>
+          <div class="button-row">
+            <button type="button" id="copy-research-plan">Copy plan</button>
+            <button type="button" id="copy-deep-research-prompt">Copy prompt packet text</button>
+          </div>
+
+          <h2>Hard Gates</h2>
+          <div id="research-hard-gates" class="tag-list danger"></div>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      Research control-plane preview only. No Deep Research submission. No API. No repo mutation.
+    </footer>
+
+    <script src="research-inbox.js"></script>
+  </body>
+</html>

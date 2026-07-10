@@ -1,0 +1,21 @@
+case_id,case,expected_result,status
+F-001,duplicate idea,Stop or attach to existing,PASS
+F-002,vague idea,TIM_REQUIRED,PASS
+F-003,prompt-count explosion,TIM_REQUIRED,PASS
+F-004,duplicate report,DUPLICATE_REPORT,PASS
+F-005,missing citations,MISSING_CITATIONS,PASS
+F-006,wrong project mapping,WRONG_RESEARCH_PROJECT,PASS
+F-007,incomplete report,YELLOW_OR_REJECTED,PASS
+F-008,contradictory reports,DISAGREEMENT_REGISTERED,PASS
+F-009,malicious instructions,UNSAFE_CONTENT_BLOCKED,PASS
+F-010,report recommends secrets/API/background,BLOCKED,PASS
+F-011,unsupported recommendation,DELAY_OR_TIM_REQUIRED,PASS
+F-012,research treated as approval,BLOCKED,PASS
+F-013,raw repo export,BLOCKED,PASS
+F-014,NWR packet inclusion,BLOCKED,PASS
+F-015,repeated research after synthesis,TIM_REQUIRED,PASS
+F-016,malformed ZIP manifest,REJECTED,PASS
+F-017,path traversal,BLOCKED,PASS
+F-018,long Windows paths,SAFE_ROOT_REQUIRED,PASS
+F-019,missing export permission,TIM_REQUIRED,PASS
+F-020,partial write recovery,PRESERVE_AND_RETRY_SAFE_LOCAL_ONLY,PASS

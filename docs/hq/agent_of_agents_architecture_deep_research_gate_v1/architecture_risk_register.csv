@@ -1,0 +1,8 @@
+risk_id,risk,severity,mitigation,status
+R-001,Research treated as approval,HIGH,Contracts set advisory_only and grants_approval false,MITIGATED
+R-002,Prompt-count explosion,MEDIUM,Planner caps prompts and stops for Tim,MITIGATED
+R-003,Raw repo or protected data export,HIGH,Exporter policy forbids raw repo dumps/product/canonical/NWR scope,MITIGATED
+R-004,Duplicate external research loop,MEDIUM,Registry and duplicate detection stop repeats,MITIGATED
+R-005,Operator Console bypasses HQ gates,HIGH,Console is read-only/no-execution/no-API,MITIGATED
+R-006,API cost or credential exposure,HIGH,No API transport enabled in this lane,MITIGATED
+R-007,Imported report contains malicious instructions,HIGH,Importer flags unsafe authority-expanding text,MITIGATED

@@ -1,0 +1,9 @@
+decision,item,adoption_status,rationale
+KEEP,Project Main Bot supervisor,ADOPTED_EXISTING,Already merged
+ADD,Research Intake Coordinator,ADOPTED_LOCAL_TOOLING,Local no-API helper added
+ADD,Deep Research Import/Export Coordinator,ADOPTED_LOCAL_TOOLING,Manual packets only
+ADD,Research Synthesis Engine,ADOPTED_LOCAL_TOOLING,Advisory only
+CHANGE,Operator Console research panel,ADOPTED_READ_ONLY,No execution capability
+REMOVE,Research-as-approval,ADOPTED_GUARDRAIL,Contracts set grants_approval false
+DELAY,Automatic API submission,DEFERRED,Requires separate Tim-approved API gate
+DELAY,Background research runner,DEFERRED,Requires separate runner gate

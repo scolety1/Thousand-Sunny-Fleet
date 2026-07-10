@@ -1,0 +1,10 @@
+{
+  "schema_version": "tsf_research_pipeline_dogfood_final_decision_v1",
+  "verdict": "GREEN_RESEARCH_PIPELINE_DOGFOOD_COMPLETE",
+  "synthetic_reports_are_real_research": false,
+  "all_synthetic_reports_labeled": true,
+  "api_called": false,
+  "worker_invoked": false,
+  "grants_approval": false,
+  "recommended_next_action": "Validate and publish branch through separate Tim-approved gate."
+}

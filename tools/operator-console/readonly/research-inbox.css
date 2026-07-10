@@ -1,0 +1,14 @@
+.research-card strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.research-card code {
+  background: #eef2f7;
+  border-radius: 6px;
+  color: #344054;
+  display: inline-block;
+  font-size: 12px;
+  margin-top: 8px;
+  padding: 4px 6px;
+}

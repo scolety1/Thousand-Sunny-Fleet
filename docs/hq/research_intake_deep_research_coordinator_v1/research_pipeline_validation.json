@@ -1,0 +1,12 @@
+{
+  "schema_version": "tsf_research_pipeline_validation_v1",
+  "verdict": "GREEN_RESEARCH_PIPELINE_LOCAL_COORDINATOR_READY",
+  "idea_intake_defined": true,
+  "planner_defined": true,
+  "export_contract_defined": true,
+  "import_contract_defined": true,
+  "synthesis_contract_defined": true,
+  "api_called": false,
+  "background_runner_started": false,
+  "research_treated_as_approval": false
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "tsf_research_intake_workflow_v1",
+  "steps": [
+    "capture_idea_preserve_original_wording",
+    "classify_depth_and_scope",
+    "check_registry_for_duplicate_or_overlap",
+    "draft_prompt_plan_with_max_prompt_count",
+    "export_manual_research_packets_if_green",
+    "import_returned_reports_with_hashes",
+    "synthesize_advisory_decision",
+    "stop_for_tim_or_hq_adoption_gate"
+  ],
+  "execution_enabled": false,
+  "api_called": false,
+  "research_is_advisory_only": true
+}

@@ -1,0 +1,7 @@
+decision,item,status
+KEEP,Project Main Bot hierarchy,advisory
+ADD,Research Intake Coordinator,advisory
+ADD,Deep Research Import/Export Coordinator,advisory
+CHANGE,Operator Console research cards,advisory
+REMOVE,Research-as-approval,advisory
+DELAY,Automatic external submission,advisory

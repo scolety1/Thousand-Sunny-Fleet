@@ -1,0 +1,8 @@
+{
+  "schema_version": "tsf_deep_research_synthesis_validation_v1",
+  "verdict": "GREEN_SYNTHESIS_ENGINE_LOCAL_FIXTURE_READY",
+  "api_called": false,
+  "background_runner_started": false,
+  "research_treated_as_approval": false,
+  "synthetic_fixture_reports_labeled": true
+}

@@ -1,0 +1,5 @@
+recovery_case,result,notes
+partial_export_write,PASS,Scratch output can be deleted and regenerated
+partial_import_write,PASS,Original report hash preserved
+missing_return_report,PASS,Synthesis records missing prompt id
+malformed_manifest,PASS,Validation rejects required-file gap

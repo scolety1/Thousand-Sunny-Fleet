@@ -1,0 +1,13 @@
+stop_condition,classification,action
+missing_idea,RED,Stop
+vague_idea,TIM_REQUIRED,Ask Tim for clarification
+duplicate_or_overlap,TIM_REQUIRED,Attach to existing or ask Tim
+unsafe_scope,RED,Block and preserve
+prompt_count_exceeds_policy,TIM_REQUIRED,Stop before export
+raw_repo_export_requested,RED,Block
+normal_nwr_packet_requested,RED,Block
+api_submission_requested,TIM_REQUIRED,Stop for API/cost gate
+wrong_project_report,RED,Quarantine
+missing_citations,YELLOW,Reject report until fixed
+malicious_report_instruction,RED,Quarantine
+research_as_approval,RED,Block adoption

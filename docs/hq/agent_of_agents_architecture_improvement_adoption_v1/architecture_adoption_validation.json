@@ -1,0 +1,10 @@
+{
+  "schema_version": "tsf_agent_architecture_adoption_validation_v1",
+  "verdict": "GREEN_LOW_RISK_LOCAL_RESEARCH_PIPELINE_ADOPTED",
+  "low_risk_changes_applied": true,
+  "authority_expansion_deferred": true,
+  "api_called": false,
+  "background_runner_started": false,
+  "product_repo_mutated": false,
+  "canonical_nwr_mutated": false
+}

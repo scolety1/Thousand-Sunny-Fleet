@@ -1,0 +1,4 @@
+prompt_id,finding,recommendation,evidence
+architecture-supervisor-hierarchy,Use Project Main Bot supervisor with explicit handoffs,KEEP_AND_HARDEN,Supervisor-specialist pattern
+research-intake-import-export,Use immutable report import and bounded export packets,ADD,Provenance and durability pattern
+operator-console-supervision-and-risk,Use read-only console supervision,KEEP_GATED,Least privilege and HQ gate preservation

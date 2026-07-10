@@ -1,0 +1,63 @@
+{
+  "schema_version": "tsf_research_registry_v1",
+  "default_posture": "fail_closed",
+  "research_execution_enabled": false,
+  "chatgpt_openai_api_enabled": false,
+  "deep_research_auto_submission_enabled": false,
+  "operator_console_supervises_hq_gates": true,
+  "approved_local_fixture_roots": [
+    "tests/fixtures/fleet/research-pipeline",
+    ".codex-local/research-pipeline"
+  ],
+  "approved_external_export_root": "C:\\NWR_REVIEW\\TSF_DEEP_RESEARCH_EXPORTS",
+  "approved_external_return_root": "C:\\NWR_REVIEW\\TSF_DEEP_RESEARCH_RETURNS",
+  "fallback_external_root": "C:\\NWR_SANDBOX",
+  "max_prompt_count_without_tim": 4,
+  "known_research_projects": [
+    {
+      "research_project_id": "agent-of-agents-architecture-research-v1",
+      "idea_id": "idea-agent-of-agents-architecture-v1",
+      "title": "Agent-of-Agents architecture and Deep Research pipeline",
+      "status": "local_pipeline_fixture",
+      "research_is_advisory_only": true,
+      "hq_gate_required_for_adoption": true
+    }
+  ],
+  "duplicate_detection": {
+    "match_fields": [
+      "original_wording",
+      "interpreted_goal",
+      "related_tsf_components"
+    ],
+    "normalized_exact_match_blocks_new_project": true,
+    "overlap_requires_tim_review": true
+  },
+  "forbidden_export_content": [
+    "secrets",
+    "credentials",
+    "api_keys",
+    "auth_tokens",
+    "account_ids",
+    "full_raw_repo_dump",
+    "normal_nwr_packet",
+    "canonical_nwr",
+    "product_repo",
+    "PrivateLens"
+  ],
+  "stop_conditions": [
+    "missing_idea",
+    "vague_or_authority_expanding_idea",
+    "duplicate_or_overlapping_research",
+    "prompt_count_exceeds_policy",
+    "raw_repo_dump_requested",
+    "normal_nwr_packet_requested",
+    "product_repo_or_canonical_nwr_scope",
+    "external_api_or_deep_research_submission_requested",
+    "missing_return_report",
+    "wrong_project_report",
+    "duplicate_return_report",
+    "missing_citations_or_source_list",
+    "malicious_or_authority_expanding_report_instruction",
+    "research_result_treated_as_approval"
+  ]
+}

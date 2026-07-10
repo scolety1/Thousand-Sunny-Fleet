@@ -1,0 +1,22 @@
+{
+  "schema_version": "tsf_research_export_contract_v1",
+  "required_files": [
+    "SEND_TO_CHATGPT_DEEP_RESEARCH.md",
+    "RESEARCH_CONTEXT.md",
+    "SOURCE_TRACE.csv",
+    "REQUIRED_OUTPUT_CONTRACT.json",
+    "RETURN_REPORT_IMPORT_INSTRUCTIONS.md",
+    "RESEARCH_MANIFEST.json"
+  ],
+  "forbidden_content": [
+    "secrets",
+    "credentials",
+    "full_raw_repo_dump",
+    "normal_nwr_packet",
+    "canonical_nwr",
+    "product_repo",
+    "PrivateLens"
+  ],
+  "manual_submission_only": true,
+  "api_called": false
+}

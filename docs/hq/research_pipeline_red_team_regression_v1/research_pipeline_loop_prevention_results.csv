@@ -1,0 +1,5 @@
+loop_case,result,notes
+duplicate_idea,PASS,Registry can identify overlap
+repeated_research_after_synthesis,PASS,Requires Tim decision
+prompt_count_explosion,PASS,Max prompt policy stops export
+research_as_approval_loop,PASS,Synthesis grants_approval false

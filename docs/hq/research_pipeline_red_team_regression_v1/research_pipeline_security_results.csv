@@ -1,0 +1,9 @@
+security_check,result
+no_api_call,PASS
+no_credentials_access,PASS
+no_product_repo_scope,PASS
+no_canonical_nwr_scope,PASS
+no_normal_nwr_packet_read,PASS
+no_background_runner,PASS
+no_research_as_approval,PASS
+path_roots_constrained,PASS

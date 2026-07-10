@@ -1,0 +1,8 @@
+input_signal,classification,prompt_count,next_action
+short_or_vague,NEEDS_TIM_DESIGN_INPUT_FIRST,0,Stop for clarification
+unsafe_scope,BLOCKED_UNSAFE,0,Block and preserve reason
+duplicate_or_overlap,DUPLICATE_OR_OVERLAPPING,0,Stop or attach to existing project
+local_fact_check,QUICK_LOCAL_REVIEW,0,Use local review only
+single_decision,SINGLE_DEEP_RESEARCH_RUN,1,Prepare one manual packet
+architecture_or_cross_component,MULTI_ANGLE_DEEP_RESEARCH,3,Prepare bounded multi-prompt packet
+prompt_count_exceeds_policy,TIM_REQUIRED_PROMPT_COUNT_EXCEEDED,0,Stop for Tim approval
