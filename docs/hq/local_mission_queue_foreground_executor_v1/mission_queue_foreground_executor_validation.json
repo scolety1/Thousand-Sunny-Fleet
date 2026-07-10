@@ -1,0 +1,24 @@
+{
+  "schema_version": "mission_queue_foreground_executor_validation_v1",
+  "verdict": "GREEN_LOCAL_MISSION_QUEUE_FOREGROUND_EXECUTOR_IMPLEMENTED",
+  "executor_script": "tools/Invoke-TsfMissionQueueForegroundExecutor.ps1",
+  "policy": "fleet/control/mission-queue-foreground-executor-policy.v1.json",
+  "foreground_only": true,
+  "background_runner_started": false,
+  "all_fleet_started": false,
+  "api_called": false,
+  "product_repos_mutated": false,
+  "canonical_nwr_mutated": false,
+  "worker_invocations_in_task1": 0,
+  "focused_validation": {
+    "powershell_parser": "PASS",
+    "json_parse": "PASS",
+    "csv_import": "PASS",
+    "mission_queue_tests": "PASS",
+    "dry_run_invoked_codex_worker": false,
+    "missing_approval_failed_closed": true
+  },
+  "required_tests": [
+    "tests/run-tsf-mission-queue-tests.ps1"
+  ]
+}
