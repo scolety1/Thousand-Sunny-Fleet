@@ -1,0 +1,30 @@
+{
+    "schema_version":  "hq_response_validation_result_v1",
+    "verdict":  "GREEN_HQ_RESPONSE_VALID",
+    "checks":  [
+                   {
+                       "name":  "verdict.allowed",
+                       "status":  "PASS",
+                       "message":  "Verdict is in allowed set."
+                   },
+                   {
+                       "name":  "hard_gate_bypass.blocked",
+                       "status":  "PASS",
+                       "message":  "No hard gate bypass requested."
+                   },
+                   {
+                       "name":  "approved_next_action.present",
+                       "status":  "PASS",
+                       "message":  "Response includes approved_next_action."
+                   },
+                   {
+                       "name":  "packet_id.matches",
+                       "status":  "PASS",
+                       "message":  "Response matches packet id."
+                   }
+               ],
+    "blocked_reasons":  [
+
+                        ],
+    "api_called":  false
+}

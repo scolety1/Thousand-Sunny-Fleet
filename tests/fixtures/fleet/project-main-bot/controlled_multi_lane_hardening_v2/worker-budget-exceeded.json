@@ -1,0 +1,33 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "controlled-multi-lane-hardening-budget",
+  "pilot_mode": "controlled_multi_lane_foreground_execution",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "max_worker_invocations": 1,
+  "requested_actions": ["dry_run_validate", "stop_before_merge"],
+  "lanes": [
+    {
+      "lane_id": "budget-a",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "budget-a",
+      "source_branch": "origin/main",
+      "target_branch": "work/budget-a-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\budget-a-v1-20260710",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening/budget-a.txt"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening/budget-a.txt", "expected_content": "a" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening/budget-a.txt"]
+    },
+    {
+      "lane_id": "budget-b",
+      "worker_role": "tester_worker",
+      "codex_agent_id": "budget-b",
+      "source_branch": "origin/main",
+      "target_branch": "work/budget-b-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\budget-b-v1-20260710",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening/budget-b.txt"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening/budget-b.txt", "expected_content": "b" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening/budget-b.txt"]
+    }
+  ]
+}

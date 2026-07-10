@@ -1,0 +1,19 @@
+{
+  "schema_version": "multi_lane_branch_retention_policy_v2",
+  "default_posture": "retain_until_archived",
+  "local_audit_branch_cleanup_allowed_when": [
+    "lane evidence is preserved on main or in external archive",
+    "branch tip is contained in origin/main or preserved packet",
+    "branch is not attached to an active worktree",
+    "branch is not current branch",
+    "cleanup action is recorded"
+  ],
+  "remote_lane_branch_cleanup_allowed": false,
+  "force_delete_allowed": false,
+  "tim_required_for": [
+    "unclear audit evidence",
+    "active worktree attached",
+    "branch divergence",
+    "remote lane branch deletion"
+  ]
+}

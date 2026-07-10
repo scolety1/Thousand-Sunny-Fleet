@@ -1,0 +1,4 @@
+"case_id","fixture","expected_verdict","expected_signal"
+"same_file_write_collision","tests/fixtures/fleet/project-main-bot/controlled_multi_lane_hardening_v2/same-file-write-collision.json","RED","COLLISION_DETECTED"
+"overlapping_directory_collision","tests/fixtures/fleet/project-main-bot/controlled_multi_lane_hardening_v2/overlapping-directory-collision.json","RED","COLLISION_DETECTED"
+"valid_non_overlapping","tests/fixtures/fleet/project-main-bot/controlled_multi_lane_hardening_v2/valid-hardening-plan.json","GREEN","NO_COLLISION"

@@ -1,0 +1,19 @@
+{
+  "schema_version": "hq_escalation_compressed_packet_schema_v1",
+  "required_fields": [
+    "packet_schema",
+    "packet_id",
+    "created_at",
+    "trigger",
+    "decision_requested",
+    "compressed_evidence",
+    "token_estimate",
+    "allowed_verdicts",
+    "api_call_requested"
+  ],
+  "field_rules": {
+    "compressed_evidence.max_chars": 4000,
+    "api_call_requested.must_equal": false,
+    "raw_repo_dump_allowed": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": "hq_chokepoint_escalation_policy_v1",
+  "transport_enabled": false,
+  "api_calls_enabled": false,
+  "default_posture": "local_packet_only",
+  "packet_rules": {
+    "raw_repo_dump_allowed": false,
+    "compressed_evidence_required": true,
+    "explicit_decision_request_required": true,
+    "token_estimate_required": true,
+    "allowed_verdicts_required": true
+  },
+  "allowed_verdicts": [
+    "GREEN_APPROVE_LOCAL_NEXT_STEP",
+    "YELLOW_NEEDS_MORE_LOCAL_EVIDENCE",
+    "RED_BLOCK_UNSAFE",
+    "TIM_REQUIRED_SCOPE_OR_AUTHORITY"
+  ],
+  "tim_required_for": [
+    "api_transport",
+    "automatic_spending",
+    "raw_repo_upload",
+    "hard_gate_bypass",
+    "source_truth_or_ranking_promotion",
+    "product_repo_mutation",
+    "canonical_nwr_mutation"
+  ]
+}
