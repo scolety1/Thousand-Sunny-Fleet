@@ -44,8 +44,12 @@ New-Item -ItemType Directory -Force -Path $outRoot | Out-Null
 
 $roleFixtureRoot = "tests/fixtures/fleet/project-main-bot/role_aware_lifecycle"
 $builderFixture = Join-Path $roleFixtureRoot "builder_worker.mission-draft.json"
+$builderRuntimeFixture = Join-Path $outRoot "builder_worker.runtime.mission-draft.json"
+$builderRuntimeDraft = Get-Content -LiteralPath $builderFixture -Raw | ConvertFrom-Json
+$builderRuntimeDraft.mission_packet.repo_path = $fleetRoot
+Write-Json -Path $builderRuntimeFixture -Value $builderRuntimeDraft
 $builderLifecyclePath = Join-Path $outRoot "builder.lifecycle.json"
-& ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderFixture -OutDirectory (Join-Path $outRoot "builder-lifecycle") -OutFile $builderLifecyclePath -DryRun | Out-Null
+& ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderRuntimeFixture -OutDirectory (Join-Path $outRoot "builder-lifecycle") -OutFile $builderLifecyclePath -DryRun | Out-Null
 $builderLifecycle = Read-Json $builderLifecyclePath
 Assert-True -Condition ([bool]$builderLifecycle.preflight_approved) -Message "safe Builder dry-run mission passes kernel preflight"
 Assert-True -Condition ([bool]$builderLifecycle.role_preflight_approved) -Message "safe Builder dry-run mission passes role preflight"

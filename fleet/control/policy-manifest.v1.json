@@ -1,0 +1,39 @@
+{
+  "schema_version": "tsf_policy_manifest_v1",
+  "purpose": "Ordered allowlist of TSF policy and schema files that govern durable mission admission.",
+  "ordering_rule": "Array order is canonical and participates in the fingerprint.",
+  "governing_files": [
+    "fleet/control/main-bot-decision-authority.v1.json",
+    "fleet/control/translator-helper-contract.v1.json",
+    "fleet/control/worker-role-registry.v1.json",
+    "fleet/control/worker-permission-profiles.v1.json",
+    "fleet/control/mission-queue-state-policy.v1.json",
+    "fleet/control/parallel-lane-worktree-policy.v1.json",
+    "fleet/control/main-bot-loop-prevention-rules.v1.json",
+    "fleet/control/hq-chokepoint-escalation-policy.v1.json",
+    "fleet/control/research-registry.v1.json",
+    "fleet/control/model-routing-alias-policy.v1.json",
+    "fleet/control/mission-envelope.schema.v1.json",
+    "fleet/control/result-envelope.schema.v1.json",
+    "fleet/control/admission-decision.schema.v1.json",
+    "docs/hq/tsf_durable_mission_result_admission_contract_v1_20260710/OPERATING_MODEL_ADOPTION_DECISION.md"
+  ],
+  "schema_versions": {
+    "mission_envelope": "tsf_mission_envelope_v1",
+    "result_envelope": "tsf_result_envelope_v1",
+    "admission_decision": "tsf_admission_decision_v1",
+    "worker_instruction_packet": "v1",
+    "project_context_capsule": "v1",
+    "research_import_metadata": "tsf_deep_research_import_metadata_v1"
+  },
+  "exclusions": [
+    "secrets and credentials",
+    "runtime approval contents",
+    "mission-specific source material",
+    "unrelated repository contents",
+    "native product transcript or memory"
+  ],
+  "hash_algorithm": "SHA-256",
+  "text_encoding": "UTF-8",
+  "fail_closed": true
+}

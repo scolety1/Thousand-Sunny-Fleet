@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/admission-decision.schema.v1.json",
+  "title": "TSF Admission Decision Receipt V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "result_id", "mission_id", "result_sha256", "status", "reasons", "caveats", "duplicate_submission", "idempotent_replay", "decided_at", "grants_approval", "grants_merge_authority", "grants_production_authority"],
+  "properties": {
+    "schema_version": { "const": "tsf_admission_decision_v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "result_id": { "type": "string", "minLength": 1 },
+    "mission_id": { "type": ["string", "null"] },
+    "result_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": { "enum": ["ADMITTED", "ADMITTED_WITH_CAVEATS", "REVIEW_REQUIRED", "REJECTED_OUT_OF_SCOPE", "REJECTED_POLICY_MISMATCH", "REJECTED_INVALID_EVIDENCE", "UNTRUSTED_NOT_TSF_GOVERNED", "TIM_REQUIRED"] },
+    "reasons": { "type": "array", "items": { "type": "string" } },
+    "caveats": { "type": "array", "items": { "type": "string" } },
+    "duplicate_submission": { "type": "boolean" },
+    "idempotent_replay": { "type": "boolean" },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "grants_approval": { "const": false },
+    "grants_merge_authority": { "const": false },
+    "grants_production_authority": { "const": false }
+  }
+}

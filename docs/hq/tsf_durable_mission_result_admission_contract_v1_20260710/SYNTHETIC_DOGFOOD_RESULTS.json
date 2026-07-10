@@ -1,0 +1,23 @@
+﻿[
+    {
+        "flow":  "SYNTHETIC_WORK_RESEARCH",
+        "mission_id":  "synthetic-work-research-0001",
+        "result_id":  "synthetic-work-result-0001",
+        "admission_status":  "ADMITTED_WITH_CAVEATS",
+        "launches_native_surface":  false
+    },
+    {
+        "flow":  "SYNTHETIC_CODEX_IMPLEMENTATION",
+        "mission_id":  "synthetic-codex-implementation-0001",
+        "result_id":  "synthetic-codex-result-0001",
+        "admission_status":  "ADMITTED",
+        "launches_native_surface":  false
+    },
+    {
+        "flow":  "SYNTHETIC_UNGOVERNED_CODEX",
+        "mission_id":  null,
+        "result_id":  "synthetic-ungoverned-result-0001",
+        "admission_status":  "UNTRUSTED_NOT_TSF_GOVERNED",
+        "launches_native_surface":  false
+    }
+]

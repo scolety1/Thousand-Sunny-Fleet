@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/result-envelope.schema.v1.json",
+  "title": "TSF Durable Result Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "result_id", "mission_id", "parent_mission_id", "policy_fingerprint",
+    "surface_used", "surface_task_identity", "actual_model", "actual_reasoning_effort", "model_assurance_level",
+    "actual_repository", "actual_branch_worktree", "git_facts", "files_inspected", "files_changed",
+    "major_actions", "network_activity", "artifacts", "tests", "verifier_evidence", "approval_use",
+    "deviations_from_mission", "uncertainty", "security_or_scope_warnings", "proposed_next_action",
+    "authority_statement", "grants_approval", "grants_merge_authority", "grants_production_authority", "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_result_envelope_v1" },
+    "result_id": { "type": "string", "minLength": 8, "maxLength": 160, "pattern": "^[A-Za-z0-9._:-]+$" },
+    "mission_id": { "type": ["string", "null"] },
+    "parent_mission_id": { "type": ["string", "null"] },
+    "policy_fingerprint": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "surface_used": { "type": "string", "minLength": 1 },
+    "surface_task_identity": { "type": ["string", "null"] },
+    "actual_model": { "type": ["string", "null"] },
+    "actual_reasoning_effort": { "enum": ["UNKNOWN", "LIGHT", "MEDIUM", "HIGH", "EXTRA_HIGH", "MAX", "ULTRA"] },
+    "model_assurance_level": { "enum": ["RECOMMENDED_ONLY", "USER_CONFIRMED", "ADAPTER_VERIFIED", "TECHNICALLY_ENFORCED"] },
+    "actual_repository": { "type": ["string", "null"] },
+    "actual_branch_worktree": {
+      "type": "object", "additionalProperties": false, "required": ["branch", "worktree"],
+      "properties": { "branch": { "type": ["string", "null"] }, "worktree": { "type": ["string", "null"] } }
+    },
+    "git_facts": {
+      "type": "object", "additionalProperties": false, "required": ["starting_head", "ending_head", "base_head", "dirty_before", "dirty_after"],
+      "properties": {
+        "starting_head": { "type": ["string", "null"] }, "ending_head": { "type": ["string", "null"] },
+        "base_head": { "type": ["string", "null"] }, "dirty_before": { "type": ["boolean", "null"] }, "dirty_after": { "type": ["boolean", "null"] }
+      }
+    },
+    "files_inspected": { "$ref": "#/$defs/stringArray" },
+    "files_changed": { "$ref": "#/$defs/stringArray" },
+    "major_actions": { "$ref": "#/$defs/stringArray" },
+    "network_activity": {
+      "type": "object", "additionalProperties": false, "required": ["status", "used", "destinations"],
+      "properties": {
+        "status": { "enum": ["UNKNOWN", "NONE_OBSERVED", "DECLARED", "ADAPTER_VERIFIED"] },
+        "used": { "type": ["boolean", "null"] },
+        "destinations": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "artifacts": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["path", "sha256", "exists"],
+        "properties": { "path": { "type": "string", "minLength": 1 }, "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }, "exists": { "type": "boolean" } }
+      }
+    },
+    "tests": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["test_id", "status", "observed", "evidence"],
+        "properties": {
+          "test_id": { "type": "string", "minLength": 1 }, "status": { "enum": ["PASS", "FAIL", "NOT_RUN", "UNKNOWN"] },
+          "observed": { "type": "string" }, "evidence": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "verifier_evidence": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["verifier_id", "independence", "passed", "evidence"],
+        "properties": {
+          "verifier_id": { "type": "string", "minLength": 1 },
+          "independence": { "enum": ["NONE", "SEPARATE_TASK", "SEPARATE_ROLE", "INDEPENDENT_HUMAN"] },
+          "passed": { "type": "boolean" }, "evidence": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "approval_use": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["approval_id", "exact_action", "used"],
+        "properties": { "approval_id": { "type": "string", "minLength": 1 }, "exact_action": { "type": "string", "minLength": 1 }, "used": { "type": "boolean" } }
+      }
+    },
+    "deviations_from_mission": { "$ref": "#/$defs/stringArray" },
+    "uncertainty": { "$ref": "#/$defs/stringArray" },
+    "security_or_scope_warnings": { "$ref": "#/$defs/stringArray" },
+    "proposed_next_action": { "type": "string", "minLength": 1 },
+    "authority_statement": { "type": "string", "minLength": 1 },
+    "grants_approval": { "type": "boolean", "default": false },
+    "grants_merge_authority": { "type": "boolean", "default": false },
+    "grants_production_authority": { "type": "boolean", "default": false },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+  }
+}

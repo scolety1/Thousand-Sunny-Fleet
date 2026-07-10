@@ -1,0 +1,69 @@
+{
+  "schema_version": "tsf_durable_contract_validation_v1",
+  "generated_at": "2026-07-10T23:07:33.9432771Z",
+  "verdict": "GREEN_DURABLE_MISSION_RESULT_CONTRACT_READY_FOR_REVIEW",
+  "verified_base": "b6862e5796250c6caa9dcee756c51b4365c45848",
+  "pr11_source_commit_contained": "764f8b8feba3fbd0e41d3807f3629302f8a669b3",
+  "branch": "work/durable-mission-result-admission-contract-v1-20260710",
+  "policy_commit_for_synthetic_fixtures": "b6862e5796250c6caa9dcee756c51b4365c45848",
+  "policy_fingerprint_for_synthetic_fixtures": "e800654710f75279327e8fa26747bcb9c67e1984e7bed9df64d3deb16a0774ef",
+  "policy_governing_file_count": 14,
+  "dedicated_contract_tests": {
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-durable-contract-tests.ps1 -EvidenceRoot .\\docs\\hq\\tsf_durable_mission_result_admission_contract_v1_20260710",
+    "status": "PASS",
+    "executed_assertions": 38,
+    "passed_assertions": 38,
+    "failed_assertions": 0
+  },
+  "existing_regression_suites": [
+    { "command": "tests/run-minimum-viable-kernel-tests.ps1", "status": "PASS" },
+    { "command": "tests/run-tsf-kernel-v2-tests.ps1", "status": "PASS" },
+    { "command": "tests/run-project-main-bot-role-foundation-tests.ps1", "status": "PASS" },
+    { "command": "tests/run-role-aware-lifecycle-integration-tests.ps1", "status": "PASS", "note": "Fixture scratch copy is now bound to the active worktree instead of a hard-coded checkout." },
+    { "command": "tests/run-tsf-mission-queue-tests.ps1", "status": "PASS" },
+    { "command": "tests/run-tsf-hq-chokepoint-tests.ps1", "status": "PASS", "note": "Two tracked fixture side effects were restored exactly after execution." },
+    { "command": "tests/run-tsf-research-pipeline-tests.ps1", "status": "PASS", "executed_assertions": 75, "note": "The long worktree path first hit the Windows path limit; the unchanged suite passed through a temporary T: alias that was removed immediately." }
+  ],
+  "format_checks": {
+    "powershell_parser_files": 7,
+    "powershell_parser_status": "PASS",
+    "json_files_parsed": 12,
+    "json_parse_status": "PASS",
+    "csv_files_imported": 2,
+    "csv_import_status": "PASS"
+  },
+  "wrapper_smoke_tests": {
+    "policy_fingerprint": "PASS",
+    "mission_validation": "PASS",
+    "result_validation": "PASS",
+    "admission_receipt": "PASS_ADMITTED"
+  },
+  "diff_checks": {
+    "git_diff_check": "PASS",
+    "git_diff_cached_check": "PASS"
+  },
+  "full_fleet_entrypoint": {
+    "status": "NOT_TESTED",
+    "reason": "The bounded lane ran the targeted kernel, approval, context, lifecycle, queue, HQ, and research suites. The full-fleet suite retains unrelated origin/main baseline assertions and is listed in DEFERRED_OR_NOT_TESTED.csv."
+  },
+  "synthetic_flows": [
+    { "flow": "WORK_RESEARCH", "status": "ADMITTED_WITH_CAVEATS" },
+    { "flow": "CODEX_IMPLEMENTATION", "status": "ADMITTED" },
+    { "flow": "UNGOVERNED_DIRECT_CODEX", "status": "UNTRUSTED_NOT_TSF_GOVERNED" }
+  ],
+  "all_fixtures_synthetic": true,
+  "native_surface_launched": false,
+  "api_called": false,
+  "desktop_automation_used": false,
+  "plugin_created": false,
+  "mcp_server_created": false,
+  "background_process_started": false,
+  "product_repository_mutated": false,
+  "nwr_accessed": false,
+  "privatelens_content_accessed": false,
+  "package_installed": false,
+  "deployment_performed": false,
+  "grants_approval": false,
+  "grants_merge_authority": false,
+  "grants_production_authority": false
+}
