@@ -1,0 +1,4 @@
+"lane_id","worker_role","codex_cli_worker_execution_invoked","service_tier_fast_used","sandbox_workspace_write_used","ignore_user_config_used","danger_full_access_used","exit_code","worker_status","files_touched"
+"multi-lane-builder","builder_worker","true","true","true","false","false","0","CODEX_CLI_PARALLEL_LANE_FIXTURE_GREEN","tests/fixtures/fleet/multi-lane/worker-output/builder_result.txt"
+"multi-lane-tester","tester_worker","true","true","true","false","false","0","CODEX_CLI_PARALLEL_LANE_FIXTURE_GREEN","tests/fixtures/fleet/multi-lane/worker-output/tester_result.txt"
+"multi-lane-auditor","auditor_worker","true","true","true","false","false","0","CODEX_CLI_PARALLEL_LANE_FIXTURE_GREEN","tests/fixtures/fleet/multi-lane/worker-output/auditor_result.txt"

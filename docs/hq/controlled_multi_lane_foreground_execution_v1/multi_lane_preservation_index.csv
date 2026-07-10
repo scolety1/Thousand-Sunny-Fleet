@@ -1,0 +1,4 @@
+"lane_id","preservation_path","preservation_exists","final_decision","notes"
+"multi-lane-builder",".codex-local\cml\builder\preservation\parallel-lane-multi-lane-builder-fixture-preservation","true","GREEN","Builder preservation repaired after post-verifier path length issue; worker not rerun."
+"multi-lane-tester",".codex-local\cml\tester\preservation\parallel-lane-multi-lane-tester-fixture-preservation","true","GREEN",""
+"multi-lane-auditor",".codex-local\cml\auditor\preservation\parallel-lane-multi-lane-auditor-fixture-preservation","true","GREEN",""

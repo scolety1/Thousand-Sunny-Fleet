@@ -100,8 +100,15 @@ function New-ControlledLaneApprovalLedger {
 
 function Invoke-ControlledLaneGit {
     param([Parameter(Mandatory = $true)][string[]]$Arguments, [string]$WorkingDirectory = $fleetRoot)
-    $output = @(& git @Arguments 2>&1)
-    if ($LASTEXITCODE -ne 0) {
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = @(& git @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+    if ($exitCode -ne 0) {
         throw "git $($Arguments -join ' ') failed: $($output -join "`n")"
     }
     return @($output)
@@ -178,21 +185,34 @@ try {
         $approvalLedgerPath = Join-Path $OutDirectory "approval-ledger.controlled-multi-lane.json"
         New-ControlledLaneApprovalLedger -Plan $plan -Policy $policy -Path $approvalLedgerPath
 
+        $laneCounter = 0
         foreach ($lane in $lanes) {
+            $laneCounter += 1
             if ($workerInvocationsUsed -ge [int]$policy.max_worker_invocations) {
                 throw "Worker budget exceeded before lane $($lane.lane_id)."
             }
             $branch = [string]$lane.branch
             $worktreePath = [string]$lane.worktree_path
             $branchExists = (git rev-parse --verify --quiet "refs/heads/$branch")
-            if ($LASTEXITCODE -eq 0) { throw "Lane branch already exists: $branch" }
-            if (Test-Path -LiteralPath $worktreePath) { throw "Lane worktree path already exists: $worktreePath" }
-
-            Invoke-ControlledLaneGit -Arguments @("worktree", "add", "-b", $branch, $worktreePath, [string]$plan.source_branch) | Out-Null
-            $worktreesCreated = $true
+            $branchAlreadyExists = ($LASTEXITCODE -eq 0)
+            $worktreeExists = Test-Path -LiteralPath $worktreePath
+            if ($branchAlreadyExists -and $worktreeExists) {
+                $actualBranch = (git -C $worktreePath branch --show-current).Trim()
+                if ($actualBranch -ne $branch) { throw "Existing lane worktree branch mismatch: expected=$branch actual=$actualBranch" }
+                $existingStatus = @(Get-ControlledLaneStatusPaths -Path $worktreePath)
+                if ($existingStatus.Count -gt 0) { throw "Existing lane worktree is dirty: $worktreePath" }
+            } elseif ($branchAlreadyExists -and !$worktreeExists) {
+                Invoke-ControlledLaneGit -Arguments @("worktree", "add", $worktreePath, $branch) | Out-Null
+                $worktreesCreated = $true
+            } elseif (!$branchAlreadyExists -and !$worktreeExists) {
+                Invoke-ControlledLaneGit -Arguments @("worktree", "add", "-b", $branch, $worktreePath, [string]$plan.source_branch) | Out-Null
+                $worktreesCreated = $true
+            } else {
+                throw "Lane worktree path exists without matching local branch: $worktreePath"
+            }
             $createdWorktrees.Add([pscustomobject]@{ lane_id = [string]$lane.lane_id; branch = $branch; worktree_path = $worktreePath }) | Out-Null
 
-            $laneOut = Join-Path $OutDirectory ("lane-" + ([string]$lane.lane_id))
+            $laneOut = Join-Path $OutDirectory ("l$laneCounter")
             New-Item -ItemType Directory -Force -Path $laneOut | Out-Null
             $laneResult = & (Join-Path $fleetRoot "tools\Invoke-TsfParallelLaneFixtureWorker.ps1") -PlanPath $planFull -LaneId ([string]$lane.lane_id) -ApprovalLedgerPath $approvalLedgerPath -OutDirectory $laneOut -WorkerTimeoutSeconds $WorkerTimeoutSeconds
             $workerInvocationsUsed += [int]$laneResult.worker_invocations_used
