@@ -1,0 +1,13 @@
+{
+  "schema_version": "background_runner_not_implemented_attestation_v1",
+  "background_runner_implemented": false,
+  "background_runner_started": false,
+  "daemon_started": false,
+  "scheduler_started": false,
+  "watchdog_started": false,
+  "persistent_worker_pool_started": false,
+  "continuous_runner_started": false,
+  "network_port_opened": false,
+  "all_fleet_started": false,
+  "phase_verdict": "GREEN_BACKGROUND_RUNNER_FUTURE_GATE_DESIGN_ONLY"
+}

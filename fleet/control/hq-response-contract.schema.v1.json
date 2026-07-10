@@ -1,0 +1,18 @@
+{
+  "schema_version": "hq_response_contract_schema_v1",
+  "required_fields": [
+    "response_schema",
+    "packet_id",
+    "verdict",
+    "rationale",
+    "approved_next_action",
+    "hard_gate_bypass_requested"
+  ],
+  "allowed_verdicts": [
+    "GREEN_APPROVE_LOCAL_NEXT_STEP",
+    "YELLOW_NEEDS_MORE_LOCAL_EVIDENCE",
+    "RED_BLOCK_UNSAFE",
+    "TIM_REQUIRED_SCOPE_OR_AUTHORITY"
+  ],
+  "hard_gate_bypass_allowed": false
+}

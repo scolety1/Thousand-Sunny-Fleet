@@ -1,0 +1,4 @@
+"case_id","fixture","expected_verdict","expected_signal"
+"stale_worktree","tests/fixtures/fleet/project-main-bot/controlled_multi_lane_hardening_v2/stale-worktree.json","RED","Unsafe worktree lifecycle state"
+"orphaned_lane_branch","tests/fixtures/fleet/project-main-bot/controlled_multi_lane_hardening_v2/orphaned-lane-branch.json","RED","Unsafe branch lifecycle state"
+"worker_budget_exceeded","tests/fixtures/fleet/project-main-bot/controlled_multi_lane_hardening_v2/worker-budget-exceeded.json","RED","Worker invocation budget exceeded"

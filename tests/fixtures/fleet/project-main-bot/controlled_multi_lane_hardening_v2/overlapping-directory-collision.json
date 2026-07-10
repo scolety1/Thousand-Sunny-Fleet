@@ -1,0 +1,33 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "controlled-multi-lane-hardening-overlap",
+  "pilot_mode": "controlled_multi_lane_foreground_execution",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "max_worker_invocations": 3,
+  "requested_actions": ["dry_run_validate", "stop_before_merge"],
+  "lanes": [
+    {
+      "lane_id": "lane-dir",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "overlap-dir",
+      "source_branch": "origin/main",
+      "target_branch": "work/overlap-dir-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\overlap-dir-v1-20260710",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening", "expected_content": "directory owner" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening"]
+    },
+    {
+      "lane_id": "lane-file",
+      "worker_role": "auditor_worker",
+      "codex_agent_id": "overlap-file",
+      "source_branch": "origin/main",
+      "target_branch": "work/overlap-file-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\overlap-file-v1-20260710",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening/auditor.txt"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening/auditor.txt", "expected_content": "auditor" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening/auditor.txt"]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "tsf_specialized_worker_template_v1",
+  "role_id": "red_team_miss_reduction_strategist_worker",
+  "display_name": "Red Team / Miss-Reduction Strategist Worker",
+  "status": "template_only",
+  "mission_focus": [
+    "generic failure-mode discovery",
+    "miss-reduction checklist design",
+    "fixture-only adversarial review"
+  ],
+  "allowed_actions": [
+    "read approved TSF fixture evidence",
+    "write generic TSF review notes",
+    "produce risk-register entries",
+    "recommend additional local validation"
+  ],
+  "forbidden_actions": [
+    "read NWR packets",
+    "mutate canonical NWR",
+    "mutate product repositories",
+    "change rankings or formulas",
+    "change source truth or recommendations",
+    "call external APIs",
+    "start background runners"
+  ],
+  "requires_role_preflight": true,
+  "requires_approval_ledger": true,
+  "execution_enabled": false
+}

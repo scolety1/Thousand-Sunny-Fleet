@@ -1,0 +1,7 @@
+"case_id","call_hq","reason","expected_packet_trigger"
+"architecture_switch","yes","Strategic architecture change outside local authority","architecture_switch"
+"conflicting_worker_reports","yes","Local workers disagree and verifier cannot resolve","conflicting_worker_reports"
+"repeated_blocker","yes","Same blocker repeats after local evidence is complete","repeated_blocker"
+"simple_local_draft","no","Can be handled by local dry-run drafting","none"
+"push_merge_deploy","no","Requires Tim approval first, not HQ spending","tim_required_gate"
+"raw_repo_dump","no","Raw repo dumps are forbidden","blocked"

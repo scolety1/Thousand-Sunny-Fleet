@@ -1,0 +1,8 @@
+{
+  "response_schema": "hq_response_contract_v1",
+  "packet_id": "operator-console-sample",
+  "verdict": "GREEN_APPROVE_LOCAL_NEXT_STEP",
+  "rationale": "Local-only next step is within scope.",
+  "approved_next_action": "Continue with local validation only.",
+  "hard_gate_bypass_requested": false
+}

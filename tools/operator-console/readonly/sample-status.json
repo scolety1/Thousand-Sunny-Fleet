@@ -1,0 +1,53 @@
+{
+  "schema_version": "operator_console_sample_status_v1",
+  "generated_at": "2026-07-10T00:00:00-06:00",
+  "status": {
+    "verdict": "GREEN",
+    "summary": "TSF mainline is published through controlled multi-lane foreground execution.",
+    "origin_main_head": "19ed02f60b897495d328b59072adcd5260d19d0a",
+    "current_branch": "main",
+    "next_recommended_milestone": "Operator Console Read-Only Skeleton V1"
+  },
+  "merged_prs": [
+    { "number": 4, "summary": "Kernel / role-aware lifecycle" },
+    { "number": 5, "summary": "Pack-and-go foundations and first GREEN governed Codex worker execution" },
+    { "number": 6, "summary": "Bounded Project Main Bot self-continuation" },
+    { "number": 7, "summary": "Local mission queue foreground executor" },
+    { "number": 8, "summary": "True parallel lane isolated worktree pilot" },
+    { "number": 9, "summary": "Controlled multi-lane foreground execution" }
+  ],
+  "cards": [
+    { "id": "mainline", "label": "Mainline", "status": "GREEN", "summary": "origin/main verified", "detail": "Published through PR #9." },
+    { "id": "queue", "label": "Mission Queue", "status": "GREEN", "summary": "Foreground executor merged", "detail": "Queue execution remains foreground-only." },
+    { "id": "roles", "label": "Worker Roles", "status": "GREEN", "summary": "18 TSF roles preserved", "detail": "Role permissions fail closed." },
+    { "id": "branches", "label": "Branches", "status": "GREEN", "summary": "Cleanup completed", "detail": "Only repo-onboarding worktree branch remains." },
+    { "id": "api", "label": "API/HQ", "status": "TIM_REQUIRED", "summary": "No API transport enabled", "detail": "Compressed packet builder only is a future local phase." }
+  ],
+  "mission_queue": {
+    "states": ["inbox", "drafted", "preflight_pending", "approved_for_worker", "worker_running", "postrun_pending", "complete_review_only", "complete_ready_for_gate", "stopped", "archived"],
+    "execution_mode": "foreground_only"
+  },
+  "worker_roles": {
+    "role_count": 18,
+    "permission_profile_count": 18,
+    "may_spawn_workers_default": false
+  },
+  "hard_gates": [
+    "push",
+    "merge",
+    "deploy",
+    "install",
+    "migration",
+    "secrets",
+    "api_call",
+    "background_runner",
+    "product_repo_mutation",
+    "canonical_nwr_mutation"
+  ],
+  "review_packets": [
+    "source_branch_cleanup_archive_gate_20260709",
+    "controlled_multi_lane_foreground_execution_v1",
+    "true_parallel_lane_isolated_worktree_pilot_v1",
+    "local_mission_queue_foreground_executor_v1"
+  ]
+}

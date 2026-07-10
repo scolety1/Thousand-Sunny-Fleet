@@ -1,0 +1,15 @@
+{
+  "schema_version": "controlled_multi_lane_hardening_validation_v2",
+  "verdict": "GREEN_CONTROLLED_MULTI_LANE_HARDENING_V2_COMPLETE",
+  "worker_invocations_used": 0,
+  "real_worktrees_created": false,
+  "background_runner_started": false,
+  "api_called": false,
+  "regressions_covered": [
+    "same_file_write_collision",
+    "overlapping_directory_collision",
+    "stale_worktree",
+    "orphaned_lane_branch",
+    "worker_budget_exceeded"
+  ]
+}

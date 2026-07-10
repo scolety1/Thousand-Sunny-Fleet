@@ -1,0 +1,23 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "controlled-multi-lane-hardening-stale-worktree",
+  "pilot_mode": "controlled_multi_lane_foreground_execution",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "max_worker_invocations": 1,
+  "requested_actions": ["dry_run_validate", "stop_before_merge"],
+  "lanes": [
+    {
+      "lane_id": "stale-lane",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "stale-lane-agent",
+      "source_branch": "origin/main",
+      "target_branch": "work/stale-lane-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\stale-lane-v1-20260710",
+      "simulated_worktree_state": "stale",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening/stale.txt"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening/stale.txt", "expected_content": "stale" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening/stale.txt"]
+    }
+  ]
+}

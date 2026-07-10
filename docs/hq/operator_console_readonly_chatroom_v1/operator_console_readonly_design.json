@@ -1,0 +1,32 @@
+{
+  "schema_version": "operator_console_readonly_design_v1",
+  "verdict": "GREEN_OPERATOR_CONSOLE_READONLY_SKELETON_COMPLETE",
+  "implementation": "static_html_css_js",
+  "server_required": false,
+  "background_runner_required": false,
+  "command_execution_enabled": false,
+  "api_calls_enabled": false,
+  "primary_view": "status_dashboard",
+  "screens": [
+    "status_overview",
+    "mission_queue",
+    "worker_roles",
+    "branch_status",
+    "review_packets",
+    "hard_gates",
+    "next_action"
+  ],
+  "data_strategy": {
+    "phase_1": "sample-status.json",
+    "phase_3": "tools/operator-console/readonly/data/*.json",
+    "fallback": "embedded_sample_data"
+  },
+  "guardrails": [
+    "no_mission_execution",
+    "no_codex_worker_execution",
+    "no_api_calls",
+    "no_repo_mutation",
+    "no_background_runner",
+    "no_secret_access"
+  ]
+}

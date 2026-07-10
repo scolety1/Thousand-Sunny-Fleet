@@ -1,0 +1,25 @@
+{
+  "schema_version": "background_runner_required_approvals_v1",
+  "status": "design_only",
+  "implementation_enabled": false,
+  "required_approvals": [
+    "Tim approval for background runner implementation",
+    "Tim approval for runtime and worker budgets",
+    "Tim approval for stop controls",
+    "Tim approval for auth and credential boundaries",
+    "Tim approval for API/HQ transport if proposed",
+    "Tim approval for any all-fleet expansion"
+  ],
+  "forbidden_without_future_approval": [
+    "daemon",
+    "scheduler",
+    "watchdog",
+    "overnight runner",
+    "persistent worker pool",
+    "continuous runner",
+    "all-fleet execution",
+    "API calls",
+    "product repo mutation",
+    "canonical NWR mutation"
+  ]
+}

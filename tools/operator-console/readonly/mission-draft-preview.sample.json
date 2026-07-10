@@ -1,0 +1,31 @@
+{
+  "schema_version": "operator_console_mission_draft_preview_v1",
+  "classification": "SAFE_DRAFT_ONLY",
+  "requested_by": "tim",
+  "project_id": "tsf-operator-console",
+  "worker_role": "documentation_worker",
+  "natural_request": "Prepare a safe local TSF mission draft.",
+  "allowed_reads": [
+    "docs/hq",
+    "fleet/control",
+    "tools/operator-console/readonly"
+  ],
+  "allowed_writes": [
+    "tests/fixtures/fleet/operator-console/draft-missions"
+  ],
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "api_call",
+    "codex_worker_execution",
+    "background_runner",
+    "product_repo_mutation",
+    "canonical_nwr_mutation"
+  ],
+  "execution_enabled": false,
+  "next_safe_action": "Copy draft and run the local PowerShell draft helper outside the browser if approved."
+}

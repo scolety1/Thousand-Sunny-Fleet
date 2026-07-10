@@ -1,0 +1,66 @@
+{
+    "schema_version":  "operator_console_recent_packets_summary_v1",
+    "generated_at":  "2026-07-10T01:41:28.2613327-06:00",
+    "packets":  [
+                    {
+                        "name":  "background_runner_future_gate_design_v1",
+                        "path":  "docs\\hq\\background_runner_future_gate_design_v1",
+                        "last_write_time":  "2026-07-10T01:35:39.4699255-06:00"
+                    },
+                    {
+                        "name":  "worker_roles",
+                        "path":  "docs\\hq\\worker_roles",
+                        "last_write_time":  "2026-07-10T01:35:20.5455697-06:00"
+                    },
+                    {
+                        "name":  "hq_chokepoint_adapter_no_api_v1",
+                        "path":  "docs\\hq\\hq_chokepoint_adapter_no_api_v1",
+                        "last_write_time":  "2026-07-10T01:31:42.7332072-06:00"
+                    },
+                    {
+                        "name":  "controlled_multi_lane_hardening_v2",
+                        "path":  "docs\\hq\\controlled_multi_lane_hardening_v2",
+                        "last_write_time":  "2026-07-10T01:30:22.4992635-06:00"
+                    },
+                    {
+                        "name":  "operator_console_readonly_chatroom_v1",
+                        "path":  "docs\\hq\\operator_console_readonly_chatroom_v1",
+                        "last_write_time":  "2026-07-10T01:27:31.8213758-06:00"
+                    },
+                    {
+                        "name":  "controlled_multi_lane_foreground_execution_v1",
+                        "path":  "docs\\hq\\controlled_multi_lane_foreground_execution_v1",
+                        "last_write_time":  "2026-07-09T22:16:32.9985410-06:00"
+                    },
+                    {
+                        "name":  "true_parallel_lane_isolated_worktree_pilot_v1",
+                        "path":  "docs\\hq\\true_parallel_lane_isolated_worktree_pilot_v1",
+                        "last_write_time":  "2026-07-09T21:37:44.2800446-06:00"
+                    },
+                    {
+                        "name":  "mission_queue_foreground_executor_dogfood_v1",
+                        "path":  "docs\\hq\\mission_queue_foreground_executor_dogfood_v1",
+                        "last_write_time":  "2026-07-09T19:29:30.2633864-06:00"
+                    },
+                    {
+                        "name":  "local_mission_queue_foreground_executor_v1",
+                        "path":  "docs\\hq\\local_mission_queue_foreground_executor_v1",
+                        "last_write_time":  "2026-07-09T19:21:37.1127019-06:00"
+                    },
+                    {
+                        "name":  "bounded_main_bot_self_continuation_v1",
+                        "path":  "docs\\hq\\bounded_main_bot_self_continuation_v1",
+                        "last_write_time":  "2026-07-09T18:34:43.3148581-06:00"
+                    },
+                    {
+                        "name":  "pack_and_go_branch_publication_readiness_gate_v1",
+                        "path":  "docs\\hq\\pack_and_go_branch_publication_readiness_gate_v1",
+                        "last_write_time":  "2026-07-09T17:40:34.7069490-06:00"
+                    },
+                    {
+                        "name":  "codex_cli_fast_workspace_write_fixture_retry_v1",
+                        "path":  "docs\\hq\\codex_cli_fast_workspace_write_fixture_retry_v1",
+                        "last_write_time":  "2026-07-09T17:34:30.2331499-06:00"
+                    }
+                ]
+}

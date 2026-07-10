@@ -1,0 +1,25 @@
+{
+  "schema_version": "operator_console_status_card_contract_v1",
+  "required_fields": [
+    "id",
+    "label",
+    "status",
+    "summary",
+    "detail"
+  ],
+  "status_values": [
+    "GREEN",
+    "YELLOW",
+    "RED",
+    "TIM_REQUIRED",
+    "INFO"
+  ],
+  "rendering_rules": {
+    "GREEN": "positive",
+    "YELLOW": "caution",
+    "RED": "blocked",
+    "TIM_REQUIRED": "approval",
+    "INFO": "neutral"
+  },
+  "write_behavior": "none"
+}

@@ -1,0 +1,7 @@
+"stop_condition","classification","reason"
+"same_file_collision","RED","Two lanes request the same file."
+"overlapping_directory_collision","RED","One lane owns a directory that contains another lane artifact."
+"stale_worktree","RED","A lane worktree is stale, dirty, missing, or ambiguous."
+"orphaned_lane_branch","RED","A lane branch has no safe source/owner."
+"worker_budget_exceeded","TIM_REQUIRED","Requested lanes exceed approved worker budget."
+"remote_branch_delete_unclear","TIM_REQUIRED","Remote lane branch deletion requires separate explicit approval."

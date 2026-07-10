@@ -1,0 +1,8 @@
+{
+  "schema_version": "hq_api_not_called_attestation_v1",
+  "api_called": false,
+  "api_transport_implemented": false,
+  "credentials_accessed": false,
+  "automatic_spending_enabled": false,
+  "attestation": "This phase creates packet tooling only. No ChatGPT/OpenAI API call was made."
+}

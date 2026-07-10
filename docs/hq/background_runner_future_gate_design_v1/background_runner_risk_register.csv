@@ -1,0 +1,8 @@
+risk_id,risk,impact,required_mitigation,status
+BR-001,unbounded execution,high,hard max runtime and invocation budget,not_implemented
+BR-002,credential exposure,high,no secrets access without separate approval,not_implemented
+BR-003,cost runaway,high,no API transport without HQ cost gate,not_implemented
+BR-004,scope drift to product repos,high,role-aware preflight and path guardrails,not_implemented
+BR-005,loss of auditability,high,preservation packets and immutable run logs,not_implemented
+BR-006,background process orphaning,medium,operator-visible stop controls,not_implemented
+BR-007,all-fleet accidental launch,high,explicit all-fleet deny rules,not_implemented

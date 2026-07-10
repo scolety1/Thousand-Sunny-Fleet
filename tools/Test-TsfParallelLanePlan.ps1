@@ -29,6 +29,20 @@ function Add-TsfLaneCheck {
     }) | Out-Null
 }
 
+function Test-TsfLanePathOverlap {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) { return $false }
+    $leftNorm = $Left.Replace("\", "/").Trim().TrimEnd("/").ToLowerInvariant()
+    $rightNorm = $Right.Replace("\", "/").Trim().TrimEnd("/").ToLowerInvariant()
+    if ($leftNorm -eq $rightNorm) { return $true }
+    if ($leftNorm.StartsWith("$rightNorm/")) { return $true }
+    if ($rightNorm.StartsWith("$leftNorm/")) { return $true }
+    return $false
+}
+
 $plan = Read-TsfLaneJson -Path $PlanPath
 $checks = New-Object System.Collections.ArrayList
 $collisions = New-Object System.Collections.ArrayList
@@ -55,6 +69,16 @@ if ($plan.PSObject.Properties.Name -contains "require_true_lanes") {
 $requireWorktreePilotFields = $false
 if ($plan.PSObject.Properties.Name -contains "pilot_mode" -and [string]$plan.pilot_mode -in @("real_isolated_worktree_fixture_pilot", "controlled_multi_lane_foreground_execution")) {
     $requireWorktreePilotFields = $true
+}
+$maxWorkerInvocations = $null
+if ($plan.PSObject.Properties.Name -contains "max_worker_invocations") {
+    $maxWorkerInvocations = [int]$plan.max_worker_invocations
+    if ($lanes.Count -gt $maxWorkerInvocations) {
+        Add-TsfLaneCheck -Checks $checks -Name "worker_budget.within_limit" -Status "FAIL" -Message "Lane count exceeds worker invocation budget." -Evidence "lanes=$($lanes.Count); max_worker_invocations=$maxWorkerInvocations"
+        $blocked.Add("Worker invocation budget exceeded.") | Out-Null
+    } else {
+        Add-TsfLaneCheck -Checks $checks -Name "worker_budget.within_limit" -Status "PASS" -Message "Lane count is within worker invocation budget." -Evidence "lanes=$($lanes.Count); max_worker_invocations=$maxWorkerInvocations"
+    }
 }
 foreach ($lane in $lanes) {
     $laneId = [string]$lane.lane_id
@@ -83,6 +107,14 @@ foreach ($lane in $lanes) {
     if ([string]::IsNullOrWhiteSpace($laneId)) {
         Add-TsfLaneCheck -Checks $checks -Name "lane_id.present" -Status "FAIL" -Message "Lane is missing lane_id."
         $blocked.Add("A lane is missing lane_id.") | Out-Null
+    }
+    if ($lane.PSObject.Properties.Name -contains "simulated_worktree_state" -and [string]$lane.simulated_worktree_state -match "(?i)stale|dirty|missing") {
+        Add-TsfLaneCheck -Checks $checks -Name "worktree.lifecycle.safe" -Status "FAIL" -Message "Lane fixture reports unsafe worktree lifecycle state." -Evidence "$laneId=$($lane.simulated_worktree_state)"
+        $blocked.Add("Unsafe worktree lifecycle state: $laneId=$($lane.simulated_worktree_state)") | Out-Null
+    }
+    if ($lane.PSObject.Properties.Name -contains "simulated_lane_branch_state" -and [string]$lane.simulated_lane_branch_state -match "(?i)orphaned|diverged|unknown") {
+        Add-TsfLaneCheck -Checks $checks -Name "branch.lifecycle.safe" -Status "FAIL" -Message "Lane fixture reports unsafe branch lifecycle state." -Evidence "$laneId=$($lane.simulated_lane_branch_state)"
+        $blocked.Add("Unsafe branch lifecycle state: $laneId=$($lane.simulated_lane_branch_state)") | Out-Null
     }
     if ([string]::IsNullOrWhiteSpace($workerRole) -and $requireWorktreePilotFields) {
         Add-TsfLaneCheck -Checks $checks -Name "worker_role.present" -Status "FAIL" -Message "True lane is missing worker_role." -Evidence $laneId
@@ -134,6 +166,12 @@ foreach ($lane in $lanes) {
         }
     }
     foreach ($file in $ownedFiles) {
+        foreach ($seen in $seenFiles.Keys) {
+            if (Test-TsfLanePathOverlap -Left $file -Right $seen) {
+                $collision = "$file overlaps $seen owned by $($seenFiles[$seen]) and $laneId"
+                $collisions.Add($collision) | Out-Null
+            }
+        }
         if ($seenFiles.ContainsKey($file)) {
             $collision = "$file shared by $($seenFiles[$file]) and $laneId"
             $collisions.Add($collision) | Out-Null
@@ -146,6 +184,12 @@ foreach ($lane in $lanes) {
             Add-TsfLaneCheck -Checks $checks -Name "allowed_write_scope.protected" -Status "FAIL" -Message "Allowed write scope includes protected path." -Evidence $scope
             $blocked.Add("Protected write scope: $scope") | Out-Null
         }
+        foreach ($seen in $seenWriteScopes.Keys) {
+            if (Test-TsfLanePathOverlap -Left $scope -Right $seen) {
+                $collision = "$scope write scope overlaps $seen owned by $($seenWriteScopes[$seen]) and $laneId"
+                $collisions.Add($collision) | Out-Null
+            }
+        }
         if ($seenWriteScopes.ContainsKey($scope)) {
             $collision = "$scope write scope shared by $($seenWriteScopes[$scope]) and $laneId"
             $collisions.Add($collision) | Out-Null
@@ -154,6 +198,12 @@ foreach ($lane in $lanes) {
         }
     }
     foreach ($artifact in $expectedArtifacts) {
+        foreach ($seen in $seenArtifacts.Keys) {
+            if (Test-TsfLanePathOverlap -Left $artifact -Right $seen) {
+                $collision = "$artifact expected artifact overlaps $seen owned by $($seenArtifacts[$seen]) and $laneId"
+                $collisions.Add($collision) | Out-Null
+            }
+        }
         if ($seenArtifacts.ContainsKey($artifact)) {
             $collision = "$artifact expected artifact shared by $($seenArtifacts[$artifact]) and $laneId"
             $collisions.Add($collision) | Out-Null

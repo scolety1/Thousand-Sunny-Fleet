@@ -1,0 +1,33 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "controlled-multi-lane-hardening-same-file",
+  "pilot_mode": "controlled_multi_lane_foreground_execution",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "max_worker_invocations": 3,
+  "requested_actions": ["dry_run_validate", "stop_before_merge"],
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "same-file-a",
+      "source_branch": "origin/main",
+      "target_branch": "work/same-file-a-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\same-file-a-v1-20260710",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening/shared.txt"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening/shared.txt", "expected_content": "a" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening/shared.txt"]
+    },
+    {
+      "lane_id": "lane-b",
+      "worker_role": "tester_worker",
+      "codex_agent_id": "same-file-b",
+      "source_branch": "origin/main",
+      "target_branch": "work/same-file-b-v1-20260710",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\same-file-b-v1-20260710",
+      "allowed_write_scope": ["tests/fixtures/fleet/multi-lane-hardening/shared.txt"],
+      "expected_artifacts": [{ "path": "tests/fixtures/fleet/multi-lane-hardening/shared.txt", "expected_content": "b" }],
+      "owned_files": ["tests/fixtures/fleet/multi-lane-hardening/shared.txt"]
+    }
+  ]
+}

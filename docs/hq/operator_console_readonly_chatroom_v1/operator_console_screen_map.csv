@@ -1,0 +1,8 @@
+"screen_id","title","purpose","input_data","read_only"
+"status_overview","TSF Status","Show current health and mainline status","sample-status.json/status-summary.json","true"
+"mission_queue","Mission Queue","Show queue state summary","mission-queue-summary.json","true"
+"worker_roles","Worker Roles","Show role and permission profile counts","worker-role-summary.json","true"
+"branch_status","Branches","Show retained branches and cleanup status","branch-summary.json","true"
+"review_packets","Review Packets","Show recent review and readiness packets","recent-packets-summary.json","true"
+"hard_gates","Hard Gates","Show actions requiring Tim approval","hard-gates-summary.json","true"
+"next_action","Next Action","Show recommended milestone","next-actions-summary.json","true"

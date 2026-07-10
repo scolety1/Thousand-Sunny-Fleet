@@ -1,0 +1,13 @@
+{
+  "schema_version": "hq_chokepoint_adapter_validation_v1",
+  "verdict": "GREEN_HQ_CHOKEPOINT_ADAPTER_NO_API_COMPLETE",
+  "api_called": false,
+  "transport_enabled": false,
+  "raw_repo_dump_allowed": false,
+  "compressed_packet_builder_created": true,
+  "mock_response_validator_created": true,
+  "sample_packet_created": true,
+  "mock_response_validation_result": "GREEN_HQ_RESPONSE_VALID",
+  "regression_test": "tests/run-tsf-hq-chokepoint-tests.ps1",
+  "phase_verdict": "GREEN_HQ_CHOKEPOINT_ADAPTER_NO_API_COMPLETE"
+}
