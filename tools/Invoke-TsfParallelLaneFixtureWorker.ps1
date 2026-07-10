@@ -20,6 +20,7 @@ $ErrorActionPreference = "Stop"
 
 $fleetRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $fleetRoot "tools\codex-fleet-enforcement-kernel.ps1")
+. (Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1")
 
 function Read-ParallelLaneJson {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -105,8 +106,8 @@ function New-ParallelLaneMission {
         project_id = "TSF_CONTROL_PLANE"
         repo_path = [string]$Lane.worktree_path
         required_branch = [string]$Lane.branch
-        lane = [string]$Lane.lane_id
-        mission_type = "tsf_parallel_lane_fixture"
+        lane = "MASTER_TSF_CONTROL_PLANE"
+        mission_type = "tsf_infrastructure"
         allowed_reads = @(ConvertTo-ParallelLaneArray $Lane.allowed_read_scope | ForEach-Object { [string]$_ })
         allowed_writes = @([string]$Artifact.path)
         forbidden_reads = @(ConvertTo-ParallelLaneArray $Lane.forbidden_paths | ForEach-Object { [string]$_ })
@@ -238,45 +239,16 @@ $($artifact.expected_content)
 
 Create exactly the allowed fixture file with exactly the required content. Do not touch any other file. Do not push, merge, deploy, install, migrate, access secrets, use APIs, start background runners, inspect product repos, inspect or mutate canonical NWR, read normal NWR packets, use danger-full-access, or use ignore-user-config.
 "@
-    $codexArgs = @(
-        "exec",
-        "-c", "service_tier=fast",
-        "--sandbox", "workspace-write",
-        "--ephemeral",
-        "--cd", $worktreePath,
-        "--output-last-message", $lastMessagePath,
-        "--json",
-        "-"
-    )
-    $psi = [System.Diagnostics.ProcessStartInfo]::new()
-    $psi.FileName = "codex"
-    foreach ($arg in $codexArgs) { [void]$psi.ArgumentList.Add($arg) }
-    $psi.RedirectStandardInput = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.UseShellExecute = $false
-    $process = [System.Diagnostics.Process]::new()
-    $process.StartInfo = $psi
     $codexInvoked = $true
-    [void]$process.Start()
-    $process.StandardInput.WriteLine($prompt)
-    $process.StandardInput.Close()
-    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-    $stderrTask = $process.StandardError.ReadToEndAsync()
-    if (-not $process.WaitForExit($WorkerTimeoutSeconds * 1000)) {
-        $workerTimedOut = $true
-        try { $process.Kill() } catch {}
-    }
-    $stdout = $stdoutTask.GetAwaiter().GetResult()
-    $stderr = $stderrTask.GetAwaiter().GetResult()
-    Set-Content -LiteralPath $codexEventsPath -Value ($stdout + $stderr) -Encoding UTF8
+    $codexResult = Invoke-FleetProcess -FilePath "codex" -Arguments @("exec", "-c", "service_tier=fast", "--sandbox", "workspace-write", "--ephemeral", "--cd", $worktreePath, "--output-last-message", $lastMessagePath, "--json", "-") -InputText $prompt -WorkingDirectory $worktreePath -LogPath $codexEventsPath -TimeoutSeconds $WorkerTimeoutSeconds
+    $workerTimedOut = [bool]$codexResult.timedOut
+    $workerExitCode = $codexResult.exitCode
     if ($workerTimedOut) {
         $workerStatus = "CODEX_CLI_TIMEOUT"
         $blocked.Add("Codex CLI parallel lane worker timed out.") | Out-Null
     } else {
-        $workerExitCode = $process.ExitCode
         if ($workerExitCode -ne 0) {
-            $text = ($stdout + " " + $stderr)
+            $text = (($codexResult.output | ForEach-Object { [string]$_ }) -join "`n")
             if ($text -match "(?i)login|auth|credential|api key|permission|approval|danger-full-access") {
                 $workerStatus = "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL"
             } else {

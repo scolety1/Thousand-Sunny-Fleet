@@ -1,0 +1,39 @@
+﻿{
+    "schema_version":  "parallel_lane_plan_dry_run_result_v1",
+    "plan_path":  ".codex-local\\parallel-lane-pilot\\plan.generated.json",
+    "verdict":  "GREEN",
+    "recommendation":  "NO_COLLISION_DRY_RUN_READY",
+    "checks":  [
+                   {
+                       "name":  "lanes.present",
+                       "status":  "PASS",
+                       "message":  "Lane plan contains lanes.",
+                       "evidence":  "2"
+                   },
+                   {
+                       "name":  "file_ownership.no_collision",
+                       "status":  "PASS",
+                       "message":  "No owned-file collision detected.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "dry_run_only",
+                       "status":  "PASS",
+                       "message":  "Lane plan is dry-run only.",
+                       "evidence":  ""
+                   }
+               ],
+    "collisions":  [
+
+                   ],
+    "collision_status":  "NO_COLLISION",
+    "blocked_reasons":  [
+
+                        ],
+    "worktree_pilot_ready":  true,
+    "branches_created":  false,
+    "worktrees_created":  false,
+    "workers_spawned":  false,
+    "push_performed":  false,
+    "merge_performed":  false
+}
