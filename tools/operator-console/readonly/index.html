@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TSF Operator Console</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Thousand Sunny Fleet</p>
+        <h1>Operator Console</h1>
+      </div>
+      <nav class="top-actions" aria-label="Console sections">
+        <a href="chat.html">Open chatroom</a>
+        <div class="mode-pill">Read-only V1</div>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <section class="hero-panel">
+        <div>
+          <p class="eyebrow">Current TSF status</p>
+          <h2 id="status-summary">Loading local status...</h2>
+          <p id="status-detail"></p>
+        </div>
+        <dl class="head-grid">
+          <div>
+            <dt>origin/main</dt>
+            <dd id="origin-main">unknown</dd>
+          </div>
+          <div>
+            <dt>Branch</dt>
+            <dd id="current-branch">unknown</dd>
+          </div>
+          <div>
+            <dt>Next milestone</dt>
+            <dd id="next-milestone">unknown</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <h2>Status Cards</h2>
+          <span id="card-count">0 cards</span>
+        </div>
+        <div id="status-cards" class="card-grid"></div>
+      </section>
+
+      <section class="two-column">
+        <article class="panel">
+          <h2>Mission Queue</h2>
+          <p id="queue-mode"></p>
+          <div id="queue-states" class="tag-list"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Worker Roles</h2>
+          <dl class="metric-list">
+            <div><dt>Roles</dt><dd id="role-count">0</dd></div>
+            <div><dt>Permission profiles</dt><dd id="profile-count">0</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="two-column">
+        <article class="panel">
+          <h2>Recent Review Packets</h2>
+          <ul id="review-packets" class="clean-list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2>Hard Gates Requiring Tim</h2>
+          <div id="hard-gates" class="tag-list danger"></div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Recent Merged PRs</h2>
+        <div id="merged-prs" class="timeline"></div>
+      </section>
+    </main>
+
+    <footer>
+      Static local console. Execution disabled. No API, no Codex worker, no repo mutation.
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

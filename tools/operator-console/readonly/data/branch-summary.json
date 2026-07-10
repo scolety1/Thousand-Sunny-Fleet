@@ -1,0 +1,94 @@
+{
+    "schema_version":  "operator_console_branch_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "current_branch":  "work/operator-console-chatroom-control-plane-v1-20260709",
+    "local_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+    "origin_main_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+    "git_status_clean":  false,
+    "local_branches":  [
+                           {
+                               "branch":  "main",
+                               "head":  "19ed02f60b897495d328b59072adcd5260d19d0a"
+                           },
+                           {
+                               "branch":  "work/operator-console-chatroom-control-plane-v1-20260709",
+                               "head":  "19ed02f60b897495d328b59072adcd5260d19d0a"
+                           },
+                           {
+                               "branch":  "work/repo-onboarding-20260708",
+                               "head":  "b83c4c688a9e123a796397622d60a7dafcaefe51"
+                           }
+                       ],
+    "remote_branches":  [
+                            {
+                                "branch":  "origin",
+                                "head":  "19ed02f60b897495d328b59072adcd5260d19d0a"
+                            },
+                            {
+                                "branch":  "origin/main",
+                                "head":  "19ed02f60b897495d328b59072adcd5260d19d0a"
+                            },
+                            {
+                                "branch":  "origin/work/repo-onboarding-20260708",
+                                "head":  "b83c4c688a9e123a796397622d60a7dafcaefe51"
+                            }
+                        ],
+    "source_cleanup_archive":  {
+                                   "schema_version":  "source_branch_cleanup_validation_v1",
+                                   "verdict":  "GREEN_TSF_SOURCE_BRANCH_CLEANUP_COMPLETE",
+                                   "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+                                   "current_branch_after_cleanup":  "main",
+                                   "local_head_after_cleanup":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+                                   "origin_main_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+                                   "expected_origin_main_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+                                   "worktree_clean_before":  true,
+                                   "worktree_clean_after":  true,
+                                   "archive_packet_path":  "C:\\NWR_REVIEW\\tsf_source_branch_cleanup_archive_gate_20260709",
+                                   "local_branches_deleted":  [
+                                                                  "work/bounded-main-bot-self-continuation-v1-20260709",
+                                                                  "work/controlled-multi-lane-foreground-execution-v1-20260709",
+                                                                  "work/local-mission-queue-foreground-executor-v1-20260709",
+                                                                  "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+                                                                  "work/multi-lane-auditor-v1-20260709",
+                                                                  "work/multi-lane-builder-v1-20260709",
+                                                                  "work/multi-lane-tester-v1-20260709",
+                                                                  "work/parallel-lane-pilot-auditor-v1-20260709",
+                                                                  "work/parallel-lane-pilot-builder-v1-20260709",
+                                                                  "work/phase0-control-plane-enforcement-20260708",
+                                                                  "work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+                                                                  "work/tsf-pack-and-go-autonomous-deployment-v1-20260709"
+                                                              ],
+                                   "remote_branches_deleted":  [
+                                                                   "work/bounded-main-bot-self-continuation-v1-20260709",
+                                                                   "work/controlled-multi-lane-foreground-execution-v1-20260709",
+                                                                   "work/local-mission-queue-foreground-executor-v1-20260709",
+                                                                   "work/minimum-viable-local-tsf-enforcement-kernel-v1-20260708",
+                                                                   "work/phase0-control-plane-enforcement-20260708",
+                                                                   "work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+                                                                   "work/tsf-pack-and-go-autonomous-deployment-v1-20260709"
+                                                               ],
+                                   "branches_retained":  [
+                                                             "work/repo-onboarding-20260708"
+                                                         ],
+                                   "branches_needing_tim_decision":  [
+
+                                                                     ],
+                                   "active_worktrees":  [
+                                                            "main",
+                                                            "work/repo-onboarding-20260708"
+                                                        ],
+                                   "guardrails":  {
+                                                      "push_new_commits_performed":  false,
+                                                      "merge_performed":  false,
+                                                      "codex_worker_execution_invoked":  false,
+                                                      "api_called":  false,
+                                                      "background_runners_started":  false,
+                                                      "product_repos_mutated":  false,
+                                                      "canonical_nwr_mutated":  false
+                                                  },
+                                   "stop_conditions_hit":  [
+
+                                                           ],
+                                   "recommended_next_milestone":  "Operator Console Read-Only Skeleton V1"
+                               }
+}

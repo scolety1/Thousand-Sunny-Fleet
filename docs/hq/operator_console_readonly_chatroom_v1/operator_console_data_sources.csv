@@ -1,0 +1,8 @@
+"source_id","path","read_mode","used_for","phase"
+"origin_main_status","git rev-parse origin/main","export_script_only","Current published main status","3"
+"worker_role_registry","fleet/control/worker-role-registry.v1.json","read_only","Worker role count and names","1"
+"permission_profiles","fleet/control/worker-permission-profiles.v1.json","read_only","Permission profile count and fail-closed posture","1"
+"mission_queue_policy","fleet/control/mission-queue-state-policy.v1.json","read_only","Queue states and transitions","1"
+"controlled_multi_lane_policy","fleet/control/controlled-multi-lane-foreground-execution-policy.v1.json","read_only","Multi-lane limits and guardrails","1"
+"source_cleanup_packet","C:\NWR_REVIEW\tsf_source_branch_cleanup_archive_gate_20260709","read_only_external","Branch cleanup status","1"
+"review_packets","docs/hq","read_only","Recent TSF review packets","1"

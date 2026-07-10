@@ -1,0 +1,134 @@
+{
+    "schema_version":  "operator_console_worker_role_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "role_count":  18,
+    "permission_profile_count":  1,
+    "roles":  [
+                  {
+                      "role_id":  "project_main_bot",
+                      "role_name":  "Project Main Bot",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "translator_helper_bot",
+                      "role_name":  "Translator Helper Bot",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "context_memory_steward",
+                      "role_name":  "Context / Memory Steward",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "parallel_lane_coordinator",
+                      "role_name":  "Parallel Lane Coordinator",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "organizer_worker",
+                      "role_name":  "Organizer Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "builder_worker",
+                      "role_name":  "Builder Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "ui_builder_worker",
+                      "role_name":  "UI Builder Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "ai_builder_worker",
+                      "role_name":  "AI Builder Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "stats_data_worker",
+                      "role_name":  "Stats/Data Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "tester_worker",
+                      "role_name":  "Tester Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "auditor_worker",
+                      "role_name":  "Auditor Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "export_creator_worker",
+                      "role_name":  "Export Creator Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "researcher_source_tracer_worker",
+                      "role_name":  "Researcher / Source Tracer Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "verifier_worker",
+                      "role_name":  "Verifier Worker",
+                      "verifier_required":  false,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "refactor_worker",
+                      "role_name":  "Refactor Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "documentation_worker",
+                      "role_name":  "Documentation Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "release_preservation_worker",
+                      "role_name":  "Release / Preservation Worker",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  },
+                  {
+                      "role_id":  "chatgpt_api_hq_escalation_judge",
+                      "role_name":  "ChatGPT/API HQ Escalation Judge",
+                      "verifier_required":  true,
+                      "may_use_api":  false,
+                      "may_touch_product_repo":  false
+                  }
+              ]
+}

@@ -1,0 +1,22 @@
+{
+    "schema_version":  "operator_console_hard_gates_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "tim_required_for":  [
+                             "push",
+                             "merge",
+                             "deploy",
+                             "install_packages",
+                             "migration",
+                             "secrets",
+                             "ChatGPT/OpenAI API call",
+                             "background_runner",
+                             "product_repo_mutation",
+                             "canonical_nwr_mutation",
+                             "real_parallel_worker_execution"
+                         ],
+    "policies_present":  {
+                             "main_bot_policy":  true,
+                             "controlled_multi_lane_policy":  true,
+                             "hq_cost_policy":  true
+                         }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": "operator_console_chat_sample_conversation_v1",
+  "conversation": [
+    {
+      "speaker": "tim",
+      "text": "Can TSF prepare a safe local mission draft for the next console milestone?"
+    },
+    {
+      "speaker": "project_main_bot",
+      "text": "Yes. I can prepare a draft-only mission packet, classify it as SAFE_DRAFT_ONLY, and stop before execution."
+    },
+    {
+      "speaker": "tim",
+      "text": "What needs my approval?"
+    },
+    {
+      "speaker": "project_main_bot",
+      "text": "Push, merge, deploy, API use, background runners, product repo mutation, canonical NWR mutation, and Codex worker execution remain hard gates."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "operator_console_readonly_validation_v1",
+  "phase": "phase_1_operator_console_readonly_skeleton",
+  "verdict": "GREEN_OPERATOR_CONSOLE_READONLY_SKELETON_COMPLETE",
+  "static_ui_files_created": true,
+  "server_started": false,
+  "command_execution_enabled": false,
+  "api_called": false,
+  "background_runner_started": false,
+  "repo_mutation_from_browser_possible": false,
+  "next_phase": "chatroom_ui_shell_v1"
+}

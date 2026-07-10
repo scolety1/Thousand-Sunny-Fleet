@@ -1,0 +1,66 @@
+{
+    "schema_version":  "operator_console_recent_packets_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "packets":  [
+                    {
+                        "name":  "operator_console_readonly_chatroom_v1",
+                        "path":  "docs\\hq\\operator_console_readonly_chatroom_v1",
+                        "last_write_time":  "2026-07-10T01:24:41.6472142-06:00"
+                    },
+                    {
+                        "name":  "controlled_multi_lane_foreground_execution_v1",
+                        "path":  "docs\\hq\\controlled_multi_lane_foreground_execution_v1",
+                        "last_write_time":  "2026-07-09T22:16:32.9985410-06:00"
+                    },
+                    {
+                        "name":  "true_parallel_lane_isolated_worktree_pilot_v1",
+                        "path":  "docs\\hq\\true_parallel_lane_isolated_worktree_pilot_v1",
+                        "last_write_time":  "2026-07-09T21:37:44.2800446-06:00"
+                    },
+                    {
+                        "name":  "mission_queue_foreground_executor_dogfood_v1",
+                        "path":  "docs\\hq\\mission_queue_foreground_executor_dogfood_v1",
+                        "last_write_time":  "2026-07-09T19:29:30.2633864-06:00"
+                    },
+                    {
+                        "name":  "local_mission_queue_foreground_executor_v1",
+                        "path":  "docs\\hq\\local_mission_queue_foreground_executor_v1",
+                        "last_write_time":  "2026-07-09T19:21:37.1127019-06:00"
+                    },
+                    {
+                        "name":  "bounded_main_bot_self_continuation_v1",
+                        "path":  "docs\\hq\\bounded_main_bot_self_continuation_v1",
+                        "last_write_time":  "2026-07-09T18:34:43.3148581-06:00"
+                    },
+                    {
+                        "name":  "pack_and_go_branch_publication_readiness_gate_v1",
+                        "path":  "docs\\hq\\pack_and_go_branch_publication_readiness_gate_v1",
+                        "last_write_time":  "2026-07-09T17:40:34.7069490-06:00"
+                    },
+                    {
+                        "name":  "codex_cli_fast_workspace_write_fixture_retry_v1",
+                        "path":  "docs\\hq\\codex_cli_fast_workspace_write_fixture_retry_v1",
+                        "last_write_time":  "2026-07-09T17:34:30.2331499-06:00"
+                    },
+                    {
+                        "name":  "codex_cli_service_tier_strategy_gate_v1",
+                        "path":  "docs\\hq\\codex_cli_service_tier_strategy_gate_v1",
+                        "last_write_time":  "2026-07-09T17:26:10.9607830-06:00"
+                    },
+                    {
+                        "name":  "codex_cli_normal_config_workspace_write_fixture_retry_v1",
+                        "path":  "docs\\hq\\codex_cli_normal_config_workspace_write_fixture_retry_v1",
+                        "last_write_time":  "2026-07-09T17:19:56.9561431-06:00"
+                    },
+                    {
+                        "name":  "codex_cli_effective_workspace_write_diagnostic_v1",
+                        "path":  "docs\\hq\\codex_cli_effective_workspace_write_diagnostic_v1",
+                        "last_write_time":  "2026-07-09T14:53:57.3758729-06:00"
+                    },
+                    {
+                        "name":  "codex_cli_workspace_write_fixture_worker_retry_v1",
+                        "path":  "docs\\hq\\codex_cli_workspace_write_fixture_worker_retry_v1",
+                        "last_write_time":  "2026-07-09T14:43:59.2191196-06:00"
+                    }
+                ]
+}

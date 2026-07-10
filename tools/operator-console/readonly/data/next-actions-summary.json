@@ -1,0 +1,12 @@
+{
+    "schema_version":  "operator_console_next_actions_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "recommended_next_milestone":  "Operator Console Read-Only Skeleton V1",
+    "after_this_runway":  "Future Tim-approved push/PR gate if publication readiness is GREEN.",
+    "do_not_start":  [
+                         "push",
+                         "merge",
+                         "api_transport",
+                         "background_runner"
+                     ]
+}

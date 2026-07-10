@@ -1,0 +1,20 @@
+{
+    "schema_version":  "operator_console_mission_queue_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "queue_policy_present":  true,
+    "execution_mode":  "foreground_only",
+    "browser_execution_enabled":  false,
+    "states":  [
+                   "inbox",
+                   "drafted",
+                   "preflight_pending",
+                   "blocked_needs_tim",
+                   "approved_for_worker",
+                   "worker_running",
+                   "postrun_pending",
+                   "complete_review_only",
+                   "complete_ready_for_gate",
+                   "stopped",
+                   "archived"
+               ]
+}

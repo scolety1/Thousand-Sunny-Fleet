@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TSF Project Main Bot Chatroom</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Thousand Sunny Fleet</p>
+        <h1>Project Main Bot Chatroom</h1>
+      </div>
+      <nav class="top-actions" aria-label="Console sections">
+        <a href="index.html">Dashboard</a>
+        <div class="mode-pill">Execution disabled</div>
+      </nav>
+    </header>
+
+    <main class="layout chat-layout">
+      <section class="panel warning-panel">
+        <h2>Execution Disabled In This Version</h2>
+        <p>This chatroom only creates local preview text and draft JSON for copy/paste. It cannot execute missions, call Codex, call APIs, write files, or start background work.</p>
+      </section>
+
+      <section class="chat-grid">
+        <article class="panel chat-panel">
+          <div class="chat-context">
+            <span class="badge GREEN" id="chat-verdict">GREEN</span>
+            <div>
+              <strong>Current context</strong>
+              <p id="chat-context-text">TSF mainline is ready for local operator-console work.</p>
+            </div>
+          </div>
+
+          <div id="message-list" class="message-list" aria-live="polite"></div>
+
+          <form id="chat-form" class="chat-form">
+            <label for="tim-message">Tim message</label>
+            <textarea id="tim-message" rows="4" placeholder="Ask the Project Main Bot for a safe local draft..."></textarea>
+            <div class="button-row">
+              <button type="submit">Preview Draft</button>
+              <button type="button" id="play-sample">Play Sample</button>
+            </div>
+          </form>
+        </article>
+
+        <aside class="panel preview-panel">
+          <h2>Draft Mission Preview</h2>
+          <pre id="draft-preview">{}</pre>
+          <div class="button-row">
+            <button type="button" id="copy-draft">Copy mission draft</button>
+            <button type="button" id="copy-hq">Copy Codex/HQ prompt</button>
+          </div>
+
+          <h2>Requires Tim Approval</h2>
+          <ul id="approval-list" class="clean-list"></ul>
+
+          <h2>Next Safe Action</h2>
+          <p id="next-safe-action">Create or copy a draft-only mission packet. Do not execute from the browser.</p>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      Local UI shell only. No API. No Codex worker. No repo mutation.
+    </footer>
+
+    <script src="chat.js"></script>
+  </body>
+</html>

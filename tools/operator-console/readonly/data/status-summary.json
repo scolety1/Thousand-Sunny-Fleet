@@ -1,0 +1,121 @@
+{
+    "schema_version":  "operator_console_status_summary_v1",
+    "generated_at":  "2026-07-10T01:26:33.7008687-06:00",
+    "status":  {
+                   "verdict":  "YELLOW",
+                   "summary":  "TSF local operator console data export complete.",
+                   "origin_main_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+                   "current_branch":  "work/operator-console-chatroom-control-plane-v1-20260709",
+                   "local_head":  "19ed02f60b897495d328b59072adcd5260d19d0a",
+                   "next_recommended_milestone":  "Operator Console Read-Only Skeleton V1"
+               },
+    "merged_prs":  [
+                       {
+                           "number":  4,
+                           "summary":  "Kernel / role-aware lifecycle"
+                       },
+                       {
+                           "number":  5,
+                           "summary":  "Pack-and-go foundations and first GREEN governed Codex worker execution"
+                       },
+                       {
+                           "number":  6,
+                           "summary":  "Bounded Project Main Bot self-continuation"
+                       },
+                       {
+                           "number":  7,
+                           "summary":  "Local mission queue foreground executor"
+                       },
+                       {
+                           "number":  8,
+                           "summary":  "True parallel lane isolated worktree pilot"
+                       },
+                       {
+                           "number":  9,
+                           "summary":  "Controlled multi-lane foreground execution"
+                       }
+                   ],
+    "cards":  [
+                  {
+                      "id":  "mainline",
+                      "label":  "Mainline",
+                      "status":  "GREEN",
+                      "summary":  "origin/main verified",
+                      "detail":  "19ed02f60b897495d328b59072adcd5260d19d0a"
+                  },
+                  {
+                      "id":  "queue",
+                      "label":  "Mission Queue",
+                      "status":  "GREEN",
+                      "summary":  "Foreground queue available",
+                      "detail":  "Execution remains foreground-only."
+                  },
+                  {
+                      "id":  "roles",
+                      "label":  "Worker Roles",
+                      "status":  "GREEN",
+                      "summary":  "18 roles preserved",
+                      "detail":  "1 permission profiles found."
+                  },
+                  {
+                      "id":  "branches",
+                      "label":  "Branches",
+                      "status":  "GREEN",
+                      "summary":  "Cleanup archive available",
+                      "detail":  "Local branches: 3; remote branches: 3"
+                  },
+                  {
+                      "id":  "api",
+                      "label":  "API/HQ",
+                      "status":  "TIM_REQUIRED",
+                      "summary":  "No API transport enabled",
+                      "detail":  "Packet-only HQ adapter remains local until separately approved."
+                  }
+              ],
+    "mission_queue":  {
+                          "states":  [
+                                         "inbox",
+                                         "drafted",
+                                         "preflight_pending",
+                                         "blocked_needs_tim",
+                                         "approved_for_worker",
+                                         "worker_running",
+                                         "postrun_pending",
+                                         "complete_review_only",
+                                         "complete_ready_for_gate",
+                                         "stopped",
+                                         "archived"
+                                     ],
+                          "execution_mode":  "foreground_only"
+                      },
+    "worker_roles":  {
+                         "role_count":  18,
+                         "permission_profile_count":  1
+                     },
+    "hard_gates":  [
+                       "push",
+                       "merge",
+                       "deploy",
+                       "install",
+                       "migration",
+                       "secrets",
+                       "api_call",
+                       "background_runner",
+                       "product_repo_mutation",
+                       "canonical_nwr_mutation"
+                   ],
+    "review_packets":  [
+                           "operator_console_readonly_chatroom_v1",
+                           "controlled_multi_lane_foreground_execution_v1",
+                           "true_parallel_lane_isolated_worktree_pilot_v1",
+                           "mission_queue_foreground_executor_dogfood_v1",
+                           "local_mission_queue_foreground_executor_v1",
+                           "bounded_main_bot_self_continuation_v1",
+                           "pack_and_go_branch_publication_readiness_gate_v1",
+                           "codex_cli_fast_workspace_write_fixture_retry_v1",
+                           "codex_cli_service_tier_strategy_gate_v1",
+                           "codex_cli_normal_config_workspace_write_fixture_retry_v1",
+                           "codex_cli_effective_workspace_write_diagnostic_v1",
+                           "codex_cli_workspace_write_fixture_worker_retry_v1"
+                       ]
+}
