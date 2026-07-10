@@ -1,0 +1,6 @@
+{
+  "schema_version": "operator_console_request_fixture_v1",
+  "project_id": "tsf-operator-console",
+  "natural_request": "Prepare a safe local documentation mission draft for the Operator Console without executing anything.",
+  "proposed_worker_role": "documentation_worker"
+}

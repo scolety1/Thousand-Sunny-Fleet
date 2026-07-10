@@ -1,0 +1,152 @@
+{
+    "schema_version":  "tsf_console_mission_draft_v1",
+    "verdict":  "SAFE_DRAFT_ONLY",
+    "generated_at":  "2026-07-10T01:27:47.9445831-06:00",
+    "draft_only":  true,
+    "execution_enabled":  false,
+    "queue_submission_enabled":  false,
+    "worker_execution_enabled":  false,
+    "project_id":  "tsf-operator-console",
+    "natural_request":  "Prepare a safe local documentation mission draft for the Operator Console without executing anything.",
+    "proposed_worker_role":  "documentation_worker",
+    "draft_adapter_classification":  "SAFE_LOCAL_MISSION",
+    "mission_draft":  {
+                          "draft_schema":  "project_main_bot_mission_draft_v1",
+                          "classification":  "SAFE_LOCAL_MISSION",
+                          "natural_request":  "Prepare a safe local documentation mission draft for the Operator Console without executing anything.",
+                          "normalized_intent":  {
+                                                    "requested_goal":  "Prepare a safe local documentation mission draft for the Operator Console without executing anything.",
+                                                    "proposed_worker_role":  "documentation_worker",
+                                                    "lane":  "MASTER_TSF_CONTROL_PLANE",
+                                                    "hard_gate_detected":  false
+                                                },
+                          "mission_packet":  {
+                                                 "mission_id":  "tsf-operator-console-20260710012747",
+                                                 "project_id":  "tsf-operator-console",
+                                                 "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+                                                 "lane":  "MASTER_TSF_CONTROL_PLANE",
+                                                 "mission_type":  "tsf_infrastructure",
+                                                 "allowed_reads":  [
+                                                                       "docs/hq",
+                                                                       "fleet/control",
+                                                                       "tools/operator-console/readonly"
+                                                                   ],
+                                                 "allowed_writes":  [
+                                                                        "tests/fixtures/fleet/operator-console/draft-missions"
+                                                                    ],
+                                                 "forbidden_reads":  [
+                                                                         "C:\\NWR\\Niners-War-Room",
+                                                                         "normal NWR packets",
+                                                                         "product repos"
+                                                                     ],
+                                                 "forbidden_writes":  [
+                                                                          "C:\\NWR\\Niners-War-Room",
+                                                                          "product repos"
+                                                                      ],
+                                                 "forbidden_actions":  [
+                                                                           "all_fleet",
+                                                                           "api_bridge",
+                                                                           "app_wiring",
+                                                                           "background_runner",
+                                                                           "canonical_nwr_inspection",
+                                                                           "canonical_nwr_mutation",
+                                                                           "credential_change",
+                                                                           "deploy",
+                                                                           "hidden_sort",
+                                                                           "install_packages",
+                                                                           "merge",
+                                                                           "migration",
+                                                                           "normal_nwr_packet_read",
+                                                                           "open_network_port",
+                                                                           "persistent_runner",
+                                                                           "privatelens",
+                                                                           "product_repo_inspection",
+                                                                           "product_repo_mutation",
+                                                                           "proof_run",
+                                                                           "push",
+                                                                           "ranking_formula_source_truth_promotion",
+                                                                           "recommendation_behavior",
+                                                                           "secrets"
+                                                                       ],
+                                                 "expected_artifacts":  [
+                                                                            "console-draft-mission-preview"
+                                                                        ],
+                                                 "required_preflight_checks":  [
+                                                                                   "schema",
+                                                                                   "repo_exists",
+                                                                                   "path_scope",
+                                                                                   "restricted_action_coverage",
+                                                                                   "git_status_capture",
+                                                                                   "approval_ledger",
+                                                                                   "worker_role_permission"
+                                                                               ],
+                                                 "required_postrun_checks":  [
+                                                                                 "expected_artifacts",
+                                                                                 "forbidden_actions_absent",
+                                                                                 "worker_role_contract"
+                                                                             ],
+                                                 "stop_conditions":  [
+                                                                         {
+                                                                             "id":  "scope-gate",
+                                                                             "check_type":  "approval_required",
+                                                                             "description":  "Stop if request crosses a hard TSF gate."
+                                                                         },
+                                                                         {
+                                                                             "id":  "draft-only",
+                                                                             "check_type":  "execution_disabled",
+                                                                             "description":  "Do not execute from console draft helper."
+                                                                         }
+                                                                     ],
+                                                 "approval_requirements":  [
+
+                                                                           ],
+                                                 "hq_escalation_policy":  {
+                                                                              "default":  "local_only_no_api",
+                                                                              "escalate_on":  [
+                                                                                                  "RED",
+                                                                                                  "TIM_REQUIRED",
+                                                                                                  "scope_conflict",
+                                                                                                  "source_truth_promotion"
+                                                                                              ],
+                                                                              "notes":  "No API call is approved by this draft."
+                                                                          },
+                                                 "created_by":  "project_main_bot_mission_intake_adapter_v1",
+                                                 "created_at":  "2026-07-10T01:27:47.9265350-06:00"
+                                             },
+                          "role_extension":  {
+                                                 "requested_by":  "tim",
+                                                 "project_main_bot_id":  "project_main_bot.default",
+                                                 "worker_role":  "documentation_worker",
+                                                 "translator_used":  true,
+                                                 "context_capsule_id":  "",
+                                                 "lane_id":  "tsf-operator-console-lane",
+                                                 "parent_mission_id":  "",
+                                                 "sibling_lane_ids":  [
+
+                                                                      ],
+                                                 "role_permission_profile_id":  "documentation_worker",
+                                                 "role_output_contract":  "Use worker role registry output contract for documentation_worker.",
+                                                 "verifier_role":  "verifier_worker",
+                                                 "escalation_policy_id":  "local_only_no_api"
+                                             },
+                          "adapter_notes":  [
+                                                "Draft only; does not execute missions.",
+                                                "Existing mission packet stays compatible with mission_schema_v1.",
+                                                "Run Test-TsfWorkerRolePermission before worker handoff."
+                                            ]
+                      },
+    "hard_gates":  [
+                       "push",
+                       "merge",
+                       "deploy",
+                       "install_packages",
+                       "migration",
+                       "secrets",
+                       "api_call",
+                       "codex_worker_execution",
+                       "background_runner",
+                       "product_repo_mutation",
+                       "canonical_nwr_mutation"
+                   ],
+    "next_safe_action":  "Review or copy the draft. Run preflight separately before any future execution gate."
+}
