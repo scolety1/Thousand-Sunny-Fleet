@@ -1,0 +1,69 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "isolated-worktree-plan-valid-fixture",
+  "pilot_mode": "real_isolated_worktree_fixture_pilot",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "requested_actions": [
+    "dry_run_validate",
+    "local_worktree_pilot",
+    "sequential_fixture_workers",
+    "collect_lane_reports",
+    "preserve_evidence",
+    "stop_before_merge"
+  ],
+  "lanes": [
+    {
+      "lane_id": "parallel-lane-builder",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "codex-agent-parallel-builder-001",
+      "source_branch": "origin/main",
+      "branch": "work/parallel-lane-pilot-builder-v1-20260709",
+      "target_branch": "work/parallel-lane-pilot-builder-v1-20260709",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\parallel-lane-pilot-builder-v1-20260709",
+      "allowed_read_scope": [
+        "fleet/control",
+        "tools",
+        "tests/fixtures/fleet/parallel-lanes"
+      ],
+      "allowed_write_scope": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt"
+      ],
+      "expected_artifacts": [
+        {
+          "path": "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt",
+          "expected_content": "TSF parallel lane builder worker complete."
+        }
+      ],
+      "owned_files": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt"
+      ]
+    },
+    {
+      "lane_id": "parallel-lane-auditor",
+      "worker_role": "auditor_worker",
+      "codex_agent_id": "codex-agent-parallel-auditor-001",
+      "source_branch": "origin/main",
+      "branch": "work/parallel-lane-pilot-auditor-v1-20260709",
+      "target_branch": "work/parallel-lane-pilot-auditor-v1-20260709",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\parallel-lane-pilot-auditor-v1-20260709",
+      "allowed_read_scope": [
+        "fleet/control",
+        "tools",
+        "tests/fixtures/fleet/parallel-lanes"
+      ],
+      "allowed_write_scope": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt"
+      ],
+      "expected_artifacts": [
+        {
+          "path": "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt",
+          "expected_content": "TSF parallel lane auditor worker complete."
+        }
+      ],
+      "owned_files": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt"
+      ]
+    }
+  ]
+}

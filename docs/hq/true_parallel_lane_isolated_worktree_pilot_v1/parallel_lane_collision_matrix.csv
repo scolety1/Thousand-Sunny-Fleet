@@ -1,0 +1,8 @@
+check_id,check_name,required_result,evidence
+PL-COLLISION-001,branch uniqueness,PASS,Each lane must use a distinct target branch.
+PL-COLLISION-002,worktree path uniqueness,PASS,Each lane must use a distinct local worktree path.
+PL-COLLISION-003,owned file uniqueness,PASS,Owned files must not overlap across lanes.
+PL-COLLISION-004,allowed write uniqueness,PASS,Allowed write scopes must not overlap across lanes.
+PL-COLLISION-005,expected artifact uniqueness,PASS,Expected artifacts must not overlap across lanes.
+PL-COLLISION-006,protected path exclusion,PASS,No lane may request product repo, canonical NWR, normal NWR packet, PrivateLens, or local_exports paths.
+PL-COLLISION-007,merge plan exclusion,PASS,No lane plan may request merge, push, PR creation, background execution, deploy, install, migration, secrets, or all-fleet.

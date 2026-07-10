@@ -1,0 +1,51 @@
+{
+  "schema_version": "parallel_lane_worktree_policy_v1",
+  "default_posture": "fail_closed",
+  "pilot_mode": "foreground_sequential_fixture_only",
+  "max_local_worktrees": 2,
+  "max_worker_invocations": 2,
+  "worktree_root": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES",
+  "allowed_source_branch": "origin/main",
+  "allowed_lane_branches": [
+    "work/parallel-lane-pilot-builder-v1-20260709",
+    "work/parallel-lane-pilot-auditor-v1-20260709"
+  ],
+  "allowed_fixture_outputs": [
+    "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt",
+    "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt"
+  ],
+  "required_exact_action": "codex_cli_parallel_lane_fixture_worker_invocation",
+  "codex_command_shape": {
+    "service_tier": "fast",
+    "sandbox": "workspace-write",
+    "normal_user_config": true,
+    "ignore_user_config": false,
+    "danger_full_access": false,
+    "ephemeral": true,
+    "json_events": true
+  },
+  "execution_rules": {
+    "sequential_only": true,
+    "background_runner_allowed": false,
+    "merge_lane_branches_allowed": false,
+    "push_allowed": false,
+    "delete_remote_branches_allowed": false,
+    "product_repo_access_allowed": false,
+    "canonical_nwr_access_allowed": false,
+    "api_allowed": false
+  },
+  "stop_conditions": [
+    "origin_main_mismatch",
+    "dirty_coordinator_branch",
+    "lane_plan_collision",
+    "worktree_branch_mismatch",
+    "worktree_dirty_before_worker",
+    "role_preflight_red_or_tim_required",
+    "missing_exact_approval",
+    "worker_budget_exceeded",
+    "codex_cli_auth_or_execution_unclear",
+    "unexpected_file_touch",
+    "verifier_red",
+    "push_merge_or_background_requested"
+  ]
+}
