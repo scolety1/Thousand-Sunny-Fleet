@@ -1,0 +1,197 @@
+﻿{
+    "schema_version":  "parallel_lane_plan_v1",
+    "plan_id":  "parallel-lane-isolated-worktree-pilot-v1-20260709",
+    "pilot_mode":  "real_isolated_worktree_fixture_pilot",
+    "require_true_lanes":  true,
+    "source_branch":  "work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+    "requested_actions":  [
+                              "dry_run_validate",
+                              "local_worktree_pilot",
+                              "sequential_fixture_workers",
+                              "collect_lane_reports",
+                              "preserve_evidence",
+                              "stop_before_merge"
+                          ],
+    "global_forbidden_actions":  [
+                                     "push",
+                                     "merge",
+                                     "create_pr",
+                                     "deploy",
+                                     "install_packages",
+                                     "migration",
+                                     "secrets",
+                                     "privatelens",
+                                     "all_fleet",
+                                     "background_runner",
+                                     "persistent_runner",
+                                     "canonical_nwr_inspection",
+                                     "canonical_nwr_mutation",
+                                     "normal_nwr_packet_read",
+                                     "product_repo_inspection",
+                                     "product_repo_mutation",
+                                     "api_bridge",
+                                     "open_network_port",
+                                     "credential_change",
+                                     "app_wiring",
+                                     "ranking_formula_source_truth_promotion",
+                                     "hidden_sort",
+                                     "recommendation_behavior",
+                                     "danger_full_access",
+                                     "ignore_user_config"
+                                 ],
+    "merge_checkpoint_rules":  {
+                                   "local_commit_only":  true,
+                                   "merge_lane_branches":  false,
+                                   "push_allowed":  false,
+                                   "merge_recommendation":  "recommend_only_after_green_collision_review"
+                               },
+    "collision_detection_rules":  {
+                                      "expected_artifacts_must_not_overlap":  true,
+                                      "branches_must_be_unique":  true,
+                                      "allowed_write_scope_must_not_overlap":  true,
+                                      "owned_files_must_not_overlap":  true,
+                                      "worktrees_must_be_unique":  true
+                                  },
+    "lanes":  [
+                  {
+                      "lane_id":  "parallel-lane-builder",
+                      "worker_role":  "builder_worker",
+                      "codex_agent_id":  "codex-agent-parallel-builder-001",
+                      "source_branch":  "work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+                      "branch":  "work/parallel-lane-pilot-builder-v1-20260709",
+                      "target_branch":  "work/parallel-lane-pilot-builder-v1-20260709",
+                      "worktree_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\parallel-lane-pilot-builder-v1-20260709",
+                      "allowed_read_scope":  [
+                                                 "fleet/control",
+                                                 "tools",
+                                                 "tests/fixtures/fleet/parallel-lanes"
+                                             ],
+                      "allowed_write_scope":  [
+                                                  "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt"
+                                              ],
+                      "forbidden_paths":  [
+                                              "C:\\NWR\\Niners-War-Room",
+                                              "normal NWR packets",
+                                              "product repos",
+                                              "local_exports"
+                                          ],
+                      "forbidden_actions":  [
+                                                "push",
+                                                "merge",
+                                                "deploy",
+                                                "install_packages",
+                                                "migration",
+                                                "secrets",
+                                                "privatelens",
+                                                "proof_run",
+                                                "all_fleet",
+                                                "background_runner",
+                                                "persistent_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "normal_nwr_packet_read",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "api_bridge",
+                                                "open_network_port",
+                                                "credential_change",
+                                                "app_wiring",
+                                                "ranking_formula_source_truth_promotion",
+                                                "hidden_sort",
+                                                "recommendation_behavior"
+                                            ],
+                      "expected_artifacts":  [
+                                                 {
+                                                     "path":  "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt",
+                                                     "expected_content":  "TSF parallel lane builder worker complete."
+                                                 }
+                                             ],
+                      "owned_files":  [
+                                          "tests/fixtures/fleet/parallel-lanes/worker-output/builder_lane_result.txt"
+                                      ],
+                      "checkpoint_policy":  "local_commit_after_validation",
+                      "merge_recommendation_rule":  "do_not_merge_lane_branch; coordinator_collects_evidence_only",
+                      "stop_conditions":  [
+                                              "worktree_branch_mismatch",
+                                              "worktree_dirty_before_worker",
+                                              "role_preflight_red_or_tim_required",
+                                              "missing_exact_approval",
+                                              "worker_budget_exceeded",
+                                              "codex_cli_auth_or_execution_unclear",
+                                              "unexpected_file_touch",
+                                              "verifier_red",
+                                              "collision_detected"
+                                          ]
+                  },
+                  {
+                      "lane_id":  "parallel-lane-auditor",
+                      "worker_role":  "auditor_worker",
+                      "codex_agent_id":  "codex-agent-parallel-auditor-001",
+                      "source_branch":  "work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+                      "branch":  "work/parallel-lane-pilot-auditor-v1-20260709",
+                      "target_branch":  "work/parallel-lane-pilot-auditor-v1-20260709",
+                      "worktree_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\parallel-lane-pilot-auditor-v1-20260709",
+                      "allowed_read_scope":  [
+                                                 "fleet/control",
+                                                 "tools",
+                                                 "tests/fixtures/fleet/parallel-lanes"
+                                             ],
+                      "allowed_write_scope":  [
+                                                  "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt"
+                                              ],
+                      "forbidden_paths":  [
+                                              "C:\\NWR\\Niners-War-Room",
+                                              "normal NWR packets",
+                                              "product repos",
+                                              "local_exports"
+                                          ],
+                      "forbidden_actions":  [
+                                                "push",
+                                                "merge",
+                                                "deploy",
+                                                "install_packages",
+                                                "migration",
+                                                "secrets",
+                                                "privatelens",
+                                                "proof_run",
+                                                "all_fleet",
+                                                "background_runner",
+                                                "persistent_runner",
+                                                "canonical_nwr_inspection",
+                                                "canonical_nwr_mutation",
+                                                "normal_nwr_packet_read",
+                                                "product_repo_inspection",
+                                                "product_repo_mutation",
+                                                "api_bridge",
+                                                "open_network_port",
+                                                "credential_change",
+                                                "app_wiring",
+                                                "ranking_formula_source_truth_promotion",
+                                                "hidden_sort",
+                                                "recommendation_behavior"
+                                            ],
+                      "expected_artifacts":  [
+                                                 {
+                                                     "path":  "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt",
+                                                     "expected_content":  "TSF parallel lane auditor worker complete."
+                                                 }
+                                             ],
+                      "owned_files":  [
+                                          "tests/fixtures/fleet/parallel-lanes/worker-output/auditor_lane_result.txt"
+                                      ],
+                      "checkpoint_policy":  "local_commit_after_validation",
+                      "merge_recommendation_rule":  "do_not_merge_lane_branch; coordinator_collects_evidence_only",
+                      "stop_conditions":  [
+                                              "worktree_branch_mismatch",
+                                              "worktree_dirty_before_worker",
+                                              "role_preflight_red_or_tim_required",
+                                              "missing_exact_approval",
+                                              "worker_budget_exceeded",
+                                              "codex_cli_auth_or_execution_unclear",
+                                              "unexpected_file_touch",
+                                              "verifier_red",
+                                              "collision_detected"
+                                          ]
+                  }
+              ]
+}

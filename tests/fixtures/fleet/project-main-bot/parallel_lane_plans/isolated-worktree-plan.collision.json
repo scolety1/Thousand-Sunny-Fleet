@@ -1,0 +1,53 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "isolated-worktree-plan-collision-fixture",
+  "pilot_mode": "real_isolated_worktree_fixture_pilot",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "requested_actions": [
+    "dry_run_validate",
+    "local_worktree_pilot"
+  ],
+  "lanes": [
+    {
+      "lane_id": "parallel-lane-builder",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "codex-agent-shared",
+      "source_branch": "origin/main",
+      "branch": "work/parallel-lane-pilot-builder-v1-20260709",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\shared-parallel-lane",
+      "allowed_write_scope": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/shared.txt"
+      ],
+      "expected_artifacts": [
+        {
+          "path": "tests/fixtures/fleet/parallel-lanes/worker-output/shared.txt",
+          "expected_content": "shared"
+        }
+      ],
+      "owned_files": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/shared.txt"
+      ]
+    },
+    {
+      "lane_id": "parallel-lane-auditor",
+      "worker_role": "auditor_worker",
+      "codex_agent_id": "codex-agent-shared",
+      "source_branch": "origin/main",
+      "branch": "work/parallel-lane-pilot-auditor-v1-20260709",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\shared-parallel-lane",
+      "allowed_write_scope": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/shared.txt"
+      ],
+      "expected_artifacts": [
+        {
+          "path": "tests/fixtures/fleet/parallel-lanes/worker-output/shared.txt",
+          "expected_content": "shared"
+        }
+      ],
+      "owned_files": [
+        "tests/fixtures/fleet/parallel-lanes/worker-output/shared.txt"
+      ]
+    }
+  ]
+}

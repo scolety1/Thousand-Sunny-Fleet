@@ -1,0 +1,44 @@
+﻿{
+    "schema_version":  "parallel_lane_worktree_cleanup_decision_v1",
+    "decision":  "TEMP_WORKTREES_REMOVED_LOCAL_BRANCHES_RETAINED",
+    "cleanup_safe":  true,
+    "evidence_preserved":  true,
+    "worktree_root":  "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES",
+    "removed_worktrees":  [
+                              "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\parallel-lane-pilot-builder-v1-20260709",
+                              "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\parallel-lane-pilot-auditor-v1-20260709"
+                          ],
+    "local_branches_retained":  [
+                                    "work/parallel-lane-pilot-builder-v1-20260709",
+                                    "work/parallel-lane-pilot-auditor-v1-20260709"
+                                ],
+    "remote_branches_deleted":  false,
+    "before":  [
+                   "worktree C:/Users/codex-agent/Documents/Vacation/Thousand-Sunny-Fleet",
+                   "HEAD 9f5d67515b83857a0a0cd9b55170e25193c5eef8",
+                   "branch refs/heads/work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+                   "",
+                   "worktree C:/Users/codex-agent/Documents/Vacation/Thousand-Sunny-Fleet-repo-onboarding-20260708",
+                   "HEAD b83c4c688a9e123a796397622d60a7dafcaefe51",
+                   "branch refs/heads/work/repo-onboarding-20260708",
+                   "",
+                   "worktree C:/Users/codex-agent/Documents/Vacation/TSF_WORKTREES/parallel-lane-pilot-auditor-v1-20260709",
+                   "HEAD 9f5d67515b83857a0a0cd9b55170e25193c5eef8",
+                   "branch refs/heads/work/parallel-lane-pilot-auditor-v1-20260709",
+                   "",
+                   "worktree C:/Users/codex-agent/Documents/Vacation/TSF_WORKTREES/parallel-lane-pilot-builder-v1-20260709",
+                   "HEAD 9f5d67515b83857a0a0cd9b55170e25193c5eef8",
+                   "branch refs/heads/work/parallel-lane-pilot-builder-v1-20260709",
+                   ""
+               ],
+    "after":  [
+                  "worktree C:/Users/codex-agent/Documents/Vacation/Thousand-Sunny-Fleet",
+                  "HEAD 9f5d67515b83857a0a0cd9b55170e25193c5eef8",
+                  "branch refs/heads/work/true-parallel-lane-isolated-worktree-pilot-v1-20260709",
+                  "",
+                  "worktree C:/Users/codex-agent/Documents/Vacation/Thousand-Sunny-Fleet-repo-onboarding-20260708",
+                  "HEAD b83c4c688a9e123a796397622d60a7dafcaefe51",
+                  "branch refs/heads/work/repo-onboarding-20260708",
+                  ""
+              ]
+}

@@ -1,0 +1,20 @@
+﻿{
+    "schema_version":  "parallel_lane_policy_validation_v1",
+    "verdict":  "GREEN_PARALLEL_LANE_POLICY_AND_DRY_RUN_VALIDATED",
+    "dry_run_plan_verdict":  "GREEN",
+    "collision_status":  "NO_COLLISION",
+    "policy_files":  [
+                         "fleet/control/parallel-lane-coordinator-policy.v1.json",
+                         "fleet/control/parallel-lane-worktree-policy.v1.json",
+                         "fleet/control/parallel-lane-plan.schema.v1.json"
+                     ],
+    "planner":  "tools/New-TsfParallelLanePlan.ps1",
+    "checker":  "tools/Test-TsfParallelLanePlan.ps1",
+    "worker_pilot_executor":  "tools/Invoke-TsfParallelLaneFixtureWorker.ps1",
+    "background_runner_started":  false,
+    "push_performed":  false,
+    "merge_performed":  false,
+    "api_called":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false
+}

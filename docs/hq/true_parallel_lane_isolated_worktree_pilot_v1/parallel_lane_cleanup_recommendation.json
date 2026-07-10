@@ -1,0 +1,13 @@
+﻿{
+    "recommendation":  "REMOVE_TEMP_WORKTREES_AFTER_EVIDENCE_PRESERVED_LEAVE_LOCAL_BRANCHES",
+    "evidence_preserved_in":  [
+                                  "docs\\hq\\true_parallel_lane_isolated_worktree_pilot_v1",
+                                  ".codex-local/parallel-lane-pilot/runs"
+                              ],
+    "local_branches_to_keep":  [
+                                   "work/parallel-lane-pilot-builder-v1-20260709",
+                                   "work/parallel-lane-pilot-auditor-v1-20260709"
+                               ],
+    "remote_branches_deleted":  false,
+    "merge_performed":  false
+}

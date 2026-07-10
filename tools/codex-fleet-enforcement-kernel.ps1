@@ -240,6 +240,15 @@ function Get-TsfKernelProjectRegistration {
             evidence = "Mission is a TSF-local infrastructure mission inside the TSF repo."
         }
     }
+    $fleetParent = Split-Path -Parent $fleetFull
+    $tsfWorktreeRoot = Get-TsfKernelFullPath -Path (Join-Path $fleetParent "TSF_WORKTREES")
+    if ([string]$Mission.lane -eq "MASTER_TSF_CONTROL_PLANE" -and [string]$Mission.mission_type -eq "tsf_infrastructure" -and (Test-TsfKernelPathInside -ChildPath $repoFull -ParentPath $tsfWorktreeRoot)) {
+        return [pscustomobject]@{
+            registered = $true
+            status = "TSF_CONTROL_PLANE_INTERNAL_WORKTREE"
+            evidence = "Mission is a TSF-local infrastructure mission inside the approved TSF worktree root."
+        }
+    }
 
     $registryPath = Join-Path $FleetRoot "projects.json"
     if (!(Test-Path -LiteralPath $registryPath)) {

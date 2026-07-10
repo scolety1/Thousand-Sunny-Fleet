@@ -1,0 +1,8 @@
+"check","result","evidence"
+"lane branches distinct","PASS","work/parallel-lane-pilot-builder-v1-20260709 vs work/parallel-lane-pilot-auditor-v1-20260709"
+"worktree paths distinct","PASS","Builder and Auditor worktree paths are distinct under TSF_WORKTREES."
+"allowed write paths do not collide","PASS","builder_lane_result.txt vs auditor_lane_result.txt"
+"protected paths blocked","PASS","Plan forbids product repos, canonical NWR, normal NWR packets, PrivateLens, and local_exports."
+"no merge planned","PASS","Lane branches were not merged; coordinator collected evidence only."
+"no background worker planned","PASS","Workers ran sequentially in foreground only."
+"dry-run checker verdict","GREEN","NO_COLLISION"

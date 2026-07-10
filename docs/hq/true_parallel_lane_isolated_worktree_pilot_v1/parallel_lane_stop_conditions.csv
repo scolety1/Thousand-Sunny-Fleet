@@ -1,0 +1,13 @@
+stop_condition,action
+origin_main_mismatch,Stop with TIM_REQUIRED_BRANCH_CONTAINMENT.
+dirty_coordinator_branch,Stop before branch/worktree creation.
+lane_plan_collision,Stop before worktree creation.
+worktree_branch_mismatch,Stop lane and preserve evidence.
+worktree_dirty_before_worker,Stop lane and preserve evidence.
+role_preflight_red_or_tim_required,Stop lane and preserve evidence.
+missing_exact_approval,Stop lane and preserve evidence.
+worker_budget_exceeded,Stop with TIM_REQUIRED_WORKER_BUDGET_EXCEEDED.
+codex_cli_auth_or_execution_unclear,Stop with TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL.
+unexpected_file_touch,Stop lane and preserve evidence.
+verifier_red,Stop lane and preserve evidence.
+push_merge_or_background_requested,Stop immediately.

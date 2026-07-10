@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TSF Parallel Lane Isolated Worktree Pilot Plan",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "plan_id",
+    "require_true_lanes",
+    "source_branch",
+    "requested_actions",
+    "lanes"
+  ],
+  "properties": {
+    "schema_version": { "const": "parallel_lane_plan_v1" },
+    "plan_id": { "type": "string" },
+    "pilot_mode": { "const": "real_isolated_worktree_fixture_pilot" },
+    "require_true_lanes": { "const": true },
+    "source_branch": { "type": "string" },
+    "requested_actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "lane_id",
+          "worker_role",
+          "codex_agent_id",
+          "source_branch",
+          "branch",
+          "worktree_path",
+          "allowed_read_scope",
+          "allowed_write_scope",
+          "forbidden_paths",
+          "forbidden_actions",
+          "expected_artifacts",
+          "owned_files",
+          "stop_conditions"
+        ],
+        "properties": {
+          "lane_id": { "type": "string" },
+          "worker_role": { "type": "string" },
+          "codex_agent_id": { "type": "string" },
+          "source_branch": { "type": "string" },
+          "branch": { "type": "string" },
+          "target_branch": { "type": "string" },
+          "worktree_path": { "type": "string" },
+          "allowed_read_scope": { "type": "array", "items": { "type": "string" } },
+          "allowed_write_scope": { "type": "array", "items": { "type": "string" } },
+          "forbidden_paths": { "type": "array", "items": { "type": "string" } },
+          "forbidden_actions": { "type": "array", "items": { "type": "string" } },
+          "expected_artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [ "path", "expected_content" ],
+              "properties": {
+                "path": { "type": "string" },
+                "expected_content": { "type": "string" }
+              }
+            }
+          },
+          "owned_files": { "type": "array", "items": { "type": "string" } },
+          "stop_conditions": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
