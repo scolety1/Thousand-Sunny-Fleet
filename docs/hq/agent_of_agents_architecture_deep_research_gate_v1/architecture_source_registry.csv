@@ -1,0 +1,17 @@
+source_id,source_type,title,url,relevance,used_for
+langgraph-supervisor,official_docs,LangGraph Supervisor,https://reference.langchain.com/python/langgraph-supervisor,supervisor pattern,hierarchy and handoff pattern
+langgraph-workflows,official_docs,LangGraph Workflows and Agents,https://docs.langchain.com/oss/python/langgraph/workflows-agents,workflow vs agent distinction,deterministic TSF gating
+langchain-subagents,official_docs,LangChain Subagents,https://docs.langchain.com/oss/python/langchain/multi-agent/subagents-personal-assistant,central supervisor with specialists,Project Main Bot mapping
+autogen-agent-chat,official_docs,AutoGen Multi-agent Conversation,https://microsoft.github.io/autogen/0.2/docs/Use-Cases/agent_chat,conversable agents and human feedback,worker handoff comparison
+autogen-research,primary_project,Microsoft AutoGen Research,https://www.microsoft.com/en-us/research/project/autogen/,multi-agent collaboration framework,agent collaboration comparison
+crewai-docs,official_docs,CrewAI Documentation,https://docs.crewai.com/,crews and flows,role/process comparison
+mcp-spec,official_spec,Model Context Protocol Specification,https://modelcontextprotocol.io/specification/2025-06-18,tool/resource/prompt boundaries,import-export protocol boundaries
+mcp-tools,official_spec,MCP Tools,https://modelcontextprotocol.io/specification/2025-06-18/server/tools,explicit tool calls and schemas,least-privilege tool design
+temporal-durable,official_blog,Temporal Durable Execution,https://temporal.io/blog/what-is-durable-execution,durable workflow guarantees,preservation and recovery posture
+temporal-idempotency,official_blog,Temporal Idempotency and Durable Execution,https://temporal.io/blog/idempotency-and-durable-execution,idempotent retries,packet import/export idempotency
+openai-agents-sdk,official_docs,OpenAI Agents SDK,https://openai.github.io/openai-agents-python/,agent loop and handoffs,agent orchestration comparison
+openai-guardrails,official_docs,OpenAI Agents SDK Guardrails,https://openai.github.io/openai-agents-python/guardrails/,guardrail inputs and outputs,TSF fail-closed gates
+openai-tracing,official_docs,OpenAI Agents SDK Tracing,https://openai.github.io/openai-agents-python/tracing/,traces of tools and handoffs,evidence preservation
+least-privilege,security_reference,Principle of Least Privilege,https://www.paloaltonetworks.com/cyberpedia/what-is-the-principle-of-least-privilege,permission minimization,worker role scopes
+agent-access-control,primary_paper,Access Control in LLM-based Agent Systems,https://arxiv.org/html/2510.11108v2,agent access-control risks,authority escalation risk
+agent-systems-eval,primary_paper,AI Agent Systems Architectures and Evaluation,https://arxiv.org/html/2601.01743v1,agent system patterns and evaluation,architecture risks and metrics

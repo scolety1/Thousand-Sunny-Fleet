@@ -1,0 +1,18 @@
+{
+  "schema_version": "operator_console_research_plan_preview_v1",
+  "presentation_mode": "READ_ONLY_PREVIEW",
+  "data_mode": "FIXTURE_DATA",
+  "implementation_mode": "SCRIPT_BACKED_NOT_UI_WIRED",
+  "research_project_id": "agent-of-agents-architecture-research-v1",
+  "classification": "MULTI_ANGLE_DEEP_RESEARCH",
+  "prompt_count": 3,
+  "advisory_only": true,
+  "api_called": false,
+  "auto_submission_enabled": false,
+  "prompts": [
+    "architecture-supervisor-hierarchy",
+    "research-intake-import-export",
+    "operator-console-supervision-and-risk"
+  ],
+  "next_safe_action": "Create local packet only. Tim separately submits external Deep Research if desired."
+}

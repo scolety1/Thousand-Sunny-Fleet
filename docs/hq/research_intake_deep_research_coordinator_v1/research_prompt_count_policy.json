@@ -1,0 +1,8 @@
+{
+  "schema_version": "tsf_research_prompt_count_policy_v1",
+  "max_prompts_without_tim": 4,
+  "default_agent_architecture_prompt_count": 3,
+  "prompt_explosion_stop_condition": "TIM_REQUIRED_PROMPT_COUNT_EXCEEDED",
+  "duplicate_prompts_forbidden": true,
+  "auto_submission_enabled": false
+}

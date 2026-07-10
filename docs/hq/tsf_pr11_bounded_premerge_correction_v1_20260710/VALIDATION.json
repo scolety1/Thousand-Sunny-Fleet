@@ -1,0 +1,80 @@
+{
+  "schema_version": "tsf_pr11_bounded_premerge_correction_validation_v1",
+  "verdict": "GREEN_PR11_BOUNDED_CORRECTION_READY_TO_PUSH",
+  "date": "2026-07-10",
+  "starting_head": "11a420e309b3164c4b3cf8147c726e969fcc175e",
+  "starting_origin_main": "6f9430201dda9c87ae71b6eae2ccea397a22f1c9",
+  "branch": "work/agent-of-agents-research-pipeline-v1-20260710",
+  "executed_assertions": 75,
+  "executed_security_assertions": 41,
+  "validation_commands": [
+    {
+      "command": "PowerShell Language.Parser ParseFile for the four changed scripts",
+      "outcome": "PASS_4"
+    },
+    {
+      "command": "PowerShell ConvertFrom-Json for all changed and untracked JSON files",
+      "outcome": "PASS_19"
+    },
+    {
+      "command": "PowerShell Import-Csv for all changed and untracked CSV files",
+      "outcome": "PASS_27"
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-research-pipeline-tests.ps1",
+      "outcome": "PASS_75_EXECUTED_ASSERTIONS_41_SECURITY"
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-fleet-tests.ps1",
+      "outcome": "BASELINE_FAIL_2_UNRELATED_ASSERTIONS"
+    },
+    {
+      "command": "node --check tools/operator-console/readonly/research-inbox.js plus static truth-label assertions",
+      "outcome": "PASS"
+    },
+    {
+      "command": "git diff --check and git diff origin/main --check",
+      "outcome": "PASS"
+    },
+    {
+      "command": "git diff --cached --check",
+      "outcome": "PASS"
+    },
+    {
+      "command": "git diff origin/main...HEAD scope and content review",
+      "outcome": "PASS_PRECOMMIT_SCOPE_CONTENT_REVIEW_AND_POSTCOMMIT_RECHECK"
+    },
+    {
+      "command": "git status --short",
+      "outcome": "PASS_FINAL_WORKTREE_CLEAN"
+    }
+  ],
+  "normal_suite_baseline_failures": [
+    {
+      "assertion": "TSF registry contains 16 non-PrivateLens projects",
+      "evidence": "origin/main and starting HEAD both contain 17 non-PrivateLens projects; test line 3084 expects 16",
+      "disposition": "PREEXISTING_UNRELATED_NOT_CHANGED"
+    },
+    {
+      "assertion": "Stage 4.5 packet evidence checks all pass",
+      "evidence": "origin/main Stage 4.5 generator creates accepted-valid without phase0Gate; current ingest rejects it with exit 1",
+      "disposition": "PREEXISTING_UNRELATED_NOT_CHANGED"
+    }
+  ],
+  "operator_console": "READ_ONLY_PREVIEW_FIXTURE_DATA_SCRIPT_BACKED_NOT_UI_WIRED",
+  "citation_validation": "BASIC_CITATION_PRESENCE_ONLY",
+  "return_zip_import": "DEFERRED_NOT_IMPLEMENTED",
+  "research_advisory_only": true,
+  "research_grants_approval": false,
+  "api_called": false,
+  "external_service_called": false,
+  "background_or_persistent_process_started": false,
+  "nwr_accessed": false,
+  "normal_nwr_packets_read": false,
+  "privatelens_used": false,
+  "product_repository_accessed_or_mutated": false,
+  "push_or_merge_performed": false,
+  "local_commit_message": "fix: harden TSF research pipeline before PR11 merge",
+  "local_commit_created_by_commit_containing_this_packet": true,
+  "commit_hash_embedded": false
+}

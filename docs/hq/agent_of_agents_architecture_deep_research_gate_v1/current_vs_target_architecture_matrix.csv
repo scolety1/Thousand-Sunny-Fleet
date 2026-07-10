@@ -1,0 +1,8 @@
+area,current_state,target_state,decision,rationale
+project_main_bot,Local bounded supervisor exists,Remain top local coordinator,KEEP,Matches explicit supervisor pattern
+mission_queue,Foreground executor exists,Add research project queue metadata,CHANGE,Research intake needs state visibility
+operator_console,Read-only chatroom/control plane exists,Add read-only research inbox and status cards,ADD,Console supervises without executing
+deep_research,No automatic transport,Packet export/import/synthesis only,ADD,External research must remain advisory
+api_transport,No API path enabled,Remain disabled,DELAY,Requires separate Tim approval and cost guardrails
+background_runners,Design-only future gate,Remain disabled,DELAY,Current milestone forbids persistent execution
+authority_model,Tim/HQ gates remain authority,Research synthesis advisory only,KEEP,Prevents research-as-approval

@@ -1,0 +1,36 @@
+{
+  "schema_version": "tsf_research_import_contract_v1",
+  "approved_roots": [
+    "C:\\NWR_REVIEW\\TSF_DEEP_RESEARCH_RETURNS",
+    "tests/fixtures/fleet/research-pipeline",
+    ".codex-local/research-pipeline"
+  ],
+  "preserve_original_report": true,
+  "hash_algorithm": "SHA256",
+  "required_report_fields": [
+    "research_project_id",
+    "prompt_id",
+    "non_empty_summary_section",
+    "non_empty_findings_section",
+    "non_empty_recommendations_section",
+    "non_empty_caveats_section",
+    "non_empty_sources_section",
+    "recognizable_source_locator_or_structured_entry"
+  ],
+  "accepted_encoding": "UTF-8 with optional BOM",
+  "maximum_report_bytes": 2097152,
+  "citation_validation": "BASIC_CITATION_PRESENCE_VALIDATED",
+  "claim_to_source_verification": false,
+  "zip_return_import_implemented": false,
+  "rejection_or_exclusion_conditions": [
+    "wrong_project",
+    "duplicate_report",
+    "incomplete_required_sections",
+    "empty_or_unstructured_sources",
+    "invalid_text_encoding",
+    "report_size_limit_exceeded",
+    "unsafe_or_malicious_instruction",
+    "path_outside_approved_root"
+  ],
+  "research_grants_approval": false
+}

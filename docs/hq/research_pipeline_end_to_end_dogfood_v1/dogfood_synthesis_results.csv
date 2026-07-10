@@ -1,0 +1,7 @@
+decision,item,status,data_mode
+KEEP,Project Main Bot hierarchy,advisory,FIXTURE_DATA_PRE_CORRECTION_SUPERSEDED
+ADD,Research Intake Coordinator,advisory,FIXTURE_DATA_PRE_CORRECTION_SUPERSEDED
+ADD,Deep Research Import/Export Coordinator,advisory,FIXTURE_DATA_PRE_CORRECTION_SUPERSEDED
+CHANGE,Operator Console research cards,advisory,FIXTURE_DATA_PRE_CORRECTION_SUPERSEDED
+REMOVE,Research-as-approval,advisory,FIXTURE_DATA_PRE_CORRECTION_SUPERSEDED
+DELAY,Automatic external submission,advisory,FIXTURE_DATA_PRE_CORRECTION_SUPERSEDED

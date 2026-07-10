@@ -1,0 +1,61 @@
+{
+  "schema_version": "tsf_recommended_agent_hierarchy_v1",
+  "verdict": "GREEN_HIERARCHY_RECOMMENDED",
+  "evidence_type": "HISTORICAL_ARCHITECTURE_RECOMMENDATION_NOT_IMPLEMENTATION_AUTHORITY",
+  "grants_merge_or_production_authority": false,
+  "root": "project_main_bot",
+  "children": [
+    {
+      "id": "operator_console",
+      "mode": "read_only_supervision",
+      "may_execute": false
+    },
+    {
+      "id": "mission_queue",
+      "mode": "foreground_only",
+      "may_execute": true,
+      "requires_approval_ledger": true
+    },
+    {
+      "id": "parallel_lane_coordinator",
+      "mode": "controlled_foreground_lanes",
+      "may_merge": false
+    },
+    {
+      "id": "research_intake_coordinator",
+      "mode": "idea_normalization_and_plan_drafting",
+      "may_call_api": false
+    },
+    {
+      "id": "deep_research_import_export_coordinator",
+      "mode": "packet_export_import_preservation",
+      "may_submit_external_research": false
+    },
+    {
+      "id": "research_synthesis_engine",
+      "mode": "advisory_synthesis",
+      "grants_approval": false
+    }
+  ],
+  "execution_workers": [
+    "builder_worker",
+    "tester_worker",
+    "auditor_worker",
+    "researcher_source_tracer_worker",
+    "documentation_worker",
+    "context_memory_steward"
+  ],
+  "hard_gates": [
+    "push",
+    "merge",
+    "deploy",
+    "install",
+    "migration",
+    "secrets",
+    "api_call",
+    "background_runner",
+    "product_repo_mutation",
+    "canonical_nwr_mutation",
+    "research_result_adoption"
+  ]
+}

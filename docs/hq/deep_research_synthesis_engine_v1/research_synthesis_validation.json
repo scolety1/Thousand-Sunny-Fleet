@@ -1,0 +1,16 @@
+{
+  "schema_version": "tsf_deep_research_synthesis_validation_v1",
+  "verdict": "SUPERSEDED_BY_CONTENT_DERIVED_SYNTHESIS_CORRECTION_V1",
+  "implementation": "CONTENT_DERIVED_DETERMINISTIC_MARKDOWN_V1",
+  "script_backed_not_ui_wired": true,
+  "required_non_empty_sections": ["Summary", "Findings", "Recommendations", "Caveats", "Sources"],
+  "wrong_project_and_unexpected_prompt_filtered": true,
+  "duplicate_partial_rejected_imports_ineligible": true,
+  "claim_and_decision_attribution": true,
+  "citation_validation": "BASIC_CITATION_PRESENCE_ONLY",
+  "api_called": false,
+  "background_runner_started": false,
+  "research_treated_as_approval": false,
+  "grants_approval": false,
+  "synthetic_fixture_reports_labeled": true
+}

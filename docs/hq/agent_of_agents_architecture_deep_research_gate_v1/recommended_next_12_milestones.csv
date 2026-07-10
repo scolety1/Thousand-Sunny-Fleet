@@ -1,0 +1,13 @@
+order,milestone,recommendation,notes
+1,Agent-of-Agents Architecture Deep Research Gate V1,COMPLETE_THIS_BRANCH,Local research pipeline only
+2,Research Intake Coordinator Hardening V1,NEXT_AFTER_MERGE,Improve registry/duplicate logic
+3,Deep Research Return Review Gate V1,NEXT,Manual returned reports only
+4,Operator Console Research Cards V2,NEXT,Read-only dashboard hardening
+5,Research Synthesis Adoption Planning Gate V1,NEXT,Tim-approved adoption only
+6,Controlled Multi-Lane Research Evidence Pilot V1,DELAY,No background workers
+7,Source Branch Archive Renewal V2,DELAY,Branch hygiene after merge wave
+8,Operator Console Local Persistence V1,DELAY,No daemon
+9,ChatGPT/API HQ Choke-Point Adapter V1,DELAY,Requires API/cost approval
+10,Background Runner Design Review V2,DELAY,Design only until approved
+11,Controlled Background Runner Pilot V1,DELAY,Separate authority expansion
+12,Product Repo Integration Planning Gate V1,DELAY,No product mutation in TSF infra lane

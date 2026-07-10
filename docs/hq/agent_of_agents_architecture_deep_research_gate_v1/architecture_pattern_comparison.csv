@@ -1,0 +1,8 @@
+pattern,fit_for_tsf,strength,risk,decision
+central_supervisor_with_specialists,HIGH,Maps to Project Main Bot and role-aware workers,Supervisor bottleneck,KEEP
+graph_workflow_with_persistence,HIGH,Supports deterministic gates and evidence,Needs careful state schema,ADD_INCREMENTALLY
+free_form_agent_chat,MEDIUM,Useful for collaboration patterns,Can blur authority and scope,DELAY_FOR_REAL_EXECUTION
+crew_flow_roles,MEDIUM,Clear role/process modeling,Can hide control decisions in framework abstractions,REFERENCE_ONLY
+tool_protocol_boundary,HIGH,Supports explicit import/export contracts,Tool exposure must be least privilege,ADD
+durable_workflow_engine,MEDIUM,Good future recovery model,Overbuilt for local TSF right now,DELAY
+automatic_api_research,LOW,Could save manual steps later,Cost/auth/approval risk,DELAY

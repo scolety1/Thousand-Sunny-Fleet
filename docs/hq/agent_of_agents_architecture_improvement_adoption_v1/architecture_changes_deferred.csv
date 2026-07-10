@@ -1,0 +1,6 @@
+deferred_id,change,reason,next_gate
+D-001,Automatic ChatGPT/OpenAI API submission,Requires API/cost approval,ChatGPT/API HQ Choke-Point Adapter V1
+D-002,Background research runner,Requires persistent runner approval,Background Runner Gate
+D-003,Product repo research integration,Forbidden in TSF infra lane,Product Repo Integration Planning Gate
+D-004,Canonical NWR integration,Forbidden in TSF infra lane,NWR-specific gate
+D-005,Research conclusions auto-adopting changes,Would bypass Tim/HQ authority,Research Adoption Gate

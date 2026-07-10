@@ -1,0 +1,4 @@
+prompt_id,required_files_present,zip_valid,api_called
+architecture-supervisor-hierarchy,yes,yes,no
+research-intake-import-export,yes,yes,no
+operator-console-supervision-and-risk,yes,yes,no

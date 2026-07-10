@@ -1,0 +1,7 @@
+{
+  "schema_version": "operator_console_research_idea_sample_v1",
+  "idea_text": "Research Agent-of-Agents architecture, Research Intake, Deep Research import/export coordination, and how Operator Console should supervise HQ gates without bypassing them.",
+  "project_id": "tsf",
+  "api_called": false,
+  "execution_enabled": false
+}

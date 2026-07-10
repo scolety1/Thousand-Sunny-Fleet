@@ -1,0 +1,9 @@
+change_id,change,files
+A-001,Research registry added,fleet/control/research-registry.v1.json
+A-002,Idea intake helper added,tools/New-TsfResearchIdea.ps1
+A-003,Deep Research planner added,tools/New-TsfDeepResearchPlan.ps1
+A-004,Manual export package helper added,tools/Export-TsfDeepResearchPackage.ps1
+A-005,Safe import helper added,tools/Import-TsfDeepResearchReport.ps1
+A-006,Synthesis helper added,tools/New-TsfDeepResearchSynthesis.ps1
+A-007,Read-only research inbox added,tools/operator-console/readonly/research-inbox.html
+A-008,Research pipeline tests added,tests/run-tsf-research-pipeline-tests.ps1

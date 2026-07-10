@@ -1,0 +1,4 @@
+report,prompt_id,status,synthetic_fixture
+architecture-supervisor-hierarchy.synthetic.md,architecture-supervisor-hierarchy,IMPORTED_VALID,yes
+research-intake-import-export.synthetic.md,research-intake-import-export,IMPORTED_VALID,yes
+operator-console-supervision-and-risk.synthetic.md,operator-console-supervision-and-risk,IMPORTED_VALID,yes

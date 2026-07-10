@@ -1,0 +1,18 @@
+{
+  "schema_version": "tsf_research_synthesis_decision_contract_v1",
+  "allowed_decisions": [
+    "KEEP",
+    "CHANGE",
+    "ADD",
+    "REMOVE",
+    "DELAY"
+  ],
+  "required_outputs": [
+    "comparison_matrix",
+    "claim_evidence_matrix",
+    "disagreement_register",
+    "decision_json"
+  ],
+  "advisory_only": true,
+  "requires_tim_gate_for_adoption": true
+}
