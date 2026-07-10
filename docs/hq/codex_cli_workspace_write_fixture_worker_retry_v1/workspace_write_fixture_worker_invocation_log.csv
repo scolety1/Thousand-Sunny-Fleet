@@ -1,0 +1,2 @@
+order,invocation_type,command,ignore_user_config_used,workspace_write_sandbox_used,danger_full_access_used,exit_status,exit_code,timed_out,worker_status,output_summary,second_invocation_run
+1,codex_exec_worker_attempt,"codex exec --ignore-user-config --sandbox workspace-write --ephemeral --cd <TSF repo> --output-last-message <scratch> --json -",true,true,false,zero,0,false,CODEX_CLI_EXPECTED_ARTIFACT_MISSING,"Worker reported read-only sandbox with approval requests disabled; no files modified; expected artifact missing.",false

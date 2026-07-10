@@ -1,0 +1,50 @@
+{
+  "schema_version": "mission_queue_state_policy_v1",
+  "queue_root": "fleet/missions",
+  "states": [
+    "inbox",
+    "drafted",
+    "preflight_pending",
+    "blocked_needs_tim",
+    "approved_for_worker",
+    "worker_running",
+    "postrun_pending",
+    "complete_review_only",
+    "complete_ready_for_gate",
+    "stopped",
+    "archived"
+  ],
+  "terminal_states": [
+    "blocked_needs_tim",
+    "complete_review_only",
+    "complete_ready_for_gate",
+    "stopped",
+    "archived"
+  ],
+  "allowed_transitions": [
+    { "from": "inbox", "to": "drafted" },
+    { "from": "drafted", "to": "preflight_pending" },
+    { "from": "preflight_pending", "to": "blocked_needs_tim" },
+    { "from": "preflight_pending", "to": "approved_for_worker" },
+    { "from": "approved_for_worker", "to": "worker_running" },
+    { "from": "worker_running", "to": "postrun_pending" },
+    { "from": "postrun_pending", "to": "complete_review_only" },
+    { "from": "postrun_pending", "to": "complete_ready_for_gate" },
+    { "from": "postrun_pending", "to": "blocked_needs_tim" },
+    { "from": "drafted", "to": "stopped" },
+    { "from": "blocked_needs_tim", "to": "archived" },
+    { "from": "complete_review_only", "to": "archived" },
+    { "from": "complete_ready_for_gate", "to": "archived" },
+    { "from": "stopped", "to": "archived" }
+  ],
+  "forbidden_actions": [
+    "background_runner",
+    "push",
+    "merge",
+    "deploy",
+    "install",
+    "migration",
+    "secrets",
+    "all_fleet"
+  ]
+}

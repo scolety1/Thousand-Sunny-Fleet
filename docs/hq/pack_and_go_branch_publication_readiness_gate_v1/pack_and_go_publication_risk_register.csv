@@ -1,0 +1,7 @@
+"risk_id","risk","severity","status","mitigation"
+"R1","Branch has not been pushed or reviewed remotely.","medium","open","Run separate Tim-approved push/PR gate."
+"R2","Real Codex worker execution is proven only for one fixture file.","medium","accepted","Keep future real worker executions exact, foreground, approval-gated, and verifier-backed."
+"R3","External Codex config/plugin changes are evidenced but not owned by repo source control.","medium","accepted","Preserve evidence packets and avoid assuming config portability."
+"R4","Operator Console is not implemented.","low","accepted","Keep as future work after local foreground path is stable."
+"R5","API/HQ transport is not implemented.","low","accepted","Use cost guardrail policy and require explicit future approval."
+"R6","Broad fleet test harness not used as blocker.","low","accepted","Focused TSF scoped tests passed; all-fleet remains forbidden in this gate."

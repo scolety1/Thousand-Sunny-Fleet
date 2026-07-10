@@ -1,0 +1,2 @@
+"path","action","allowed","notes"
+"tests/fixtures/fleet/enforcement-kernel/worker-output/pack_go_fixture_worker_result.txt","not_created","true","Real worker pilot skipped before execution."

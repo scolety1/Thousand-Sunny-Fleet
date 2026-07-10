@@ -1,0 +1,13 @@
+{
+  "verdict": "YELLOW_SKIPPED_CODEX_CLI_CONFIG_GATE_NOT_GREEN",
+  "codex_exec_invoked": false,
+  "fixture_worker_pilot_run": false,
+  "skip_reason": "Codex CLI config gate did not reach GREEN under the baton exact-edit rule.",
+  "expected_artifact": "tests/fixtures/fleet/enforcement-kernel/worker-output/pack_go_fixture_worker_result.txt",
+  "expected_content": "TSF pack-and-go foreground worker pilot complete.",
+  "product_repos_mutated": false,
+  "canonical_nwr_mutated": false,
+  "api_called": false,
+  "background_runners_started": false,
+  "push_merge_deploy_attempted": false
+}

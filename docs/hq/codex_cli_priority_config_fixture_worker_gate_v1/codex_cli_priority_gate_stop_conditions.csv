@@ -1,0 +1,7 @@
+"stop_condition","status","notes"
+"branch_containment_failed","not_hit","Branch and HEAD matched before gate."
+"priority_invalid","hit","codex exec rejected priority and named fast/flex."
+"config_edit_needed","hit_nonfatal","service_tier changed only from priority to flex after backup."
+"second_worker_invocation_forbidden","hit_stop","No second real codex exec worker invocation was run."
+"expected_artifact_missing","hit_fail_closed","Verifier returned RED because worker did not create fixture artifact."
+"api_background_push_merge_product_canonical","not_hit","No forbidden external or protected-scope action occurred."

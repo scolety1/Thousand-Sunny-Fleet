@@ -1,0 +1,3 @@
+path,touched_by_worker,expected,allowed,created,content_matched,notes
+"tests/fixtures/fleet/enforcement-kernel/worker-output/ignore_user_config_fixture_worker_result.txt",false,true,true,false,false,"Expected fixture artifact was not created."
+"<none>",false,false,false,false,false,"Worker touched no files."

@@ -1,0 +1,3 @@
+"path","status","allowed","notes"
+"tests/fixtures/fleet/enforcement-kernel/worker-output/fast_workspace_write_fixture_worker_result.txt","created","yes","Expected fixture artifact was created with exact content."
+"<none>","unexpected_files_touched","yes","No paths outside the allowed fixture artifact were touched."

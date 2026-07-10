@@ -1,0 +1,2 @@
+"path","expected","created","touched_by_worker","content_matches","notes"
+"tests/fixtures/fleet/enforcement-kernel/worker-output/priority_gate_fixture_worker_result.txt","true","false","false","false","Worker failed before action because priority was invalid."

@@ -1,0 +1,15 @@
+﻿{
+    "config_path":  "C:\\Users\\codex-agent\\.codex\\config.toml",
+    "backup_path":  "C:\\NWR_REVIEW\\tsf_codex_cli_priority_gate_config_backup_20260709\\config.toml.before_priority_gate",
+    "backup_sha256":  "933AD3116D154E5831BF5BD6D63C5F570C7AF14CE1193C573D037091A9FCF4C9",
+    "config_after_sha256":  "F44EAD5BA3EBE98A48B8EF75CE2604D7E96A456EC152AB253D0BE083C53CBF46",
+    "before":  {
+                   "other_keys":  "redacted_not_inspected_for_this_gate",
+                   "service_tier":  "priority"
+               },
+    "after":  {
+                  "other_keys":  "unchanged_redacted",
+                  "service_tier":  "flex"
+              },
+    "edit_scope":  "single service_tier line only"
+}

@@ -1,0 +1,11 @@
+stop_condition,status,evidence,action
+"unexpected dirty state",not_hit,"Only the failed retry packet was dirty at gate start; it was committed locally.","continued"
+"real worker retry requested in this gate",not_hit,"No real codex exec worker mission was run.","continued"
+"auth or credential inspection required",not_hit,"Only non-secret config fields and redacted env var names were inspected.","continued"
+"service tier unclear",not_hit,"Replacement tier remains unclear, but a no-edit bypass strategy is available via --ignore-user-config.","continued"
+"config edit required",not_hit,"No config edit was needed or performed.","continued"
+"product repo mutation required",not_hit,"No product repo was touched or mutated.","continued"
+"canonical NWR mutation required",not_hit,"Canonical NWR was not touched or mutated.","continued"
+"push or merge required",not_hit,"No push or merge was performed.","continued"
+"background runner required",not_hit,"No background runner was started.","continued"
+"api call required",not_hit,"No ChatGPT/OpenAI API or paid external API was called.","continued"

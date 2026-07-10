@@ -1,0 +1,21 @@
+{
+  "source_packet": "docs/hq/codex_cli_workspace_write_fixture_worker_retry_v1/",
+  "work_packet": "C:\\NWR_REVIEW\\tsf_codex_cli_workspace_write_fixture_worker_retry_v1_work_20260709",
+  "failed_command": "codex exec --ignore-user-config --sandbox workspace-write --ephemeral --cd <TSF repo> --output-last-message <scratch> --json -",
+  "resolved_command_used_codex_cmd": true,
+  "working_directory": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "cd_argument": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "sandbox_argument": "workspace-write",
+  "ignore_user_config_used": true,
+  "danger_full_access_used": false,
+  "exit_code": 0,
+  "timed_out": false,
+  "worker_last_message_redacted": "Blocked: the workspace is currently in a read-only sandbox, and approval requests are disabled, so I could not write the requested file. No files were modified.",
+  "router_error_redacted": "patch rejected: writing is blocked by read-only sandbox; rejected by user approval settings",
+  "expected_artifact": "tests/fixtures/fleet/enforcement-kernel/worker-output/workspace_write_fixture_worker_result.txt",
+  "expected_artifact_created": false,
+  "files_touched": [],
+  "verifier_verdict": "RED",
+  "plugin_warning_observed": "temp ngs-analysis plugin defaultPrompt length warning; not identified as the write blocker",
+  "secret_or_auth_values_included": false
+}

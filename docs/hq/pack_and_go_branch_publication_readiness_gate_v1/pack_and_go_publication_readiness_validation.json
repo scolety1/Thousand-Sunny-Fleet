@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "gate": "TSF Pack-And-Go Branch No-Push Publication Readiness Gate V1",
+  "verdict": "GREEN_TSF_PACK_AND_GO_BRANCH_READY_FOR_PUSH_PR_GATE",
+  "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "branch": "work/tsf-pack-and-go-autonomous-deployment-v1-20260709",
+  "starting_head": "e7e48daf696e6107930274884bbb304abc70b474",
+  "base_main_commit": "4217efb4fda6965ac280335d9575f4cf46408ba4",
+  "origin_main_head_after_fetch": "4217efb4fda6965ac280335d9575f4cf46408ba4",
+  "worktree_clean_before_packet": true,
+  "safe_fetch_performed": true,
+  "descends_from_merged_pr4_main": true,
+  "commit_count_after_base": 13,
+  "changed_file_count_after_base": 117,
+  "scope_assessment": "TSF_INFRASTRUCTURE_ONLY",
+  "first_green_codex_worker_execution_preserved": true,
+  "green_worker_packet_path": "docs/hq/codex_cli_fast_workspace_write_fixture_retry_v1/",
+  "fixture_artifact": {
+    "path": "tests/fixtures/fleet/enforcement-kernel/worker-output/fast_workspace_write_fixture_worker_result.txt",
+    "expected_content": "TSF fast workspace-write foreground worker pilot complete.",
+    "exists": true,
+    "content_matches": true
+  },
+  "validations": {
+    "json_parse_checks": "PASS",
+    "csv_import_checks": "PASS",
+    "markdown_artifact_checks": "PASS",
+    "powershell_parser_checks": "PASS",
+    "minimum_viable_kernel_tests": "PASS",
+    "kernel_v2_tests": "PASS",
+    "project_main_bot_role_foundation_tests": "PASS",
+    "role_aware_lifecycle_tests": "PASS",
+    "main_bot_self_continuation_tests": "PASS",
+    "mission_queue_tests": "PASS",
+    "parallel_lane_dry_run_tests": "PASS",
+    "fixture_worker_validation": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "guardrails": {
+    "push_performed": false,
+    "pr_created": false,
+    "merge_performed": false,
+    "deploy_install_migration_secrets_privatelens_all_fleet": false,
+    "api_called": false,
+    "background_runner_started": false,
+    "product_repos_mutated": false,
+    "canonical_nwr_mutated": false,
+    "codex_worker_execution_in_this_gate": false
+  },
+  "stop_conditions_hit": [],
+  "recommended_next_step": "Run a separate Tim-approved push/PR gate for the pack-and-go branch."
+}

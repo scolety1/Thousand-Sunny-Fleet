@@ -1,0 +1,32 @@
+{
+  "schema_version": "hq_api_cost_guardrail_policy_v1",
+  "api_transport_implemented": false,
+  "default_policy": "local_codex_tsf_first",
+  "allowed_future_uses": [
+    "major_architecture_choke_point",
+    "ambiguous_yellow_decision",
+    "conflicting_worker_reports",
+    "repeated_blocker_loop",
+    "source_truth_ranking_model_promotion_decision",
+    "high_risk_approval_framing"
+  ],
+  "forbidden_uses": [
+    "raw_repo_dump",
+    "routine_file_existence_check",
+    "routine_test_failure",
+    "local_branch_status",
+    "artifact_validation",
+    "micro_routing_decision"
+  ],
+  "required_before_call": [
+    "tim_approval",
+    "compressed_escalation_packet",
+    "token_budget_estimate",
+    "monthly_budget_check",
+    "allowed_verdicts",
+    "exact_decision_requested"
+  ],
+  "monthly_budget_cap_placeholder_usd": null,
+  "raw_repo_dump_allowed": false,
+  "chatgpt_openai_api_called_in_current_run": false
+}

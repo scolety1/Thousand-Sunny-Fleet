@@ -43,11 +43,18 @@ if ($lanes.Count -eq 0) {
 }
 
 $seenBranches = @{}
+$seenWorktrees = @{}
+$seenAgents = @{}
 $seenFiles = @{}
+$requireTrueLanes = $false
+if ($plan.PSObject.Properties.Name -contains "require_true_lanes") {
+    $requireTrueLanes = [bool]$plan.require_true_lanes
+}
 foreach ($lane in $lanes) {
     $laneId = [string]$lane.lane_id
     $branch = [string]$lane.branch
     $worktree = [string]$lane.worktree_path
+    $agentId = if ($lane.PSObject.Properties.Name -contains "codex_agent_id") { [string]$lane.codex_agent_id } else { "" }
     $ownedFiles = @($lane.owned_files | ForEach-Object { ([string]$_).Replace("\", "/").Trim().ToLowerInvariant() } | Where-Object { $_ })
 
     if ([string]::IsNullOrWhiteSpace($laneId)) {
@@ -66,6 +73,30 @@ foreach ($lane in $lanes) {
     if ($worktree -match "(?i)^C:\\NWR\\Niners-War-Room|PrivateLens|product repo") {
         Add-TsfLaneCheck -Checks $checks -Name "protected_worktree.blocked" -Status "FAIL" -Message "Protected worktree path requested." -Evidence $worktree
         $blocked.Add("Protected worktree path: $worktree") | Out-Null
+    }
+    if ($requireTrueLanes) {
+        if ([string]::IsNullOrWhiteSpace($worktree)) {
+            Add-TsfLaneCheck -Checks $checks -Name "true_lane.worktree.present" -Status "FAIL" -Message "True lane is missing worktree_path." -Evidence $laneId
+            $blocked.Add("True lane missing worktree_path: $laneId") | Out-Null
+        } elseif ($seenWorktrees.ContainsKey($worktree)) {
+            Add-TsfLaneCheck -Checks $checks -Name "true_lane.worktree.unique" -Status "FAIL" -Message "Duplicate worktree path in true lane plan." -Evidence $worktree
+            $blocked.Add("Duplicate worktree path: $worktree") | Out-Null
+        } else {
+            $seenWorktrees[$worktree] = $laneId
+        }
+        if ([string]::IsNullOrWhiteSpace($agentId)) {
+            Add-TsfLaneCheck -Checks $checks -Name "true_lane.agent.present" -Status "FAIL" -Message "True lane is missing codex_agent_id." -Evidence $laneId
+            $blocked.Add("True lane missing codex_agent_id: $laneId") | Out-Null
+        } elseif ($seenAgents.ContainsKey($agentId)) {
+            Add-TsfLaneCheck -Checks $checks -Name "true_lane.agent.unique" -Status "FAIL" -Message "Duplicate Codex agent id in true lane plan." -Evidence $agentId
+            $blocked.Add("Duplicate Codex agent id: $agentId") | Out-Null
+        } else {
+            $seenAgents[$agentId] = $laneId
+        }
+        if ($branch -notmatch "^work/[A-Za-z0-9._-]+-\d{8}$") {
+            Add-TsfLaneCheck -Checks $checks -Name "true_lane.branch.name" -Status "FAIL" -Message "True lane branch must be a dated work/* branch." -Evidence $branch
+            $blocked.Add("Invalid true lane branch name: $branch") | Out-Null
+        }
     }
     foreach ($file in $ownedFiles) {
         if ($seenFiles.ContainsKey($file)) {

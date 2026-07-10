@@ -1,0 +1,15 @@
+﻿{
+    "config_path":  "C:\\Users\\codex-agent\\.codex\\config.toml",
+    "codex_cli_version":  "codex-cli 0.124.0",
+    "service_tier_before":  "priority",
+    "priority_acceptance_result":  "REJECTED_BY_CODEX_EXEC",
+    "rejection_evidence":  "Error loading config.toml: unknown variant `priority`, expected `fast` or `flex`.",
+    "native_binary_string_evidence":  "Local native binary contained ServiceTier plus priority/flex/fast strings, but real codex exec rejected priority.",
+    "supported_values_from_error":  [
+                                        "fast",
+                                        "flex"
+                                    ],
+    "selected_safe_value":  "flex",
+    "post_edit_help_parse_exit":  0,
+    "secrets_or_credentials_printed":  false
+}

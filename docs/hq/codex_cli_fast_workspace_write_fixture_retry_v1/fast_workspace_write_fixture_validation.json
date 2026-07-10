@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "gate": "TSF Codex CLI Fast Workspace-Write Fixture Worker Retry V1",
+  "verdict": "GREEN_TSF_CODEX_CLI_FAST_WORKSPACE_WRITE_FIXTURE_PASSED",
+  "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "branch": "work/tsf-pack-and-go-autonomous-deployment-v1-20260709",
+  "starting_head": "641e9941ee3c6cc7ae67afe7c342faddaf941d01",
+  "mission_id": "tsf-fast-workspace-write-fixture-worker-20260709",
+  "preflight": {
+    "verdict": "GREEN",
+    "approved": true,
+    "approval_match": "MATCHED_ACTIVE_APPROVAL",
+    "approval_id": "tim-approval-fast-workspace-write-fixture-20260709"
+  },
+  "role_preflight": {
+    "role": "builder_worker",
+    "verdict": "GREEN",
+    "approved": true
+  },
+  "codex_cli": {
+    "invoked": true,
+    "worker_execution_invoked": true,
+    "attempt_count": 1,
+    "exit_code": 0,
+    "timed_out": false,
+    "service_tier_fast_used": true,
+    "sandbox_workspace_write_used": true,
+    "ignore_user_config_used": false,
+    "danger_full_access_used": false
+  },
+  "fixture_artifact": {
+    "path": "tests/fixtures/fleet/enforcement-kernel/worker-output/fast_workspace_write_fixture_worker_result.txt",
+    "expected_content": "TSF fast workspace-write foreground worker pilot complete.",
+    "created": true,
+    "content_matched": true
+  },
+  "verifier": {
+    "verdict": "GREEN",
+    "verified": true,
+    "reason": "Expected artifact exists, was claimed in worker result, stayed inside allowed_writes, and role output contract was satisfied."
+  },
+  "guardrails": {
+    "api_called": false,
+    "background_runner_started": false,
+    "push_performed": false,
+    "merge_performed": false,
+    "deploy_install_migration_secrets_privatelens_all_fleet": false,
+    "product_repos_mutated": false,
+    "canonical_nwr_mutated": false
+  },
+  "recommended_next_step": "Preserve this as the first GREEN TSF-governed real Codex worker execution and decide whether to publish or harden the adapter command path next."
+}

@@ -1,0 +1,2 @@
+"order","invocation_type","command","service_tier_at_start","exit_status","exit_code","output_summary","second_invocation_run"
+"1","codex_exec_worker_attempt","codex exec --ephemeral --cd <TSF repo> --sandbox workspace-write --output-last-message <scratch> --json -","priority","failed_before_worker_action","1","unknown variant priority, expected fast or flex","false"

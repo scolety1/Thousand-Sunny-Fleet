@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "gate": "TSF Codex CLI Normal-Config Workspace-Write Fixture Retry V1",
+  "verdict": "TIM_REQUIRED_CODEX_CLI_AUTH_OR_EXECUTION_APPROVAL",
+  "repo_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet",
+  "branch": "work/tsf-pack-and-go-autonomous-deployment-v1-20260709",
+  "starting_head": "69977287d0cd1fd9df01158f802a8099f9c76211",
+  "mission_id": "tsf-normal-config-workspace-write-fixture-worker-20260709",
+  "preflight": {
+    "verdict": "GREEN",
+    "approved": true,
+    "approval_match": "MATCHED_ACTIVE_APPROVAL",
+    "approval_id": "tim-approval-normal-config-workspace-write-fixture-20260709"
+  },
+  "role_preflight": {
+    "role": "builder_worker",
+    "verdict": "GREEN",
+    "approved": true
+  },
+  "codex_cli": {
+    "invoked": true,
+    "worker_execution_invoked": true,
+    "attempt_count": 1,
+    "exit_code": 1,
+    "timed_out": false,
+    "ignore_user_config_used": false,
+    "sandbox_workspace_write_used": true,
+    "service_tier_null_used": true,
+    "danger_full_access_used": false,
+    "error_redacted": "Error loading config.toml: unknown variant null, expected fast or flex in service_tier"
+  },
+  "fixture_artifact": {
+    "path": "tests/fixtures/fleet/enforcement-kernel/worker-output/normal_config_workspace_write_fixture_worker_result.txt",
+    "expected_content": "TSF normal-config workspace-write foreground worker pilot complete.",
+    "created": false,
+    "content_matched": false
+  },
+  "verifier": {
+    "verdict": "RED",
+    "verified": false,
+    "reason": "Expected artifact missing; worker result did not claim expected artifact; role output contract was not satisfied."
+  },
+  "guardrails": {
+    "api_called": false,
+    "background_runner_started": false,
+    "push_performed": false,
+    "merge_performed": false,
+    "deploy_install_migration_secrets_privatelens_all_fleet": false,
+    "product_repos_mutated": false,
+    "canonical_nwr_mutated": false
+  },
+  "recommended_next_step": "Run a no-worker config strategy gate to choose a supported service_tier override or safe field-removal strategy before any future worker retry."
+}

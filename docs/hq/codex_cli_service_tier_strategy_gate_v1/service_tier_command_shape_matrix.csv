@@ -1,0 +1,7 @@
+"command_shape","exit_code","parser_help_clean","plugin_warning_seen","worker_prompt_used","writes_possible","decision_note"
+"codex --version","0","yes","no","no","no","Returned codex-cli 0.124.0."
+"codex exec --help","0","yes","no","no","no","Baseline non-worker help parsed."
+"codex exec -c service_tier=fast --help","0","yes","no","no","no","Fast override parsed cleanly."
+"codex exec -c service_tier=flex --help","0","yes","no","no","no","Flex override parsed cleanly, but prior real execution evidence makes it less reliable."
+"codex exec -c service_tier=fast --sandbox workspace-write --ephemeral --cd <TSF repo> --help","0","yes","no","no","no","Exact next command shape with fast parsed cleanly."
+"codex exec -c service_tier=flex --sandbox workspace-write --ephemeral --cd <TSF repo> --help","0","yes","no","no","no","Exact command shape with flex parsed cleanly, but not recommended."

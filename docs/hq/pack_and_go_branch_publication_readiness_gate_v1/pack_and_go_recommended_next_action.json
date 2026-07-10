@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "recommended_next_action": "Run a separate Tim-approved push/PR gate for work/tsf-pack-and-go-autonomous-deployment-v1-20260709.",
+  "publication_ready": true,
+  "verdict": "GREEN_TSF_PACK_AND_GO_BRANCH_READY_FOR_PUSH_PR_GATE",
+  "required_tim_approval_text": "Tim approves pushing work/tsf-pack-and-go-autonomous-deployment-v1-20260709 at the current HEAD for PR review. Do not merge, deploy, install, migrate, call API, start background runners, mutate product repos, mutate canonical NWR, or run all-fleet.",
+  "do_not_do_next": [
+    "do not push without explicit Tim approval",
+    "do not create PR without explicit Tim approval",
+    "do not merge",
+    "do not run another Codex worker execution from this readiness packet",
+    "do not start Operator Console implementation",
+    "do not build API/HQ transport"
+  ]
+}

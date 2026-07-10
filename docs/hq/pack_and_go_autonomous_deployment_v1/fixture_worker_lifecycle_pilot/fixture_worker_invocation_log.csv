@@ -1,0 +1,2 @@
+"attempt","codex_exec_invoked","status","reason"
+"1","false","SKIPPED","Config gate was not GREEN; current service_tier value was priority and exact edit was not approved."

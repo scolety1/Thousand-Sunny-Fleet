@@ -1,0 +1,29 @@
+{
+  "decision": "IGNORE_USER_CONFIG_RECOMMENDED_FOR_FIXTURE",
+  "current_service_tier": "flex",
+  "current_service_tier_supported_by_worker_runtime": false,
+  "service_tier_required": "unknown",
+  "service_tier_can_be_omitted": "likely_via_ignore_user_config_but_not_worker_retried_in_this_gate",
+  "accepted_service_tier_values_identified": [],
+  "safe_config_edit_performed": false,
+  "safe_config_edit_reason": "No accepted replacement value was identified locally, and --ignore-user-config provides a narrower no-edit path for the next fixture retry.",
+  "ignore_user_config_recommended": true,
+  "ignore_user_config_evidence": [
+    "codex exec --help documents --ignore-user-config",
+    "codex exec --ignore-user-config --help exited 0 with no stderr",
+    "--ignore-user-config bypasses $CODEX_HOME/config.toml while auth still uses CODEX_HOME"
+  ],
+  "temporary_sanitized_config_recommended": false,
+  "temporary_sanitized_config_reason": "A temporary sanitized config may be possible, but it is broader than the help-tested --ignore-user-config path and is not needed for the next fixture retry.",
+  "tim_required_before_next_worker_retry": true,
+  "recommended_next_prompt": "Run TSF Codex CLI Fixture Worker Retry With Ignore User Config V1: invoke exactly one TSF-governed fixture-only foreground codex exec worker using --ignore-user-config, verify the fixture artifact, preserve evidence, and stop.",
+  "guardrails_for_next_retry": [
+    "one codex exec worker invocation maximum",
+    "fixture-only output path",
+    "no product repo mutation",
+    "no canonical NWR mutation",
+    "no API call",
+    "no push or merge",
+    "no background runner"
+  ]
+}

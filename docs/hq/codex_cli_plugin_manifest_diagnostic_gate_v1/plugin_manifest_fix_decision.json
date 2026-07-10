@@ -1,0 +1,23 @@
+{
+  "verdict": "YELLOW_PLUGIN_WARNING_DIAGNOSED_TIM_APPROVAL_NEEDED",
+  "affected_file": "C:\\Users\\codex-agent\\.codex\\plugins\\cache\\openai-primary-runtime\\template-creator\\26.630.12135\\.codex-plugin\\plugin.json",
+  "source_classification": "Codex-local",
+  "issue": "interface.defaultPrompt contains 4 entries while the observed CLI warning says a maximum of 3 prompts is supported",
+  "manifest_parse_status": "PASS",
+  "malformed_syntax": false,
+  "stale_path_reference": false,
+  "schema_compatibility_issue": true,
+  "safe_fix_available": true,
+  "fix_performed": false,
+  "fix_not_performed_reason": "The gate allowed automatic fixes for malformed JSON/TOML/YAML or stale path references. This is a schema compatibility issue in a Codex-local plugin cache, so Tim approval is required before editing.",
+  "proposed_fix": {
+    "backup_first": true,
+    "edit_scope": "Only edit interface.defaultPrompt in the affected plugin manifest.",
+    "change": "Reduce interface.defaultPrompt from 4 entries to the first 3 entries.",
+    "auth_or_secret_change": false,
+    "install_required": false,
+    "network_required": false
+  },
+  "exact_tim_approval_text": "Tim approves backing up and editing only C:\\Users\\codex-agent\\.codex\\plugins\\cache\\openai-primary-runtime\\template-creator\\26.630.12135\\.codex-plugin\\plugin.json to reduce interface.defaultPrompt from 4 entries to the first 3 entries, with no auth, credential, API key, endpoint, token, account, install, network, product repo, canonical NWR, push, merge, deploy, migration, PrivateLens, all-fleet, or background-runner changes. After the edit, run parser/help diagnostics only. Do not run a real codex exec worker retry unless separately approved.",
+  "worker_retry_approved_by_this_gate": false
+}

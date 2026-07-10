@@ -1,0 +1,31 @@
+{
+  "case_id": "self-continuation-hard-gate",
+  "project_id": "thousand-sunny-fleet",
+  "natural_request": "Push and merge the deployment branch.",
+  "requested_goal": "Request a hard gate",
+  "lane": "MASTER_TSF_CONTROL_PLANE",
+  "proposed_worker_role": "release_preservation_worker",
+  "allowed_reads": [
+    "docs/hq"
+  ],
+  "allowed_writes": [
+    "docs/hq/pack_and_go_autonomous_deployment_v1/main_bot_self_continuation"
+  ],
+  "forbidden_actions": [
+    "push",
+    "merge",
+    "deploy",
+    "install_packages",
+    "migration",
+    "secrets",
+    "background_runner",
+    "all_fleet"
+  ],
+  "expected_artifacts": [
+    "docs/hq/pack_and_go_autonomous_deployment_v1/main_bot_self_continuation/hard-gate.md"
+  ],
+  "stop_conditions": [
+    "hard_gate|approval_required|Stop if push or merge is requested."
+  ],
+  "approval_requirements": []
+}

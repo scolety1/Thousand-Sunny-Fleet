@@ -1,0 +1,20 @@
+{
+  "verdict": "YELLOW_CODEX_CLI_CONFIG_NOT_EDITED_REQUIRES_EXACT_APPROVAL",
+  "codex_cli_version": "codex-cli 0.124.0",
+  "config_path": "C:\\Users\\codex-agent\\.codex\\config.toml",
+  "config_path_confirmed": true,
+  "inspected_keys": [
+    "service_tier"
+  ],
+  "service_tier_before": "priority",
+  "service_tier_after": "priority",
+  "config_backup_path": "C:\\NWR_REVIEW\\tsf_pack_and_go_codex_cli_config_gate_backup_20260709\\config.toml.before",
+  "backup_sha256": "933AD3116D154E5831BF5BD6D63C5F570C7AF14CE1193C573D037091A9FCF4C9",
+  "config_edited": false,
+  "reason_not_edited": "The approved exact edit only permits default to flex or fast. Current value was priority.",
+  "codex_worker_execution_allowed": false,
+  "codex_worker_execution_invoked": false,
+  "api_called": false,
+  "secrets_inspected_or_changed": false,
+  "stop_condition": "CODEX_CLI_FIXTURE_PILOT_SKIPPED"
+}
