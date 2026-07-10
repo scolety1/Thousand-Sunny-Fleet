@@ -1,0 +1,4 @@
+"lane_id","worker_role","verifier_verdict","verified","restricted_actions_attempted","expected_content_matched","verifier_path"
+"multi-lane-builder","builder_worker","GREEN","True","none","true",".codex-local\cml\builder\verifier_result.json"
+"multi-lane-tester","tester_worker","GREEN","True","none","true",".codex-local\cml\tester\verifier_result.json"
+"multi-lane-auditor","auditor_worker","GREEN","True","none","true",".codex-local\cml\auditor\verifier_result.json"

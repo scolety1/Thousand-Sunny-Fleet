@@ -1,0 +1,8 @@
+"check","result","evidence"
+"lane branches distinct","PASS","Builder, Tester, and Auditor use separate local branches."
+"worktree paths distinct","PASS","All worktrees are separate under TSF_WORKTREES."
+"allowed write paths distinct","PASS","builder_result.txt, tester_result.txt, and auditor_result.txt do not overlap."
+"protected paths blocked","PASS","Plan forbids product repos, canonical NWR, normal NWR packets, PrivateLens, and local_exports."
+"no merge planned","PASS","Lane branches were not merged; coordinator collected evidence only."
+"no background worker planned","PASS","Workers ran sequentially in foreground only."
+"dry-run checker verdict","GREEN","NO_COLLISION"

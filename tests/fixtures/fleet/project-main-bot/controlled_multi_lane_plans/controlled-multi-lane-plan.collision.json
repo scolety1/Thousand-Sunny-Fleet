@@ -1,0 +1,55 @@
+{
+  "schema_version": "parallel_lane_plan_v1",
+  "plan_id": "controlled-multi-lane-foreground-execution-v1-collision-fixture",
+  "pilot_mode": "controlled_multi_lane_foreground_execution",
+  "require_true_lanes": true,
+  "source_branch": "origin/main",
+  "requested_actions": [
+    "dry_run_validate",
+    "controlled_foreground_execution",
+    "sequential_fixture_workers",
+    "stop_before_merge"
+  ],
+  "lanes": [
+    {
+      "lane_id": "multi-lane-builder",
+      "worker_role": "builder_worker",
+      "codex_agent_id": "codex-agent-multi-lane-builder-001",
+      "source_branch": "origin/main",
+      "branch": "work/multi-lane-builder-v1-20260709",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\multi-lane-builder-v1-20260709",
+      "allowed_write_scope": [
+        "tests/fixtures/fleet/multi-lane/worker-output/shared_result.txt"
+      ],
+      "expected_artifacts": [
+        {
+          "path": "tests/fixtures/fleet/multi-lane/worker-output/shared_result.txt",
+          "expected_content": "TSF controlled multi-lane builder complete."
+        }
+      ],
+      "owned_files": [
+        "tests/fixtures/fleet/multi-lane/worker-output/shared_result.txt"
+      ]
+    },
+    {
+      "lane_id": "multi-lane-auditor",
+      "worker_role": "auditor_worker",
+      "codex_agent_id": "codex-agent-multi-lane-auditor-001",
+      "source_branch": "origin/main",
+      "branch": "work/multi-lane-auditor-v1-20260709",
+      "worktree_path": "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\multi-lane-auditor-v1-20260709",
+      "allowed_write_scope": [
+        "tests/fixtures/fleet/multi-lane/worker-output/shared_result.txt"
+      ],
+      "expected_artifacts": [
+        {
+          "path": "tests/fixtures/fleet/multi-lane/worker-output/shared_result.txt",
+          "expected_content": "TSF controlled multi-lane auditor complete."
+        }
+      ],
+      "owned_files": [
+        "tests/fixtures/fleet/multi-lane/worker-output/shared_result.txt"
+      ]
+    }
+  ]
+}

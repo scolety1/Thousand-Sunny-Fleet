@@ -1,0 +1,18 @@
+﻿{
+    "schema_version":  "controlled_multi_lane_worktree_cleanup_decision_v1",
+    "decision":  "TEMP_WORKTREES_REMOVED_LOCAL_BRANCHES_RETAINED",
+    "cleanup_safe":  true,
+    "evidence_preserved":  true,
+    "worktree_root":  "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES",
+    "removed_worktrees":  [
+                              "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\multi-lane-builder-v1-20260709",
+                              "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\multi-lane-tester-v1-20260709",
+                              "C:\\Users\\codex-agent\\Documents\\Vacation\\TSF_WORKTREES\\multi-lane-auditor-v1-20260709"
+                          ],
+    "local_branches_retained":  [
+                                    "work/multi-lane-builder-v1-20260709",
+                                    "work/multi-lane-tester-v1-20260709",
+                                    "work/multi-lane-auditor-v1-20260709"
+                                ],
+    "remote_branches_deleted":  false
+}
