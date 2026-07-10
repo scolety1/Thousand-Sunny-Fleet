@@ -1,0 +1,9 @@
+{
+  "schema_version": "main_bot_loop_prevention_result_v1",
+  "case_id": "bounded-main-bot-self-continuation-safe-progress",
+  "decision": "PASS_NO_LOOP",
+  "rule_hits": [],
+  "rules_path": "fleet/control/main-bot-loop-prevention-rules.v1.json",
+  "background_runner_started": false,
+  "api_called": false
+}

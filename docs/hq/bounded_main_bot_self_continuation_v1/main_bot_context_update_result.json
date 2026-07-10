@@ -1,0 +1,18 @@
+{
+  "schema_version": "main_bot_context_update_result_v1",
+  "written": true,
+  "source_result_path": ".codex-local/bounded-main-bot-self-continuation-v1/run/context_capsule.updated.json",
+  "mission_id": "thousand-sunny-fleet-20260709183243",
+  "mission_result": "GREEN_SELF_CONTINUATION_WORKER_VERIFIED",
+  "worker_role": "builder_worker",
+  "current_lane": "MASTER_TSF_CONTROL_PLANE",
+  "artifacts_created": [
+    "tests/fixtures/fleet/project-main-bot/self-continuation/worker-output/main_bot_builder_result.txt",
+    ".codex-local/bounded-main-bot-self-continuation-v1/run/worker_result.json",
+    ".codex-local/bounded-main-bot-self-continuation-v1/run/verifier_result.json",
+    ".codex-local/bounded-main-bot-self-continuation-v1/run/preservation/thousand-sunny-fleet-20260709183243-preservation"
+  ],
+  "next_recommended_action": "Continue with a separate Tim-approved local mission queue foreground executor milestone.",
+  "background_runner_started": false,
+  "api_called": false
+}
