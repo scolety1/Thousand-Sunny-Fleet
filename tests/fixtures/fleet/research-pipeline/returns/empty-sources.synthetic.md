@@ -1,16 +1,16 @@
 research_project_id: agent-of-agents-architecture-research-v1
-prompt_id: missing-citations
+prompt_id: empty-sources
 label: SYNTHETIC_FIXTURE_NOT_REAL_RESEARCH
 
-# Synthetic Missing Citations Report
+# Synthetic Empty Sources Report
 
 ## Summary
 
-This fixture intentionally omits a sources section.
+This fixture has an empty Sources section.
 
 ## Findings
 
-- Content without a source section is incomplete.
+- A heading alone is not citation presence.
 
 ## Recommendations
 
@@ -19,3 +19,5 @@ This fixture intentionally omits a sources section.
 ## Caveats
 
 Synthetic negative fixture only.
+
+## Sources

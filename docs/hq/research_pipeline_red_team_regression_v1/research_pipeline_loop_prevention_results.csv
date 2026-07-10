@@ -1,5 +1,5 @@
-loop_case,result,notes
-duplicate_idea,PASS,Registry can identify overlap
-repeated_research_after_synthesis,PASS,Requires Tim decision
-prompt_count_explosion,PASS,Max prompt policy stops export
-research_as_approval_loop,PASS,Synthesis grants_approval false
+loop_case,result,notes,evidence
+duplicate_idea,NOT_TESTED,Registry behavior was not executed in the corrected suite,
+repeated_research_after_synthesis,DEFERRED,No repeated-research lifecycle exists in script-only V1,
+prompt_count_explosion,PASS,Max prompt policy blocked export,SEC-PLAN-001
+research_as_approval_loop,PASS,Malicious approval text was blocked and synthesis grants_approval is false,SEC-IMPORT-006; SEC-SYNTH-002

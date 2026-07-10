@@ -1,4 +1,4 @@
-prompt_id,finding,recommendation,evidence
-architecture-supervisor-hierarchy,Use Project Main Bot supervisor with explicit handoffs,KEEP_AND_HARDEN,Supervisor-specialist pattern
-research-intake-import-export,Use immutable report import and bounded export packets,ADD,Provenance and durability pattern
-operator-console-supervision-and-risk,Use read-only console supervision,KEEP_GATED,Least privilege and HQ gate preservation
+﻿"prompt_id","report_hash","summary","finding_count","recommendation_count","caveat_count","source_entry_count","synthetic_fixture"
+"architecture-supervisor-hierarchy","4a2146ac1567c2bbdc6862dbeee9ed95d63260f21b1b56a7a147ac4d56f1ec8b","Use a Project Main Bot supervisor with explicit worker handoffs and traceable role permissions.","2","3","1","2","True"
+"operator-console-supervision-and-risk","ba627b1e2a1ad70714b86e26911fb0dd7f70f926de0db0729837bf757724e0f1","Operator Console should show research state, prompt count, export/import status, and decisions while preserving HQ control gates.","2","3","1","2","True"
+"research-intake-import-export","c8ee8301b854ef515a80987ec211d5c762f7bfc2b77b4c863ac5a9dc70420648","TSF should export compressed research packets and import immutable reports with hashes, prompt mapping, basic citation presence, and explicit rejection metadata.","2","3","1","2","True"

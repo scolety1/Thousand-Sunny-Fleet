@@ -1,21 +1,21 @@
-case_id,case,expected_result,status
-F-001,duplicate idea,Stop or attach to existing,PASS
-F-002,vague idea,TIM_REQUIRED,PASS
-F-003,prompt-count explosion,TIM_REQUIRED,PASS
-F-004,duplicate report,DUPLICATE_REPORT,PASS
-F-005,missing citations,MISSING_CITATIONS,PASS
-F-006,wrong project mapping,WRONG_RESEARCH_PROJECT,PASS
-F-007,incomplete report,YELLOW_OR_REJECTED,PASS
-F-008,contradictory reports,DISAGREEMENT_REGISTERED,PASS
-F-009,malicious instructions,UNSAFE_CONTENT_BLOCKED,PASS
-F-010,report recommends secrets/API/background,BLOCKED,PASS
-F-011,unsupported recommendation,DELAY_OR_TIM_REQUIRED,PASS
-F-012,research treated as approval,BLOCKED,PASS
-F-013,raw repo export,BLOCKED,PASS
-F-014,NWR packet inclusion,BLOCKED,PASS
-F-015,repeated research after synthesis,TIM_REQUIRED,PASS
-F-016,malformed ZIP manifest,REJECTED,PASS
-F-017,path traversal,BLOCKED,PASS
-F-018,long Windows paths,SAFE_ROOT_REQUIRED,PASS
-F-019,missing export permission,TIM_REQUIRED,PASS
-F-020,partial write recovery,PRESERVE_AND_RETRY_SAFE_LOCAL_ONLY,PASS
+case_id,case,expected_result,status,executed_assertion_or_disposition
+F-001,duplicate idea,Stop or attach to existing,NOT_TESTED,No executed assertion in corrected V1 suite
+F-002,vague idea,TIM_REQUIRED,PASS,SEC-IDEA-001
+F-003,prompt-count explosion,TIM_REQUIRED,PASS,SEC-PLAN-001
+F-004,duplicate report,DUPLICATE_REPORT and excluded,PASS,SEC-IMPORT-001; SEC-SYNTH-006
+F-005,missing or empty Sources,INCOMPLETE_REPORT,PASS,SEC-IMPORT-002; SEC-IMPORT-003
+F-006,wrong project mapping,WRONG_RESEARCH_PROJECT and excluded,PASS,SEC-IMPORT-005; SEC-SYNTH-004
+F-007,incomplete report,INCOMPLETE_REPORT and no false GREEN,PASS,SEC-IMPORT-004; SEC-SYNTH-009
+F-008,contradictory reports,UNRESOLVED_ADVISORY_DISAGREEMENT,PASS,SEC-SYNTH-012
+F-009,malicious instructions,UNSAFE_CONTENT_BLOCKED and excluded,PASS,SEC-IMPORT-006; SEC-SYNTH-007
+F-010,report requests secrets API or background authority,UNSAFE_CONTENT_BLOCKED,PASS,SEC-IMPORT-006
+F-011,unsupported unstructured recommendation,Insufficient evidence,DEFERRED,Structured KEEP CHANGE ADD REMOVE DELAY convention required in V1
+F-012,research treated as approval,Blocked and grants_approval false,PASS,SEC-IMPORT-006; SEC-SYNTH-002
+F-013,raw repo content embedded after intake,BLOCKED,NOT_TESTED,Idea-level scope screening exists but export payload content scanner was not exercised
+F-014,normal NWR packet request,BLOCKED_UNSAFE,PASS,SEC-IDEA-002
+F-015,repeated research after synthesis,TIM_REQUIRED,DEFERRED,No repeated-research lifecycle exists in script-only V1
+F-016,hostile returned ZIP,REJECTED,DEFERRED,Returned ZIP import is not implemented; V1 imports UTF-8 Markdown report files only
+F-017,path traversal and sibling-prefix roots,BLOCKED,PASS,SEC-EXPORT-002 through SEC-EXPORT-010
+F-018,long Windows paths,SAFE_FAILURE,NOT_TESTED,No executed long-path boundary case
+F-019,missing export permission,FALLBACK_OR_FAIL_CLOSED,NOT_TESTED,Fallback preserved but permission failure was not induced
+F-020,partial write recovery,PRESERVE_AND_RETRY_SAFE_LOCAL_ONLY,NOT_TESTED,No injected partial-write failure

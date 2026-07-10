@@ -1,6 +1,8 @@
 {
   "schema_version": "tsf_recommended_agent_hierarchy_v1",
   "verdict": "GREEN_HIERARCHY_RECOMMENDED",
+  "evidence_type": "HISTORICAL_ARCHITECTURE_RECOMMENDATION_NOT_IMPLEMENTATION_AUTHORITY",
+  "grants_merge_or_production_authority": false,
   "root": "project_main_bot",
   "children": [
     {

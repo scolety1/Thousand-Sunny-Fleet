@@ -18,5 +18,9 @@
     "PrivateLens"
   ],
   "manual_submission_only": true,
-  "api_called": false
+  "api_called": false,
+  "strict_project_id_allowlist": "^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$",
+  "canonical_boundary_aware_containment": true,
+  "return_transport": "UTF8_MARKDOWN_REPORT_FILE_ONLY",
+  "zip_return_import_implemented": false
 }

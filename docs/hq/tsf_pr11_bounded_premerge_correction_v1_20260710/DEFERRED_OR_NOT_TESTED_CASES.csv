@@ -1,0 +1,13 @@
+case_id,case,status,rationale,next_bounded_action
+F-001,duplicate idea registry behavior,NOT_TESTED,Not a verified PR11 pre-merge blocker and no corrected-suite assertion was added,Add a registry-specific fixture assertion
+F-011,unstructured recommendation interpretation,DEFERRED,V1 deliberately requires explicit structured KEEP CHANGE ADD REMOVE DELAY lines,Design a separately reviewed richer parser if needed
+F-013,raw repo content scanner after intake,NOT_TESTED,Idea-level scope screening exists but outbound payload scanning was not exercised,Add an explicit export payload negative fixture
+F-015,repeated research after synthesis,DEFERRED,No repeated-research lifecycle exists in script-only V1,Design lifecycle/registry state before testing
+F-016,hostile returned ZIP import,DEFERRED,Returned ZIP import does not exist and is no longer claimed,Create a separate ZIP importer threat-model lane if authorized
+F-018,long Windows path stress,NOT_TESTED,Canonical containment is tested but long-path behavior was not induced,Add environment-bounded long-path cases
+F-019,export permission failure and fallback,NOT_TESTED,Fallback code remains but permission failure was not safely induced,Add an injectable filesystem failure seam
+F-020,partial write recovery,NOT_TESTED,No partial-write fault injection seam exists,Add transactional staging and fault-injection tests
+TI-001,automatic research suite wiring into run-fleet-tests.ps1,DEFERRED,Monolithic entry point coupling is unrelated risk in this bounded lane,Add a small test orchestrator in a separate lane
+CI-001,full citation correctness and claim-to-source verification,DEFERRED,Only BASIC_CITATION_PRESENCE is implemented,Design citation semantics and verification separately
+BASELINE-001,run-fleet-tests project-count assertion,PREEXISTING_BASELINE_FAILURE,"origin/main and starting HEAD contain 17 non-PrivateLens projects while line 3084 expects 16",Correct the stale unrelated assertion in a separate lane
+BASELINE-002,run-fleet-tests Stage 4.5 accepted packet,PREEXISTING_BASELINE_FAILURE,"Stage 4.5 generator omits required phase0Gate and ingest returns exit 1 on origin/main code",Update the unrelated evidence generator in a separate lane

@@ -1,11 +1,17 @@
 {
-  "schema_version": "tsf_research_pipeline_red_team_validation_v1",
-  "verdict": "GREEN_RESEARCH_PIPELINE_RED_TEAM_PASS",
-  "failure_cases_covered": 20,
+  "schema_version": "tsf_research_pipeline_red_team_validation_v2",
+  "verdict": "EXECUTED_ASSERTIONS_ONLY_SUPERSEDES_PRIOR_20_CASE_GREEN",
+  "executed_assertions": 75,
+  "executed_security_assertions": 41,
+  "prior_unconditional_pass_behavior_removed": true,
+  "not_tested_cases": 5,
+  "deferred_cases": 3,
+  "returned_zip_import_implemented": false,
   "api_called": false,
   "worker_invoked": false,
   "background_runner_started": false,
   "product_repo_mutated": false,
   "canonical_nwr_mutated": false,
-  "normal_nwr_packets_read": false
+  "normal_nwr_packets_read": false,
+  "authoritative_coverage": "../tsf_pr11_bounded_premerge_correction_v1_20260710/EXECUTED_TEST_COVERAGE.csv"
 }

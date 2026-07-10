@@ -1,7 +1,9 @@
 step,result,evidence
-idea_intake,GREEN,idea-agent-of-agents-architecture-v1
-plan_generation,GREEN,three bounded prompts
-export_package,GREEN,required files and ZIPs created in scratch
-report_import,GREEN,three synthetic reports imported
-synthesis,GREEN,advisory decision produced
-authority_gate,GREEN,research grants no approval
+idea_intake,PASS,RP-001 through RP-002
+plan_generation,PASS,RP-003 through RP-004
+export_request_packages,PASS,RP-005 and RP-EXPORT assertions
+utf8_markdown_report_import,PASS,RP-IMPORT and SEC-IMPORT assertions
+content_derived_synthesis,PASS,SEC-SYNTH-001 through SEC-SYNTH-012
+operator_console_ui_wiring,NOT_IMPLEMENTED,READ_ONLY_PREVIEW with FIXTURE_DATA
+returned_zip_import,NOT_IMPLEMENTED,Export ZIPs exist but return importer accepts report files only
+authority_gate,PASS,SEC-SYNTH-002 grants_approval false

@@ -1,6 +1,10 @@
 {
   "schema_version": "tsf_research_pipeline_dogfood_final_decision_v1",
-  "verdict": "GREEN_RESEARCH_PIPELINE_DOGFOOD_COMPLETE",
+  "verdict": "SUPERSEDED_HISTORICAL_FIXTURE_DEMO",
+  "presentation": "FIXTURE_DATA",
+  "live_integration": false,
+  "script_backed_not_ui_wired": true,
+  "zip_return_import_implemented": false,
   "synthetic_reports_are_real_research": false,
   "all_synthetic_reports_labeled": true,
   "api_called": false,

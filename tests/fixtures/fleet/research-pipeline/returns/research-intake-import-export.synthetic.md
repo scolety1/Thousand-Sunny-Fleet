@@ -8,7 +8,12 @@ This fixture is not real external research. It exists to prove TSF import and sy
 
 ## Summary
 
-TSF should export compressed research packets and import immutable reports with hashes, prompt mapping, citations, and quarantine handling.
+TSF should export compressed research packets and import immutable reports with hashes, prompt mapping, basic citation presence, and explicit rejection metadata.
+
+## Findings
+
+- Preserved hashes expose accidental report replacement.
+- Project and prompt mapping prevents cross-project evidence mixing.
 
 ## Recommendations
 
@@ -18,8 +23,8 @@ TSF should export compressed research packets and import immutable reports with 
 
 ## Sources
 
-- Synthetic fixture source C.
-- Synthetic fixture source D.
+- https://example.invalid/synthetic-provenance-source-c
+- [2] Synthetic fixture source D.
 
 ## Caveats
 

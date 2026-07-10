@@ -1,9 +1,9 @@
-stop_condition,result
-duplicate_idea,PASS_BLOCKED
-vague_idea,PASS_TIM_REQUIRED
-prompt_count_explosion,PASS_BLOCKED
-wrong_report_mapping,PASS_QUARANTINED
-missing_citations,PASS_REJECTED
-malicious_report,PASS_BLOCKED
-research_as_approval,PASS_BLOCKED
-api_submission_requested,PASS_TIM_REQUIRED
+stop_condition,result,executed_assertion_or_disposition
+duplicate_idea,NOT_TESTED,No corrected-suite assertion
+vague_idea,PASS_TIM_REQUIRED,SEC-IDEA-001
+prompt_count_explosion,PASS_BLOCKED,SEC-PLAN-001
+wrong_report_mapping,PASS_REJECTED_AND_EXCLUDED,SEC-IMPORT-005; SEC-SYNTH-004
+missing_or_empty_sources,PASS_INCOMPLETE,SEC-IMPORT-002; SEC-IMPORT-003
+malicious_report,PASS_BLOCKED_AND_EXCLUDED,SEC-IMPORT-006; SEC-SYNTH-007
+research_as_approval,PASS_BLOCKED,SEC-IMPORT-006; SEC-SYNTH-002
+api_submission_requested,DEFERRED,No API submission path exists in V1

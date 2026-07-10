@@ -1,6 +1,8 @@
 # Agent-of-Agents Architecture Deep Research Gate V1
 
-Verdict: GREEN_AGENT_OF_AGENTS_ARCHITECTURE_RESEARCH_READY_FOR_LOCAL_PIPELINE
+Historical architecture verdict (not implementation or merge authority): GREEN_AGENT_OF_AGENTS_ARCHITECTURE_RESEARCH_READY_FOR_LOCAL_PIPELINE
+
+PR #11 readiness is governed by the bounded correction packet. The Operator Console is a READ_ONLY_PREVIEW using FIXTURE_DATA; the corrected scripts are SCRIPT_BACKED_NOT_UI_WIRED and ADVISORY_ONLY.
 
 This gate reviewed public architecture patterns for TSF's next control-plane step: Agent-of-Agents hierarchy, Research Intake, Deep Research Import/Export Coordinator, and Operator Console supervision. The review used public web sources only. No ChatGPT/OpenAI API call, paid API, credentials, product repo, canonical NWR, normal NWR packet, background runner, or Codex worker execution was used.
 

@@ -12,6 +12,9 @@ const researchHardGates = [
 
 const defaultResearchPlan = {
   schema_version: "operator_console_research_plan_preview_v1",
+  presentation_mode: "READ_ONLY_PREVIEW",
+  data_mode: "FIXTURE_DATA",
+  implementation_mode: "SCRIPT_BACKED_NOT_UI_WIRED",
   research_project_id: "agent-of-agents-architecture-research-v1",
   classification: "MULTI_ANGLE_DEEP_RESEARCH",
   prompt_count: 3,
@@ -30,7 +33,7 @@ const defaultCards = [
   {
     id: "idea-inbox",
     label: "Idea Inbox",
-    status: "GREEN",
+    status: "FIXTURE_DATA",
     summary: "Local idea capture is draft-only.",
     detail: "Original wording is preserved and classified before any export."
   },
@@ -44,16 +47,16 @@ const defaultCards = [
   {
     id: "research-import",
     label: "Report Import",
-    status: "GREEN",
-    summary: "Reports are hashed, preserved, and mapped to prompt IDs.",
-    detail: "Unmatched or unsafe reports are quarantined by local tooling."
+    status: "SCRIPT_BACKED_NOT_UI_WIRED",
+    summary: "The local script hashes, preserves, and maps report files.",
+    detail: "The UI does not run it. Screening is BASIC_CONTENT_SCREENING with BASIC_CITATION_PRESENCE only."
   },
   {
     id: "synthesis",
     label: "Synthesis",
-    status: "GREEN",
-    summary: "Recommendations are advisory only.",
-    detail: "Synthesis cannot approve push, merge, API, background, or source-truth changes."
+    status: "SCRIPT_BACKED_NOT_UI_WIRED",
+    summary: "The local script derives recommendations from complete imported fixture reports.",
+    detail: "The UI does not run it. Results are ADVISORY_ONLY and cannot approve push, merge, API, background, or source-truth changes."
   }
 ];
 

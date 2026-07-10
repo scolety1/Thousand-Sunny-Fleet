@@ -10,6 +10,11 @@ This fixture is not real external research. It exists to prove TSF import and sy
 
 Use a Project Main Bot supervisor with explicit worker handoffs and traceable role permissions.
 
+## Findings
+
+- Explicit handoffs make supervisor decisions auditable.
+- Narrow worker permissions reduce unintended authority expansion.
+
 ## Recommendations
 
 - KEEP Project Main Bot as coordinator.
@@ -18,8 +23,8 @@ Use a Project Main Bot supervisor with explicit worker handoffs and traceable ro
 
 ## Sources
 
-- Synthetic fixture source A.
-- Synthetic fixture source B.
+- https://example.invalid/synthetic-supervisor-source-a
+- [1] Synthetic fixture source B.
 
 ## Caveats
 

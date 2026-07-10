@@ -1,9 +1,11 @@
-security_check,result
-no_api_call,PASS
-no_credentials_access,PASS
-no_product_repo_scope,PASS
-no_canonical_nwr_scope,PASS
-no_normal_nwr_packet_read,PASS
-no_background_runner,PASS
-no_research_as_approval,PASS
-path_roots_constrained,PASS
+security_check,result,evidence_basis
+no_api_call,ATTESTED_THIS_LANE,No API or external-service command was invoked; synthesis validation records false
+no_credentials_access,ATTESTED_THIS_LANE,No secrets credentials tokens auth files or private configuration were accessed
+no_product_repo_scope,ATTESTED_THIS_LANE,Only the TSF repository and its ignored scratch root were accessed
+no_canonical_nwr_scope,ATTESTED_THIS_LANE,No canonical NWR access occurred
+no_normal_nwr_packet_read,ATTESTED_THIS_LANE,No normal NWR packet was read
+no_background_runner,ATTESTED_THIS_LANE,All commands were bounded foreground commands
+no_research_as_approval,PASS,SEC-SYNTH-002
+path_roots_constrained,PASS,SEC-EXPORT-002 through SEC-EXPORT-010
+import_completeness_and_encoding,PASS,SEC-IMPORT-002 through SEC-IMPORT-009
+content_derived_synthesis_filtering,PASS,SEC-SYNTH-001 through SEC-SYNTH-012

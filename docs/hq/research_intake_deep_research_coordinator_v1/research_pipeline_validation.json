@@ -1,11 +1,16 @@
 {
   "schema_version": "tsf_research_pipeline_validation_v1",
-  "verdict": "GREEN_RESEARCH_PIPELINE_LOCAL_COORDINATOR_READY",
+  "verdict": "SUPERSEDED_BY_TSF_PR11_BOUNDED_PREMERGE_CORRECTION_V1",
   "idea_intake_defined": true,
   "planner_defined": true,
   "export_contract_defined": true,
   "import_contract_defined": true,
   "synthesis_contract_defined": true,
+  "synthesis_implementation": "CONTENT_DERIVED_DETERMINISTIC_MARKDOWN_V1",
+  "operator_console": "READ_ONLY_PREVIEW_FIXTURE_DATA_SCRIPT_BACKED_NOT_UI_WIRED",
+  "return_zip_import": "NOT_IMPLEMENTED",
+  "citation_validation": "BASIC_CITATION_PRESENCE_ONLY",
+  "executed_coverage_source": "../tsf_pr11_bounded_premerge_correction_v1_20260710/EXECUTED_TEST_COVERAGE.csv",
   "api_called": false,
   "background_runner_started": false,
   "research_treated_as_approval": false

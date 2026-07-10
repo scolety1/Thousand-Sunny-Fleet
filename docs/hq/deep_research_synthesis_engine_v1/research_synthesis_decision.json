@@ -1,15 +1,179 @@
-{
-  "schema_version": "tsf_deep_research_synthesis_decision_v1",
-  "verdict": "GREEN_SYNTHESIS_ENGINE_LOCAL_FIXTURE_READY",
-  "advisory_only": true,
-  "grants_approval": false,
-  "recommended_next_action": "Use synthesized evidence only inside a Tim-approved implementation gate.",
-  "decisions": [
-    "KEEP Project Main Bot hierarchy",
-    "ADD Research Intake Coordinator",
-    "ADD Deep Research Import/Export Coordinator",
-    "CHANGE Operator Console with read-only research status",
-    "REMOVE research-as-approval",
-    "DELAY automatic external submission"
-  ]
+﻿{
+    "schema_version":  "tsf_deep_research_synthesis_decision_v2",
+    "research_project_id":  "agent-of-agents-architecture-research-v1",
+    "generated_at":  "2026-07-10T13:49:40.1272475-06:00",
+    "verdict":  "GREEN_CONTENT_DERIVED_SYNTHESIS_READY_FOR_ADVISORY_REVIEW",
+    "eligible_report_count":  3,
+    "excluded_import_count":  7,
+    "missing_prompt_ids":  [
+
+                           ],
+    "content_derived":  true,
+    "deterministic_markdown_parser":  true,
+    "advisory_only":  true,
+    "grants_approval":  false,
+    "uncertainty":  "Decisions remain advisory; single-report items are uncorroborated and caveats are preserved.",
+    "recommended_next_action":  "Human review inside a separately authorized TSF implementation gate.",
+    "agreements":  [
+                       {
+                           "agreement_id":  "none",
+                           "topic":  "",
+                           "decision":  "",
+                           "prompt_ids":  "",
+                           "report_count":  0
+                       }
+                   ],
+    "disagreements":  [
+                          {
+                              "disagreement_id":  "none",
+                              "topic":  "",
+                              "decisions":  "",
+                              "prompt_ids":  "",
+                              "status":  "NO_CONTENT_DERIVED_DISAGREEMENT_DETECTED",
+                              "resolution":  "No shared recommendation subject had conflicting explicit decision signals."
+                          }
+                      ],
+    "keep_change_add_remove_delay":  [
+                                         {
+                                             "decision":  "KEEP",
+                                             "item":  "Project Main Bot as coordinator",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "architecture-supervisor-hierarchy",
+                                             "report_hash":  "4a2146ac1567c2bbdc6862dbeee9ed95d63260f21b1b56a7a147ac4d56f1ec8b",
+                                             "source_line":  "- KEEP Project Main Bot as coordinator.",
+                                             "source_entries":  "https://example.invalid/synthetic-supervisor-source-a | [1] Synthetic fixture source B.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "ADD",
+                                             "item":  "explicit research intake and synthesis roles",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "architecture-supervisor-hierarchy",
+                                             "report_hash":  "4a2146ac1567c2bbdc6862dbeee9ed95d63260f21b1b56a7a147ac4d56f1ec8b",
+                                             "source_line":  "- ADD explicit research intake and synthesis roles.",
+                                             "source_entries":  "https://example.invalid/synthetic-supervisor-source-a | [1] Synthetic fixture source B.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "DELAY",
+                                             "item":  "automatic background execution",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "architecture-supervisor-hierarchy",
+                                             "report_hash":  "4a2146ac1567c2bbdc6862dbeee9ed95d63260f21b1b56a7a147ac4d56f1ec8b",
+                                             "source_line":  "- DELAY automatic background execution.",
+                                             "source_entries":  "https://example.invalid/synthetic-supervisor-source-a | [1] Synthetic fixture source B.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "CHANGE",
+                                             "item":  "Operator Console to include read-only research cards",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "operator-console-supervision-and-risk",
+                                             "report_hash":  "ba627b1e2a1ad70714b86e26911fb0dd7f70f926de0db0729837bf757724e0f1",
+                                             "source_line":  "- CHANGE Operator Console to include read-only research cards.",
+                                             "source_entries":  "https://example.invalid/synthetic-console-source-e | [3] Synthetic fixture source F.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "KEEP",
+                                             "item":  "no-API posture",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "operator-console-supervision-and-risk",
+                                             "report_hash":  "ba627b1e2a1ad70714b86e26911fb0dd7f70f926de0db0729837bf757724e0f1",
+                                             "source_line":  "- KEEP no-API posture.",
+                                             "source_entries":  "https://example.invalid/synthetic-console-source-e | [3] Synthetic fixture source F.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "DELAY",
+                                             "item":  "paid/external API transport",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "operator-console-supervision-and-risk",
+                                             "report_hash":  "ba627b1e2a1ad70714b86e26911fb0dd7f70f926de0db0729837bf757724e0f1",
+                                             "source_line":  "- DELAY paid/external API transport.",
+                                             "source_entries":  "https://example.invalid/synthetic-console-source-e | [3] Synthetic fixture source F.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "ADD",
+                                             "item":  "Research Intake Coordinator",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "research-intake-import-export",
+                                             "report_hash":  "c8ee8301b854ef515a80987ec211d5c762f7bfc2b77b4c863ac5a9dc70420648",
+                                             "source_line":  "- ADD Research Intake Coordinator.",
+                                             "source_entries":  "https://example.invalid/synthetic-provenance-source-c | [2] Synthetic fixture source D.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "ADD",
+                                             "item":  "Deep Research Import/Export Coordinator",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "research-intake-import-export",
+                                             "report_hash":  "c8ee8301b854ef515a80987ec211d5c762f7bfc2b77b4c863ac5a9dc70420648",
+                                             "source_line":  "- ADD Deep Research Import/Export Coordinator.",
+                                             "source_entries":  "https://example.invalid/synthetic-provenance-source-c | [2] Synthetic fixture source D.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         },
+                                         {
+                                             "decision":  "REMOVE",
+                                             "item":  "any behavior that treats research as approval",
+                                             "rationale":  "Explicit recommendation signal from imported report; caveats: This report is advisory only and grants no approval.",
+                                             "prompt_id":  "research-intake-import-export",
+                                             "report_hash":  "c8ee8301b854ef515a80987ec211d5c762f7bfc2b77b4c863ac5a9dc70420648",
+                                             "source_line":  "- REMOVE any behavior that treats research as approval.",
+                                             "source_entries":  "https://example.invalid/synthetic-provenance-source-c | [2] Synthetic fixture source D.",
+                                             "evidence_strength":  "SINGLE_REPORT_UNCORROBORATED"
+                                         }
+                                     ],
+    "excluded_imports":  [
+                             {
+                                 "prompt_id":  "architecture-supervisor-hierarchy",
+                                 "report_hash":  "4a2146ac1567c2bbdc6862dbeee9ed95d63260f21b1b56a7a147ac4d56f1ec8b",
+                                 "status":  "DUPLICATE_REPORT",
+                                 "exclusion_reason":  "STATUS_DUPLICATE_REPORT",
+                                 "metadata_file":  "architecture-supervisor-hierarchy-DUPLICATE_REPORT-4a2146ac.import.json"
+                             },
+                             {
+                                 "prompt_id":  "architecture-supervisor-hierarchy",
+                                 "report_hash":  "705b2e7e726158c7942e30a3207bd7f0738e09aeb7d70c207a12b11909aa8615",
+                                 "status":  "INCOMPLETE_REPORT",
+                                 "exclusion_reason":  "STATUS_INCOMPLETE_REPORT",
+                                 "metadata_file":  "architecture-supervisor-hierarchy-INCOMPLETE_REPORT-705b2e7e.import.json"
+                             },
+                             {
+                                 "prompt_id":  "architecture-supervisor-hierarchy",
+                                 "report_hash":  "f863c11405f33d36e7df7e7c54c68292546a1f6804a2b7948c3d2c936532bc90",
+                                 "status":  "WRONG_RESEARCH_PROJECT",
+                                 "exclusion_reason":  "STATUS_WRONG_RESEARCH_PROJECT",
+                                 "metadata_file":  "architecture-supervisor-hierarchy-WRONG_RESEARCH_PROJECT-f863c114.import.json"
+                             },
+                             {
+                                 "prompt_id":  "empty-sources",
+                                 "report_hash":  "687e10d8487551e02ef82f582366a62ae779406503832efbe93c41d82dafcb8c",
+                                 "status":  "INCOMPLETE_REPORT",
+                                 "exclusion_reason":  "STATUS_INCOMPLETE_REPORT",
+                                 "metadata_file":  "empty-sources-INCOMPLETE_REPORT-687e10d8.import.json"
+                             },
+                             {
+                                 "prompt_id":  "malicious",
+                                 "report_hash":  "ae8289609745010743fb7b6eb10b464cddb95079b91a4b380b8f02366fc2a443",
+                                 "status":  "UNSAFE_CONTENT_BLOCKED",
+                                 "exclusion_reason":  "STATUS_UNSAFE_CONTENT_BLOCKED",
+                                 "metadata_file":  "malicious-UNSAFE_CONTENT_BLOCKED-ae828960.import.json"
+                             },
+                             {
+                                 "prompt_id":  "missing-citations",
+                                 "report_hash":  "959633d4e420562ef9ac3649f498147025e49d7479d8f3162cc753eef1488a38",
+                                 "status":  "INCOMPLETE_REPORT",
+                                 "exclusion_reason":  "STATUS_INCOMPLETE_REPORT",
+                                 "metadata_file":  "missing-citations-INCOMPLETE_REPORT-959633d4.import.json"
+                             },
+                             {
+                                 "prompt_id":  "unrelated-valid-prompt",
+                                 "report_hash":  "36040b4e490c951e7bcabc48642a93b7f1f4bf193d416db50ab62f2b13a77787",
+                                 "status":  "IMPORTED_VALID",
+                                 "exclusion_reason":  "UNEXPECTED_PROMPT_ID",
+                                 "metadata_file":  "unrelated-valid-prompt.import.json"
+                             }
+                         ]
 }

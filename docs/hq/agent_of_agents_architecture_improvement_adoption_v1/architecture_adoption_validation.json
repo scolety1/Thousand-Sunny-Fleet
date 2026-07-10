@@ -1,6 +1,8 @@
 {
   "schema_version": "tsf_agent_architecture_adoption_validation_v1",
-  "verdict": "GREEN_LOW_RISK_LOCAL_RESEARCH_PIPELINE_ADOPTED",
+  "verdict": "SUPERSEDED_FOR_PR11_READINESS_BY_BOUNDED_CORRECTION_V1",
+  "operator_console": "READ_ONLY_PREVIEW_FIXTURE_DATA_SCRIPT_BACKED_NOT_UI_WIRED",
+  "merge_authority": false,
   "low_risk_changes_applied": true,
   "authority_expansion_deferred": true,
   "api_called": false,

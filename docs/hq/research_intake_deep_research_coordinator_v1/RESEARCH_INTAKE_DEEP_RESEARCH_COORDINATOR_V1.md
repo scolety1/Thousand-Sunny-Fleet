@@ -1,8 +1,10 @@
 # Research Intake / Deep Research Coordinator V1
 
-Verdict: GREEN_RESEARCH_PIPELINE_LOCAL_COORDINATOR_READY
+Historical verdict (superseded): GREEN_RESEARCH_PIPELINE_LOCAL_COORDINATOR_READY
 
-This packet defines the local-only research pipeline. It normalizes ideas, plans bounded prompt packages, exports manual Deep Research packets, imports returned reports, and synthesizes advisory recommendations. It does not submit research, call APIs, access credentials, run background workers, mutate product repos, or inspect canonical NWR.
+Correction status: SCRIPT_BACKED_NOT_UI_WIRED / ADVISORY_ONLY. The 2026-07-10 bounded correction packet supersedes this packet for PR #11 readiness and executed coverage. Export creates ZIP request packages, but return import accepts individual UTF-8 Markdown report files only; hostile returned ZIP validation is not implemented.
+
+This packet defines local scripts for idea normalization, bounded prompt packages, manual export, report-file import, and deterministic content-derived advisory synthesis. The Operator Console remains a fixture-backed read-only preview and does not invoke these scripts. Import performs BASIC_CONTENT_SCREENING and BASIC_CITATION_PRESENCE only, not claim-to-source verification.
 
 ## Flow
 
