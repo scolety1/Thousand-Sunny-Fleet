@@ -69,6 +69,10 @@
             "minLength": 1,
             "maxLength": 120
           },
+          "worktree_path": {
+            "type": "string",
+            "minLength": 1
+          },
           "exact_action": {
             "type": "string",
             "minLength": 1,
@@ -90,6 +94,25 @@
           },
           "sample_fixture_only": {
             "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["ACTIVE", "REVOKED", "EXHAUSTED"]
+          },
+          "mission_id": {
+            "type": ["string", "null"]
+          },
+          "usage_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_uses": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reuse_policy": {
+            "type": "string",
+            "enum": ["SINGLE_USE", "MULTI_USE", "UNLIMITED"]
           },
           "notes": {
             "type": "string",

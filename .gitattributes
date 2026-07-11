@@ -3,3 +3,6 @@
 *.ps1 text eol=crlf
 *.md text eol=lf
 *.json text eol=lf
+
+# Historical publication evidence is an exact-byte archive. Never normalize it.
+docs/hq/tsf_canonical_runtime_final_publication_evidence_v1_20260711/** -text -diff

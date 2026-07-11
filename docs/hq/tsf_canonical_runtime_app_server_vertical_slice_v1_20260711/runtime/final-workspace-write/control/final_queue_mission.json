@@ -1,0 +1,328 @@
+﻿{
+    "schema_version":  "tsf_canonical_queue_document_v1",
+    "compatibility_status":  "GENERATED_EXECUTION_PACKET",
+    "durable_mission":  {
+                            "schema_version":  "tsf_mission_envelope_v1",
+                            "mission_id":  "synthetic-tsf-workspace-appserver-0001",
+                            "mission_revision":  1,
+                            "parent_mission_id":  null,
+                            "project_id":  "TSF_CONTROL_PLANE",
+                            "original_request":  "SYNTHETIC_TSF_CANONICAL_APP_SERVER_ROUND_TRIP_V1 synthetic-tsf-workspace-appserver-0001",
+                            "normalized_goal":  "Create output/result.txt with exactly: TSF workspace-write round trip complete. Do not modify any other file.",
+                            "mission_type":  "canonical_app_server_vertical_slice",
+                            "worker_role":  "builder_worker",
+                            "recommended_surface":  "CODEX",
+                            "model_policy_alias":  "BALANCED",
+                            "resolved_model":  "gpt-5.6-terra",
+                            "reasoning_effort":  "MEDIUM",
+                            "model_selection_assurance":  "RECOMMENDED_ONLY",
+                            "permission_mode":  "WORKSPACE_WRITE",
+                            "network_policy":  "PROHIBITED",
+                            "control_plane_service_network_policy":  "CODEX_SERVICE_ONLY",
+                            "worker_tool_network_policy":  "DISABLED",
+                            "repository_allowlist":  [
+                                                         "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo"
+                                                     ],
+                            "forbidden_repositories":  [
+
+                                                       ],
+                            "source_allowlist":  [
+
+                                                 ],
+                            "forbidden_sources":  [
+                                                      "NORMAL_NWR_PACKETS",
+                                                      "SECRETS",
+                                                      "CREDENTIALS",
+                                                      "PRIVATELENS",
+                                                      "PRODUCT_REPOS"
+                                                  ],
+                            "branch_worktree_policy":  {
+                                                           "branch_required":  true,
+                                                           "worktree_required":  true,
+                                                           "expected_branch":  "master",
+                                                           "expected_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                                                           "starting_head":  "9771a1f8e9c3ee0346324ea90a24576c04ad82a5",
+                                                           "unexpected_advance_behavior":  "REJECT"
+                                                       },
+                            "allowed_reads":  [
+                                                  "input"
+                                              ],
+                            "allowed_writes":  [
+                                                   "output"
+                                               ],
+                            "forbidden_actions":  [
+                                                      "push",
+                                                      "merge",
+                                                      "deploy",
+                                                      "install",
+                                                      "network",
+                                                      "product_repo_mutation",
+                                                      "background_runner",
+                                                      "persistent_runner",
+                                                      "secrets"
+                                                  ],
+                            "completion_criteria":  [
+                                                        "Bound foreground app-server turn completes and canonical admission succeeds."
+                                                    ],
+                            "required_tests":  [
+                                                   {
+                                                       "test_id":  "app-server-automatic-round-trip",
+                                                       "required":  true,
+                                                       "command":  "native stable stdio protocol"
+                                                   }
+                                               ],
+                            "required_artifacts":  [
+                                                       {
+                                                           "path":  "output/result.txt",
+                                                           "hash_required":  true
+                                                       }
+                                                   ],
+                            "required_verifier_independence":  "SEPARATE_ROLE",
+                            "stop_conditions":  [
+                                                    "Unexpected file touch.",
+                                                    "Worker tool network request.",
+                                                    "Native identity mismatch.",
+                                                    "Timeout.",
+                                                    "Verifier failure."
+                                                ],
+                            "approval_references":  [
+
+                                                    ],
+                            "policy":  {
+                                           "policy_commit":  "393ac14b8191d505f684d1f1536f951908465ef3",
+                                           "manifest_version":  "tsf_policy_manifest_v1",
+                                           "fingerprint":  "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
+                                           "mission_schema_version":  "tsf_mission_envelope_v1",
+                                           "expected_result_schema_version":  "tsf_result_envelope_v1"
+                                       },
+                            "created_at":  "2026-07-11T04:00:36.3307611+00:00",
+                            "expires_at":  "2026-07-11T04:45:36.3307611+00:00",
+                            "stale_state_behavior":  "TIM_REQUIRED",
+                            "required_result_envelope_version":  "tsf_result_envelope_v1"
+                        },
+    "source_binding":  {
+                           "durable_mission_id":  "synthetic-tsf-workspace-appserver-0001",
+                           "durable_mission_revision":  1,
+                           "policy_fingerprint":  "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
+                           "durable_mission_content_hash":  "b6a1aafc7801d8991b4417ed8ef27481225ac9cce5d802f50d39521f34055384",
+                           "translator_version":  "tsf_durable_to_operational_v1",
+                           "generated_at":  "2026-07-11T04:00:36.3307611+00:00",
+                           "mission_packet_sha256":  "93aef6fa0a98462d3e1175f7c0825cbe04872ee1d79778df21ec20b60aaa941e",
+                           "role_extension_sha256":  "20c21e4f332c93aa2fc92d4a1453dfa84f6ea8fd182fbd46c6c042c27b4304c3",
+                           "worker_instruction_sha256":  "0da3619a5bdfa254189973d4ef0c2c12d0ce3176652853db909a7f3895f39a73",
+                           "expected_repository":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                           "expected_branch":  "master",
+                           "expected_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                           "expected_role":  "builder_worker"
+                       },
+    "model_resolution":  {
+                             "requested_alias":  "BALANCED",
+                             "stable_alias":  "BALANCED",
+                             "legacy_compatibility_input":  false,
+                             "resolved_model":  "gpt-5.6-terra",
+                             "reasoning_effort":  "MEDIUM",
+                             "assurance":  "RECOMMENDED_ONLY"
+                         },
+    "mission_packet":  {
+                           "mission_id":  "synthetic-tsf-workspace-appserver-0001",
+                           "project_id":  "TSF_CONTROL_PLANE",
+                           "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                           "lane":  "MASTER_TSF_CONTROL_PLANE",
+                           "mission_type":  "tsf_infrastructure",
+                           "required_branch":  "master",
+                           "required_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                           "control_plane_service_network_policy":  "CODEX_SERVICE_ONLY",
+                           "worker_tool_network_policy":  "DISABLED",
+                           "allowed_reads":  [
+                                                 "input"
+                                             ],
+                           "allowed_writes":  [
+                                                  "output"
+                                              ],
+                           "forbidden_reads":  [
+                                                   "NORMAL_NWR_PACKETS",
+                                                   "SECRETS",
+                                                   "CREDENTIALS",
+                                                   "PRIVATELENS",
+                                                   "PRODUCT_REPOS"
+                                               ],
+                           "forbidden_writes":  [
+
+                                                ],
+                           "forbidden_actions":  [
+                                                     "all_fleet",
+                                                     "api_bridge",
+                                                     "app_wiring",
+                                                     "background_runner",
+                                                     "canonical_nwr_inspection",
+                                                     "canonical_nwr_mutation",
+                                                     "credential_change",
+                                                     "deploy",
+                                                     "hidden_sort",
+                                                     "install_packages",
+                                                     "merge",
+                                                     "migration",
+                                                     "normal_nwr_packet_read",
+                                                     "open_network_port",
+                                                     "persistent_runner",
+                                                     "privatelens",
+                                                     "product_repo_inspection",
+                                                     "product_repo_mutation",
+                                                     "proof_run",
+                                                     "push",
+                                                     "ranking_formula_source_truth_promotion",
+                                                     "recommendation_behavior",
+                                                     "secrets"
+                                                 ],
+                           "expected_artifacts":  [
+                                                      "output/result.txt"
+                                                  ],
+                           "required_preflight_checks":  [
+                                                             "schema",
+                                                             "repo_exists",
+                                                             "path_scope",
+                                                             "restricted_action_coverage",
+                                                             "git_status_capture",
+                                                             "approval_ledger",
+                                                             "worker_role_permission",
+                                                             "durable_source_binding"
+                                                         ],
+                           "required_postrun_checks":  [
+                                                           "mission_id_match",
+                                                           "expected_artifacts_exist",
+                                                           "restricted_actions_absent",
+                                                           "forbidden_outputs_absent",
+                                                           "test:app-server-automatic-round-trip"
+                                                       ],
+                           "stop_conditions":  [
+                                                   {
+                                                       "id":  "durable-stop-001",
+                                                       "check_type":  "manual",
+                                                       "description":  "Unexpected file touch."
+                                                   },
+                                                   {
+                                                       "id":  "durable-stop-002",
+                                                       "check_type":  "manual",
+                                                       "description":  "Worker tool network request."
+                                                   },
+                                                   {
+                                                       "id":  "durable-stop-003",
+                                                       "check_type":  "manual",
+                                                       "description":  "Native identity mismatch."
+                                                   },
+                                                   {
+                                                       "id":  "durable-stop-004",
+                                                       "check_type":  "manual",
+                                                       "description":  "Timeout."
+                                                   },
+                                                   {
+                                                       "id":  "durable-stop-005",
+                                                       "check_type":  "manual",
+                                                       "description":  "Verifier failure."
+                                                   }
+                                               ],
+                           "approval_requirements":  [
+
+                                                     ],
+                           "hq_escalation_policy":  {
+                                                        "default":  "local_only_no_api",
+                                                        "escalate_on":  [
+                                                                            "RED",
+                                                                            "TIM_REQUIRED",
+                                                                            "approval_gap",
+                                                                            "scope_conflict"
+                                                                        ],
+                                                        "notes":  "Generated from canonical durable mission."
+                                                    },
+                           "created_by":  "TSF_DURABLE_TRANSLATOR",
+                           "created_at":  "2026-07-11T04:00:36.3307611+00:00"
+                       },
+    "role_extension":  {
+                           "requested_by":  "TSF_DURABLE_MISSION",
+                           "project_main_bot_id":  "TSF_CONTROL_PLANE",
+                           "worker_role":  "builder_worker",
+                           "translator_used":  true,
+                           "lane_id":  "MASTER_TSF_CONTROL_PLANE",
+                           "parent_mission_id":  "",
+                           "sibling_lane_ids":  [
+
+                                                ],
+                           "role_permission_profile_id":  "builder_worker",
+                           "role_output_contract":  "Changed files plus validation evidence and preservation handoff.",
+                           "verifier_role":  "verifier_worker",
+                           "escalation_policy_id":  "canonical_durable_v1"
+                       },
+    "worker_instruction_packet":  {
+                                      "mission_id":  "synthetic-tsf-workspace-appserver-0001",
+                                      "worker_role":  "builder_worker",
+                                      "allowed_reads":  [
+                                                            "input"
+                                                        ],
+                                      "allowed_writes":  [
+                                                             "output"
+                                                         ],
+                                      "forbidden_actions":  [
+                                                                "all_fleet",
+                                                                "api_bridge",
+                                                                "app_wiring",
+                                                                "background_runner",
+                                                                "canonical_nwr_inspection",
+                                                                "canonical_nwr_mutation",
+                                                                "credential_change",
+                                                                "deploy",
+                                                                "hidden_sort",
+                                                                "install_packages",
+                                                                "merge",
+                                                                "migration",
+                                                                "normal_nwr_packet_read",
+                                                                "open_network_port",
+                                                                "persistent_runner",
+                                                                "privatelens",
+                                                                "product_repo_inspection",
+                                                                "product_repo_mutation",
+                                                                "proof_run",
+                                                                "push",
+                                                                "ranking_formula_source_truth_promotion",
+                                                                "recommendation_behavior",
+                                                                "secrets"
+                                                            ],
+                                      "exact_task":  "Create output/result.txt with exactly: TSF workspace-write round trip complete. Do not modify any other file.",
+                                      "expected_artifacts":  [
+                                                                 "output/result.txt"
+                                                             ],
+                                      "stop_conditions":  [
+                                                              {
+                                                                  "id":  "durable-stop-001",
+                                                                  "check_type":  "manual",
+                                                                  "description":  "Unexpected file touch."
+                                                              },
+                                                              {
+                                                                  "id":  "durable-stop-002",
+                                                                  "check_type":  "manual",
+                                                                  "description":  "Worker tool network request."
+                                                              },
+                                                              {
+                                                                  "id":  "durable-stop-003",
+                                                                  "check_type":  "manual",
+                                                                  "description":  "Native identity mismatch."
+                                                              },
+                                                              {
+                                                                  "id":  "durable-stop-004",
+                                                                  "check_type":  "manual",
+                                                                  "description":  "Timeout."
+                                                              },
+                                                              {
+                                                                  "id":  "durable-stop-005",
+                                                                  "check_type":  "manual",
+                                                                  "description":  "Verifier failure."
+                                                              }
+                                                          ],
+                                      "verifier_contract":  "SEPARATE_ROLE",
+                                      "escalation_triggers":  [
+                                                                  "approval_gap",
+                                                                  "scope_conflict",
+                                                                  "validation_failure"
+                                                              ],
+                                      "do_not_exceed_role_authority":  true
+                                  }
+}

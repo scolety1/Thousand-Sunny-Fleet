@@ -1,0 +1,25 @@
+{
+  "schema_version": "tsf_self_hosted_audit_lifecycle_recovery_validation_v1",
+  "starting_head": "bd35f9918b8e395306d88eedcb928f679a5a4ba9",
+  "root_cause_classification": ["LIFECYCLE_EXITED_WITHOUT_TERMINAL_RESULT"],
+  "root_cause": "Canonical queue JSON identity hash was incorrectly compared with serialized qd.json byte SHA-256, causing a pre-result exception.",
+  "original_stop_record_sha256": "f1829aeb1f9109b1b579a3449c5b7b4861561e6df70e67174c328a26638770ac",
+  "original_queue_snapshot_sha256": "b448d6ace79b44b0b2ac93074b7547c334888617233da690d213600be35c5eb8",
+  "focused_tests": { "status": "PASS", "assertions": 17, "worker_invocations": 0, "network_used": false },
+  "regression_tests": {
+    "final_authority": "PASS",
+    "durable_contract": "PASS",
+    "minimum_kernel": "PASS",
+    "kernel_v2": "PASS",
+    "mission_queue": "PASS",
+    "role_lifecycle": "PASS",
+    "project_main_bot": "PASS",
+    "canonical_runtime_app_server_static": "PASS",
+    "publication_evidence": "PASS",
+    "final_static_authority": "PASS"
+  },
+  "live_app_server_used_during_local_tests": false,
+  "plugin_work_performed": false,
+  "publication_authorized_by_this_record": false,
+  "next_gate": "Commit exact repair, compute clean committed-blob fingerprint, then run one fresh independent Auditor mission."
+}

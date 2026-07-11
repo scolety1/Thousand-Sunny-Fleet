@@ -1,0 +1,63 @@
+{
+  "schema_version": "tsf_canonical_runtime_authority_correction_validation_v1",
+  "verdict": "GREEN_READY_FOR_LOCAL_CORRECTION_COMMIT",
+  "starting_head": "1304f187fd3e292af6ba1c2aa88073568d734cb3",
+  "implementation_commit": "33f996c67079d18b9bbd132b606b371591ea6b67",
+  "canonical_runtime_root": ".codex-local/rt",
+  "legacy_write_status": "LEGACY_PACKET_WRITE_PROHIBITED",
+  "manifest_bound_producer_evidence": true,
+  "recovery_queue_identity_revalidated": true,
+  "prior_live_evidence_preserved": true,
+  "post_commit_observations": {
+    "final_commit": "RECOMPUTE_FROM_GIT_DURING_INDEPENDENT_AUDIT",
+    "clean_committed_policy_fingerprint": "RECOMPUTE_FROM_COMMITTED_BLOBS_DURING_INDEPENDENT_AUDIT"
+  },
+  "network_policy": {
+    "control_plane_service": "CODEX_SERVICE_ONLY",
+    "worker_tools": "DISABLED"
+  },
+  "live_suite": {
+    "generated_at": "2026-07-11T05:00:59.4436611+00:00",
+    "assertions": 131,
+    "coverage_sha256": "2fd2d0d91b5ac1673738bed56451b86bcb4c55bad868970e5a7eb757be7d18bd",
+    "fingerprint_source": "WORKING_TREE_UNSUPPORTED_DEVELOPMENT"
+  },
+  "live_read_only": {
+    "mission_id": "synthetic-tsf-readonly-appserver-correction-0001",
+    "thread_id": "019f4f8c-0eda-7e11-bba7-3cf44428d80a",
+    "turn_id": "019f4f8c-23b6-7fb0-9901-232dcc1e9d78",
+    "event_count": 36,
+    "event_journal_sha256": "a30e3480a037be67b45ed3d644261ea001febcaac7ebf6f0b8bab91ec3294cc2",
+    "total_tokens": 17716,
+    "manifest_sha256": "9a557242a1e144a7244d9b7f4c5eb8f6bf54c3635db6845a072f780a3d6e125a",
+    "preservation_sha256": "67118e98628728cd3d6ce736bf548437ade356fcde3f4fa09e3718c598a4b725",
+    "durable_result_sha256": "c32145155d9ef21a364035b7b7df3b4274ab8e39f12a3bf256704217f5e976ca",
+    "admission_receipt_sha256": "8323168f4ca0c420977cb94918b7c439496efbea610064801cf8c1c0e8057697",
+    "transaction_receipt_sha256": "e1988fb49d70fa65dff8f74c5e4ef320e31ecdb4919623efae27212eb1eb9843",
+    "final_queue_state": "complete_ready_for_gate",
+    "child_exited": true,
+    "no_orphan_process": true
+  },
+  "live_workspace_write": {
+    "mission_id": "synthetic-tsf-workspace-appserver-correction-0001",
+    "thread_id": "019f4f8c-6385-7311-bc50-643d4245b854",
+    "turn_id": "019f4f8c-783d-7a32-9cad-5955651db9a8",
+    "event_count": 126,
+    "event_journal_sha256": "1e2f37eafbd6fe29801499c23123c905cb22352b5db1a2aa0c209e2b4ad7c911",
+    "total_tokens": 58506,
+    "manifest_sha256": "f2a5132e2515e048ba3b6f3d512eac172117d9f980dd54551c1b0fca1091e837",
+    "preservation_sha256": "c316ffe433a92efecec7c97b0202decb92b48cc089337b560915138b41d47a52",
+    "durable_result_sha256": "0343b1497ece4d2cd2252952267fd4979e54ad4679a261d8d59190f5d3cc726b",
+    "admission_receipt_sha256": "27f4c56f09db55b351c553ebdb2ec80c9791c77dc8f0f2542202bcaa8551e62e",
+    "transaction_receipt_sha256": "1661b57a8fdefb03f439c9cde10824a6f6b596293a17d4b1d2b458f8a6ecf77f",
+    "final_queue_state": "complete_ready_for_gate",
+    "child_exited": true,
+    "no_orphan_process": true
+  },
+  "conditional_research_regression": {
+    "applicable": false,
+    "attempted": true,
+    "result": "PRE_EXISTING_RESEARCH_IMPORT_LONG_PATH_FAILURE",
+    "canonical_runtime_call_path_overlap": false
+  }
+}

@@ -1,0 +1,78 @@
+[CmdletBinding()]
+param()
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+$repo=Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+Import-Module (Join-Path $repo 'tools\TsfDurableContract.psm1') -Force
+. (Join-Path $repo 'tools\codex-fleet-enforcement-kernel.ps1')
+$script:count=0
+function Assert-A([string]$Id,[bool]$Condition,[string]$Message){if(!$Condition){throw "FAIL $Id :: $Message"};$script:count++;"PASS $Id :: $Message"}
+function Throws([scriptblock]$Action){try{&$Action|Out-Null;$false}catch{$true}}
+function Write-J($Value,[string]$Path){$parent=Split-Path -Parent $Path;if($parent){New-Item -ItemType Directory -Force $parent|Out-Null};$Value|ConvertTo-Json -Depth 100|Set-Content -LiteralPath $Path -Encoding UTF8}
+function Copy-O($Value){$Value|ConvertTo-Json -Depth 100|ConvertFrom-Json}
+function Hash([string]$Path){(Get-FileHash $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
+
+$nonce=[guid]::NewGuid().ToString('N');$fixtureRoot=Join-Path $repo ".codex-local\fixtures\final-three-authorities-$nonce";New-Item -ItemType Directory -Force $fixtureRoot|Out-Null
+$branch=[string](Get-TsfKernelGitState $repo).branch;$zero='0'*64
+
+# Producer capability: only the canonical lifecycle invocation can mint a normal capability.
+$callerMintBlocked=Throws {New-TsfOrchestratorProducerCapability -InvocationInfo $MyInvocation -MissionId x -MissionRevision 1 -RunId x -PolicyFingerprint $zero -QueueDocumentSha256 $zero -Repository $repo -Branch $branch -Worktree $repo}
+Assert-A P-CAP-001 $callerMintBlocked 'normal caller cannot create producer capability'
+$mission=Get-Content (Join-Path $repo 'tests\fixtures\fleet\enforcement-kernel\mission.valid.local-tsf.json') -Raw|ConvertFrom-Json;$mission.mission_id="synthetic-held-capability-$nonce";$mission.repo_path=$repo
+$missionPath=Join-Path $fixtureRoot 'mission.json';Write-J $mission $missionPath
+$runId=Get-TsfRuntimeSha256Text "$($mission.mission_id)|1|$((Get-FileHash $missionPath -Algorithm SHA256).Hash.ToLowerInvariant())";$lifePlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $mission.mission_id 1 $runId -Layout lifecycle_control
+$ledger=Join-Path $fixtureRoot 'ledger.json';Write-J ([pscustomobject]@{schema_version=1;ledger_id='held-capability-empty';approvals=@()}) $ledger
+Set-StrictMode -Off
+& (Join-Path $repo 'tools\Invoke-TsfMissionLifecycle.ps1') -MissionPath $missionPath -ApprovalLedgerPath $ledger -OutDirectory $lifePlan.directory -OutFile $lifePlan.artifacts.lifecycle_result -DryRun|Out-Null
+Set-StrictMode -Version Latest
+$registry=Get-Content $lifePlan.artifacts.producer_registry -Raw|ConvertFrom-Json
+$validRegistry=Test-TsfProducerEvidenceRegistry $lifePlan.artifacts.producer_registry $mission.mission_id 1 $runId $zero $zero -Repository $repo -Branch $branch -Worktree $repo
+Assert-A P-CAP-002 ($validRegistry.valid-and!$registry.test_only-and$registry.authority_model-eq'ORCHESTRATOR_HELD_RUN_CAPABILITY') 'valid canonical producer registration succeeds'
+Assert-A P-CAP-003 (Throws {Register-TsfProducerEvidence $lifePlan.artifacts.producer_registry mission $lifePlan.artifacts.mission ([object]::new())}) 'registration without held capability rejected'
+Assert-A P-CAP-004 (!(Get-Command New-TsfProducerEvidenceRegistry).Parameters.ContainsKey('OrchestratorInvocationIdentity')) 'caller-selected invocation identity is not accepted'
+function Tamper-Registry([string]$Name,[scriptblock]$Mutate){$copy=Join-Path $fixtureRoot "registry-$Name.json";$v=Copy-O $registry;&$Mutate $v;Write-J $v $copy;!(Test-TsfProducerEvidenceRegistry $copy $mission.mission_id 1 $runId $zero $zero -Repository $repo -Branch $branch -Worktree $repo).valid}
+Assert-A P-CAP-005 (Tamper-Registry invocation {param($r)$r.artifacts[0].orchestrator_invocation_identity='0'*64}) 'record invocation mismatch rejected'
+Assert-A P-CAP-006 (Tamper-Registry binding {param($r)$r.artifacts[0].binding_identity_sha256='0'*64}) 'record binding-hash mismatch rejected'
+Assert-A P-CAP-007 (Tamper-Registry duplicate {param($r)$r.artifacts[1].creation_sequence=$r.artifacts[0].creation_sequence}) 'duplicated sequence rejected'
+Assert-A P-CAP-008 (Tamper-Registry regressing {param($r)$r.artifacts[1].creation_sequence=0}) 'regressing sequence rejected'
+$first=$registry.artifacts[0];$firstPath=Get-TsfKernelFullPath ([string]$first.canonical_relative_path) (Get-TsfCanonicalRuntimeRoot);$backup=Join-Path $fixtureRoot 'producer-byte.backup';Copy-Item $firstPath $backup;Add-Content $firstPath 'changed';$changed=!(Test-TsfProducerEvidenceRegistry $lifePlan.artifacts.producer_registry $mission.mission_id 1 $runId $zero $zero -Repository $repo -Branch $branch -Worktree $repo).valid;Copy-Item $backup $firstPath -Force
+Assert-A P-CAP-009 $changed 'changed registered bytes rejected'
+$testRun="test-cap-$nonce";$testPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $mission.mission_id 1 $testRun -Layout lifecycle_control;New-Item -ItemType Directory -Force $testPlan.directory|Out-Null;$testCap=New-TsfTestOnlyProducerCapability $mission.mission_id 1 $testRun $zero $zero $repo $branch $repo;New-TsfProducerEvidenceRegistry $testPlan.artifacts.producer_registry $testCap|Out-Null
+Assert-A P-CAP-010 (Throws {Test-TsfProducerCapabilityBinding $testCap (Get-Content $testPlan.artifacts.producer_registry -Raw|ConvertFrom-Json)}) 'explicit test-only capability cannot enter normal runtime'
+Assert-A P-CAP-011 ($null-eq[AppDomain]::CurrentDomain.GetData('TSF_ORCHESTRATOR_HELD_CAPABILITIES_V1')) 'normal caller cannot query a predictable process-global capability slot'
+
+# Canonical transition policies: normal paths are internal and committed; overrides are test-only.
+$productionQueue=Resolve-TsfQueueAuthority;$canonicalPolicies=Resolve-TsfTransitionPolicyAuthority $productionQueue
+Assert-A P-POLICY-001 ($canonicalPolicies.kind-eq'PRODUCTION'-and$canonicalPolicies.committed_blob_verified) 'canonical committed production policies succeed'
+$fakePolicy=Join-Path $fixtureRoot 'not-read.json';$beforeQueueStatus=git status --porcelain -- fleet/missions
+Assert-A P-POLICY-002 (Throws {& (Join-Path $repo 'tools\Move-TsfMissionState.ps1') -MissionPath 'fleet/missions/inbox/missing.json' -FromState inbox -ToState drafted -PolicyPath $fakePolicy}) 'arbitrary production PolicyPath rejected before read or mutation'
+Assert-A P-POLICY-003 (Throws {& (Join-Path $repo 'tools\Invoke-TsfMissionQueueForegroundExecutor.ps1') -MissionPath 'fleet/missions/inbox/missing.json' -StatePolicyPath $fakePolicy}) 'arbitrary production StatePolicyPath rejected'
+Assert-A P-POLICY-004 (Throws {& (Join-Path $repo 'tools\Invoke-TsfMissionQueueForegroundExecutor.ps1') -MissionPath 'fleet/missions/inbox/missing.json' -PolicyPath $fakePolicy}) 'arbitrary executor policy rejected'
+Assert-A P-POLICY-005 ((git status --porcelain -- fleet/missions)-join"`n"-eq($beforeQueueStatus-join"`n")) 'policy override rejection occurs before queue mutation'
+$testQueue=Join-Path $fixtureRoot 'queue';$testInbox=Join-Path $testQueue 'inbox';New-Item -ItemType Directory -Force $testInbox|Out-Null;$testMission=Join-Path $testInbox 'm.json';Write-J ([pscustomobject]@{mission_id="synthetic-policy-$nonce"}) $testMission
+$customState=Join-Path $fixtureRoot 'state-policy.json';$customExecutor=Join-Path $fixtureRoot 'executor-policy.json';Copy-Item (Join-Path $repo 'fleet\control\mission-queue-state-policy.v1.json') $customState;Copy-Item (Join-Path $repo 'fleet\control\mission-queue-foreground-executor-policy.v1.json') $customExecutor
+$policyCap=New-TsfTestOnlyTransitionPolicyCapability;$testMove=& (Join-Path $repo 'tools\Move-TsfMissionState.ps1') -MissionPath $testMission -FromState inbox -ToState drafted -QueueRoot $testQueue -PolicyPath $customState -ExecutorPolicyPath $customExecutor -TestOnlyAllowAlternateQueueRoot -TestOnlyPolicyCapability $policyCap -DryRun
+Assert-A P-POLICY-006 ($testMove.verdict-eq'GREEN'-and$testMove.queue_authority_kind-eq'TEST_ONLY') 'test policy succeeds only with capability and isolated queue'
+Assert-A P-POLICY-007 ($testMove.queue_authority_kind-ne'PRODUCTION') 'test-policy result cannot become production authority'
+
+# Admission/recovery fixture built entirely from synthetic local evidence.
+$current=Get-TsfPolicyFingerprint (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $repo -UnsupportedDevelopmentMode
+$missionTemplate=(Get-Content (Join-Path $repo 'docs\hq\tsf_canonical_runtime_final_publication_evidence_v1_20260711\read-only\qd.json') -Raw|ConvertFrom-Json).durable_mission
+$resultTemplate=Get-Content (Join-Path $repo 'docs\hq\tsf_canonical_runtime_final_publication_evidence_v1_20260711\read-only\dr.json') -Raw|ConvertFrom-Json
+function New-AdmissionFixture([string]$Name){$m=Copy-O $missionTemplate;$m.mission_id="synthetic-three-$Name-$nonce";$m.policy.fingerprint=$current.fingerprint;$m.created_at=[datetimeoffset]::UtcNow.ToString('o');$m.expires_at=[datetimeoffset]::UtcNow.AddMinutes(30).ToString('o');$root=Join-Path $fixtureRoot $Name;$qroot=Join-Path $root 'queue';$q=Join-Path $qroot 'postrun_pending\m.json';$doc=ConvertTo-TsfCanonicalExecutionArtifacts $m $repo;Write-J $doc $q;$reg=Join-Path $root 'registry';Write-J $m (Join-Path $reg 'm.json');$effective=(Test-TsfCanonicalQueueDocument $doc $m $repo).effective_mission;$mp=Join-Path $root 'm.json';Write-J $effective $mp;$pf=Join-Path $root 'pf.json';Write-J ([pscustomobject]@{mission_id=$m.mission_id;verdict='GREEN';preflight_approved=$true}) $pf;$rid="three-$Name-$nonce";$packet=Write-TsfKernelPreservationPacket -MissionPath $mp -PreflightResultPath $pf -QueueDocumentPath $q -OutputDirectory (Get-TsfCanonicalRuntimeRoot) -RunId $rid -DurableMission $m -TestOnlyAllowSyntheticProducerRegistry;$res=Copy-O $resultTemplate;$res.result_id=$rid;$res.mission_id=$m.mission_id;$res.mission_revision=$m.mission_revision;$res.mission_content_hash=Get-TsfContractJsonHash $m;$res.policy_fingerprint=$m.policy.fingerprint;$res.preservation_evidence.packet_path=$packet.packet_file;$res.preservation_evidence.packet_sha256=Hash $packet.packet_file;$res.actual_repository=$repo;$res.actual_branch_worktree.branch=$branch;$res.actual_branch_worktree.worktree=$repo;$res.created_at=[datetimeoffset]::UtcNow.ToString('o');$durable=Add-TsfRuntimeDurableResult $res $packet.packet_file;$ledger=Join-Path $root 'ledger.json';Write-J ([pscustomobject]@{schema_version=1;ledger_id="ledger-$Name";approvals=@()}) $ledger;[pscustomobject]@{root=$root;mission=$m;result=$res;result_path=$durable.path;registry=$reg;queue_root=$qroot;queue_path=$q;ledger=$ledger;packet=$packet.packet_file}}
+function Admit($f,[string]$fault='NONE',[string]$path=''){if(!$path){$path=$f.queue_path};Get-TsfAdmissionDecision $f.result_path $f.registry (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $f.ledger $path $f.queue_root -UnsupportedDevelopmentMode -TestOnlyAllowAlternateQueueRoot -TestFault $fault}
+$recoveryFixture=New-AdmissionFixture recovery;$faulted=Throws {Admit $recoveryFixture FINALIZE_TRANSACTION};$receiptFile=Get-ChildItem (Split-Path -Parent $recoveryFixture.packet) -Recurse -Filter 'a-*.json'|Select-Object -First 1;$transactionFile=Get-ChildItem (Split-Path -Parent $recoveryFixture.packet) -Recurse -Filter 't-*.json'|Select-Object -First 1;$receipt=Get-Content $receiptFile.FullName -Raw|ConvertFrom-Json;$transaction=Get-Content $transactionFile.FullName -Raw|ConvertFrom-Json;$storage=Get-TsfRuntimeReceiptPlan $recoveryFixture.result (Hash $recoveryFixture.result_path) $recoveryFixture.packet (Hash $recoveryFixture.packet);$recovery=New-TsfCanonicalRecoveryEnvelope $recoveryFixture.result_path $receipt $receiptFile.FullName $transactionFile.FullName $transaction.destination_path $recoveryFixture.queue_root $storage $repo -TestOnlyAllowAlternateQueueRoot
+Assert-A P-REC-001 ($faulted-and(Test-Path $recovery.path)) 'canonical recovery envelope produced by admission relationship'
+$validEnvelope=Get-Content $recovery.path -Raw;$envelopeBackup=Join-Path $fixtureRoot 'valid-recovery-envelope.json';Copy-Item $recovery.path $envelopeBackup
+function Evidence-Hashes(){@((Hash $recoveryFixture.result_path),(Hash $recoveryFixture.packet),(Hash $receiptFile.FullName),(Hash $transactionFile.FullName),(Hash $transaction.destination_path)) -join '|'}
+function Invalid-Recovery([string]$Name,[scriptblock]$Mutate,[switch]$MutateQueue){$before=Evidence-Hashes;if($MutateQueue){$queueBackup=Join-Path $fixtureRoot "queue-$Name.backup";Copy-Item $transaction.destination_path $queueBackup;$qdoc=Get-Content $transaction.destination_path -Raw|ConvertFrom-Json;$qdoc.compatibility_status="SUBSTITUTED-$Name";Write-J $qdoc $transaction.destination_path}else{$e=$validEnvelope|ConvertFrom-Json;&$Mutate $e;$e.recovery_identity_sha256=Get-TsfContractJsonHash (Get-TsfRecoveryEnvelopeIdentity $e);Write-J $e $recovery.path};$blocked=$false;try{$attempt=& (Join-Path $repo 'tools\Move-TsfMissionState.ps1') -MissionPath $transaction.destination_path -FromState $transaction.queue_state_to -ToState $transaction.queue_state_from -QueueRoot $recoveryFixture.queue_root -RecoveryEnvelopePath $recovery.path -TestOnlyAllowAlternateQueueRoot;$blocked=[string]$attempt.verdict-eq'RED'}catch{$blocked=$true};if($MutateQueue){Copy-Item $queueBackup $transaction.destination_path -Force}else{Copy-Item $envelopeBackup $recovery.path -Force};$after=Evidence-Hashes;if(!$blocked-or$after-ne$before){Write-Host "RECOVERY_OBSERVATION name=$Name blocked=$blocked before=$before after=$after"};return ($blocked-and$after-eq$before)}
+$cases=@(
+ @('result-id',{param($e)$e.result_id='wrong'}),@('result-hash',{param($e)$e.result_sha256='0'*64}),@('preservation-path',{param($e)$e.preservation_packet_path='C:\wrong\pp.json'}),@('preservation-hash',{param($e)$e.preservation_packet_sha256='0'*64}),@('receipt-path',{param($e)$e.admission_receipt_path='C:\wrong\a.json'}),@('receipt-hash',{param($e)$e.admission_receipt_sha256='0'*64}),@('transaction-identity',{param($e)$e.transaction_identity_sha256='0'*64}),@('transaction-hash',{param($e)$e.transaction_sha256='0'*64}),@('decision',{param($e)$e.admission_decision_sha256='0'*64}),@('status',{param($e)$e.admission_status=if([string]$receipt.status-eq'ADMITTED'){'REJECTED_INVALID_EVIDENCE'}else{'ADMITTED'}}),@('authority',{param($e)$e.queue_authority_identity_sha256='0'*64}),@('revision',{param($e)$e.mission_revision=99})
+)
+$i=1;foreach($case in $cases){Assert-A ("P-REC-{0:D3}" -f ($i+1)) (Invalid-Recovery $case[0] $case[1]) "invalid recovery substitution rejected unchanged: $($case[0])";$i++}
+Assert-A P-REC-014 (Invalid-Recovery destination {} -MutateQueue) 'substituted destination record rejected unchanged'
+$validMove=& (Join-Path $repo 'tools\Move-TsfMissionState.ps1') -MissionPath $transaction.destination_path -FromState $transaction.queue_state_to -ToState $transaction.queue_state_from -QueueRoot $recoveryFixture.queue_root -RecoveryEnvelopePath $recovery.path -TestOnlyAllowAlternateQueueRoot
+Assert-A P-REC-015 ($validMove.verdict-eq'GREEN'-and(Test-Path $transaction.source_path)-and!(Test-Path $transaction.destination_path)) 'valid complete recovery envelope rolls back exact queue record'
+$replayFixture=New-AdmissionFixture replay;$first=Admit $replayFixture;$receiptHash=Hash $first.admission_receipt_path;$exact=Admit $replayFixture NONE $first.queue_transition_path
+Assert-A P-REC-016 ($exact.idempotent_replay-and(Hash $first.admission_receipt_path)-eq$receiptHash) 'valid exact replay remains idempotent'
+
+[pscustomobject]@{schema_version='tsf_final_three_authority_test_result_v1';verdict='PASS';assertions=$script:count;network_used=$false;live_task_run=$false}|ConvertTo-Json -Compress

@@ -9,6 +9,7 @@
   ],
   "worker_running_requires_explicit_flag": true,
   "run_approved_fixture_worker_flag": "-RunApprovedFixtureWorker",
+  "run_canonical_app_server_worker_flag": "-RunCanonicalAppServerWorker",
   "dry_run_flag": "-DryRun",
   "required_exact_action": "codex_cli_queue_fixture_worker_invocation",
   "allowed_fixture_output_root": "tests/fixtures/fleet/mission-queue/worker-output",
@@ -23,9 +24,11 @@
     "normal_user_config": true,
     "ignore_user_config": false,
     "danger_full_access": false,
-    "ephemeral": true,
+    "ephemeral": false,
     "json_events": true
   },
+  "control_plane_service_network_policy": "CODEX_SERVICE_ONLY",
+  "worker_tool_network_policy": "DISABLED",
   "forbidden_actions": [
     "push",
     "merge",

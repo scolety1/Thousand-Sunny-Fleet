@@ -9,6 +9,8 @@
     "repo_path",
     "lane",
     "mission_type",
+    "control_plane_service_network_policy",
+    "worker_tool_network_policy",
     "allowed_reads",
     "allowed_writes",
     "forbidden_reads",
@@ -67,6 +69,17 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 200
+    },
+    "required_worktree": {
+      "type": "string",
+      "minLength": 1
+    },
+    "control_plane_service_network_policy": {
+      "type": "string",
+      "enum": ["NONE", "CODEX_SERVICE_ONLY"]
+    },
+    "worker_tool_network_policy": {
+      "const": "DISABLED"
     },
     "allowed_reads": {
       "type": "array",

@@ -1,3 +1,9 @@
+$script:TsfKernelRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $script:TsfKernelRoot "tools\TsfJsonContract.ps1")
+. (Join-Path $script:TsfKernelRoot "tools\TsfRuntimeArtifactAddressing.ps1")
+. (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleTerminalResult.ps1")
+. (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleInvocationArguments.ps1")
+
 $script:TsfKernelRestrictedActions = @(
     "push",
     "merge",
@@ -36,7 +42,7 @@ $script:TsfKernelMissionStates = @(
 )
 
 function Get-TsfKernelRoot {
-    return (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+    return $script:TsfKernelRoot
 }
 
 function ConvertTo-TsfKernelArray {
@@ -150,6 +156,59 @@ function Test-TsfKernelPathInside {
     return $child.StartsWith($parentWithSlash, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Test-TsfKernelReparseContained {
+    param(
+        [Parameter(Mandatory = $true)][string]$ChildPath,
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot
+    )
+
+    $repo = Get-TsfKernelFullPath -Path $RepositoryRoot
+    if (!(Test-Path -LiteralPath $repo -PathType Container)) { return $false }
+    $repoItem = Get-Item -LiteralPath $repo -Force
+    if (($repoItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
+
+    $cursor = Get-TsfKernelFullPath -Path $ChildPath
+    if (!(Test-TsfKernelPathInside -ChildPath $cursor -ParentPath $repo)) { return $false }
+    while (![string]::Equals($cursor.TrimEnd('\', '/'), $repo.TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase)) {
+        if (Test-Path -LiteralPath $cursor) {
+            $item = Get-Item -LiteralPath $cursor -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                $target = [string]$item.Target
+                if ([string]::IsNullOrWhiteSpace($target)) { return $false }
+                if (![IO.Path]::IsPathRooted($target)) { $target = Get-TsfKernelFullPath -Path $target -BasePath (Split-Path -Parent $cursor) }
+                if (!(Test-TsfKernelPathInside -ChildPath $target -ParentPath $repo)) { return $false }
+            }
+        }
+        $next = Split-Path -Parent $cursor
+        if ([string]::IsNullOrWhiteSpace($next) -or $next -eq $cursor) { return $false }
+        $cursor = $next
+    }
+    return $true
+}
+
+function Test-TsfKernelPathContained {
+    param(
+        [Parameter(Mandatory = $true)][string]$RelativePath,
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [Parameter(Mandatory = $true)][object[]]$AllowedScopes
+    )
+
+    if ([IO.Path]::IsPathRooted($RelativePath) -or !(Test-TsfKernelPathTokenSafe -Path $RelativePath)) { return $false }
+    $repo = Get-TsfKernelFullPath -Path $RepositoryRoot
+    $full = Get-TsfKernelFullPath -Path $RelativePath -BasePath $repo
+    if (!(Test-TsfKernelPathInside -ChildPath $full -ParentPath $repo)) { return $false }
+    if (!(Test-TsfKernelReparseContained -ChildPath $full -RepositoryRoot $repo)) { return $false }
+    foreach ($scope in $AllowedScopes) {
+        $scopeText = [string]$scope
+        if ([IO.Path]::IsPathRooted($scopeText) -or !(Test-TsfKernelPathTokenSafe -Path $scopeText)) { continue }
+        $scopeFull = Get-TsfKernelFullPath -Path $scopeText -BasePath $repo
+        if ((Test-TsfKernelPathInside -ChildPath $scopeFull -ParentPath $repo) -and
+            (Test-TsfKernelPathInside -ChildPath $full -ParentPath $scopeFull) -and
+            (Test-TsfKernelReparseContained -ChildPath $scopeFull -RepositoryRoot $repo)) { return $true }
+    }
+    return $false
+}
+
 function Test-TsfKernelPathTokenSafe {
     param([string]$Path)
 
@@ -187,7 +246,8 @@ function Get-TsfKernelGitState {
     }
 
     try {
-        $rootOutput = @(& git -C $RepoPath rev-parse --show-toplevel 2>&1)
+        $safeDirectory = (Get-TsfKernelFullPath -Path $RepoPath).Replace('\','/')
+        $rootOutput = @(& git -c "safe.directory=$safeDirectory" -C $RepoPath rev-parse --show-toplevel 2>&1)
         $rootExit = $LASTEXITCODE
         if ($rootExit -ne 0) {
             $state.error = ($rootOutput -join "`n")
@@ -195,13 +255,13 @@ function Get-TsfKernelGitState {
         }
 
         $state.git_available = $true
-        $branchOutput = @(& git -C $RepoPath branch --show-current 2>&1)
+        $branchOutput = @(& git -c "safe.directory=$safeDirectory" -C $RepoPath branch --show-current 2>&1)
         $branchExit = $LASTEXITCODE
         if ($branchExit -eq 0) {
             $state.branch = ($branchOutput -join "`n").Trim()
         }
 
-        $statusOutput = @(& git -C $RepoPath status --short 2>&1)
+        $statusOutput = @(& git -c "safe.directory=$safeDirectory" -C $RepoPath status --short 2>&1)
         $statusSucceeded = $?
         if ($statusSucceeded) {
             $state.status_short = @($statusOutput | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
@@ -211,7 +271,7 @@ function Get-TsfKernelGitState {
             $state.error = ($statusOutput -join "`n")
         }
 
-        $headOutput = @(& git -C $RepoPath rev-parse HEAD 2>&1)
+        $headOutput = @(& git -c "safe.directory=$safeDirectory" -C $RepoPath rev-parse HEAD 2>&1)
         $headExit = $LASTEXITCODE
         if ($headExit -eq 0) {
             $state.head = ($headOutput -join "`n").Trim()
@@ -321,15 +381,15 @@ function Get-TsfKernelApprovalRequirements {
 function Get-TsfKernelApprovalLedger {
     param([string]$ApprovalLedgerPath)
 
-    if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath) -or !(Test-Path -LiteralPath $ApprovalLedgerPath)) {
-        return [pscustomobject]@{
-            schema_version = 1
-            ledger_id = "empty-local-ledger"
-            approvals = @()
-        }
-    }
+    if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) { return $null }
+    if (!(Test-Path -LiteralPath $ApprovalLedgerPath -PathType Leaf)) { throw 'APPROVAL_LEDGER_REQUIRED_BUT_MISSING' }
+    if ((Get-Item -LiteralPath $ApprovalLedgerPath).Length -eq 0) { throw 'APPROVAL_LEDGER_EMPTY' }
 
-    return Read-TsfKernelJson -Path $ApprovalLedgerPath
+    $ledger = Read-TsfKernelJson -Path $ApprovalLedgerPath
+    $schemaPath = Join-Path (Get-TsfKernelRoot) 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\approval_ledger_schema_v1.json'
+    $validation = Test-TsfJsonContract -Value $ledger -SchemaPath $schemaPath
+    if (!$validation.valid) { throw "Approval ledger schema validation failed: $($validation.errors -join '; ')" }
+    return $ledger
 }
 
 function Test-TsfKernelApprovalPathScope {
@@ -377,22 +437,15 @@ function Find-TsfKernelApprovalMatches {
         [Parameter(Mandatory = $true)][object]$Mission,
         [Parameter(Mandatory = $true)][object]$Ledger,
         [string]$LedgerPath = "",
-        [switch]$AllowFixtureApprovalsForTests
+        [datetimeoffset]$CurrentTime = [datetimeoffset]::UtcNow,
+        [switch]$RequireCanonicalUsageBinding
     )
 
-    $now = Get-Date
+    $now = $CurrentTime
     $matches = @()
     $requirements = @(Get-TsfKernelApprovalRequirements -Mission $Mission)
     $approvals = @(ConvertTo-TsfKernelArray -Value $Ledger.approvals)
     $repoFull = Get-TsfKernelFullPath -Path ([string]$Mission.repo_path)
-    $fixtureLedgerAllowed = $false
-    if ($AllowFixtureApprovalsForTests -and ![string]::IsNullOrWhiteSpace($LedgerPath)) {
-        $fixtureRoot = Get-TsfKernelFullPath -Path (Join-Path (Get-TsfKernelRoot) "tests\fixtures")
-        $localFixtureRoot = Get-TsfKernelFullPath -Path (Join-Path (Get-TsfKernelRoot) ".codex-local\fixtures")
-        $ledgerFull = Get-TsfKernelFullPath -Path $LedgerPath
-        $fixtureLedgerAllowed = (Test-TsfKernelPathInside -ChildPath $ledgerFull -ParentPath $fixtureRoot) -or (Test-TsfKernelPathInside -ChildPath $ledgerFull -ParentPath $localFixtureRoot)
-    }
-
     foreach ($requirement in $requirements) {
         $exactAction = [string]$requirement.exact_action
         $requirementResult = [ordered]@{
@@ -405,6 +458,12 @@ function Find-TsfKernelApprovalMatches {
         }
 
         foreach ($approval in $approvals) {
+            if ($requirement.PSObject.Properties.Name -contains "approval_id" -and
+                ![string]::IsNullOrWhiteSpace([string]$requirement.approval_id) -and
+                [string]$approval.approval_id -ne [string]$requirement.approval_id) {
+                continue
+            }
+
             if ([string]$approval.exact_action -ne $exactAction) {
                 continue
             }
@@ -424,8 +483,8 @@ function Find-TsfKernelApprovalMatches {
             }
 
             if (![string]::IsNullOrWhiteSpace($expiryText)) {
-                $expiry = [datetime]::MinValue
-                if ([datetime]::TryParse($expiryText, [ref]$expiry)) {
+                $expiry = [datetimeoffset]::MinValue
+                if ([datetimeoffset]::TryParse($expiryText, [ref]$expiry)) {
                     if ($expiry -lt $now) {
                         $active = $false
                     }
@@ -438,6 +497,59 @@ function Find-TsfKernelApprovalMatches {
 
             if (-not $active) {
                 $requirementResult.match_status = "MATCH_EXPIRED_OR_INACTIVE"
+                $requirementResult.approval_id = [string]$approval.approval_id
+                continue
+            }
+
+            if ($approval.PSObject.Properties.Name -contains "state" -and [string]$approval.state -ne "ACTIVE") {
+                $requirementResult.match_status = "MATCH_INACTIVE_STATE"
+                $requirementResult.approval_id = [string]$approval.approval_id
+                continue
+            }
+
+            if ($approval.PSObject.Properties.Name -contains "mission_id" -and
+                ![string]::IsNullOrWhiteSpace([string]$approval.mission_id) -and
+                [string]$approval.mission_id -ne [string]$Mission.mission_id) {
+                $requirementResult.match_status = "MATCH_MISSION_MISMATCH"
+                $requirementResult.approval_id = [string]$approval.approval_id
+                continue
+            }
+
+            if ($RequireCanonicalUsageBinding) {
+                $missingCanonicalBinding = $false
+                foreach ($field in @('state', 'mission_id', 'usage_count', 'max_uses', 'reuse_policy')) {
+                    if (!($approval.PSObject.Properties.Name -contains $field)) {
+                        $requirementResult.match_status = "MATCH_MISSING_CANONICAL_$($field.ToUpperInvariant())"
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        $missingCanonicalBinding = $true
+                        break
+                    }
+                }
+                if ($missingCanonicalBinding) { continue }
+                if ([string]::IsNullOrWhiteSpace([string]$approval.mission_id) -or [string]$approval.mission_id -ne [string]$Mission.mission_id) {
+                    $requirementResult.match_status = 'MATCH_MISSION_MISMATCH'
+                    $requirementResult.approval_id = [string]$approval.approval_id
+                    continue
+                }
+                if ([string]$approval.reuse_policy -eq 'SINGLE_USE' -and [int]$approval.max_uses -ne 1) {
+                    $requirementResult.match_status = 'MATCH_REUSE_POLICY_INVALID'
+                    $requirementResult.approval_id = [string]$approval.approval_id
+                    continue
+                }
+                if ($Mission.PSObject.Properties.Name -contains 'required_worktree' -and ![string]::IsNullOrWhiteSpace([string]$Mission.required_worktree)) {
+                    if (!($approval.PSObject.Properties.Name -contains 'worktree_path') -or
+                        ![string]::Equals((Get-TsfKernelFullPath -Path ([string]$approval.worktree_path)).TrimEnd('\', '/'), (Get-TsfKernelFullPath -Path ([string]$Mission.required_worktree)).TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase)) {
+                        $requirementResult.match_status = 'MATCH_WORKTREE_MISMATCH'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                }
+            }
+
+            if ($approval.PSObject.Properties.Name -contains "max_uses" -and
+                $approval.PSObject.Properties.Name -contains "usage_count" -and
+                [int]$approval.usage_count -ge [int]$approval.max_uses) {
+                $requirementResult.match_status = "MATCH_USAGE_EXHAUSTED"
                 $requirementResult.approval_id = [string]$approval.approval_id
                 continue
             }
@@ -455,14 +567,14 @@ function Find-TsfKernelApprovalMatches {
 
             $requirementResult.approval_id = [string]$approval.approval_id
             $requirementResult.sample_fixture_only = $fixtureOnly
-            if ($fixtureOnly -and -not $fixtureLedgerAllowed) {
+            if ($fixtureOnly) {
                 $requirementResult.match_status = "FIXTURE_MATCH_NOT_AUTHORITY"
                 $requirementResult.reason = "Sample fixture approval was recognized but cannot satisfy real authority."
                 continue
             }
 
             $requirementResult.satisfied = $true
-            $requirementResult.match_status = if ($fixtureOnly) { "MATCHED_FIXTURE_FOR_TEST" } else { "MATCHED_ACTIVE_APPROVAL" }
+            $requirementResult.match_status = "MATCHED_ACTIVE_APPROVAL"
             $requirementResult.reason = "Active approval matched exact action, repo, lane, and allowed path scope."
             break
         }
@@ -636,8 +748,10 @@ function Initialize-TsfKernelMissionFolders {
         $StateRoot = Join-Path (Get-TsfKernelRoot) "fleet\missions"
     }
 
+    $compact=Test-TsfKernelPathInside (Get-TsfKernelFullPath $StateRoot) (Get-TsfCanonicalRuntimeRoot)
     foreach ($state in $script:TsfKernelMissionStates) {
-        New-Item -ItemType Directory -Force -Path (Join-Path $StateRoot $state) | Out-Null
+        $folder=if($compact){switch($state){'preflight-pending'{'s1'}'approved-for-worker'{'s2'}'running'{'s3'}'postrun-pending'{'s4'}'completed'{'s5'}'blocked-tim-required'{'s6'}}}else{$state}
+        New-Item -ItemType Directory -Force -Path (Join-Path $StateRoot $folder) | Out-Null
     }
 
     return $StateRoot
@@ -660,8 +774,18 @@ function Copy-TsfKernelMissionToState {
     }
 
     Initialize-TsfKernelMissionFolders -StateRoot $StateRoot | Out-Null
-    $safeMissionId = ([string]$MissionId) -replace "[^A-Za-z0-9._:-]", "_"
-    $destination = Join-Path (Join-Path $StateRoot $State) "$safeMissionId.json"
+    $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+    if(Test-TsfKernelPathInside (Get-TsfKernelFullPath $StateRoot) $canonicalRuntimeRoot){
+        $stateIdentity=Get-TsfRuntimeIdentity mission ([pscustomobject][ordered]@{mission_id=[string]$MissionId;mission_revision=1})
+        $leaf="k-$($stateIdentity.short_key).json"
+        $stateFolder=switch($State){'preflight-pending'{'s1'}'approved-for-worker'{'s2'}'running'{'s3'}'postrun-pending'{'s4'}'completed'{'s5'}'blocked-tim-required'{'s6'}}
+    }else{
+        # The durable queue is an operational record system outside runtime-artifact storage.
+        $safeMissionId = ([string]$MissionId) -replace "[^A-Za-z0-9._:-]", "_"
+        $leaf="$safeMissionId.json"
+        $stateFolder=$State
+    }
+    $destination = Join-Path (Join-Path $StateRoot $stateFolder) $leaf
     Copy-Item -LiteralPath $MissionPath -Destination $destination -Force
     return $destination
 }
@@ -671,8 +795,7 @@ function Invoke-TsfKernelPreflight {
         [Parameter(Mandatory = $true)][string]$MissionPath,
         [string]$ApprovalLedgerPath = "",
         [string]$OutFile = "",
-        [string]$StateRoot = "",
-        [switch]$AllowFixtureApprovalsForTests
+        [string]$StateRoot = ""
     )
 
     $fleetRoot = Get-TsfKernelRoot
@@ -700,6 +823,8 @@ function Invoke-TsfKernelPreflight {
     $gitState = $null
     $projectRegistration = $null
     $approvalMatches = @()
+    $approvalSemantics = 'NO_APPROVAL_REQUIRED'
+    $approvalLedgerConsumed = $false
 
     if ($null -ne $mission -and $blockedReasons.Count -eq 0) {
         $repoPath = Get-TsfKernelFullPath -Path ([string]$mission.repo_path)
@@ -754,15 +879,28 @@ function Invoke-TsfKernelPreflight {
             $blockedReasons.Add("Project is not registered and is not TSF control-plane internal.") | Out-Null
         }
 
-        $ledger = Get-TsfKernelApprovalLedger -ApprovalLedgerPath $ApprovalLedgerPath
-        $approvalMatches = @(Find-TsfKernelApprovalMatches -Mission $mission -Ledger $ledger -LedgerPath $ApprovalLedgerPath -AllowFixtureApprovalsForTests:$AllowFixtureApprovalsForTests)
-        foreach ($match in $approvalMatches) {
-            if ($match.satisfied) {
-                $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "PASS" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
-            } else {
-                $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "TIM_REQUIRED" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
-                $timRequiredReasons.Add("Missing active approval for exact action: $($match.exact_action)") | Out-Null
+        $approvalRequirements = @(Get-TsfKernelApprovalRequirements -Mission $mission)
+        if($approvalRequirements.Count -gt 0){
+            $approvalSemantics = 'APPROVAL_REQUIRED'
+            try{
+                $ledger = Get-TsfKernelApprovalLedger -ApprovalLedgerPath $ApprovalLedgerPath
+                if($null-eq$ledger){throw 'APPROVAL_LEDGER_REQUIRED_BUT_MISSING'}
+                $approvalLedgerConsumed = $true
+                $approvalMatches = @(Find-TsfKernelApprovalMatches -Mission $mission -Ledger $ledger -LedgerPath $ApprovalLedgerPath)
+                foreach ($match in $approvalMatches) {
+                    if ($match.satisfied) {
+                        $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "PASS" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
+                    } else {
+                        $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "TIM_REQUIRED" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
+                        $timRequiredReasons.Add("Missing active approval for exact action: $($match.exact_action)") | Out-Null
+                    }
+                }
+            }catch{
+                $checks.Add((New-TsfKernelCheck -Name 'approval.ledger' -Status 'TIM_REQUIRED' -Message $_.Exception.Message))|Out-Null
+                $timRequiredReasons.Add($_.Exception.Message)|Out-Null
             }
+        }else{
+            $checks.Add((New-TsfKernelCheck -Name 'approval.none_required' -Status 'PASS' -Message 'NO_APPROVAL_REQUIRED; no approval ledger was consumed.'))|Out-Null
         }
     }
 
@@ -795,6 +933,8 @@ function Invoke-TsfKernelPreflight {
         tim_required_reasons = @($timRequiredReasons)
         warnings = @($warnings)
         approval_matches = @($approvalMatches)
+        approval_semantics = $approvalSemantics
+        approval_ledger_consumed = $approvalLedgerConsumed
         git_state = $gitState
         project_registration = $projectRegistration
         background_runner_started = $false
@@ -940,11 +1080,14 @@ function Invoke-TsfKernelPostRunVerify {
         }
     }
 
-    if ($worker.PSObject.Properties.Name -contains "files_created") {
+        $readOnlyMission = @(ConvertTo-TsfKernelArray -Value $mission.allowed_writes).Count -eq 0
+        if ($worker.PSObject.Properties.Name -contains "files_created") {
         $createdArtifacts = @(ConvertTo-TsfKernelArray -Value $worker.files_created | ForEach-Object { ([string]$_).Replace("\", "/").Trim() })
-        foreach ($artifact in $expectedArtifacts) {
-            $normalizedArtifact = ([string]$artifact).Replace("\", "/").Trim()
-            if ($createdArtifacts -contains $normalizedArtifact) {
+            foreach ($artifact in $expectedArtifacts) {
+                $normalizedArtifact = ([string]$artifact).Replace("\", "/").Trim()
+                if ($readOnlyMission) {
+                    $checks.Add((New-TsfKernelCheck -Name "postrun.readonly_artifact_observed" -Status "PASS" -Message "Read-only expected artifact is observed, not worker-created." -Evidence $normalizedArtifact)) | Out-Null
+                } elseif ($createdArtifacts -contains $normalizedArtifact) {
                 $checks.Add((New-TsfKernelCheck -Name "postrun.expected_artifact_claimed" -Status "PASS" -Message "Worker result claims expected artifact." -Evidence $normalizedArtifact)) | Out-Null
             } else {
                 $checks.Add((New-TsfKernelCheck -Name "postrun.expected_artifact_claimed" -Status "FAIL" -Message "Worker result does not claim expected artifact in files_created." -Evidence $normalizedArtifact)) | Out-Null
@@ -1002,8 +1145,12 @@ function Invoke-TsfKernelPostRunVerify {
         }
 
         if ($filesTouched.Count -eq 0) {
-            $checks.Add((New-TsfKernelCheck -Name "postrun.files_touched" -Status "WARN" -Message "Worker reported no touched files.")) | Out-Null
-            $warnings.Add("Worker reported no touched files.") | Out-Null
+            if ($readOnlyMission) {
+                $checks.Add((New-TsfKernelCheck -Name "postrun.files_touched" -Status "PASS" -Message "Read-only mission touched no files.")) | Out-Null
+            } else {
+                $checks.Add((New-TsfKernelCheck -Name "postrun.files_touched" -Status "WARN" -Message "Worker reported no touched files.")) | Out-Null
+                $warnings.Add("Worker reported no touched files.") | Out-Null
+            }
         } else {
             $checks.Add((New-TsfKernelCheck -Name "postrun.files_touched" -Status "PASS" -Message "Worker provided touched-file evidence.")) | Out-Null
         }
@@ -1084,10 +1231,23 @@ function Write-TsfKernelPreservationPacket {
     param(
         [Parameter(Mandatory = $true)][string]$MissionPath,
         [Parameter(Mandatory = $true)][string]$PreflightResultPath,
+        [string]$RolePreflightPath = "",
+        [string]$WorkerInstructionPath = "",
         [string]$WorkerResultPath = "",
         [string]$VerifierResultPath = "",
+        [string]$AdapterResultPath = "",
+        [string]$EventJournalPath = "",
+        [string]$QueueDocumentPath = "",
+        [string]$PromptPath = "",
+        [string]$StderrPath = "",
+        [string]$ProducerRegistryPath = "",
+        [object]$ProducerCapability = $null,
         [string]$OutputDirectory = "",
-        [string]$ExactNextAction = "Review preservation packet and continue only through a new TSF mission packet."
+        [string]$RunId = "",
+        [object]$DurableMission = $null,
+        [string]$ExactNextAction = "Review preservation packet and continue only through a new TSF mission packet.",
+        [ValidateSet('NONE','TEMP_WRITE','FINALIZE')][string]$TestFault = 'NONE',
+        [switch]$TestOnlyAllowSyntheticProducerRegistry
     )
 
     $mission = Read-TsfKernelJson -Path $MissionPath
@@ -1097,72 +1257,112 @@ function Write-TsfKernelPreservationPacket {
         $verifier = Read-TsfKernelJson -Path $VerifierResultPath
     }
 
-    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-        $OutputDirectory = Join-Path (Get-TsfKernelRoot) "fleet\missions\completed"
-    }
+    $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = $canonicalRuntimeRoot }
+    $OutputDirectory=Assert-TsfCanonicalRuntimeRoot $OutputDirectory
+    $sourceBinding = if ($mission.PSObject.Properties.Name -contains 'durable_source_binding') { $mission.durable_source_binding } else { $null }
+    $revision = if ($null -ne $DurableMission) { [int]$DurableMission.mission_revision } elseif ($null -ne $sourceBinding) { [int]$sourceBinding.durable_mission_revision } else { 1 }
+    $missionHash = if ($null -ne $DurableMission) { Get-TsfContractJsonHash $DurableMission } elseif ($null -ne $sourceBinding) { [string]$sourceBinding.durable_mission_content_hash } else { Get-TsfContractJsonHash $mission }
+    $policyFingerprint = if ($null -ne $DurableMission) { [string]$DurableMission.policy.fingerprint } elseif ($null -ne $sourceBinding) { [string]$sourceBinding.policy_fingerprint } else { '0' * 64 }
+    $translatorVersion = if ($null -ne $sourceBinding) { [string]$sourceBinding.translator_version } else { 'legacy_operational_compatibility_v1' }
+    if ([string]::IsNullOrWhiteSpace($RunId)) { $RunId = Get-TsfRuntimeSha256Text "$([string]$mission.mission_id)|$revision|$missionHash|$((Get-FileHash -LiteralPath $PreflightResultPath -Algorithm SHA256).Hash.ToLowerInvariant())" }
+    $plan = New-TsfRuntimeStoragePlan -RuntimeRoot $OutputDirectory -MissionId ([string]$mission.mission_id) -MissionRevision $revision -RunId $RunId -Layout preservation
+    if (!$plan.budget.valid) { throw "Compact preservation path preflight failed before writes: $($plan.budget.errors -join '; ')" }
 
-    $safeMissionId = ([string]$mission.mission_id) -replace "[^A-Za-z0-9._:-]", "_"
-    $packetDirectory = Join-Path $OutputDirectory ("$safeMissionId-preservation")
-    New-Item -ItemType Directory -Force -Path $packetDirectory | Out-Null
-
-    $manifest = [System.Collections.Generic.List[object]]::new()
-    $sources = [ordered]@{
-        "mission_packet.json" = $MissionPath
-        "preflight_result.json" = $PreflightResultPath
-    }
-    if (![string]::IsNullOrWhiteSpace($WorkerResultPath) -and (Test-Path -LiteralPath $WorkerResultPath)) {
-        $sources["worker_result_or_instruction.json"] = $WorkerResultPath
-    }
-    if (![string]::IsNullOrWhiteSpace($VerifierResultPath) -and (Test-Path -LiteralPath $VerifierResultPath)) {
-        $sources["verifier_result.json"] = $VerifierResultPath
-    }
-
-    foreach ($name in $sources.Keys) {
-        $destination = Join-Path $packetDirectory $name
-        Copy-Item -LiteralPath $sources[$name] -Destination $destination -Force
-        $manifest.Add([pscustomobject]@{
-            artifact = $name
-            source = Get-TsfKernelFullPath -Path $sources[$name]
-            preserved_path = $destination
-        }) | Out-Null
-    }
-
-    $finalDecision = if ($null -ne $verifier) { [string]$verifier.verdict } else { [string]$preflight.verdict }
-    $packet = [pscustomobject]@{
-        schema_version = 1
-        generated_at = (Get-Date).ToString("o")
-        mission_id = [string]$mission.mission_id
-        final_decision = $finalDecision
-        mission_packet = "mission_packet.json"
-        preflight_result = "preflight_result.json"
-        worker_result_or_instruction = if ($sources.Contains("worker_result_or_instruction.json")) { "worker_result_or_instruction.json" } else { "" }
-        verifier_result = if ($sources.Contains("verifier_result.json")) { "verifier_result.json" } else { "" }
-        expected_artifacts = @(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts)
-        stop_conditions = @(ConvertTo-TsfKernelArray -Value $mission.stop_conditions)
-        exact_next_action = $ExactNextAction
-        restricted_action_confirmation = [pscustomobject]@{
-            background_runner_started = $false
-            all_fleet_started = $false
-            product_repos_mutated = $false
-            canonical_nwr_mutated = $false
-            push_merge_deploy_attempted = $false
+    $queueDocumentHash=if(![string]::IsNullOrWhiteSpace($QueueDocumentPath)-and(Test-Path $QueueDocumentPath -PathType Leaf)){Get-TsfContractJsonHash (Read-TsfKernelJson $QueueDocumentPath)}else{'0'*64}
+    $testCanonicalCallerPaths=@{}
+    if([string]::IsNullOrWhiteSpace($ProducerRegistryPath)){
+        if(!$TestOnlyAllowSyntheticProducerRegistry){throw 'PRODUCER_EVIDENCE_REGISTRY_REQUIRED'}
+        $fixtureRoot=Get-TsfKernelFullPath (Join-Path (Get-TsfKernelRoot) '.codex-local\fixtures')
+        if(!([string]$mission.mission_id).StartsWith('synthetic-')-and!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $MissionPath) $fixtureRoot)-and!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $MissionPath) (Get-TsfCanonicalRuntimeRoot))){throw 'TEST_PRODUCER_REGISTRY_REQUIRES_SYNTHETIC_FIXTURE'}
+        $lPlan=New-TsfRuntimeStoragePlan $OutputDirectory ([string]$mission.mission_id) $revision $RunId -Layout lifecycle_control
+        $aPlan=New-TsfRuntimeStoragePlan $OutputDirectory ([string]$mission.mission_id) $revision $RunId -Layout adapter
+        $qPlan=New-TsfRuntimeStoragePlan $OutputDirectory ([string]$mission.mission_id) $revision $RunId -Layout queue_control
+        New-Item -ItemType Directory -Force $lPlan.directory,$aPlan.directory,$qPlan.directory|Out-Null
+        $ProducerRegistryPath=[string]$lPlan.artifacts.producer_registry
+        $repo=Get-TsfKernelFullPath ([string]$mission.repo_path);$git=Get-TsfKernelGitState $repo
+        $ProducerCapability=New-TsfTestOnlyProducerCapability -MissionId ([string]$mission.mission_id) -MissionRevision $revision -RunId $RunId -PolicyFingerprint $policyFingerprint -QueueDocumentSha256 $queueDocumentHash -Repository $repo -Branch $(if($git.can_capture){[string]$git.branch}else{''}) -Worktree $repo -ExistingRegistryPath $ProducerRegistryPath
+        New-TsfProducerEvidenceRegistry -RegistryPath $ProducerRegistryPath -Capability $ProducerCapability|Out-Null
+        $testInputs=[ordered]@{mission=$MissionPath;preflight=$PreflightResultPath;role_preflight=$RolePreflightPath;worker_instruction=$WorkerInstructionPath;worker_result=$WorkerResultPath;adapter_result=$AdapterResultPath;event_journal=$EventJournalPath;queue_document=$QueueDocumentPath;verifier_result=$VerifierResultPath;prompt=$PromptPath;stderr=$StderrPath}
+        foreach($entry in $testInputs.GetEnumerator()){
+            if([string]::IsNullOrWhiteSpace([string]$entry.Value)-or!(Test-Path $entry.Value -PathType Leaf)){continue}
+            $contract=(Get-TsfProducerEvidenceContract).([string]$entry.Key)
+            $targetPlan=switch([string]$contract.layout){'adapter'{$aPlan}'queue_control'{$qPlan}default{$lPlan}}
+            $target=[string]$targetPlan.artifacts.([string]$contract.artifact)
+            if(![string]::Equals((Get-TsfKernelFullPath $entry.Value),(Get-TsfKernelFullPath $target),[StringComparison]::OrdinalIgnoreCase)){Copy-Item -LiteralPath $entry.Value -Destination $target -Force}
+            Register-TsfProducerEvidence $ProducerRegistryPath ([string]$entry.Key) $target $ProducerCapability|Out-Null
+            $testCanonicalCallerPaths[[string]$entry.Key]=$target
+        }
+        if(Test-Path $aPlan.artifacts.adapter_result -PathType Leaf){
+            $testAdapter=Read-TsfKernelJson $aPlan.artifacts.adapter_result
+            if($null-ne$testAdapter.turn_usage){Write-TsfKernelJson $testAdapter.turn_usage $lPlan.artifacts.usage;Register-TsfProducerEvidence $ProducerRegistryPath usage $lPlan.artifacts.usage $ProducerCapability|Out-Null}
         }
     }
+    if($null-eq$ProducerCapability){throw 'ORCHESTRATOR_HELD_RUN_CAPABILITY_REQUIRED'}
+    $registryRepo=Get-TsfKernelFullPath ([string]$mission.repo_path);$registryGit=Get-TsfKernelGitState $registryRepo
+    $registryCheck=Test-TsfProducerEvidenceRegistry $ProducerRegistryPath ([string]$mission.mission_id) $revision $RunId $policyFingerprint $queueDocumentHash -Repository $registryRepo -Branch $(if($registryGit.can_capture){[string]$registryGit.branch}else{''}) -Worktree $registryRepo -Capability $ProducerCapability -RequireHeldCapability -AllowTestOnly:$TestOnlyAllowSyntheticProducerRegistry
+    if(!$registryCheck.valid){throw "PRODUCER_EVIDENCE_REGISTRY_INVALID: $($registryCheck.errors -join '; ')"}
+    $registry=$registryCheck.registry
+    $requiredRegistryTypes=@('mission','preflight')
+    foreach($type in $requiredRegistryTypes){if(@($registry.artifacts|Where-Object{[string]$_.logical_type-eq$type}).Count-ne1){throw "PRODUCER_EVIDENCE_REGISTRATION_MISSING: $type"}}
 
-    Write-TsfKernelJson -Value $packet -Path (Join-Path $packetDirectory "preservation_packet.json")
-    $manifest | Export-Csv -LiteralPath (Join-Path $packetDirectory "manifest.csv") -NoTypeInformation
-    Set-Content -LiteralPath (Join-Path $packetDirectory "NEXT_ACTION.md") -Encoding UTF8 -Value @(
-        "# Next Action",
-        "",
-        $ExactNextAction
-    )
-
-    return [pscustomobject]@{
-        schema_version = 1
-        generated_at = (Get-Date).ToString("o")
-        mission_id = [string]$mission.mission_id
-        packet_directory = $packetDirectory
-        final_decision = $finalDecision
-        artifacts_preserved = @($manifest)
+    if (Test-Path -LiteralPath $plan.directory -PathType Container) {
+        $descriptor = Get-TsfPreservationPacketDescriptor -PacketPath ([string]$plan.artifacts.preservation_packet) -ExpectedMissionId ([string]$mission.mission_id) -ExpectedMissionRevision $revision
+        if ([string]$descriptor.manifest.run_id -ne $RunId) { throw 'Compact preservation short-key collision or run identity mismatch.' }
+        $registeredManifest=@($descriptor.manifest.artifacts|Where-Object{[string]$_.logical_type-eq'producer_registry'})
+        $registryHash=(Get-FileHash $ProducerRegistryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if($registeredManifest.Count-ne1-or[string]$registeredManifest[0].sha256-ne$registryHash){throw 'EXISTING_PRESERVATION_PACKET_PRODUCER_REGISTRY_MISMATCH'}
+        return [pscustomobject]@{schema_version='tsf_compact_preservation_result_v1';generated_at=[string]$descriptor.manifest.created_at;mission_id=[string]$mission.mission_id;run_id=$RunId;packet_directory=[string]$plan.directory;packet_file=[string]$plan.artifacts.preservation_packet;manifest_path=[string]$plan.artifacts.manifest;manifest_sha256=(Get-FileHash -LiteralPath $plan.artifacts.manifest -Algorithm SHA256).Hash.ToLowerInvariant();final_decision=[string](Read-TsfKernelJson $plan.artifacts.preservation_packet).final_decision;storage_plan=$plan;idempotent_replay=$true}
     }
+    if (Test-Path -LiteralPath $plan.staging_directory) {
+        $stagedDescriptor=Get-TsfPreservationPacketDescriptor -PacketPath ([string]$plan.staging_artifacts.preservation_packet) -ExpectedMissionId ([string]$mission.mission_id) -ExpectedMissionRevision $revision
+        if([string]$stagedDescriptor.manifest.run_id-ne$RunId){throw 'Compact preservation staging collision or run identity mismatch.'}
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $plan.directory)|Out-Null
+        Move-Item -LiteralPath $plan.staging_directory -Destination $plan.directory
+        $recovered=Get-TsfPreservationPacketDescriptor -PacketPath ([string]$plan.artifacts.preservation_packet) -ExpectedMissionId ([string]$mission.mission_id) -ExpectedMissionRevision $revision
+        return [pscustomobject]@{schema_version='tsf_compact_preservation_result_v1';generated_at=[string]$recovered.manifest.created_at;mission_id=[string]$mission.mission_id;run_id=$RunId;packet_directory=[string]$plan.directory;packet_file=[string]$plan.artifacts.preservation_packet;manifest_path=[string]$plan.artifacts.manifest;manifest_sha256=(Get-FileHash -LiteralPath $plan.artifacts.manifest -Algorithm SHA256).Hash.ToLowerInvariant();final_decision=[string](Read-TsfKernelJson $plan.artifacts.preservation_packet).final_decision;storage_plan=$plan;idempotent_replay=$true;recovered_from_staging=$true}
+    }
+    if ($TestFault -eq 'TEMP_WRITE') { throw 'Simulated compact preservation temporary-write failure.' }
+    New-Item -ItemType Directory -Force -Path $plan.staging_directory | Out-Null
+
+    $callerPaths=[ordered]@{mission=$(if($testCanonicalCallerPaths.ContainsKey('mission')){$testCanonicalCallerPaths.mission}else{$MissionPath});preflight=$(if($testCanonicalCallerPaths.ContainsKey('preflight')){$testCanonicalCallerPaths.preflight}else{$PreflightResultPath});role_preflight=$(if($testCanonicalCallerPaths.ContainsKey('role_preflight')){$testCanonicalCallerPaths.role_preflight}else{$RolePreflightPath});worker_instruction=$(if($testCanonicalCallerPaths.ContainsKey('worker_instruction')){$testCanonicalCallerPaths.worker_instruction}else{$WorkerInstructionPath});worker_result=$(if($testCanonicalCallerPaths.ContainsKey('worker_result')){$testCanonicalCallerPaths.worker_result}else{$WorkerResultPath});adapter_result=$(if($testCanonicalCallerPaths.ContainsKey('adapter_result')){$testCanonicalCallerPaths.adapter_result}else{$AdapterResultPath});verifier_result=$(if($testCanonicalCallerPaths.ContainsKey('verifier_result')){$testCanonicalCallerPaths.verifier_result}else{$VerifierResultPath});event_journal=$(if($testCanonicalCallerPaths.ContainsKey('event_journal')){$testCanonicalCallerPaths.event_journal}else{$EventJournalPath});queue_document=$(if($testCanonicalCallerPaths.ContainsKey('queue_document')){$testCanonicalCallerPaths.queue_document}else{$QueueDocumentPath});prompt=$(if($testCanonicalCallerPaths.ContainsKey('prompt')){$testCanonicalCallerPaths.prompt}else{$PromptPath});stderr=$(if($testCanonicalCallerPaths.ContainsKey('stderr')){$testCanonicalCallerPaths.stderr}else{$StderrPath})}
+    $sources=[ordered]@{}
+    foreach($registered in @($registry.artifacts)){
+        $key=[string]$registered.logical_type;$path=Get-TsfKernelFullPath ([string]$registered.canonical_relative_path) (Get-TsfCanonicalRuntimeRoot)
+        if($callerPaths.Contains($key)-and![string]::IsNullOrWhiteSpace([string]$callerPaths[$key])-and![string]::Equals((Get-TsfKernelFullPath ([string]$callerPaths[$key])),$path,[StringComparison]::OrdinalIgnoreCase)){throw "CALLER_EVIDENCE_PATH_NOT_REGISTERED: $key"}
+        $sources[$key]=[pscustomobject]@{path=$path;evidence=[string]$registered.evidence_classification;producer=[string]$registered.producer}
+    }
+    foreach($entry in $callerPaths.GetEnumerator()){
+        if(![string]::IsNullOrWhiteSpace([string]$entry.Value)-and!$sources.Contains([string]$entry.Key)){throw "UNREGISTERED_CALLER_EVIDENCE: $($entry.Key)"}
+    }
+    $records=[Collections.Generic.List[object]]::new()
+    foreach ($entry in $sources.GetEnumerator()) {
+        $destination=[string]$plan.staging_artifacts.($entry.Key)
+        Copy-Item -LiteralPath ([string]$entry.Value.path) -Destination $destination
+        $records.Add((New-TsfRuntimeArtifactRecord -LogicalType $entry.Key -Path $destination -PacketDirectory $plan.staging_directory -EvidenceClassification ([string]$entry.Value.evidence) -Producer ([string]$entry.Value.producer)))|Out-Null
+    }
+    Copy-Item -LiteralPath $ProducerRegistryPath -Destination ([string]$plan.staging_artifacts.producer_registry)
+    $records.Add((New-TsfRuntimeArtifactRecord -LogicalType 'producer_registry' -Path ([string]$plan.staging_artifacts.producer_registry) -PacketDirectory $plan.staging_directory -EvidenceClassification 'KERNEL_OBSERVED' -Producer 'mission_lifecycle_orchestrator'))|Out-Null
+    $adapterVersion='not_used'
+    if ($sources.Contains('adapter_result')) {
+        $adapter=Read-TsfKernelJson ([string]$sources['adapter_result'].path);$adapterVersion=[string]$adapter.schema_version
+    }
+    $repo=Get-TsfKernelFullPath ([string]$mission.repo_path);$git=Get-TsfKernelGitState $repo
+    $finalDecision = if ($null -ne $verifier) { [string]$verifier.verdict } else { [string]$preflight.verdict }
+    $artifactCatalog=Get-TsfRuntimeArtifactCatalog
+    $packet = [pscustomobject][ordered]@{
+        schema_version='tsf_compact_preservation_packet_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');mission_id=[string]$mission.mission_id;mission_revision=$revision;run_id=$RunId
+        final_decision=$finalDecision;manifest=$artifactCatalog.manifest;producer_registry=$artifactCatalog.producer_registry;mission_packet=$artifactCatalog.mission;queue_document=if($sources.Contains('queue_document')){$artifactCatalog.queue_document}else{''};preflight_result=$artifactCatalog.preflight;role_preflight=if($sources.Contains('role_preflight')){$artifactCatalog.role_preflight}else{''};worker_instruction=if($sources.Contains('worker_instruction')){$artifactCatalog.worker_instruction}else{''};worker_result=if($sources.Contains('worker_result')){$artifactCatalog.worker_result}else{''};adapter_result=if($sources.Contains('adapter_result')){$artifactCatalog.adapter_result}else{''};verifier_result=if($sources.Contains('verifier_result')){$artifactCatalog.verifier_result}else{''};event_journal=if($sources.Contains('event_journal')){$artifactCatalog.event_journal}else{''};usage=if($sources.Contains('usage')){$artifactCatalog.usage}else{''};prompt=if($sources.Contains('prompt')){$artifactCatalog.prompt}else{''};stderr=if($sources.Contains('stderr')){$artifactCatalog.stderr}else{''}
+        expected_artifacts=@(ConvertTo-TsfKernelArray $mission.expected_artifacts);stop_conditions=@(ConvertTo-TsfKernelArray $mission.stop_conditions);exact_next_action=$ExactNextAction
+        restricted_action_confirmation=[pscustomobject]@{background_runner_started=$false;all_fleet_started=$false;product_repos_mutated=$false;canonical_nwr_mutated=$false;push_merge_deploy_attempted=$false}
+    }
+    Write-TsfKernelJson $packet ([string]$plan.staging_artifacts.preservation_packet)
+    $records.Add((New-TsfRuntimeArtifactRecord -LogicalType 'preservation_packet' -Path ([string]$plan.staging_artifacts.preservation_packet) -PacketDirectory $plan.staging_directory -EvidenceClassification 'KERNEL_OBSERVED' -Producer 'canonical_preservation_writer'))|Out-Null
+    $manifest=New-TsfRuntimeStorageManifest -Plan $plan -MissionContentHash $missionHash -PolicyFingerprint $policyFingerprint -Repository $repo -Branch $(if($git.can_capture){[string]$git.branch}else{''}) -Worktree $repo -TranslatorVersion $translatorVersion -AdapterVersion $adapterVersion -Artifacts @($records)
+    $manifestHash=Write-TsfRuntimeStorageManifest -Manifest $manifest -Path ([string]$plan.staging_artifacts.manifest) -PacketDirectory $plan.staging_directory
+    if ($TestFault -eq 'FINALIZE') { throw 'Simulated compact preservation finalization failure.' }
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $plan.directory) | Out-Null
+    Move-Item -LiteralPath $plan.staging_directory -Destination $plan.directory
+    $descriptor=Get-TsfPreservationPacketDescriptor -PacketPath ([string]$plan.artifacts.preservation_packet) -ExpectedMissionId ([string]$mission.mission_id) -ExpectedMissionRevision $revision
+    return [pscustomobject]@{schema_version='tsf_compact_preservation_result_v1';generated_at=[string]$manifest.created_at;mission_id=[string]$mission.mission_id;run_id=$RunId;packet_directory=[string]$plan.directory;packet_file=[string]$plan.artifacts.preservation_packet;manifest_path=[string]$plan.artifacts.manifest;manifest_sha256=$manifestHash;final_decision=$finalDecision;storage_plan=$plan;artifacts_preserved=@($records);idempotent_replay=$false}
 }

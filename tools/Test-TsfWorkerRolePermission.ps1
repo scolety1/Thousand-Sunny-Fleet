@@ -8,6 +8,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$fleetRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $fleetRoot "tools\codex-fleet-enforcement-kernel.ps1")
 
 function Read-TsfRoleJson {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -43,13 +45,8 @@ function Get-TsfRoleFullPath {
         [Parameter(Mandatory = $true)][string]$Path,
         [string]$BasePath = ""
     )
-    if ([System.IO.Path]::IsPathRooted($Path)) {
-        return [System.IO.Path]::GetFullPath($Path)
-    }
-    if ([string]::IsNullOrWhiteSpace($BasePath)) {
-        $BasePath = (Get-Location).Path
-    }
-    return [System.IO.Path]::GetFullPath((Join-Path $BasePath $Path))
+    if ([string]::IsNullOrWhiteSpace($BasePath)) { $BasePath = (Get-Location).Path }
+    return Get-TsfKernelFullPath -Path $Path -BasePath $BasePath
 }
 
 function Test-TsfRolePathInside {
@@ -57,25 +54,12 @@ function Test-TsfRolePathInside {
         [Parameter(Mandatory = $true)][string]$ChildPath,
         [Parameter(Mandatory = $true)][string]$ParentPath
     )
-    $child = [System.IO.Path]::GetFullPath($ChildPath)
-    $parent = [System.IO.Path]::GetFullPath($ParentPath)
-    $trimChars = [char[]]@('\', '/')
-    $childTrimmed = $child.TrimEnd($trimChars)
-    $parentTrimmed = $parent.TrimEnd($trimChars)
-    if ([string]::Equals($childTrimmed, $parentTrimmed, [System.StringComparison]::OrdinalIgnoreCase)) {
-        return $true
-    }
-    return $child.StartsWith(($parentTrimmed + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase)
+    return Test-TsfKernelPathInside -ChildPath $ChildPath -ParentPath $ParentPath
 }
 
 function Test-TsfRolePathTokenSafe {
     param([string]$Path)
-    $value = ([string]$Path).Trim()
-    if ([string]::IsNullOrWhiteSpace($value)) { return $false }
-    if ($value -in @("*", ".", "\", "/", "all", "ALL")) { return $false }
-    if ($value -match "(^|[\\/])\.\.([\\/]|$)") { return $false }
-    if ($value -match "[\x00-\x1F\x7F]") { return $false }
-    return $true
+    return Test-TsfKernelPathTokenSafe -Path $Path
 }
 
 $draft = Read-TsfRoleJson -Path $MissionDraftPath
@@ -171,6 +155,12 @@ foreach ($path in $requestedPaths) {
         }
     }
 }
+foreach ($path in $requestedPaths | Where-Object { ![IO.Path]::IsPathRooted([string]$_) }) {
+    if (!(Test-TsfKernelPathContained -RelativePath ([string]$path) -RepositoryRoot $repoPath -AllowedScopes @([string]$path))) {
+        Add-TsfRoleCheck -Checks $checks -Name "path.canonical_containment" -Status "FAIL" -Message "Requested path fails canonical kernel containment." -Evidence $path
+        $blockedReasons.Add("Requested path fails canonical containment: $path") | Out-Null
+    }
+}
 if (($checks | Where-Object { $_.name -eq "path.token_safe" -and $_.status -eq "FAIL" }).Count -eq 0) {
     Add-TsfRoleCheck -Checks $checks -Name "path.token_safe" -Status "PASS" -Message "Requested read/write path tokens are bounded."
 }
@@ -194,7 +184,8 @@ if ($null -ne $profile) {
     } else {
         Add-TsfRoleCheck -Checks $checks -Name "product_repo.blocked_by_default" -Status "PASS" -Message "Role profile blocks product repo access."
     }
-    if ($null -ne $extension -and @($extension.sibling_lane_ids).Count -gt 0 -and -not [bool]$profile.may_spawn_workers) {
+    $siblingLaneCount = if ($null -ne $extension -and $extension.PSObject.Properties.Name -contains 'sibling_lane_ids') { @(Get-TsfRoleArray $extension.sibling_lane_ids).Count } else { 0 }
+    if ($siblingLaneCount -gt 0 -and -not [bool]$profile.may_spawn_workers) {
         Add-TsfRoleCheck -Checks $checks -Name "spawn_workers.allowed" -Status "FAIL" -Message "Role cannot spawn or coordinate sibling workers." -Evidence $roleId
         $blockedReasons.Add("Role cannot spawn or coordinate sibling workers: $roleId") | Out-Null
     } else {

@@ -1,0 +1,5 @@
+{"timestamp":"2026-07-11T05:00:28.464387Z","level":"WARN","fields":{"message":"ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/"},"target":"codex_core_skills::loader"}
+{"timestamp":"2026-07-11T05:00:28.464441Z","level":"WARN","fields":{"message":"ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/"},"target":"codex_core_skills::loader"}
+{"timestamp":"2026-07-11T05:00:33.431949Z","level":"WARN","fields":{"message":"Failed to create shell snapshot for powershell: Shell snapshot not supported yet for PowerShell"},"target":"codex_core::shell_snapshot"}
+{"timestamp":"2026-07-11T05:00:33.596793Z","level":"WARN","fields":{"message":"ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/"},"target":"codex_core_skills::loader"}
+{"timestamp":"2026-07-11T05:00:33.596842Z","level":"WARN","fields":{"message":"ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/"},"target":"codex_core_skills::loader"}

@@ -1,0 +1,148 @@
+﻿{
+    "schema_version":  "tsf_result_envelope_v1",
+    "result_id":  "canonical-result-synthetic-tsf-workspace-appserver-0001-1",
+    "mission_id":  "synthetic-tsf-workspace-appserver-0001",
+    "mission_revision":  1,
+    "mission_content_hash":  "b6a1aafc7801d8991b4417ed8ef27481225ac9cce5d802f50d39521f34055384",
+    "parent_mission_id":  null,
+    "policy_fingerprint":  "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
+    "surface_used":  "CODEX_APP_SERVER",
+    "surface_task_identity":  "019f4f55-a0c7-7411-b08a-f3395e336958",
+    "actual_model":  "gpt-5.6-terra",
+    "actual_reasoning_effort":  "UNKNOWN",
+    "model_assurance_level":  "ADAPTER_VERIFIED",
+    "effort_evidence":  {
+                            "normalization_vocabulary":  "tsf_canonical_effort_v1",
+                            "mission_requested_effort":  "MEDIUM",
+                            "canonical_resolved_effort":  "MEDIUM",
+                            "thread_default_effort":  "ultra",
+                            "turn_requested_effort":  "medium",
+                            "effective_effort":  "UNKNOWN",
+                            "effective_effort_raw":  null,
+                            "effective_effort_source":  "NOT_EXPOSED",
+                            "effort_assurance":  "RECOMMENDED_ONLY",
+                            "required_effort_assurance":  "RECOMMENDED_ONLY",
+                            "turn_request_acknowledged":  true,
+                            "native_reroute_or_override_events":  [
+
+                                                                  ],
+                            "effort_conflicts":  [
+                                                     "THREAD_DEFAULT_DIFFERS_FROM_TURN_REQUEST"
+                                                 ],
+                            "effort_admission_effect":  "ADMITTED_WITH_CAVEATS"
+                        },
+    "usage_evidence":  {
+                           "status":  "OBSERVED",
+                           "evidence_classification":  "NATIVE_OBSERVED",
+                           "source_method":  "thread/tokenUsage/updated",
+                           "selected_sequence":  119,
+                           "raw_payload_sha256":  "f29f7470826ca04e003b992bcae0438caf5c7f93b17c3cdc495fa490dd5f177a",
+                           "event_count":  3,
+                           "unique_event_count":  3,
+                           "total_tokens":  55459,
+                           "input_tokens":  55151,
+                           "cached_input_tokens":  45824,
+                           "output_tokens":  308,
+                           "reasoning_output_tokens":  31,
+                           "model_context_window":  353400
+                       },
+    "actual_repository":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+    "actual_branch_worktree":  {
+                                   "branch":  "master",
+                                   "worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo"
+                               },
+    "git_facts":  {
+                      "starting_head":  "9771a1f8e9c3ee0346324ea90a24576c04ad82a5",
+                      "ending_head":  "9771a1f8e9c3ee0346324ea90a24576c04ad82a5",
+                      "base_head":  "9771a1f8e9c3ee0346324ea90a24576c04ad82a5",
+                      "dirty_before":  null,
+                      "dirty_after":  true
+                  },
+    "files_inspected":  [
+
+                        ],
+    "files_changed":  [
+                          "output/result.txt"
+                      ],
+    "major_actions":  [
+                          "Bound foreground Codex app-server turn completed."
+                      ],
+    "network_activity":  {
+                             "status":  "ADAPTER_VERIFIED",
+                             "used":  false,
+                             "destinations":  [
+
+                                              ],
+                             "control_plane_service_network_policy":  "CODEX_SERVICE_ONLY",
+                             "worker_tool_network_policy":  "DISABLED",
+                             "codex_service_connection_used":  true,
+                             "direct_openai_api_called_by_tsf":  false,
+                             "external_api_called":  false,
+                             "worker_network_used":  false
+                         },
+    "artifacts":  [
+                      {
+                          "path":  "output/result.txt",
+                          "sha256":  "582e3e7d854fa8970d2b9949f83224602ec72a59ce4b22712250004c4aa1c5ad",
+                          "exists":  true,
+                          "evidence_classification":  "FILESYSTEM_OBSERVED"
+                      }
+                  ],
+    "tests":  [
+                  {
+                      "test_id":  "app-server-automatic-round-trip",
+                      "status":  "PASS",
+                      "observed":  "Bound app-server automatic round trip",
+                      "evidence":  "763106fef4ee20ba98e07ef1f4b2c3aff26def9a6b228173487c8c0e283f8d96",
+                      "evidence_classification":  "KERNEL_OBSERVED"
+                  }
+              ],
+    "verifier_evidence":  [
+                              {
+                                  "verifier_id":  "canonical-kernel-postrun",
+                                  "verifier_role":  "verifier_worker",
+                                  "independence":  "SEPARATE_ROLE",
+                                  "passed":  true,
+                                  "evidence":  "c78ed41521787a027522967e22b4fd6f06d5f66d6dd4833d9100ef27a740c5ee",
+                                  "evidence_classification":  "VERIFIER_OBSERVED"
+                              }
+                          ],
+    "approval_use":  [
+
+                     ],
+    "preservation_evidence":  {
+                                  "packet_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\kz7bble64goja5eh4cs3td4acdcmq6z4\\6zwiemfzu52gtqq6uv7ju7wteibspjx4\\pp.json",
+                                  "packet_sha256":  "93f87c1cbab1c177ced8fa72c5616bcb96118ac8e350da4b72a3bf02c94b7f87",
+                                  "evidence_classification":  "KERNEL_OBSERVED"
+                              },
+    "evidence_bindings":  {
+                              "mapper_version":  "tsf_runtime_evidence_to_result_v1",
+                              "runtime_evidence_sha256":  "a54f8bcdf401b37c326ea5a461dd1a284e0e08d0ffd167af3bdd523ab89b6993",
+                              "repository":  "FILESYSTEM_OBSERVED",
+                              "git":  "KERNEL_OBSERVED",
+                              "model":  "ADAPTER_OBSERVED",
+                              "effort":  "UNVERIFIED",
+                              "usage":  "NATIVE_OBSERVED",
+                              "files":  "FILESYSTEM_OBSERVED",
+                              "native":  "NATIVE_OBSERVED",
+                              "adapter":  "ADAPTER_OBSERVED",
+                              "kernel":  "KERNEL_OBSERVED",
+                              "verifier":  "VERIFIER_OBSERVED",
+                              "preservation":  "KERNEL_OBSERVED"
+                          },
+    "deviations_from_mission":  [
+
+                                ],
+    "uncertainty":  [
+                        "Stable app-server protocol did not expose an authoritative effective turn effort."
+                    ],
+    "security_or_scope_warnings":  [
+                                       "THREAD_DEFAULT_DIFFERS_FROM_TURN_REQUEST"
+                                   ],
+    "proposed_next_action":  "Review canonical admission receipt.",
+    "authority_statement":  "Observed evidence only; grants no approval, merge, or production authority.",
+    "grants_approval":  false,
+    "grants_merge_authority":  false,
+    "grants_production_authority":  false,
+    "created_at":  "2026-07-11T04:01:04.8446333+00:00"
+}

@@ -1,0 +1,12 @@
+item,status,reason
+workspace_write_vertical_slice,EXECUTED_GREEN,Read-only gate passed and the controlled workspace-write mission completed through admission
+question_relay,DEFERRED,Automatic stable-method round trip completed without an interactive question
+native_approval_relay,NOT_TESTED,Neither synthetic mission required approval or emitted a native approval request
+real_approval_consumption,DEFERRED,Runtime intentionally fails approval-requiring missions closed
+work_integration,DEFERRED,Explicitly outside this mission
+plugin_or_mcp_integration,DEFERRED,Explicitly outside this mission
+direct_external_api,NOT_TESTED_PROHIBITED,TSF made no direct API call; only the existing Codex service connection was used
+worker_tool_network,DISABLED_AND_UNUSED,Worker sandbox policy disabled tool network in both live turns
+durable_result_generation,EXECUTED_GREEN,Both compact packets contain manifest-bound dr.json
+admission_and_final_queue_transition,EXECUTED_GREEN,Both missions reached complete_ready_for_gate with mandatory receipts
+live_production_mission,DEFERRED,Only approved synthetic fixtures were in scope

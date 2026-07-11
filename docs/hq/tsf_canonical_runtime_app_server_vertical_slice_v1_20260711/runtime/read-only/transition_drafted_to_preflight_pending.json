@@ -1,0 +1,16 @@
+﻿{
+    "schema_version":  "mission_queue_transition_result_v1",
+    "verdict":  "GREEN",
+    "from_state":  "drafted",
+    "to_state":  "preflight_pending",
+    "mission_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-durable-contract-v1-20260710\\.codex-local\\fixtures\\canonical-app-server-vertical-slice-v1\\read-only\\queue\\drafted\\synthetic-tsf-readonly-appserver-0001.json",
+    "destination_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-durable-contract-v1-20260710\\.codex-local\\fixtures\\canonical-app-server-vertical-slice-v1\\read-only\\queue\\preflight_pending\\synthetic-tsf-readonly-appserver-0001.json",
+    "dry_run":  false,
+    "moved":  true,
+    "blocked_reasons":  [
+
+                        ],
+    "background_runner_started":  false,
+    "push_performed":  false,
+    "merge_performed":  false
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": "tsf_final_static_authority_correction_validation_v1",
+  "state": "READY_FOR_LOCAL_COMMIT_GATE",
+  "implementation_parent": "33f996c67079d18b9bbd132b606b371591ea6b67",
+  "final_commit_observation": "RECOMPUTE_FROM_GIT_DURING_INDEPENDENT_AUDIT",
+  "clean_committed_policy_fingerprint_observation": "RECOMPUTE_FROM_COMMITTED_BLOBS_DURING_INDEPENDENT_AUDIT",
+  "service_connected_task_run": false,
+  "network_used": false,
+  "producer_registry_prospective": true,
+  "cryptographic_producer_attestation_claimed": false,
+  "canonical_production_queue_root": "fleet/missions",
+  "complete_runtime_path_count": 93,
+  "maximum_planned_path_length": 222,
+  "maximum_planned_path_logical_type": "queue.kernel_state.s1",
+  "publication_evidence": {
+    "index_rows": 36,
+    "read_only_mission": "synthetic-tsf-readonly-appserver-correction-0001",
+    "read_only_run": "canonical-result-synthetic-tsf-readonly-appserver-correction-0001-1",
+    "read_only_manifest_sha256": "9a557242a1e144a7244d9b7f4c5eb8f6bf54c3635db6845a072f780a3d6e125a",
+    "workspace_write_mission": "synthetic-tsf-workspace-appserver-correction-0001",
+    "workspace_write_run": "canonical-result-synthetic-tsf-workspace-appserver-correction-0001-1",
+    "workspace_write_manifest_sha256": "f2a5132e2515e048ba3b6f3d512eac172117d9f980dd54551c1b0fca1091e837",
+    "historical_producer_registry_fabricated": false
+  },
+  "plugin_milestone": "DEFERRED_UNTIL_PUBLICATION_AND_MERGE",
+  "plugins_policy_authority": false
+}

@@ -1,0 +1,146 @@
+﻿{
+    "schema_version":  "tsf_runtime_artifact_manifest_v1",
+    "created_at":  "2026-07-11T05:00:19.4615425+00:00",
+    "mission_id":  "synthetic-tsf-readonly-appserver-correction-0001",
+    "mission_revision":  1,
+    "run_id":  "canonical-result-synthetic-tsf-readonly-appserver-correction-0001-1",
+    "mission_content_hash":  "1b6465730b787c823746877944e8466762e37951c5236572f0164fbf2e28c438",
+    "policy_fingerprint":  "c5fd5eaa3ab7701e6e6a7b4e6ec6675f5859e34c96500a1f0469564df7c1b652",
+    "repository":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711",
+    "branch":  "work/windows-safe-runtime-artifact-addressing-v1-20260711",
+    "worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711",
+    "translator_version":  "tsf_durable_to_operational_v1",
+    "adapter_version":  "tsf_codex_app_server_adapter_result_v1",
+    "mission_identity_sha256":  "cab2ecd2dabd53be330a0fed34d159303650e6d24d5b4f91d0a4680b2de7631e",
+    "mission_key":  "zkzozuw2xvj34mykb7wtjukzga3fbzws",
+    "run_identity_sha256":  "ac139ab7eb8318c2f1a988fdb29e61de46f4cb71bcfcf2338ca890c6ec6b4673",
+    "run_key":  "vqjzvn7lqmmmf4njrd63fhtb3zdpjs3r",
+    "artifacts":  [
+                      {
+                          "logical_type":  "mission",
+                          "path":  "m.json",
+                          "sha256":  "4bf1c366f47be34da27a113c7696fd4087a1b39a5ce4bea501939f17f9325307",
+                          "size":  14393,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "canonical_mission_translator",
+                          "created_at":  "2026-07-11T05:00:19.3303961+00:00"
+                      },
+                      {
+                          "logical_type":  "preflight",
+                          "path":  "pf.json",
+                          "sha256":  "9236946f26b6cdbed487fd79742257d18cfe03b04b6f5e64c089a9f95c337435",
+                          "size":  26188,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "enforcement_kernel",
+                          "created_at":  "2026-07-11T05:00:19.3353951+00:00"
+                      },
+                      {
+                          "logical_type":  "role_preflight",
+                          "path":  "rp.json",
+                          "sha256":  "6a6b045a5ac8f553c6cf5dc71ae5a782ce4cfcd81e9664e787bf4a03e3acefcf",
+                          "size":  4227,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "role_permission_preflight",
+                          "created_at":  "2026-07-11T05:00:19.3379616+00:00"
+                      },
+                      {
+                          "logical_type":  "worker_instruction",
+                          "path":  "wi.json",
+                          "sha256":  "a6b1052a7260e46e25abff90ad4a2d58cf5bd106cb1f02d15cfa286a060cc78b",
+                          "size":  9191,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "enforcement_kernel",
+                          "created_at":  "2026-07-11T05:00:19.3399664+00:00"
+                      },
+                      {
+                          "logical_type":  "worker_result",
+                          "path":  "wr.json",
+                          "sha256":  "cca931efe998bd86ba0bdc75c02a9ad6181c50abd7cd0e2534fe656c223bf0a4",
+                          "size":  1475,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "mission_lifecycle",
+                          "created_at":  "2026-07-11T05:00:19.3428641+00:00"
+                      },
+                      {
+                          "logical_type":  "adapter_result",
+                          "path":  "ar.json",
+                          "sha256":  "f6148b2ddbd990c078afec741df743403f7c6e465ae29545dfe864060a67103d",
+                          "size":  4298,
+                          "evidence_classification":  "ADAPTER_OBSERVED",
+                          "producer":  "codex_app_server_adapter",
+                          "created_at":  "2026-07-11T05:00:19.3448693+00:00"
+                      },
+                      {
+                          "logical_type":  "verifier_result",
+                          "path":  "vr.json",
+                          "sha256":  "34b9f66b57baf1d0f2eec4fa6ff763b7aaeba38ae561efdf9d1a6d6252cded54",
+                          "size":  3059,
+                          "evidence_classification":  "VERIFIER_OBSERVED",
+                          "producer":  "enforcement_kernel_verifier",
+                          "created_at":  "2026-07-11T05:00:19.3478683+00:00"
+                      },
+                      {
+                          "logical_type":  "event_journal",
+                          "path":  "ej.jsonl",
+                          "sha256":  "a30e3480a037be67b45ed3d644261ea001febcaac7ebf6f0b8bab91ec3294cc2",
+                          "size":  21709,
+                          "evidence_classification":  "NATIVE_OBSERVED",
+                          "producer":  "codex_app_server_adapter",
+                          "created_at":  "2026-07-11T05:00:19.3498699+00:00"
+                      },
+                      {
+                          "logical_type":  "queue_document",
+                          "path":  "qd.json",
+                          "sha256":  "2b4104610f21dd05ee1e2e4fd7dde2d7d5c06d81686227c03ab839baea00a6a5",
+                          "size":  23822,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "canonical_queue_executor",
+                          "created_at":  "2026-07-11T05:00:19.3539489+00:00"
+                      },
+                      {
+                          "logical_type":  "prompt",
+                          "path":  "q.txt",
+                          "sha256":  "833b66ce32cb91527038b8207668cd55c8592bf4e9ee5bdf7955a78a79b6e83d",
+                          "size":  599,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "mission_lifecycle",
+                          "created_at":  "2026-07-11T05:00:19.3579497+00:00"
+                      },
+                      {
+                          "logical_type":  "stderr",
+                          "path":  "se.log",
+                          "sha256":  "8615726a10f76184c6bf378c8e689de95814fc6142a455f82fc25b28a0938984",
+                          "size":  1032,
+                          "evidence_classification":  "UNVERIFIED",
+                          "producer":  "codex_app_server_diagnostic",
+                          "created_at":  "2026-07-11T05:00:19.3609499+00:00"
+                      },
+                      {
+                          "logical_type":  "usage",
+                          "path":  "u.json",
+                          "sha256":  "bc70a308f0a589628f3f78cba022b47124effe605e570d5945f8cfc2cf00adaa",
+                          "size":  516,
+                          "evidence_classification":  "NATIVE_OBSERVED",
+                          "producer":  "codex_app_server_adapter",
+                          "created_at":  "2026-07-11T05:00:19.3712430+00:00"
+                      },
+                      {
+                          "logical_type":  "preservation_packet",
+                          "path":  "pp.json",
+                          "sha256":  "67118e98628728cd3d6ce736bf548437ade356fcde3f4fa09e3718c598a4b725",
+                          "size":  2836,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "canonical_preservation_writer",
+                          "created_at":  "2026-07-11T05:00:19.4585423+00:00"
+                      },
+                      {
+                          "logical_type":  "durable_result",
+                          "path":  "dr.json",
+                          "sha256":  "c32145155d9ef21a364035b7b7df3b4274ab8e39f12a3bf256704217f5e976ca",
+                          "size":  8284,
+                          "evidence_classification":  "KERNEL_OBSERVED",
+                          "producer":  "durable_result_mapper",
+                          "created_at":  "2026-07-11T05:00:20.5212902+00:00"
+                      }
+                  ]
+}

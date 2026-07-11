@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/canonical-recovery-envelope.schema.v1.json",
+  "title": "TSF Canonical Recovery Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "created_at", "mission_id", "mission_revision", "mission_content_hash",
+    "policy_fingerprint", "queue_document_sha256", "translator_version", "result_id", "result_path",
+    "result_sha256", "preservation_packet_path", "preservation_packet_sha256", "admission_receipt_path",
+    "canonical_admission_receipt_path", "admission_receipt_sha256", "transaction_path", "transaction_sha256",
+    "transaction_identity_sha256", "transaction_content_sha256", "admission_status",
+    "admission_decision_sha256", "queue_authority_identity_sha256", "expected_source_state",
+    "expected_destination_state", "actual_destination_queue_record_path", "rollback_destination_path",
+    "recovery_identity_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_canonical_recovery_envelope_v1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "mission_id": { "type": "string", "minLength": 1 },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "mission_content_hash": { "$ref": "#/$defs/sha256" },
+    "policy_fingerprint": { "$ref": "#/$defs/sha256" },
+    "queue_document_sha256": { "$ref": "#/$defs/sha256" },
+    "translator_version": { "const": "tsf_durable_to_operational_v1" },
+    "result_id": { "type": "string", "minLength": 1 },
+    "result_path": { "$ref": "#/$defs/path" },
+    "result_sha256": { "$ref": "#/$defs/sha256" },
+    "preservation_packet_path": { "$ref": "#/$defs/path" },
+    "preservation_packet_sha256": { "$ref": "#/$defs/sha256" },
+    "admission_receipt_path": { "$ref": "#/$defs/path" },
+    "canonical_admission_receipt_path": { "$ref": "#/$defs/path" },
+    "admission_receipt_sha256": { "$ref": "#/$defs/sha256" },
+    "transaction_path": { "$ref": "#/$defs/path" },
+    "transaction_sha256": { "$ref": "#/$defs/sha256" },
+    "transaction_identity_sha256": { "$ref": "#/$defs/sha256" },
+    "transaction_content_sha256": { "$ref": "#/$defs/sha256" },
+    "admission_status": { "enum": ["ADMITTED", "ADMITTED_WITH_CAVEATS", "REVIEW_REQUIRED", "REJECTED_OUT_OF_SCOPE", "REJECTED_POLICY_MISMATCH", "REJECTED_INVALID_EVIDENCE", "UNTRUSTED_NOT_TSF_GOVERNED", "TIM_REQUIRED"] },
+    "admission_decision_sha256": { "$ref": "#/$defs/sha256" },
+    "queue_authority_identity_sha256": { "$ref": "#/$defs/sha256" },
+    "expected_source_state": { "type": "string", "minLength": 1 },
+    "expected_destination_state": { "type": "string", "minLength": 1 },
+    "actual_destination_queue_record_path": { "$ref": "#/$defs/path" },
+    "rollback_destination_path": { "$ref": "#/$defs/path" },
+    "recovery_identity_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "path": { "type": "string", "minLength": 1 }
+  }
+}

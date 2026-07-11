@@ -1,0 +1,8 @@
+﻿TSF mission id: synthetic-tsf-workspace-appserver-correction-0001
+Execute only this synthetic task:
+Create output/result.txt with exactly: TSF workspace-write round trip complete. Do not modify any other file.
+
+Worker shell and tool network access is disabled. Do not browse or call any external service.
+Do not access secrets, authentication files, NWR, TSF-NWR, normal NWR packets, PrivateLens, product repositories, or unrelated repositories.
+Do not install packages, push, merge, deploy, start servers, listeners, daemons, background jobs, or scheduled work.
+Use only the explicitly allowed read/write paths in the bound mission.

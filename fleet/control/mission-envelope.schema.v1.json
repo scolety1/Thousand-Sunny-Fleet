@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/mission-envelope.schema.v1.json",
+  "title": "TSF Durable Mission Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "mission_id", "mission_revision", "parent_mission_id", "project_id", "original_request",
+    "normalized_goal", "mission_type", "worker_role", "recommended_surface", "model_policy_alias",
+    "resolved_model", "reasoning_effort", "model_selection_assurance", "permission_mode", "network_policy",
+    "control_plane_service_network_policy", "worker_tool_network_policy",
+    "repository_allowlist", "forbidden_repositories", "source_allowlist", "forbidden_sources",
+    "branch_worktree_policy", "allowed_reads", "allowed_writes", "forbidden_actions", "completion_criteria",
+    "required_tests", "required_artifacts", "required_verifier_independence", "stop_conditions",
+    "approval_references", "policy", "created_at", "expires_at", "stale_state_behavior",
+    "required_result_envelope_version"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_mission_envelope_v1" },
+    "mission_id": { "type": "string", "minLength": 8, "maxLength": 160, "pattern": "^[A-Za-z0-9._:-]+$" },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "parent_mission_id": { "type": ["string", "null"] },
+    "project_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "original_request": { "type": "string", "minLength": 1 },
+    "normalized_goal": { "type": "string", "minLength": 1 },
+    "mission_type": { "type": "string", "minLength": 1 },
+    "worker_role": { "type": "string", "minLength": 1 },
+    "recommended_surface": { "type": "string", "minLength": 1 },
+    "model_policy_alias": { "enum": ["FAST", "BALANCED", "DEEP", "MAX_SINGLE", "PARALLEL"] },
+    "resolved_model": { "type": ["string", "null"] },
+    "reasoning_effort": { "enum": ["UNKNOWN", "LIGHT", "MEDIUM", "HIGH", "EXTRA_HIGH", "MAX", "ULTRA"] },
+    "model_selection_assurance": { "enum": ["RECOMMENDED_ONLY", "USER_CONFIRMED", "ADAPTER_VERIFIED", "TECHNICALLY_ENFORCED"] },
+    "permission_mode": { "enum": ["READ_ONLY", "WORKSPACE_WRITE", "APPROVAL_REQUIRED", "EXACT_ELEVATED_ACTION", "CUSTOM"] },
+    "network_policy": { "enum": ["PROHIBITED", "PUBLIC_READ_ONLY", "ALLOWLISTED", "APPROVAL_REQUIRED"] },
+    "control_plane_service_network_policy": { "enum": ["NONE", "CODEX_SERVICE_ONLY"] },
+    "worker_tool_network_policy": { "const": "DISABLED" },
+    "repository_allowlist": { "$ref": "#/$defs/nonEmptyStringArray" },
+    "forbidden_repositories": { "$ref": "#/$defs/stringArray" },
+    "source_allowlist": { "$ref": "#/$defs/stringArray" },
+    "forbidden_sources": { "$ref": "#/$defs/stringArray" },
+    "branch_worktree_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["branch_required", "worktree_required", "expected_branch", "expected_worktree", "starting_head", "unexpected_advance_behavior"],
+      "properties": {
+        "branch_required": { "type": "boolean" }, "worktree_required": { "type": "boolean" },
+        "expected_branch": { "type": ["string", "null"] }, "expected_worktree": { "type": ["string", "null"] },
+        "starting_head": { "type": ["string", "null"] },
+        "unexpected_advance_behavior": { "enum": ["REVIEW_REQUIRED", "REJECT"] }
+      }
+    },
+    "allowed_reads": { "$ref": "#/$defs/nonEmptyStringArray" },
+    "allowed_writes": { "$ref": "#/$defs/stringArray" },
+    "forbidden_actions": { "$ref": "#/$defs/nonEmptyStringArray" },
+    "completion_criteria": { "$ref": "#/$defs/nonEmptyStringArray" },
+    "required_tests": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["test_id", "required"],
+        "properties": { "test_id": { "type": "string", "minLength": 1 }, "required": { "type": "boolean" }, "command": { "type": ["string", "null"] } }
+      }
+    },
+    "required_artifacts": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["path", "hash_required"],
+        "properties": { "path": { "type": "string", "minLength": 1 }, "hash_required": { "type": "boolean" } }
+      }
+    },
+    "required_verifier_independence": { "enum": ["NONE", "SEPARATE_TASK", "SEPARATE_ROLE", "INDEPENDENT_HUMAN"] },
+    "stop_conditions": { "$ref": "#/$defs/nonEmptyStringArray" },
+    "approval_references": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["approval_id", "exact_action"],
+        "properties": { "approval_id": { "type": "string", "minLength": 1 }, "exact_action": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policy_commit", "manifest_version", "fingerprint", "mission_schema_version", "expected_result_schema_version"],
+      "properties": {
+        "policy_commit": { "type": "string", "minLength": 7 },
+        "manifest_version": { "const": "tsf_policy_manifest_v1" },
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "mission_schema_version": { "const": "tsf_mission_envelope_v1" },
+        "expected_result_schema_version": { "const": "tsf_result_envelope_v1" }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": ["string", "null"], "format": "date-time" },
+    "stale_state_behavior": { "enum": ["REVIEW_REQUIRED", "TIM_REQUIRED", "REJECT"] },
+    "required_result_envelope_version": { "const": "tsf_result_envelope_v1" }
+  },
+  "$defs": {
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "nonEmptyStringArray": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+  }
+}

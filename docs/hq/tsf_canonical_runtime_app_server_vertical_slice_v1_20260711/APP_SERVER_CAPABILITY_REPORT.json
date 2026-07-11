@@ -1,0 +1,16 @@
+﻿{
+    "schema_version":  "tsf_app_server_capability_report_v1",
+    "codex_version":  "0.144.1",
+    "transport":  "stdio://",
+    "experimental_api":  false,
+    "stable_methods":  [
+                           "initialize",
+                           "model/list",
+                           "thread/start",
+                           "turn/start"
+                       ],
+    "read_only_attempted":  true,
+    "read_only_green":  true,
+    "workspace_write_attempted":  true,
+    "question_relay_status":  "QUESTION_RELAY_DEFERRED_AFTER_AUTOMATIC_ROUND_TRIP"
+}

@@ -44,8 +44,15 @@ New-Item -ItemType Directory -Force -Path $outRoot | Out-Null
 
 $roleFixtureRoot = "tests/fixtures/fleet/project-main-bot/role_aware_lifecycle"
 $builderFixture = Join-Path $roleFixtureRoot "builder_worker.mission-draft.json"
-$builderLifecyclePath = Join-Path $outRoot "builder.lifecycle.json"
-& ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderFixture -OutDirectory (Join-Path $outRoot "builder-lifecycle") -OutFile $builderLifecyclePath -DryRun | Out-Null
+$builderRuntimeFixture = Join-Path $outRoot "builder_worker.runtime.mission-draft.json"
+$builderRuntimeDraft = Get-Content -LiteralPath $builderFixture -Raw | ConvertFrom-Json
+$builderRuntimeDraft.mission_packet.repo_path = $fleetRoot
+Write-Json -Path $builderRuntimeFixture -Value $builderRuntimeDraft
+$builderRunId=Get-TsfRuntimeSha256Text "$( [string]$builderRuntimeDraft.mission_packet.mission_id )|1|$((Get-FileHash $builderRuntimeFixture -Algorithm SHA256).Hash.ToLowerInvariant())";$builderPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) ([string]$builderRuntimeDraft.mission_packet.mission_id) 1 $builderRunId -Layout lifecycle_control
+$canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+foreach($layout in @('queue_control','lifecycle_control','adapter','preservation')){$resetPlan=New-TsfRuntimeStoragePlan $canonicalRuntimeRoot ([string]$builderRuntimeDraft.mission_packet.mission_id) 1 $builderRunId -Layout $layout;foreach($path in @($resetPlan.directory,$resetPlan.staging_directory)|Select-Object -Unique){if(Test-Path $path){if(!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $path) $canonicalRuntimeRoot)){throw 'Unsafe role lifecycle test runtime reset.'};Remove-Item $path -Recurse -Force}}}
+$builderLifecyclePath = [string]$builderPlan.artifacts.lifecycle_result
+& ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderRuntimeFixture -OutDirectory $builderPlan.directory -OutFile $builderLifecyclePath -DryRun | Out-Null
 $builderLifecycle = Read-Json $builderLifecyclePath
 Assert-True -Condition ([bool]$builderLifecycle.preflight_approved) -Message "safe Builder dry-run mission passes kernel preflight"
 Assert-True -Condition ([bool]$builderLifecycle.role_preflight_approved) -Message "safe Builder dry-run mission passes role preflight"

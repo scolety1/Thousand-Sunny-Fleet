@@ -1,0 +1,58 @@
+{
+  "schema_version": "tsf_model_routing_alias_policy_v1",
+  "effective_date": "2026-07-10",
+  "architectural_rule": "Missions preserve stable aliases. Product model names are replaceable resolutions, not architectural constants.",
+  "aliases": {
+    "FAST": {
+      "intent": "Clear, repeatable, low-risk work.",
+      "default_reasoning_effort": "LIGHT"
+    },
+    "BALANCED": {
+      "intent": "Normal analysis and bounded implementation.",
+      "default_reasoning_effort": "MEDIUM"
+    },
+    "DEEP": {
+      "intent": "Ambiguous, high-impact, security, or architecture work.",
+      "default_reasoning_effort": "HIGH"
+    },
+    "MAX_SINGLE": {
+      "intent": "Exceptionally difficult work that should remain a single task.",
+      "default_reasoning_effort": "MAX"
+    },
+    "PARALLEL": {
+      "intent": "Genuinely separable complex work with an explicit collision plan.",
+      "default_reasoning_effort": "ULTRA"
+    }
+  },
+  "legacy_alias_map": {
+    "fast_readonly": "FAST",
+    "standard_patch": "BALANCED",
+    "deep_reasoning": "DEEP",
+    "premium_audit": "MAX_SINGLE"
+  },
+  "surface_resolutions": {
+    "CHAT": {
+      "FAST": "gpt-5.6-luna",
+      "BALANCED": "gpt-5.6-terra",
+      "DEEP": "gpt-5.6-sol",
+      "MAX_SINGLE": "gpt-5.6-sol",
+      "PARALLEL": "gpt-5.6-sol"
+    },
+    "WORK": {
+      "FAST": "gpt-5.6-luna",
+      "BALANCED": "gpt-5.6-terra",
+      "DEEP": "gpt-5.6-sol",
+      "MAX_SINGLE": "gpt-5.6-sol",
+      "PARALLEL": "gpt-5.6-sol"
+    },
+    "CODEX": {
+      "FAST": "gpt-5.6-luna",
+      "BALANCED": "gpt-5.6-terra",
+      "DEEP": "gpt-5.6-sol",
+      "MAX_SINGLE": "gpt-5.6-sol",
+      "PARALLEL": "gpt-5.6-sol"
+    }
+  },
+  "selection_assurance_rule": "A resolution is RECOMMENDED_ONLY unless a user confirms it, an adapter observes it, or a launcher technically enforces it.",
+  "replacement_rule": "Update this policy and generate a new policy fingerprint when product names or availability change. Do not change mission schema enums."
+}

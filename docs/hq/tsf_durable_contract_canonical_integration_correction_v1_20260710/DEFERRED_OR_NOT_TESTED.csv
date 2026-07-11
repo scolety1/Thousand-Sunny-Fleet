@@ -1,0 +1,6 @@
+case_id,status,reason
+NATIVE-CODEX-ADAPTER,DEFERRED,"App-server/native adapter work is outside authority."
+WORK-INTEGRATION,DEFERRED,"Work integration is outside authority."
+REAL-APPROVAL-CONSUMPTION,NOT_TESTED,"Only synthetic ledgers are admitted in the bounded suite."
+REAL-MISSION-QUEUE-MUTATION,NOT_TESTED,"Queue tests are scratch-only by design."
+LIVE-NETWORK,NOT_TESTED,"Network and API calls are prohibited."

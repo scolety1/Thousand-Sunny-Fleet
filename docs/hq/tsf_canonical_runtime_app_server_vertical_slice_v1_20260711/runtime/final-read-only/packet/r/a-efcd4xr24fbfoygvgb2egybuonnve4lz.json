@@ -1,0 +1,32 @@
+﻿{
+    "schema_version":  "tsf_admission_decision_v1",
+    "receipt_id":  "admission-efcd4xr24fbfoygvgb2egybu",
+    "result_id":  "canonical-result-synthetic-tsf-readonly-appserver-0001-1",
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "mission_revision":  1,
+    "policy_fingerprint":  "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
+    "preservation_packet_sha256":  "a1c2dad35d4d886db332dd7ea472fcf18a49567b3e66f332104e05813fda1fa0",
+    "receipt_identity_sha256":  "21443e5e3ae1425760d53074436034735b527179d6f239a3c3f875863f37d81b",
+    "admission_decision_sha256":  "14c797f11011f6a2b82c9e196abefd4021713b3e05d704e1293690f5086024d6",
+    "admission_receipt_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\r\\a-efcd4xr24fbfoygvgb2egybuonnve4lz.json",
+    "transaction_receipt_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\r\\t-efcd4xr24fbfoygvgb2egybuonnve4lz.json",
+    "result_sha256":  "e8b2815162ab41dfd764411ac5e81d217154a3f8d9ca24fcd4b6bc43f5717895",
+    "status":  "ADMITTED_WITH_CAVEATS",
+    "reasons":  [
+                    "Observed runtime evidence satisfied the canonical durable mission."
+                ],
+    "caveats":  [
+                    "Effective turn effort was not exposed; the correct explicit turn request is admitted under RECOMMENDED_ONLY assurance.",
+                    "THREAD_DEFAULT_DIFFERS_FROM_TURN_REQUEST"
+                ],
+    "duplicate_submission":  false,
+    "idempotent_replay":  false,
+    "decided_at":  "2026-07-11T04:00:32.4244743+00:00",
+    "queue_state_from":  "postrun_pending",
+    "queue_state_to":  "complete_ready_for_gate",
+    "queue_transition_applied":  true,
+    "queue_transition_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\queue\\complete_ready_for_gate\\synthetic-tsf-readonly-appserver-0001.json",
+    "grants_approval":  false,
+    "grants_merge_authority":  false,
+    "grants_production_authority":  false
+}

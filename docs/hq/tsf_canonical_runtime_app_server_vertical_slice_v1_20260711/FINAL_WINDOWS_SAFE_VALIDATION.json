@@ -1,0 +1,168 @@
+{
+  "schema_version": "tsf_windows_safe_runtime_vertical_slice_validation_v1",
+  "generated_at": "2026-07-11T04:03:14.7425683+00:00",
+  "verdict": "GREEN_TSF_WINDOWS_SAFE_APP_SERVER_VERTICAL_SLICE_READY_FOR_FINAL_AUDIT",
+  "source_preservation": {
+    "named_stash": "tsf-canonical-appserver-pre-windows-path-hardening-20260711",
+    "stash_object": "ff3ed42732b392555084a1699d0817330539b40b",
+    "tracked_patch_sha256": "1ad084b85be1e4dbf9a7600806c2cc4be32098df8773a2acf2f2dd5b8de148f9",
+    "untracked_manifest_sha256": "5a788f914b7de81ac5ec450f4c863034074fb111bab361681dc0a81d5a20d22e",
+    "transfer_summary_sha256": "665f94e97018e0e558e0bf425de271f04163345106165a90e0e5208b1e2e726c",
+    "stash_retained": true
+  },
+  "successor": {
+    "branch": "work/windows-safe-runtime-artifact-addressing-v1-20260711",
+    "worktree": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711",
+    "starting_head": "393ac14b8191d505f684d1f1536f951908465ef3"
+  },
+  "storage": {
+    "layout": ".codex-local/rt/p/<mission-key>/<run-key>",
+    "key_encoding": "base32_lower_no_padding",
+    "key_characters": 32,
+    "effective_security_bits": 160,
+    "full_identity": "SHA-256 retained and collision-checked",
+    "hard_path_limit": 240,
+    "target_path_limit": 225,
+    "maximum_test_path": 224,
+    "maximum_live_path": 219,
+    "legacy_packets": "LEGACY_READ_ONLY"
+  },
+  "prior_failed_runs": [
+    {
+      "failure": "effort evidence conflated thread default with turn request",
+      "disposition": "preserved in original ignored evidence; corrected by distinct raw/normalized fields and fail-closed assurance rules"
+    },
+    {
+      "failure": "descriptive preservation artifact path exceeded Windows budget",
+      "disposition": "preserved in original ignored evidence; corrected systemically by compact manifest-addressed packets"
+    }
+  ],
+  "executed_suites": [
+    {
+      "name": "canonical_vertical_slice_live",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-canonical-runtime-app-server-tests.ps1 -RunLiveReadOnly -RunLiveWorkspaceWrite",
+      "observed_fixture_root_created_at": "2026-07-11T03:59:56.7982230+00:00",
+      "completed_at": "2026-07-11T04:01:07.4635374+00:00",
+      "exit_code": 0,
+      "executed_assertions": 107,
+      "passed_assertions": 107,
+      "failed_assertions": 0,
+      "coverage_sha256": "891ef1f14228fa4fb412811487dc8b9f344abe3ef8ab29d896d61602aa31b48f"
+    },
+    {
+      "name": "durable_contract",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-durable-contract-tests.ps1 -EvidenceRoot .\\.codex-local\\evidence\\windows-safe-durable-record",
+      "started_at": "2026-07-11T04:02:59.9221875+00:00",
+      "completed_at": "2026-07-11T04:03:05.3361145+00:00",
+      "exit_code": 0,
+      "executed_assertions": 33,
+      "output_sha256": "3eaf8d79e62aa7541fa5aec84c2e601c48ab7d65eeb51cf5b28a517ed963c3b5"
+    },
+    {
+      "name": "minimum_kernel",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-minimum-viable-kernel-tests.ps1",
+      "started_at": "2026-07-11T04:03:05.4143341+00:00",
+      "completed_at": "2026-07-11T04:03:07.7988230+00:00",
+      "exit_code": 0,
+      "pass_lines": 36,
+      "output_sha256": "8adabe3c1429b0541782cbf65ad135b40db0c2e8e160cc33bb76e39d0d4e0586"
+    },
+    {
+      "name": "mission_queue",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-mission-queue-tests.ps1",
+      "started_at": "2026-07-11T04:03:07.8089051+00:00",
+      "completed_at": "2026-07-11T04:03:09.6200333+00:00",
+      "exit_code": 0,
+      "pass_lines": 8,
+      "output_sha256": "83e9dafb90adde7614e525a5579e2716594415fa371f8cc1ee4040dbd6058d68"
+    },
+    {
+      "name": "role_lifecycle",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-role-aware-lifecycle-integration-tests.ps1",
+      "started_at": "2026-07-11T04:03:09.6200333+00:00",
+      "completed_at": "2026-07-11T04:03:12.3533029+00:00",
+      "exit_code": 0,
+      "pass_lines": 126,
+      "output_sha256": "25acf37a70bcb7a7732df061429de34ce74753b15e11ae513a85e7332e61cc0e"
+    },
+    {
+      "name": "kernel_v2",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-kernel-v2-tests.ps1",
+      "started_at": "2026-07-11T04:03:12.3560525+00:00",
+      "completed_at": "2026-07-11T04:03:14.7425683+00:00",
+      "exit_code": 0,
+      "pass_lines": 15,
+      "output_sha256": "b585ad58b8d6e52827cc8e78aa60a51bad85ff5efeb6948f3cd94c4b653ff3f7"
+    },
+    {
+      "name": "canonical_static_post_reconciliation",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-tsf-canonical-runtime-app-server-tests.ps1 -EvidenceRoot .\\.codex-local\\evidence\\post-live-static-final",
+      "started_at": "2026-07-11T04:07:50.8488471+00:00",
+      "completed_at": "2026-07-11T04:08:10.2081268+00:00",
+      "exit_code": 0,
+      "executed_assertions": 86,
+      "output_sha256": "fb38272512284e19375ee44c0e58410a3af4a102a9c499874319af05988aad00"
+    },
+    {
+      "name": "minimum_kernel_post_reconciliation",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tests\\run-minimum-viable-kernel-tests.ps1",
+      "started_at": "2026-07-11T04:08:10.2793350+00:00",
+      "completed_at": "2026-07-11T04:08:12.5510634+00:00",
+      "exit_code": 0,
+      "pass_lines": 36,
+      "output_sha256": "8adabe3c1429b0541782cbf65ad135b40db0c2e8e160cc33bb76e39d0d4e0586"
+    }
+  ],
+  "read_only": {
+    "mission_id": "synthetic-tsf-readonly-appserver-0001",
+    "thread_id": "019f4f55-4f06-7873-b688-53cafb7f0e32",
+    "turn_id": "019f4f55-63e4-7621-ab77-1692572d4814",
+    "event_count": 36,
+    "event_journal_sha256": "8c601fc2a0411f4a59bd3f7cd3953631b14d9fe8c0e5438e205e92410f14b51b",
+    "total_tokens": 16691,
+    "manifest_sha256": "bc841f3bd50c96be33c46c17ed7be40936a74474776e6eb3e3959790f3c2c4d0",
+    "preservation_sha256": "a1c2dad35d4d886db332dd7ea472fcf18a49567b3e66f332104e05813fda1fa0",
+    "durable_result_sha256": "e8b2815162ab41dfd764411ac5e81d217154a3f8d9ca24fcd4b6bc43f5717895",
+    "admission_receipt_sha256": "a775fb7806902e19c1e544543d74f5cd78f95e50ad99f763d0b697db6adf4269",
+    "transaction_receipt_sha256": "9f97e4f006151ddf06f88a4c0d47aca7c955d63b439dfad11d1b6f703479b406",
+    "final_queue_state": "complete_ready_for_gate",
+    "child_pid": 34228,
+    "exact_child_orphan_present": false
+  },
+  "workspace_write": {
+    "mission_id": "synthetic-tsf-workspace-appserver-0001",
+    "thread_id": "019f4f55-a0c7-7411-b08a-f3395e336958",
+    "turn_id": "019f4f55-b5d2-7c13-99a8-c1a43f88ccc3",
+    "event_count": 123,
+    "event_journal_sha256": "763106fef4ee20ba98e07ef1f4b2c3aff26def9a6b228173487c8c0e283f8d96",
+    "total_tokens": 55459,
+    "manifest_sha256": "a1ceefaf37d34521df8ab11f717f9ec4fdc47188ae3a5500a585f7dd60497d24",
+    "preservation_sha256": "93f87c1cbab1c177ced8fa72c5616bcb96118ac8e350da4b72a3bf02c94b7f87",
+    "durable_result_sha256": "a31c6ca3e4c328646b734bf48b3c73604787ab0cf8c09737191c0ae44bf033b9",
+    "admission_receipt_sha256": "a339cd69b323bf537cb3cdef317153e72ed43900baaa0cb397f991720e6e2136",
+    "transaction_receipt_sha256": "435e8c6b5e6e627783f91aa0185bbb78224f8fc1d8f3de551cd08660f4fe431a",
+    "fixture_artifact_sha256": "582e3e7d854fa8970d2b9949f83224602ec72a59ce4b22712250004c4aa1c5ad",
+    "final_queue_state": "complete_ready_for_gate",
+    "child_pid": 33644,
+    "exact_child_orphan_present": false
+  },
+  "effort": {
+    "read_only": { "mission_requested": "LIGHT", "canonical_resolved": "LIGHT", "thread_default": "ultra", "turn_requested": "low", "effective": "UNKNOWN", "source": "NOT_EXPOSED", "assurance": "RECOMMENDED_ONLY", "reroute_or_override_events": [], "conflicts": ["THREAD_DEFAULT_DIFFERS_FROM_TURN_REQUEST"], "admission_effect": "ADMITTED_WITH_CAVEATS" },
+    "workspace_write": { "mission_requested": "MEDIUM", "canonical_resolved": "MEDIUM", "thread_default": "ultra", "turn_requested": "medium", "effective": "UNKNOWN", "source": "NOT_EXPOSED", "assurance": "RECOMMENDED_ONLY", "reroute_or_override_events": [], "conflicts": ["THREAD_DEFAULT_DIFFERS_FROM_TURN_REQUEST"], "admission_effect": "ADMITTED_WITH_CAVEATS" },
+    "original_mismatch_judgment": "thread default versus explicit turn-request distinction; actual effective effort remained indeterminate"
+  },
+  "network": {
+    "control_plane_service_network_policy": "CODEX_SERVICE_ONLY",
+    "worker_tool_network_policy": "DISABLED",
+    "codex_service_connection_used": true,
+    "direct_openai_api_called_by_tsf": false,
+    "external_api_called": false,
+    "worker_network_used": false
+  },
+  "development_policy_fingerprint": "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
+  "post_reconciliation_integrity": { "powershell_parse_errors": 0, "node_check_exit": 0, "json_parse_errors": 0, "git_diff_check_exit": 0 },
+  "clean_head_policy_fingerprint": "SUPERSEDED_BY_RUNTIME_AUTHORITY_CORRECTION_POST_COMMIT_OBSERVATION",
+  "not_tested": ["native approval relay", "real approval consumption", "live production mission"],
+  "deferred": ["interactive question relay", "Work integration", "plugins/MCP", "HQ Dispatch", "deployment"],
+  "prohibited_actions_observed": false
+}

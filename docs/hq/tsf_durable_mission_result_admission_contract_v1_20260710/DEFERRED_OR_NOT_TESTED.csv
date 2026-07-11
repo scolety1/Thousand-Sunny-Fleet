@@ -1,0 +1,9 @@
+case_id,status,reason,next_gate
+LIVE-WORK-ID,DEFERRED,"No native Work automation or task identity API is authorized in V1.","Future manual Work registration pilot"
+LIVE-CODEX-ID,DEFERRED,"No native Codex launcher or desktop automation is authorized in V1.","Future bounded Codex adapter pilot"
+MODEL-CRYPTO,NOT_TESTED,"Native model selection has no independent cryptographic attestation in this lane.","Adapter capability assessment"
+PLUGIN-MCP,DEFERRED,"Plugins and MCP servers are explicitly out of scope.","Post-contract integration milestone"
+MULTI-REPO-ATOMIC,DEFERRED,"V1 validates declared repository scope but does not implement atomic multi-repository admission.","Dedicated multi-repository transaction design"
+CLAIM-SOURCE,NOT_TESTED,"PR #11 validates basic citation presence, not claim-to-source correctness.","Separate research verification gate"
+BACKGROUND-RECOVERY,DEFERRED,"No background or scheduled runner is authorized.","Unattended governance gate"
+FULL-FLEET-ENTRYPOINT,NOT_TESTED,"The 21k-line full-fleet suite is outside the bounded contract regression set and retains unrelated origin/main baseline assertions; targeted kernel, role, lifecycle, queue, HQ/context, and research suites were executed.","Separate repository baseline repair gate"

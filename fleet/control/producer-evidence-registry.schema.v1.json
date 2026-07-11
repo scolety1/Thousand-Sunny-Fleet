@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/producer-evidence-registry.schema.v1.json",
+  "title": "TSF Run-Scoped Producer Evidence Registry V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "authority_model", "created_at", "test_only", "binding", "binding_identity_sha256", "next_sequence", "artifacts"],
+  "properties": {
+    "schema_version": { "const": "tsf_producer_evidence_registry_v1" },
+    "authority_model": { "const": "ORCHESTRATOR_HELD_RUN_CAPABILITY" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "test_only": { "type": "boolean" },
+    "binding_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "next_sequence": { "type": "integer", "minimum": 1 },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mission_id", "mission_revision", "run_id", "policy_fingerprint", "queue_document_sha256", "repository", "branch", "worktree", "orchestrator_invocation_identity", "run_nonce"],
+      "properties": {
+        "mission_id": { "type": "string", "minLength": 1 },
+        "mission_revision": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 1 },
+        "policy_fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "queue_document_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "repository": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string" },
+        "worktree": { "type": "string", "minLength": 1 },
+        "orchestrator_invocation_identity": { "type": "string", "minLength": 1 },
+        "run_nonce": { "type": "string", "minLength": 16 }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["logical_type", "canonical_relative_path", "producer", "evidence_classification", "sha256", "size", "created_at", "creation_sequence", "orchestrator_invocation_identity", "producer_invocation_identity", "run_nonce_sha256", "binding_identity_sha256"],
+        "properties": {
+          "logical_type": { "type": "string", "minLength": 1 },
+          "canonical_relative_path": { "type": "string", "pattern": "^[A-Za-z0-9._/-]+$" },
+          "producer": { "type": "string", "minLength": 1 },
+          "evidence_classification": { "enum": ["NATIVE_OBSERVED", "ADAPTER_OBSERVED", "KERNEL_OBSERVED", "VERIFIER_OBSERVED", "UNVERIFIED"] },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "size": { "type": "integer", "minimum": 0 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "creation_sequence": { "type": "integer", "minimum": 1 },
+          "orchestrator_invocation_identity": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "producer_invocation_identity": { "type": "string", "minLength": 1 },
+          "run_nonce_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "binding_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    }
+  }
+}
