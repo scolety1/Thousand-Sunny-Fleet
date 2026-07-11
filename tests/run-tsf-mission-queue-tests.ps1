@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $repoRoot 'tools\codex-fleet-enforcement-kernel.ps1')
-$workRoot = Join-Path $repoRoot ".codex-local\mission-queue-tests"
+$workRoot = Join-Path $repoRoot ".codex-local\fixtures\mission-queue-tests"
 if (Test-Path -LiteralPath $workRoot) { Remove-Item -LiteralPath $workRoot -Recurse -Force }
 foreach ($state in @("inbox", "drafted", "preflight_pending", "blocked_needs_tim", "approved_for_worker", "worker_running", "postrun_pending", "complete_review_only", "complete_ready_for_gate", "stopped", "archived")) {
     New-Item -ItemType Directory -Force -Path (Join-Path $workRoot $state) | Out-Null
@@ -18,12 +18,12 @@ $mission = Join-Path $workRoot "inbox\sample-mission.json"
 Copy-Item -LiteralPath $sample -Destination $mission
 
 $validOut = Join-Path $workRoot "valid-transition.json"
-$valid = & (Join-Path $repoRoot "tools\Move-TsfMissionState.ps1") -MissionPath $mission -FromState "inbox" -ToState "drafted" -QueueRoot $workRoot -OutFile $validOut
+$valid = & (Join-Path $repoRoot "tools\Move-TsfMissionState.ps1") -MissionPath $mission -FromState "inbox" -ToState "drafted" -QueueRoot $workRoot -OutFile $validOut -TestOnlyAllowAlternateQueueRoot
 Assert-Queue ($valid.verdict -eq "GREEN") "inbox to drafted transition passes"
 Assert-Queue (Test-Path -LiteralPath (Join-Path $workRoot "drafted\sample-mission.json")) "mission moved to drafted"
 
 $invalidOut = Join-Path $workRoot "invalid-transition.json"
-$invalid = & (Join-Path $repoRoot "tools\Move-TsfMissionState.ps1") -MissionPath (Join-Path $workRoot "drafted\sample-mission.json") -FromState "drafted" -ToState "worker_running" -QueueRoot $workRoot -OutFile $invalidOut -DryRun
+$invalid = & (Join-Path $repoRoot "tools\Move-TsfMissionState.ps1") -MissionPath (Join-Path $workRoot "drafted\sample-mission.json") -FromState "drafted" -ToState "worker_running" -QueueRoot $workRoot -OutFile $invalidOut -DryRun -TestOnlyAllowAlternateQueueRoot
 Assert-Queue ($invalid.verdict -eq "RED") "invalid transition fails closed"
 Assert-Queue ($invalid.moved -eq $false) "invalid dry-run transition does not move"
 
@@ -149,14 +149,14 @@ New-QueueExecutorMission -MissionId "queue-executor-dry-run-001" -WorkerRole "bu
 $ledgerPath = Join-Path $workRoot "approval-ledger.queue-executor.json"
 New-QueueExecutorApprovalLedger -Path $ledgerPath -AllowedPath $executorArtifact
 $executorDoc=Get-Content $executorMission -Raw|ConvertFrom-Json;$executorRun=Get-TsfRuntimeSha256Text "$($executorDoc.mission_id)|1|$((Get-FileHash $executorMission -Algorithm SHA256).Hash.ToLowerInvariant())";$executorPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $executorDoc.mission_id 1 $executorRun -Layout queue_control;$executorOut=[string]$executorPlan.artifacts.queue_result
-$executor = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $executorMission -QueueRoot $workRoot -ApprovalLedgerPath $ledgerPath -OutDirectory $executorPlan.directory -OutFile $executorOut -DryRun
+$executor = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $executorMission -QueueRoot $workRoot -ApprovalLedgerPath $ledgerPath -OutDirectory $executorPlan.directory -OutFile $executorOut -DryRun -TestOnlyAllowAlternateQueueRoot
 Assert-Queue ($executor.final_decision -eq "YELLOW_QUEUE_DRY_RUN_APPROVED") "queue executor dry-run reaches approved state"
 Assert-Queue ($executor.codex_cli_worker_execution_invoked -eq $false) "queue executor dry-run invokes no Codex worker"
 
 $missingApprovalMission = Join-Path $workRoot "inbox\queue-executor-missing-approval.json"
 New-QueueExecutorMission -MissionId "queue-executor-missing-approval-001" -WorkerRole "builder_worker" -ArtifactPath "tests/fixtures/fleet/mission-queue/worker-output/missing_approval.txt" -ExpectedContent "not used" -Path $missingApprovalMission
 $missingDoc=Get-Content $missingApprovalMission -Raw|ConvertFrom-Json;$missingRun=Get-TsfRuntimeSha256Text "$($missingDoc.mission_id)|1|$((Get-FileHash $missingApprovalMission -Algorithm SHA256).Hash.ToLowerInvariant())";$missingPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $missingDoc.mission_id 1 $missingRun -Layout queue_control;$missingApprovalOut=[string]$missingPlan.artifacts.queue_result
-$missingApproval = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $missingApprovalMission -QueueRoot $workRoot -OutDirectory $missingPlan.directory -OutFile $missingApprovalOut -DryRun
+$missingApproval = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $missingApprovalMission -QueueRoot $workRoot -OutDirectory $missingPlan.directory -OutFile $missingApprovalOut -DryRun -TestOnlyAllowAlternateQueueRoot
 Assert-Queue ($missingApproval.final_decision -eq "TIM_REQUIRED_QUEUE_PREFLIGHT_BLOCKED") "queue executor blocks missing approval"
 Assert-Queue ($missingApproval.codex_cli_worker_execution_invoked -eq $false) "missing approval invokes no Codex worker"
 

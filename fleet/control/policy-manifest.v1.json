@@ -35,6 +35,7 @@
     "fleet/control/canonical-queue-document.schema.v1.json",
     "fleet/control/result-envelope.schema.v1.json",
     "fleet/control/runtime-artifact-manifest.schema.v1.json",
+    "fleet/control/producer-evidence-registry.schema.v1.json",
     "fleet/control/admission-decision.schema.v1.json",
     "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/mission_schema_v1.json",
     "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/approval_ledger_schema_v1.json",

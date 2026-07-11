@@ -12,6 +12,7 @@ param(
     [string]$PolicyPath = "fleet/control/mission-queue-state-policy.v1.json",
     [string]$OutFile = "",
     [string]$RecoveryTransactionPath = "",
+    [switch]$TestOnlyAllowAlternateQueueRoot,
     [switch]$DryRun
 )
 
@@ -40,11 +41,15 @@ function Read-QueueJson {
 }
 
 $policy = Read-QueueJson -Path (Get-QueueFullPath -Path $PolicyPath)
-$queueRootFull = Get-QueueFullPath -Path $QueueRoot
+$queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+$queueRootFull = [string]$queueAuthority.root
 $missionFull = Get-QueueFullPath -Path $MissionPath
 $from = $FromState.Trim()
 $to = $ToState.Trim()
 $blocked = New-Object System.Collections.ArrayList
+if(![string]::IsNullOrWhiteSpace($OutFile)-and[string]$queueAuthority.kind-eq'PRODUCTION'){
+    try{Assert-TsfRuntimePathUnderCanonicalRoot (Get-QueueFullPath $OutFile)|Out-Null}catch{$blocked.Add('Production transition evidence must use the canonical compact runtime plan.')|Out-Null}
+}
 
 if (@($policy.states | Where-Object { [string]$_ -eq $from }).Count -eq 0) {
     $blocked.Add("Unknown from state: $from") | Out-Null
@@ -75,7 +80,15 @@ if ($isRecovery) {
         }
         if (Test-Path -LiteralPath $missionFull -PathType Leaf) {
             $missionDocument = Read-QueueJson -Path $missionFull
-            if ([string]$missionDocument.source_binding.durable_mission_id -ne [string]$recovery.mission_id -or [int]$missionDocument.source_binding.durable_mission_revision -ne [int]$recovery.mission_revision) {
+            $missionHash=Get-TsfContractJsonHash $missionDocument.durable_mission
+            $queueHash=Get-TsfContractJsonHash $missionDocument
+            if ([string]$missionDocument.source_binding.durable_mission_id -ne [string]$recovery.mission_id -or
+                [int]$missionDocument.source_binding.durable_mission_revision -ne [int]$recovery.mission_revision -or
+                [string]$missionDocument.source_binding.durable_mission_content_hash -ne [string]$recovery.mission_content_hash -or
+                $missionHash -ne [string]$recovery.mission_content_hash -or
+                [string]$missionDocument.source_binding.policy_fingerprint -ne [string]$recovery.policy_fingerprint -or
+                [string]$missionDocument.source_binding.translator_version -ne [string]$recovery.translator_version -or
+                $queueHash -ne [string]$recovery.queue_document_sha256) {
                 $blocked.Add("Recovery mission identity does not match the transaction marker.") | Out-Null
             }
         }
@@ -117,6 +130,8 @@ $result = [pscustomobject]@{
     dry_run = [bool]$DryRun
     moved = ($verdict -eq "GREEN" -and !$DryRun)
     recovery = $isRecovery
+    queue_authority_kind = [string]$queueAuthority.kind
+    queue_authority_identity_sha256 = [string]$queueAuthority.identity_sha256
     blocked_reasons = @($blocked)
     background_runner_started = $false
     push_performed = $false

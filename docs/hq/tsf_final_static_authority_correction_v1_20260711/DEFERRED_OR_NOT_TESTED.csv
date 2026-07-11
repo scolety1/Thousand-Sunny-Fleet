@@ -1,0 +1,12 @@
+item,status,reason
+codex_app_server_live_rerun,NOT_TESTED,Explicitly prohibited; existing corrected-run evidence reused
+production_queue_mission,NOT_TESTED,Only isolated synthetic queues used in this correction
+cryptographic_producer_attestation,DEFERRED,Contract is honest orchestrator-bound run provenance
+interactive_question_relay,DEFERRED,Outside static correction
+native_approval_relay,NOT_TESTED,No authorized live approval mission
+real_approval_consumption,DEFERRED,Approval-requiring missions continue to fail closed
+plugins_and_mcp,DEFERRED,Remain non-authoritative and post-publication
+work_integration,DEFERRED,Outside correction
+hq_dispatch,DEFERRED,Outside correction
+deployment,DEFERRED,Prohibited
+pr11_research_import_long_filename,DEFERRED,Separate technical debt; subsystem unchanged

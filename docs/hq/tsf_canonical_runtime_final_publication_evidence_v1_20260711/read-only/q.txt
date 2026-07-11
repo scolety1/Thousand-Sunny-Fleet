@@ -1,0 +1,8 @@
+﻿TSF mission id: synthetic-tsf-readonly-appserver-correction-0001
+Execute only this synthetic task:
+Return exactly TSF_READ_ONLY_ROUND_TRIP_GREEN. Do not use tools.
+
+Worker shell and tool network access is disabled. Do not browse or call any external service.
+Do not access secrets, authentication files, NWR, TSF-NWR, normal NWR packets, PrivateLens, product repositories, or unrelated repositories.
+Do not install packages, push, merge, deploy, start servers, listeners, daemons, background jobs, or scheduled work.
+Use only the explicitly allowed read/write paths in the bound mission.

@@ -24,7 +24,7 @@ function Get-TsfPolicyFingerprint {
         'tools/codex-fleet-runtime.ps1','tools/Test-TsfWorkerRolePermission.ps1','tools/Invoke-TsfCodexAppServerForeground.ps1',
         'tools/tsf-codex-app-server-adapter.mjs','tools/Get-TsfAdmissionDecision.ps1','tools/Repair-TsfSyntheticAdmissionFixture.ps1',
         'projects.json','fleet/control/mission-envelope.schema.v1.json','fleet/control/canonical-queue-document.schema.v1.json',
-        'fleet/control/result-envelope.schema.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
+        'fleet/control/result-envelope.schema.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
         'fleet/control/model-routing-alias-policy.v1.json','fleet/control/worker-role-registry.v1.json',
         'fleet/control/worker-permission-profiles.v1.json','fleet/control/mission-queue-state-policy.v1.json',
         'fleet/control/mission-queue-foreground-executor-policy.v1.json','fleet/control/role-aware-mission-extension.v1.json',
@@ -216,7 +216,7 @@ function Test-TsfCanonicalQueueDocument {
 }
 
 function ConvertTo-TsfDurableResultEnvelope {
-    [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[Parameter(Mandatory)][object]$RuntimeEvidence,[string]$RepositoryRoot=$script:TsfRoot)
+    [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[Parameter(Mandatory)][object]$RuntimeEvidence,[string]$RepositoryRoot=$script:TsfRoot,[switch]$TestOnlyAllowSyntheticProducerRegistry)
     if([string]$RuntimeEvidence.schema_version -ne 'tsf_authenticated_runtime_evidence_v1'){throw 'Runtime evidence is not an authenticated producer-binding packet.'}
     $translation=ConvertTo-TsfCanonicalExecutionArtifacts $Mission $RepositoryRoot;$repo=[string]$translation.mission_packet.repo_path;$git=Get-TsfKernelGitState $repo;if(!$git.can_capture){throw 'Canonical Git observation failed.'}
     $presPath=Get-TsfKernelFullPath ([string]$RuntimeEvidence.preservation_packet_path);$presDescriptor=Get-TsfPreservationPacketDescriptor $presPath ([string]$Mission.mission_id) ([int]$Mission.mission_revision)
@@ -235,12 +235,19 @@ function ConvertTo-TsfDurableResultEnvelope {
     $boundPreservation=Get-TsfManifestBoundArtifact $presDescriptor 'preservation_packet' $catalog.preservation_packet 'canonical_preservation_writer' @('KERNEL_OBSERVED')
     $boundPrompt=Get-TsfManifestBoundArtifact $presDescriptor 'prompt' $catalog.prompt 'mission_lifecycle' @('KERNEL_OBSERVED')
     $boundStderr=Get-TsfManifestBoundArtifact $presDescriptor 'stderr' $catalog.stderr 'codex_app_server_diagnostic' @('UNVERIFIED')
+    $boundRegistry=Get-TsfManifestBoundArtifact $presDescriptor 'producer_registry' $catalog.producer_registry 'mission_lifecycle_orchestrator' @('KERNEL_OBSERVED')
     foreach($binding in @(
         [pscustomobject]@{name='queue_document_path';path=$boundQueue.path},[pscustomobject]@{name='adapter_result_path';path=$boundAdapter.path},[pscustomobject]@{name='preflight_path';path=$boundPreflight.path},
         [pscustomobject]@{name='role_preflight_path';path=$boundRole.path},[pscustomobject]@{name='worker_result_path';path=$boundWorker.path},[pscustomobject]@{name='verifier_result_path';path=$boundVerifier.path},
         [pscustomobject]@{name='preservation_packet_path';path=$boundPreservation.path}
     )){if(![string]::Equals((Get-TsfKernelFullPath ([string]$RuntimeEvidence.($binding.name))),([string]$binding.path),[StringComparison]::OrdinalIgnoreCase)){throw "CALLER_EVIDENCE_PATH_NOT_MANIFEST_BOUND: $($binding.name)"}}
     $queueDocument=Read-TsfKernelJson $boundQueue.path;$queueCheck=Test-TsfCanonicalQueueDocument $queueDocument $Mission $RepositoryRoot;if(!$queueCheck.valid){throw "Queue producer binding failed: $($queueCheck.errors -join '; ')"}
+    $registryCheck=Test-TsfProducerEvidenceRegistry $boundRegistry.path ([string]$Mission.mission_id) ([int]$Mission.mission_revision) ([string]$RuntimeEvidence.result_id) ([string]$Mission.policy.fingerprint) ([string]$queueCheck.queue_document_sha256) -AllowTestOnly:$TestOnlyAllowSyntheticProducerRegistry
+    if(!$registryCheck.valid){throw "Producer registry binding failed: $($registryCheck.errors -join '; ')"}
+    foreach($registered in @($registryCheck.registry.artifacts)){
+        $manifestRecord=@($presDescriptor.manifest.artifacts|Where-Object{[string]$_.logical_type-eq[string]$registered.logical_type})
+        if($manifestRecord.Count-ne1-or[string]$manifestRecord[0].producer-ne[string]$registered.producer-or[string]$manifestRecord[0].evidence_classification-ne[string]$registered.evidence_classification-or[string]$manifestRecord[0].sha256-ne[string]$registered.sha256){throw "Preservation manifest is not producer-registry bound: $($registered.logical_type)"}
+    }
     $adapter=Read-TsfKernelJson $boundAdapter.path;$preflight=Read-TsfKernelJson $boundPreflight.path;$rolePreflight=Read-TsfKernelJson $boundRole.path;$worker=Read-TsfKernelJson $boundWorker.path;$verifierResult=Read-TsfKernelJson $boundVerifier.path;$preservation=Read-TsfKernelJson $boundPreservation.path
     foreach($producer in @($adapter,$preflight,$worker,$verifierResult,$preservation)){if([string]$producer.mission_id -ne [string]$Mission.mission_id){throw 'Observed producer mission identity mismatch.'}}
     if([string]$rolePreflight.role_id -ne [string]$Mission.worker_role -or ![bool]$rolePreflight.role_preflight_approved){throw 'Role preflight producer is unbound or not approved.'}
@@ -309,7 +316,7 @@ function Write-TsfAtomicJson {
 }
 
 function New-TsfAdmissionReceipt {
-    param($Result,[string]$Hash,[string]$Status,$Reasons,$Caveats,$Now,[string]$From,[string]$To,[bool]$Applied,[string]$Transition,$Storage,[string]$PreservationHash,[string]$QueueDocumentHash,[string]$TranslatorVersion)
+    param($Result,[string]$Hash,[string]$Status,$Reasons,$Caveats,$Now,[string]$From,[string]$To,[bool]$Applied,[string]$Transition,$Storage,[string]$PreservationPath,[string]$PreservationHash,[string]$QueueDocumentHash,[string]$TranslatorVersion,$QueueAuthority)
     $decision=[pscustomobject][ordered]@{result_sha256=$Hash;status=$Status;reasons=@($Reasons);caveats=@($Caveats);queue_state_from=$From;queue_state_to=$To;queue_transition_path=$Transition}
     [pscustomobject][ordered]@{
         schema_version=$script:AdmissionSchemaVersion
@@ -321,7 +328,12 @@ function New-TsfAdmissionReceipt {
         policy_fingerprint=[string]$Result.policy_fingerprint
         queue_document_sha256=$QueueDocumentHash
         translator_version=$TranslatorVersion
+        preservation_packet_path=$PreservationPath
         preservation_packet_sha256=$PreservationHash
+        queue_authority_kind=[string]$QueueAuthority.kind
+        queue_authority_root=[string]$QueueAuthority.root
+        queue_authority_identity_sha256=[string]$QueueAuthority.identity_sha256
+        production_admission=([string]$QueueAuthority.kind-eq'PRODUCTION')
         receipt_identity_sha256=[string]$Storage.identity_sha256
         admission_decision_sha256=Get-TsfContractJsonHash $decision
         admission_receipt_path=[string]$Storage.admission
@@ -345,7 +357,7 @@ function New-TsfAdmissionReceipt {
 
 function New-TsfAdmissionTransaction {
     param($Receipt,$Storage,[string]$State,[string]$SourcePath,[string]$DestinationPath,[string]$AdmissionHash,$Now,$History)
-    [pscustomobject][ordered]@{
+    $transaction=[pscustomobject][ordered]@{
         schema_version='tsf_admission_transaction_v1'
         transaction_id="transaction-$($Storage.key.Substring(0,24))"
         receipt_identity_sha256=[string]$Storage.identity_sha256
@@ -359,6 +371,12 @@ function New-TsfAdmissionTransaction {
         queue_document_sha256=[string]$Receipt.queue_document_sha256
         translator_version=[string]$Receipt.translator_version
         preservation_packet_sha256=[string]$Receipt.preservation_packet_sha256
+        preservation_packet_path=[string]$Receipt.preservation_packet_path
+        admission_status=[string]$Receipt.status
+        admission_decision_sha256=[string]$Receipt.admission_decision_sha256
+        queue_authority_kind=[string]$Receipt.queue_authority_kind
+        queue_authority_root=[string]$Receipt.queue_authority_root
+        queue_authority_identity_sha256=[string]$Receipt.queue_authority_identity_sha256
         admission_receipt_path=[string]$Storage.admission
         admission_receipt_sha256=$AdmissionHash
         queue_state_from='postrun_pending'
@@ -368,6 +386,39 @@ function New-TsfAdmissionTransaction {
         history=@($History)
         updated_at=$Now.ToUniversalTime().ToString('o')
     }
+    $stable=[pscustomobject][ordered]@{receipt_identity_sha256=$transaction.receipt_identity_sha256;mission_id=$transaction.mission_id;mission_revision=$transaction.mission_revision;mission_content_hash=$transaction.mission_content_hash;result_id=$transaction.result_id;result_sha256=$transaction.result_sha256;policy_fingerprint=$transaction.policy_fingerprint;queue_document_sha256=$transaction.queue_document_sha256;translator_version=$transaction.translator_version;preservation_packet_path=$transaction.preservation_packet_path;preservation_packet_sha256=$transaction.preservation_packet_sha256;admission_receipt_path=$transaction.admission_receipt_path;queue_state_from=$transaction.queue_state_from;queue_state_to=$transaction.queue_state_to;source_path=$transaction.source_path;destination_path=$transaction.destination_path;admission_status=$transaction.admission_status;admission_decision_sha256=$transaction.admission_decision_sha256;queue_authority_identity_sha256=$transaction.queue_authority_identity_sha256}
+    $transaction|Add-Member -NotePropertyName transaction_identity_sha256 -NotePropertyValue (Get-TsfContractJsonHash $stable)
+    $content=[pscustomobject][ordered]@{stable=$stable;state=$transaction.state;admission_receipt_sha256=$transaction.admission_receipt_sha256;history=@($transaction.history)}
+    $transaction|Add-Member -NotePropertyName transaction_content_sha256 -NotePropertyValue (Get-TsfContractJsonHash $content)
+    $transaction
+}
+
+function Test-TsfAdmissionRelationship {
+    param($Result,[string]$ResultHash,[string]$PreservationPath,[string]$PreservationHash,$Receipt,[string]$ReceiptPath,$Transaction,[string]$TransactionPath,$QueueDocument,[string]$QueueDocumentHash,$QueueAuthority)
+    $errors=[Collections.Generic.List[string]]::new()
+    $pairs=@(
+        @([string]$Receipt.mission_id,[string]$Result.mission_id,'mission id'),@([string]$Receipt.mission_revision,[string]$Result.mission_revision,'mission revision'),
+        @([string]$Receipt.mission_content_hash,[string]$Result.mission_content_hash,'mission content hash'),@([string]$Receipt.policy_fingerprint,[string]$Result.policy_fingerprint,'policy fingerprint'),
+        @([string]$Receipt.result_id,[string]$Result.result_id,'result id'),@([string]$Receipt.result_sha256,$ResultHash,'result hash'),
+        @([string]$Receipt.preservation_packet_path,(Get-TsfKernelFullPath $PreservationPath),'preservation path'),@([string]$Receipt.preservation_packet_sha256,$PreservationHash,'preservation hash'),
+        @([string]$Receipt.queue_document_sha256,$QueueDocumentHash,'queue hash'),@([string]$Receipt.queue_authority_identity_sha256,[string]$QueueAuthority.identity_sha256,'queue authority'))
+    foreach($pair in $pairs){$left=if($pair[2]-match'path'){Get-TsfKernelFullPath $pair[0]}else{$pair[0]};if([string]$left-ne[string]$pair[1]){$errors.Add("Admission relationship mismatch: $($pair[2])")|Out-Null}}
+    if(![string]::Equals((Get-TsfKernelFullPath ([string]$Receipt.admission_receipt_path)),(Get-TsfKernelFullPath $ReceiptPath),[StringComparison]::OrdinalIgnoreCase)-or![string]::Equals((Get-TsfKernelFullPath ([string]$Receipt.transaction_receipt_path)),(Get-TsfKernelFullPath $TransactionPath),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Receipt path relationship mismatch.')|Out-Null}
+    if($null-ne$Transaction){
+        foreach($field in @('receipt_identity_sha256','mission_id','mission_revision','mission_content_hash','result_id','result_sha256','policy_fingerprint','queue_document_sha256','translator_version','preservation_packet_path','preservation_packet_sha256','admission_receipt_path','queue_state_from','queue_state_to','admission_status','admission_decision_sha256','queue_authority_identity_sha256')){
+            $receiptField=switch($field){'admission_status'{'status'}default{$field}}
+            if([string]$Transaction.$field-ne[string]$Receipt.$receiptField){$errors.Add("Transaction/receipt mismatch: $field")|Out-Null}
+        }
+        if(Test-Path $ReceiptPath -PathType Leaf){
+            $receiptHash=(Get-FileHash $ReceiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if([string]$Transaction.admission_receipt_sha256-ne$receiptHash){$errors.Add('Admission receipt file hash mismatch.')|Out-Null}
+        }
+        $stable=[pscustomobject][ordered]@{receipt_identity_sha256=$Transaction.receipt_identity_sha256;mission_id=$Transaction.mission_id;mission_revision=$Transaction.mission_revision;mission_content_hash=$Transaction.mission_content_hash;result_id=$Transaction.result_id;result_sha256=$Transaction.result_sha256;policy_fingerprint=$Transaction.policy_fingerprint;queue_document_sha256=$Transaction.queue_document_sha256;translator_version=$Transaction.translator_version;preservation_packet_path=$Transaction.preservation_packet_path;preservation_packet_sha256=$Transaction.preservation_packet_sha256;admission_receipt_path=$Transaction.admission_receipt_path;queue_state_from=$Transaction.queue_state_from;queue_state_to=$Transaction.queue_state_to;source_path=$Transaction.source_path;destination_path=$Transaction.destination_path;admission_status=$Transaction.admission_status;admission_decision_sha256=$Transaction.admission_decision_sha256;queue_authority_identity_sha256=$Transaction.queue_authority_identity_sha256}
+        if([string]$Transaction.transaction_identity_sha256-ne(Get-TsfContractJsonHash $stable)){$errors.Add('Transaction identity hash mismatch.')|Out-Null}
+        $content=[pscustomobject][ordered]@{stable=$stable;state=$Transaction.state;admission_receipt_sha256=$Transaction.admission_receipt_sha256;history=@($Transaction.history)}
+        if([string]$Transaction.transaction_content_sha256-ne(Get-TsfContractJsonHash $content)){$errors.Add('Transaction content hash mismatch.')|Out-Null}
+    }
+    [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors);transaction_file_sha256=if($null-ne$Transaction-and(Test-Path $TransactionPath)){(Get-FileHash $TransactionPath -Algorithm SHA256).Hash.ToLowerInvariant()}else{''}}
 }
 
 function Get-TsfAdmissionDecision {
@@ -381,11 +432,13 @@ function Get-TsfAdmissionDecision {
         [Parameter(Mandatory)][string]$QueueRootPath,
         [datetimeoffset]$CurrentTime=[datetimeoffset]::UtcNow,
         [switch]$UnsupportedDevelopmentMode,
+        [switch]$TestOnlyAllowAlternateQueueRoot,
         [ValidateSet('NONE','TEMP_WRITE','QUEUE_TRANSITION','FINALIZE_ADMISSION','FINALIZE_TRANSACTION')][string]$TestFault='NONE'
     )
 
     $result=Read-TsfKernelJson $ResultPath
     $resultHash=(Get-FileHash -LiteralPath $ResultPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRootPath -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
     $matches=@()
     Get-ChildItem -LiteralPath $MissionRegistryPath -Filter '*.json' -File -Recurse | Sort-Object FullName | ForEach-Object {
         try {$candidate=Read-TsfKernelJson $_.FullName;if([string]$candidate.mission_id -eq [string]$result.mission_id){$matches+=[pscustomobject]@{path=$_.FullName;mission=$candidate}}} catch {}
@@ -421,8 +474,9 @@ function Get-TsfAdmissionDecision {
         if([string]$old.result_sha256-eq$resultHash){
             if(!(Test-Path -LiteralPath $storage.transaction)){throw 'Admission receipt exists without its mandatory transaction receipt.'}
             $transaction=Read-TsfKernelJson $storage.transaction
-            if([string]$transaction.receipt_identity_sha256-ne[string]$storage.identity_sha256){throw 'Transaction receipt short-key collision detected.'}
-            if([string]$transaction.mission_id-ne[string]$old.mission_id-or[int]$transaction.mission_revision-ne[int]$old.mission_revision-or[string]$transaction.mission_content_hash-ne[string]$old.mission_content_hash-or[string]$transaction.policy_fingerprint-ne[string]$old.policy_fingerprint-or[string]$transaction.queue_document_sha256-ne[string]$old.queue_document_sha256-or[string]$transaction.translator_version-ne[string]$old.translator_version-or![string]::Equals((Get-TsfKernelFullPath ([string]$transaction.destination_path)),(Get-TsfKernelFullPath $QueueMissionPath),[StringComparison]::OrdinalIgnoreCase)){throw 'RECOVERY_QUEUE_IDENTITY_MISMATCH'}
+            $relationship=Test-TsfAdmissionRelationship $result $resultHash $presPath ([string]$result.preservation_evidence.packet_sha256) $old $storage.admission $transaction $storage.transaction $queueDocument $queueDocumentHash $queueAuthority
+            if(!$relationship.valid){throw "RECOVERY_QUEUE_IDENTITY_MISMATCH: $($relationship.errors -join '; ')"}
+            if([string]$transaction.receipt_identity_sha256-ne[string]$storage.identity_sha256-or![string]::Equals((Get-TsfKernelFullPath ([string]$transaction.destination_path)),(Get-TsfKernelFullPath $QueueMissionPath),[StringComparison]::OrdinalIgnoreCase)){throw 'RECOVERY_QUEUE_IDENTITY_MISMATCH'}
             if([string]$transaction.state-ne'COMMITTED'){
                 if([string]$transaction.state-notin@('PREPARED','RECOVERY_REQUIRED')-or!(Test-Path -LiteralPath ([string]$old.queue_transition_path))){throw "Admission transaction requires reconciliation: $($transaction.state)"}
                 $history=[Collections.Generic.List[object]]::new();foreach($event in @($transaction.history)){$history.Add($event)|Out-Null};$history.Add([pscustomobject]@{state='COMMITTED';at=$CurrentTime.ToUniversalTime().ToString('o');detail='Idempotent retry reconciled an advanced queue record with its preserved admission receipt.'})|Out-Null
@@ -464,9 +518,9 @@ function Get-TsfAdmissionDecision {
 
     if($reasons.Count-eq0){$reasons.Add('Observed runtime evidence satisfied the canonical durable mission.')|Out-Null}
     $target=Get-TsfAdmissionQueueTarget $status
-    $dryRun=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath $QueueMissionPath -FromState 'postrun_pending' -ToState $target -QueueRoot $QueueRootPath -DryRun
+    $dryRun=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath $QueueMissionPath -FromState 'postrun_pending' -ToState $target -QueueRoot $QueueRootPath -DryRun -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
     if([string]$dryRun.verdict-ne'GREEN'){throw "Canonical queue transition preflight failed: $($dryRun.blocked_reasons -join '; ')"}
-    $receipt=New-TsfAdmissionReceipt $result $resultHash $status @($reasons) @($caveats) $CurrentTime 'postrun_pending' $target $true ([string]$dryRun.destination_path) $storage ([string]$result.preservation_evidence.packet_sha256) $queueDocumentHash $translatorVersion
+    $receipt=New-TsfAdmissionReceipt $result $resultHash $status @($reasons) @($caveats) $CurrentTime 'postrun_pending' $target $true ([string]$dryRun.destination_path) $storage $presPath ([string]$result.preservation_evidence.packet_sha256) $queueDocumentHash $translatorVersion $queueAuthority
     $receiptValidation=Test-TsfJsonContract $receipt (Join-Path $script:TsfRoot 'fleet\control\admission-decision.schema.v1.json')
     if(!$receiptValidation.valid){throw "Prepared admission receipt violates schema: $($receiptValidation.errors -join '; ')"}
     $history=[Collections.Generic.List[object]]::new();$history.Add([pscustomobject]@{state='PREPARED';at=$CurrentTime.ToUniversalTime().ToString('o');detail='Receipt staged and queue transition preflight passed.'})|Out-Null
@@ -481,7 +535,7 @@ function Get-TsfAdmissionDecision {
         $transaction=New-TsfAdmissionTransaction $receipt $storage 'PREPARED' ([string]$dryRun.mission_path) ([string]$dryRun.destination_path) $stagedHash $CurrentTime $history
         Write-TsfAtomicJson $transaction $storage.transaction $storage.transaction_temp $storage.transaction_backup|Out-Null
         if($TestFault-eq'QUEUE_TRANSITION'){throw 'Simulated queue transition failure.'}
-        $transition=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath $QueueMissionPath -FromState 'postrun_pending' -ToState $target -QueueRoot $QueueRootPath
+        $transition=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath $QueueMissionPath -FromState 'postrun_pending' -ToState $target -QueueRoot $QueueRootPath -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
         if([string]$transition.verdict-ne'GREEN'){throw "Canonical queue transition failed: $($transition.blocked_reasons -join '; ')"}
         $moved=$true
         if($TestFault-eq'FINALIZE_ADMISSION'){throw 'Simulated final admission receipt rename failure.'}
@@ -494,13 +548,14 @@ function Get-TsfAdmissionDecision {
         if($TestFault-eq'FINALIZE_TRANSACTION'){throw 'Simulated final transaction receipt write failure.'}
         Write-TsfAtomicJson $transaction $storage.transaction $storage.transaction_temp $storage.transaction_backup|Out-Null
         $committed=Read-TsfKernelJson $storage.transaction
-        if([string]$committed.state-ne'COMMITTED'-or!(Test-Path -LiteralPath $storage.admission)){throw 'Admission transaction did not durably commit.'}
+        $committedRelationship=Test-TsfAdmissionRelationship $result $resultHash $presPath ([string]$result.preservation_evidence.packet_sha256) $receipt $storage.admission $committed $storage.transaction $queueDocument $queueDocumentHash $queueAuthority
+        if([string]$committed.state-ne'COMMITTED'-or!(Test-Path -LiteralPath $storage.admission)-or!$committedRelationship.valid){throw "Admission transaction did not durably commit: $($committedRelationship.errors -join '; ')"}
         return $receipt
     }catch{
         $failure=$_.Exception.Message
         if($moved-and!$admissionFinalized){
             try{
-                $rollback=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath ([string]$dryRun.destination_path) -FromState $target -ToState 'postrun_pending' -QueueRoot $QueueRootPath -RecoveryTransactionPath $storage.transaction
+                $rollback=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath ([string]$dryRun.destination_path) -FromState $target -ToState 'postrun_pending' -QueueRoot $QueueRootPath -RecoveryTransactionPath $storage.transaction -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
                 if([string]$rollback.verdict-ne'GREEN'){throw ($rollback.blocked_reasons -join '; ')}
                 $history.Add([pscustomobject]@{state='ROLLED_BACK';at=[datetimeoffset]::UtcNow.ToString('o');detail=$failure})|Out-Null
                 $rolled=New-TsfAdmissionTransaction $receipt $storage 'ROLLED_BACK' ([string]$dryRun.mission_path) ([string]$dryRun.destination_path) '' ([datetimeoffset]::UtcNow) $history

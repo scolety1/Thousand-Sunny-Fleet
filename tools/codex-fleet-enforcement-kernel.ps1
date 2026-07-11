@@ -750,8 +750,10 @@ function Initialize-TsfKernelMissionFolders {
         $StateRoot = Join-Path (Get-TsfKernelRoot) "fleet\missions"
     }
 
+    $compact=Test-TsfKernelPathInside (Get-TsfKernelFullPath $StateRoot) (Get-TsfCanonicalRuntimeRoot)
     foreach ($state in $script:TsfKernelMissionStates) {
-        New-Item -ItemType Directory -Force -Path (Join-Path $StateRoot $state) | Out-Null
+        $folder=if($compact){switch($state){'preflight-pending'{'s1'}'approved-for-worker'{'s2'}'running'{'s3'}'postrun-pending'{'s4'}'completed'{'s5'}'blocked-tim-required'{'s6'}}}else{$state}
+        New-Item -ItemType Directory -Force -Path (Join-Path $StateRoot $folder) | Out-Null
     }
 
     return $StateRoot
@@ -778,12 +780,14 @@ function Copy-TsfKernelMissionToState {
     if(Test-TsfKernelPathInside (Get-TsfKernelFullPath $StateRoot) $canonicalRuntimeRoot){
         $stateIdentity=Get-TsfRuntimeIdentity mission ([pscustomobject][ordered]@{mission_id=[string]$MissionId;mission_revision=1})
         $leaf="k-$($stateIdentity.short_key).json"
+        $stateFolder=switch($State){'preflight-pending'{'s1'}'approved-for-worker'{'s2'}'running'{'s3'}'postrun-pending'{'s4'}'completed'{'s5'}'blocked-tim-required'{'s6'}}
     }else{
         # The durable queue is an operational record system outside runtime-artifact storage.
         $safeMissionId = ([string]$MissionId) -replace "[^A-Za-z0-9._:-]", "_"
         $leaf="$safeMissionId.json"
+        $stateFolder=$State
     }
-    $destination = Join-Path (Join-Path $StateRoot $State) $leaf
+    $destination = Join-Path (Join-Path $StateRoot $stateFolder) $leaf
     Copy-Item -LiteralPath $MissionPath -Destination $destination -Force
     return $destination
 }
@@ -1221,11 +1225,13 @@ function Write-TsfKernelPreservationPacket {
         [string]$QueueDocumentPath = "",
         [string]$PromptPath = "",
         [string]$StderrPath = "",
+        [string]$ProducerRegistryPath = "",
         [string]$OutputDirectory = "",
         [string]$RunId = "",
         [object]$DurableMission = $null,
         [string]$ExactNextAction = "Review preservation packet and continue only through a new TSF mission packet.",
-        [ValidateSet('NONE','TEMP_WRITE','FINALIZE')][string]$TestFault = 'NONE'
+        [ValidateSet('NONE','TEMP_WRITE','FINALIZE')][string]$TestFault = 'NONE',
+        [switch]$TestOnlyAllowSyntheticProducerRegistry
     )
 
     $mission = Read-TsfKernelJson -Path $MissionPath
@@ -1247,9 +1253,44 @@ function Write-TsfKernelPreservationPacket {
     $plan = New-TsfRuntimeStoragePlan -RuntimeRoot $OutputDirectory -MissionId ([string]$mission.mission_id) -MissionRevision $revision -RunId $RunId -Layout preservation
     if (!$plan.budget.valid) { throw "Compact preservation path preflight failed before writes: $($plan.budget.errors -join '; ')" }
 
+    $queueDocumentHash=if(![string]::IsNullOrWhiteSpace($QueueDocumentPath)-and(Test-Path $QueueDocumentPath -PathType Leaf)){Get-TsfContractJsonHash (Read-TsfKernelJson $QueueDocumentPath)}else{'0'*64}
+    if([string]::IsNullOrWhiteSpace($ProducerRegistryPath)){
+        if(!$TestOnlyAllowSyntheticProducerRegistry){throw 'PRODUCER_EVIDENCE_REGISTRY_REQUIRED'}
+        $fixtureRoot=Get-TsfKernelFullPath (Join-Path (Get-TsfKernelRoot) '.codex-local\fixtures')
+        if(!([string]$mission.mission_id).StartsWith('synthetic-')-and!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $MissionPath) $fixtureRoot)-and!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $MissionPath) (Get-TsfCanonicalRuntimeRoot))){throw 'TEST_PRODUCER_REGISTRY_REQUIRES_SYNTHETIC_FIXTURE'}
+        $lPlan=New-TsfRuntimeStoragePlan $OutputDirectory ([string]$mission.mission_id) $revision $RunId -Layout lifecycle_control
+        $aPlan=New-TsfRuntimeStoragePlan $OutputDirectory ([string]$mission.mission_id) $revision $RunId -Layout adapter
+        $qPlan=New-TsfRuntimeStoragePlan $OutputDirectory ([string]$mission.mission_id) $revision $RunId -Layout queue_control
+        New-Item -ItemType Directory -Force $lPlan.directory,$aPlan.directory,$qPlan.directory|Out-Null
+        $ProducerRegistryPath=[string]$lPlan.artifacts.producer_registry
+        $repo=Get-TsfKernelFullPath ([string]$mission.repo_path);$git=Get-TsfKernelGitState $repo
+        New-TsfProducerEvidenceRegistry $ProducerRegistryPath ([string]$mission.mission_id) $revision $RunId $policyFingerprint $queueDocumentHash $repo $(if($git.can_capture){[string]$git.branch}else{''}) $repo "test-only-preservation|$RunId" -TestOnly|Out-Null
+        $testInputs=[ordered]@{mission=$MissionPath;preflight=$PreflightResultPath;role_preflight=$RolePreflightPath;worker_instruction=$WorkerInstructionPath;worker_result=$WorkerResultPath;adapter_result=$AdapterResultPath;event_journal=$EventJournalPath;queue_document=$QueueDocumentPath;verifier_result=$VerifierResultPath;prompt=$PromptPath;stderr=$StderrPath}
+        foreach($entry in $testInputs.GetEnumerator()){
+            if([string]::IsNullOrWhiteSpace([string]$entry.Value)-or!(Test-Path $entry.Value -PathType Leaf)){continue}
+            $contract=(Get-TsfProducerEvidenceContract).([string]$entry.Key)
+            $targetPlan=switch([string]$contract.layout){'adapter'{$aPlan}'queue_control'{$qPlan}default{$lPlan}}
+            $target=[string]$targetPlan.artifacts.([string]$contract.artifact)
+            if(![string]::Equals((Get-TsfKernelFullPath $entry.Value),(Get-TsfKernelFullPath $target),[StringComparison]::OrdinalIgnoreCase)){Copy-Item -LiteralPath $entry.Value -Destination $target -Force}
+            Register-TsfProducerEvidence $ProducerRegistryPath ([string]$entry.Key) $target "test-only-injection|$RunId|$([string]$entry.Key)"|Out-Null
+        }
+        if(Test-Path $aPlan.artifacts.adapter_result -PathType Leaf){
+            $testAdapter=Read-TsfKernelJson $aPlan.artifacts.adapter_result
+            if($null-ne$testAdapter.turn_usage){Write-TsfKernelJson $testAdapter.turn_usage $lPlan.artifacts.usage;Register-TsfProducerEvidence $ProducerRegistryPath usage $lPlan.artifacts.usage "test-only-injection|$RunId|usage"|Out-Null}
+        }
+    }
+    $registryCheck=Test-TsfProducerEvidenceRegistry $ProducerRegistryPath ([string]$mission.mission_id) $revision $RunId $policyFingerprint $queueDocumentHash -AllowTestOnly:$TestOnlyAllowSyntheticProducerRegistry
+    if(!$registryCheck.valid){throw "PRODUCER_EVIDENCE_REGISTRY_INVALID: $($registryCheck.errors -join '; ')"}
+    $registry=$registryCheck.registry
+    $requiredRegistryTypes=@('mission','preflight')
+    foreach($type in $requiredRegistryTypes){if(@($registry.artifacts|Where-Object{[string]$_.logical_type-eq$type}).Count-ne1){throw "PRODUCER_EVIDENCE_REGISTRATION_MISSING: $type"}}
+
     if (Test-Path -LiteralPath $plan.directory -PathType Container) {
         $descriptor = Get-TsfPreservationPacketDescriptor -PacketPath ([string]$plan.artifacts.preservation_packet) -ExpectedMissionId ([string]$mission.mission_id) -ExpectedMissionRevision $revision
         if ([string]$descriptor.manifest.run_id -ne $RunId) { throw 'Compact preservation short-key collision or run identity mismatch.' }
+        $registeredManifest=@($descriptor.manifest.artifacts|Where-Object{[string]$_.logical_type-eq'producer_registry'})
+        $registryHash=(Get-FileHash $ProducerRegistryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if($registeredManifest.Count-ne1-or[string]$registeredManifest[0].sha256-ne$registryHash){throw 'EXISTING_PRESERVATION_PACKET_PRODUCER_REGISTRY_MISMATCH'}
         return [pscustomobject]@{schema_version='tsf_compact_preservation_result_v1';generated_at=[string]$descriptor.manifest.created_at;mission_id=[string]$mission.mission_id;run_id=$RunId;packet_directory=[string]$plan.directory;packet_file=[string]$plan.artifacts.preservation_packet;manifest_path=[string]$plan.artifacts.manifest;manifest_sha256=(Get-FileHash -LiteralPath $plan.artifacts.manifest -Algorithm SHA256).Hash.ToLowerInvariant();final_decision=[string](Read-TsfKernelJson $plan.artifacts.preservation_packet).final_decision;storage_plan=$plan;idempotent_replay=$true}
     }
     if (Test-Path -LiteralPath $plan.staging_directory) {
@@ -1263,22 +1304,17 @@ function Write-TsfKernelPreservationPacket {
     if ($TestFault -eq 'TEMP_WRITE') { throw 'Simulated compact preservation temporary-write failure.' }
     New-Item -ItemType Directory -Force -Path $plan.staging_directory | Out-Null
 
-    $sources = [ordered]@{
-        mission=[pscustomobject]@{path=$MissionPath;evidence='KERNEL_OBSERVED';producer='canonical_mission_translator'}
-        preflight=[pscustomobject]@{path=$PreflightResultPath;evidence='KERNEL_OBSERVED';producer='enforcement_kernel'}
+    $callerPaths=[ordered]@{mission=$MissionPath;preflight=$PreflightResultPath;role_preflight=$RolePreflightPath;worker_instruction=$WorkerInstructionPath;worker_result=$WorkerResultPath;adapter_result=$AdapterResultPath;verifier_result=$VerifierResultPath;event_journal=$EventJournalPath;queue_document=$QueueDocumentPath;prompt=$PromptPath;stderr=$StderrPath}
+    $sources=[ordered]@{}
+    foreach($registered in @($registry.artifacts)){
+        $key=[string]$registered.logical_type;$path=Get-TsfKernelFullPath ([string]$registered.canonical_relative_path) (Get-TsfCanonicalRuntimeRoot)
+        if(![bool]$registry.test_only-and$callerPaths.Contains($key)-and![string]::IsNullOrWhiteSpace([string]$callerPaths[$key])-and![string]::Equals((Get-TsfKernelFullPath ([string]$callerPaths[$key])),$path,[StringComparison]::OrdinalIgnoreCase)){throw "CALLER_EVIDENCE_PATH_NOT_REGISTERED: $key"}
+        $sources[$key]=[pscustomobject]@{path=$path;evidence=[string]$registered.evidence_classification;producer=[string]$registered.producer}
     }
-    foreach ($candidate in @(
-        [pscustomobject]@{key='role_preflight';path=$RolePreflightPath;evidence='KERNEL_OBSERVED';producer='role_permission_preflight'},
-        [pscustomobject]@{key='worker_instruction';path=$WorkerInstructionPath;evidence='KERNEL_OBSERVED';producer='enforcement_kernel'},
-        [pscustomobject]@{key='worker_result';path=$WorkerResultPath;evidence='KERNEL_OBSERVED';producer='mission_lifecycle'},
-        [pscustomobject]@{key='adapter_result';path=$AdapterResultPath;evidence='ADAPTER_OBSERVED';producer='codex_app_server_adapter'},
-        [pscustomobject]@{key='verifier_result';path=$VerifierResultPath;evidence='VERIFIER_OBSERVED';producer='enforcement_kernel_verifier'},
-        [pscustomobject]@{key='event_journal';path=$EventJournalPath;evidence='NATIVE_OBSERVED';producer='codex_app_server_adapter'},
-        [pscustomobject]@{key='queue_document';path=$QueueDocumentPath;evidence='KERNEL_OBSERVED';producer='canonical_queue_executor'},
-        [pscustomobject]@{key='prompt';path=$PromptPath;evidence='KERNEL_OBSERVED';producer='mission_lifecycle'},
-        [pscustomobject]@{key='stderr';path=$StderrPath;evidence='UNVERIFIED';producer='codex_app_server_diagnostic'}
-    )) {
-        if (![string]::IsNullOrWhiteSpace([string]$candidate.path) -and (Test-Path -LiteralPath $candidate.path -PathType Leaf)) { $sources[[string]$candidate.key]=$candidate }
+    if(![bool]$registry.test_only){
+        foreach($entry in $callerPaths.GetEnumerator()){
+            if(![string]::IsNullOrWhiteSpace([string]$entry.Value)-and!$sources.Contains([string]$entry.Key)){throw "UNREGISTERED_CALLER_EVIDENCE: $($entry.Key)"}
+        }
     }
     $records=[Collections.Generic.List[object]]::new()
     foreach ($entry in $sources.GetEnumerator()) {
@@ -1286,20 +1322,18 @@ function Write-TsfKernelPreservationPacket {
         Copy-Item -LiteralPath ([string]$entry.Value.path) -Destination $destination
         $records.Add((New-TsfRuntimeArtifactRecord -LogicalType $entry.Key -Path $destination -PacketDirectory $plan.staging_directory -EvidenceClassification ([string]$entry.Value.evidence) -Producer ([string]$entry.Value.producer)))|Out-Null
     }
+    Copy-Item -LiteralPath $ProducerRegistryPath -Destination ([string]$plan.staging_artifacts.producer_registry)
+    $records.Add((New-TsfRuntimeArtifactRecord -LogicalType 'producer_registry' -Path ([string]$plan.staging_artifacts.producer_registry) -PacketDirectory $plan.staging_directory -EvidenceClassification 'KERNEL_OBSERVED' -Producer 'mission_lifecycle_orchestrator'))|Out-Null
     $adapterVersion='not_used'
     if ($sources.Contains('adapter_result')) {
-        $adapter=Read-TsfKernelJson $AdapterResultPath;$adapterVersion=[string]$adapter.schema_version
-        if ($null -ne $adapter.turn_usage) {
-            Write-TsfKernelJson $adapter.turn_usage ([string]$plan.staging_artifacts.usage)
-            $records.Add((New-TsfRuntimeArtifactRecord -LogicalType 'usage' -Path ([string]$plan.staging_artifacts.usage) -PacketDirectory $plan.staging_directory -EvidenceClassification ([string]$adapter.turn_usage.evidence_classification) -Producer 'codex_app_server_adapter'))|Out-Null
-        }
+        $adapter=Read-TsfKernelJson ([string]$sources['adapter_result'].path);$adapterVersion=[string]$adapter.schema_version
     }
     $repo=Get-TsfKernelFullPath ([string]$mission.repo_path);$git=Get-TsfKernelGitState $repo
     $finalDecision = if ($null -ne $verifier) { [string]$verifier.verdict } else { [string]$preflight.verdict }
     $artifactCatalog=Get-TsfRuntimeArtifactCatalog
     $packet = [pscustomobject][ordered]@{
         schema_version='tsf_compact_preservation_packet_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');mission_id=[string]$mission.mission_id;mission_revision=$revision;run_id=$RunId
-        final_decision=$finalDecision;manifest=$artifactCatalog.manifest;mission_packet=$artifactCatalog.mission;queue_document=if($sources.Contains('queue_document')){$artifactCatalog.queue_document}else{''};preflight_result=$artifactCatalog.preflight;role_preflight=if($sources.Contains('role_preflight')){$artifactCatalog.role_preflight}else{''};worker_instruction=if($sources.Contains('worker_instruction')){$artifactCatalog.worker_instruction}else{''};worker_result=if($sources.Contains('worker_result')){$artifactCatalog.worker_result}else{''};adapter_result=if($sources.Contains('adapter_result')){$artifactCatalog.adapter_result}else{''};verifier_result=if($sources.Contains('verifier_result')){$artifactCatalog.verifier_result}else{''};event_journal=if($sources.Contains('event_journal')){$artifactCatalog.event_journal}else{''};usage=if(Test-Path -LiteralPath $plan.staging_artifacts.usage){$artifactCatalog.usage}else{''};prompt=if($sources.Contains('prompt')){$artifactCatalog.prompt}else{''};stderr=if($sources.Contains('stderr')){$artifactCatalog.stderr}else{''}
+        final_decision=$finalDecision;manifest=$artifactCatalog.manifest;producer_registry=$artifactCatalog.producer_registry;mission_packet=$artifactCatalog.mission;queue_document=if($sources.Contains('queue_document')){$artifactCatalog.queue_document}else{''};preflight_result=$artifactCatalog.preflight;role_preflight=if($sources.Contains('role_preflight')){$artifactCatalog.role_preflight}else{''};worker_instruction=if($sources.Contains('worker_instruction')){$artifactCatalog.worker_instruction}else{''};worker_result=if($sources.Contains('worker_result')){$artifactCatalog.worker_result}else{''};adapter_result=if($sources.Contains('adapter_result')){$artifactCatalog.adapter_result}else{''};verifier_result=if($sources.Contains('verifier_result')){$artifactCatalog.verifier_result}else{''};event_journal=if($sources.Contains('event_journal')){$artifactCatalog.event_journal}else{''};usage=if($sources.Contains('usage')){$artifactCatalog.usage}else{''};prompt=if($sources.Contains('prompt')){$artifactCatalog.prompt}else{''};stderr=if($sources.Contains('stderr')){$artifactCatalog.stderr}else{''}
         expected_artifacts=@(ConvertTo-TsfKernelArray $mission.expected_artifacts);stop_conditions=@(ConvertTo-TsfKernelArray $mission.stop_conditions);exact_next_action=$ExactNextAction
         restricted_action_confirmation=[pscustomobject]@{background_runner_started=$false;all_fleet_started=$false;product_repos_mutated=$false;canonical_nwr_mutated=$false;push_merge_deploy_attempted=$false}
     }

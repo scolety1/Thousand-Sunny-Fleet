@@ -1,0 +1,225 @@
+﻿{
+    "mission_id":  "synthetic-tsf-workspace-appserver-correction-0001",
+    "project_id":  "TSF_CONTROL_PLANE",
+    "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "mission_type":  "tsf_infrastructure",
+    "required_branch":  "master",
+    "required_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+    "control_plane_service_network_policy":  "CODEX_SERVICE_ONLY",
+    "worker_tool_network_policy":  "DISABLED",
+    "allowed_reads":  [
+                          "input"
+                      ],
+    "allowed_writes":  [
+                           "output"
+                       ],
+    "forbidden_reads":  [
+                            "NORMAL_NWR_PACKETS",
+                            "SECRETS",
+                            "CREDENTIALS",
+                            "PRIVATELENS",
+                            "PRODUCT_REPOS"
+                        ],
+    "forbidden_writes":  [
+
+                         ],
+    "forbidden_actions":  [
+                              "all_fleet",
+                              "api_bridge",
+                              "app_wiring",
+                              "background_runner",
+                              "canonical_nwr_inspection",
+                              "canonical_nwr_mutation",
+                              "credential_change",
+                              "deploy",
+                              "hidden_sort",
+                              "install_packages",
+                              "merge",
+                              "migration",
+                              "normal_nwr_packet_read",
+                              "open_network_port",
+                              "persistent_runner",
+                              "privatelens",
+                              "product_repo_inspection",
+                              "product_repo_mutation",
+                              "proof_run",
+                              "push",
+                              "ranking_formula_source_truth_promotion",
+                              "recommendation_behavior",
+                              "secrets"
+                          ],
+    "expected_artifacts":  [
+                               "output/result.txt"
+                           ],
+    "required_preflight_checks":  [
+                                      "schema",
+                                      "repo_exists",
+                                      "path_scope",
+                                      "restricted_action_coverage",
+                                      "git_status_capture",
+                                      "approval_ledger",
+                                      "worker_role_permission",
+                                      "durable_source_binding"
+                                  ],
+    "required_postrun_checks":  [
+                                    "mission_id_match",
+                                    "expected_artifacts_exist",
+                                    "restricted_actions_absent",
+                                    "forbidden_outputs_absent",
+                                    "test:app-server-automatic-round-trip"
+                                ],
+    "stop_conditions":  [
+                            {
+                                "id":  "durable-stop-001",
+                                "check_type":  "manual",
+                                "description":  "Unexpected file touch."
+                            },
+                            {
+                                "id":  "durable-stop-002",
+                                "check_type":  "manual",
+                                "description":  "Worker tool network request."
+                            },
+                            {
+                                "id":  "durable-stop-003",
+                                "check_type":  "manual",
+                                "description":  "Native identity mismatch."
+                            },
+                            {
+                                "id":  "durable-stop-004",
+                                "check_type":  "manual",
+                                "description":  "Timeout."
+                            },
+                            {
+                                "id":  "durable-stop-005",
+                                "check_type":  "manual",
+                                "description":  "Verifier failure."
+                            }
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "hq_escalation_policy":  {
+                                 "default":  "local_only_no_api",
+                                 "escalate_on":  [
+                                                     "RED",
+                                                     "TIM_REQUIRED",
+                                                     "approval_gap",
+                                                     "scope_conflict"
+                                                 ],
+                                 "notes":  "Generated from canonical durable mission."
+                             },
+    "created_by":  "TSF_DURABLE_TRANSLATOR",
+    "created_at":  "2026-07-11T05:00:25.6118002+00:00",
+    "role_extension":  {
+                           "requested_by":  "TSF_DURABLE_MISSION",
+                           "project_main_bot_id":  "TSF_CONTROL_PLANE",
+                           "worker_role":  "builder_worker",
+                           "translator_used":  true,
+                           "lane_id":  "MASTER_TSF_CONTROL_PLANE",
+                           "parent_mission_id":  "",
+                           "sibling_lane_ids":  [
+
+                                                ],
+                           "role_permission_profile_id":  "builder_worker",
+                           "role_output_contract":  "Changed files plus validation evidence and preservation handoff.",
+                           "verifier_role":  "verifier_worker",
+                           "escalation_policy_id":  "canonical_durable_v1"
+                       },
+    "durable_source_binding":  {
+                                   "durable_mission_id":  "synthetic-tsf-workspace-appserver-correction-0001",
+                                   "durable_mission_revision":  1,
+                                   "policy_fingerprint":  "c5fd5eaa3ab7701e6e6a7b4e6ec6675f5859e34c96500a1f0469564df7c1b652",
+                                   "durable_mission_content_hash":  "e6644bee858e74e27e04ea9c7b64ed9f8d0ed8958430d2f6327d54190779866d",
+                                   "translator_version":  "tsf_durable_to_operational_v1",
+                                   "generated_at":  "2026-07-11T05:00:25.6118002+00:00",
+                                   "mission_packet_sha256":  "b46aa186009157f1c6b1c28c8903360d763e42fb64c8ff67ed0c7e49d97f9289",
+                                   "role_extension_sha256":  "20c21e4f332c93aa2fc92d4a1453dfa84f6ea8fd182fbd46c6c042c27b4304c3",
+                                   "worker_instruction_sha256":  "2f7ce618840124a1034d108b4a6f598522336612b58e073e2622989dc1e6a145",
+                                   "expected_repository":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                                   "expected_branch":  "master",
+                                   "expected_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write-repo",
+                                   "expected_role":  "builder_worker"
+                               },
+    "model_resolution":  {
+                             "requested_alias":  "BALANCED",
+                             "stable_alias":  "BALANCED",
+                             "legacy_compatibility_input":  false,
+                             "resolved_model":  "gpt-5.6-terra",
+                             "reasoning_effort":  "MEDIUM",
+                             "assurance":  "RECOMMENDED_ONLY"
+                         },
+    "worker_instruction_contract":  {
+                                        "mission_id":  "synthetic-tsf-workspace-appserver-correction-0001",
+                                        "worker_role":  "builder_worker",
+                                        "allowed_reads":  [
+                                                              "input"
+                                                          ],
+                                        "allowed_writes":  [
+                                                               "output"
+                                                           ],
+                                        "forbidden_actions":  [
+                                                                  "all_fleet",
+                                                                  "api_bridge",
+                                                                  "app_wiring",
+                                                                  "background_runner",
+                                                                  "canonical_nwr_inspection",
+                                                                  "canonical_nwr_mutation",
+                                                                  "credential_change",
+                                                                  "deploy",
+                                                                  "hidden_sort",
+                                                                  "install_packages",
+                                                                  "merge",
+                                                                  "migration",
+                                                                  "normal_nwr_packet_read",
+                                                                  "open_network_port",
+                                                                  "persistent_runner",
+                                                                  "privatelens",
+                                                                  "product_repo_inspection",
+                                                                  "product_repo_mutation",
+                                                                  "proof_run",
+                                                                  "push",
+                                                                  "ranking_formula_source_truth_promotion",
+                                                                  "recommendation_behavior",
+                                                                  "secrets"
+                                                              ],
+                                        "exact_task":  "Create output/result.txt with exactly: TSF workspace-write round trip complete. Do not modify any other file.",
+                                        "expected_artifacts":  [
+                                                                   "output/result.txt"
+                                                               ],
+                                        "stop_conditions":  [
+                                                                {
+                                                                    "id":  "durable-stop-001",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Unexpected file touch."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-002",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Worker tool network request."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-003",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Native identity mismatch."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-004",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Timeout."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-005",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Verifier failure."
+                                                                }
+                                                            ],
+                                        "verifier_contract":  "SEPARATE_ROLE",
+                                        "escalation_triggers":  [
+                                                                    "approval_gap",
+                                                                    "scope_conflict",
+                                                                    "validation_failure"
+                                                                ],
+                                        "do_not_exceed_role_authority":  true
+                                    }
+}

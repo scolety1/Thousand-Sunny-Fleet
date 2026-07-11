@@ -2,13 +2,16 @@
   "schema_version": "tsf_canonical_runtime_authority_correction_validation_v1",
   "verdict": "GREEN_READY_FOR_LOCAL_CORRECTION_COMMIT",
   "starting_head": "1304f187fd3e292af6ba1c2aa88073568d734cb3",
-  "correction_commit": "TO_BE_REPORTED_AFTER_SINGLE_LOCAL_COMMIT",
+  "implementation_commit": "33f996c67079d18b9bbd132b606b371591ea6b67",
   "canonical_runtime_root": ".codex-local/rt",
   "legacy_write_status": "LEGACY_PACKET_WRITE_PROHIBITED",
   "manifest_bound_producer_evidence": true,
   "recovery_queue_identity_revalidated": true,
   "prior_live_evidence_preserved": true,
-  "clean_head_policy_fingerprint": "POST_COMMIT_OBSERVATION_REQUIRED",
+  "post_commit_observations": {
+    "final_commit": "RECOMPUTE_FROM_GIT_DURING_INDEPENDENT_AUDIT",
+    "clean_committed_policy_fingerprint": "RECOMPUTE_FROM_COMMITTED_BLOBS_DURING_INDEPENDENT_AUDIT"
+  },
   "network_policy": {
     "control_plane_service": "CODEX_SERVICE_ONLY",
     "worker_tools": "DISABLED"

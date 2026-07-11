@@ -1,0 +1,97 @@
+﻿{
+    "schema_version":  "worker_role_permission_preflight_v1",
+    "mission_draft_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\l\\3o7h6lcolkixjk75couoffe73fksorza\\v6rmc2it5y3dagxgh2ewepogrpyupu3v\\m.json",
+    "role_id":  "builder_worker",
+    "verdict":  "GREEN",
+    "role_preflight_approved":  true,
+    "checks":  [
+                   {
+                       "name":  "role.exists",
+                       "status":  "PASS",
+                       "message":  "Worker role is registered.",
+                       "evidence":  "builder_worker"
+                   },
+                   {
+                       "name":  "profile.exists",
+                       "status":  "PASS",
+                       "message":  "Role permission profile exists.",
+                       "evidence":  "builder_worker"
+                   },
+                   {
+                       "name":  "profile.id_matches_role",
+                       "status":  "PASS",
+                       "message":  "Role permission profile id matches worker role.",
+                       "evidence":  "builder_worker"
+                   },
+                   {
+                       "name":  "forbidden_actions.present",
+                       "status":  "PASS",
+                       "message":  "Mission carries the default restricted-action fence.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "protected_path.blocked",
+                       "status":  "PASS",
+                       "message":  "No protected path or lane requested.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "path.token_safe",
+                       "status":  "PASS",
+                       "message":  "Requested read/write path tokens are bounded.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "path.inside_repo",
+                       "status":  "PASS",
+                       "message":  "No absolute requested path escapes the mission repo.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "codex_cli.blocked_by_default",
+                       "status":  "PASS",
+                       "message":  "Role profile blocks Codex CLI invocation.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "api.blocked_by_default",
+                       "status":  "PASS",
+                       "message":  "Role profile blocks API usage.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "product_repo.blocked_by_default",
+                       "status":  "PASS",
+                       "message":  "Role profile blocks product repo access.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "spawn_workers.allowed",
+                       "status":  "PASS",
+                       "message":  "Sibling lane/spawn request does not exceed role profile.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "profile.forbidden_fence",
+                       "status":  "PASS",
+                       "message":  "Mission carries the role profile forbidden-action fence.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "approval.present",
+                       "status":  "PASS",
+                       "message":  "No missing role approval requirements detected.",
+                       "evidence":  ""
+                   }
+               ],
+    "blocked_reasons":  [
+
+                        ],
+    "tim_required_reasons":  [
+
+                             ],
+    "codex_cli_invoked":  false,
+    "api_called":  false,
+    "product_repo_touched":  false,
+    "canonical_nwr_mutated":  false
+}

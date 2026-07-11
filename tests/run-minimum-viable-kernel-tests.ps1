@@ -155,7 +155,7 @@ Assert-True -Condition ([bool]$greenVerifier.verified) -Message "Green verifier 
 Assert-Equal -Actual $greenVerifier.final_state -Expected "complete_green" -Message "Verifier writes deterministic final state"
 
 $preserveOut = Get-TsfCanonicalRuntimeRoot
-$preservation = Write-TsfKernelPreservationPacket -MissionPath $validMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $validWorkerResultPath -VerifierResultPath $greenVerifierPath -OutputDirectory $preserveOut -ExactNextAction "Fixture preservation complete."
+$preservation = Write-TsfKernelPreservationPacket -MissionPath $validMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $validWorkerResultPath -VerifierResultPath $greenVerifierPath -OutputDirectory $preserveOut -ExactNextAction "Fixture preservation complete." -TestOnlyAllowSyntheticProducerRegistry
 Write-TsfKernelJson -Value $preservation -Path $preservationSummaryPath
 Assert-True -Condition (Test-Path -LiteralPath $preservation.packet_file) -Message "Compact preservation packet is written"
 Assert-True -Condition (Test-Path -LiteralPath $preservation.manifest_path) -Message "Runtime artifact manifest is written"

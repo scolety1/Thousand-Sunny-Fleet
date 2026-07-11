@@ -1,0 +1,15 @@
+﻿{
+    "status":  "OBSERVED",
+    "evidence_classification":  "NATIVE_OBSERVED",
+    "source_method":  "thread/tokenUsage/updated",
+    "selected_sequence":  122,
+    "raw_payload_sha256":  "12055dcd5e1a9c0057398ebc8c09afa5c43941ca381402822231a269b7fea29a",
+    "event_count":  3,
+    "unique_event_count":  3,
+    "total_tokens":  58506,
+    "input_tokens":  58215,
+    "cached_input_tokens":  38656,
+    "output_tokens":  291,
+    "reasoning_output_tokens":  38,
+    "model_context_window":  353400
+}

@@ -49,6 +49,8 @@ $builderRuntimeDraft = Get-Content -LiteralPath $builderFixture -Raw | ConvertFr
 $builderRuntimeDraft.mission_packet.repo_path = $fleetRoot
 Write-Json -Path $builderRuntimeFixture -Value $builderRuntimeDraft
 $builderRunId=Get-TsfRuntimeSha256Text "$( [string]$builderRuntimeDraft.mission_packet.mission_id )|1|$((Get-FileHash $builderRuntimeFixture -Algorithm SHA256).Hash.ToLowerInvariant())";$builderPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) ([string]$builderRuntimeDraft.mission_packet.mission_id) 1 $builderRunId -Layout lifecycle_control
+$canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+foreach($layout in @('queue_control','lifecycle_control','adapter','preservation')){$resetPlan=New-TsfRuntimeStoragePlan $canonicalRuntimeRoot ([string]$builderRuntimeDraft.mission_packet.mission_id) 1 $builderRunId -Layout $layout;foreach($path in @($resetPlan.directory,$resetPlan.staging_directory)|Select-Object -Unique){if(Test-Path $path){if(!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $path) $canonicalRuntimeRoot)){throw 'Unsafe role lifecycle test runtime reset.'};Remove-Item $path -Recurse -Force}}}
 $builderLifecyclePath = [string]$builderPlan.artifacts.lifecycle_result
 & ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderRuntimeFixture -OutDirectory $builderPlan.directory -OutFile $builderLifecyclePath -DryRun | Out-Null
 $builderLifecycle = Read-Json $builderLifecyclePath

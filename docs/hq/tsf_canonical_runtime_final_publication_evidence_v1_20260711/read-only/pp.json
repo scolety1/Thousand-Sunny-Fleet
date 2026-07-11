@@ -1,0 +1,59 @@
+﻿{
+    "schema_version":  "tsf_compact_preservation_packet_v1",
+    "generated_at":  "2026-07-11T05:00:19.4535418+00:00",
+    "mission_id":  "synthetic-tsf-readonly-appserver-correction-0001",
+    "mission_revision":  1,
+    "run_id":  "canonical-result-synthetic-tsf-readonly-appserver-correction-0001-1",
+    "final_decision":  "GREEN",
+    "manifest":  "manifest.json",
+    "mission_packet":  "m.json",
+    "queue_document":  "qd.json",
+    "preflight_result":  "pf.json",
+    "role_preflight":  "rp.json",
+    "worker_instruction":  "wi.json",
+    "worker_result":  "wr.json",
+    "adapter_result":  "ar.json",
+    "verifier_result":  "vr.json",
+    "event_journal":  "ej.jsonl",
+    "usage":  "u.json",
+    "prompt":  "q.txt",
+    "stderr":  "se.log",
+    "expected_artifacts":  [
+                               "fleet/control/policy-manifest.v1.json"
+                           ],
+    "stop_conditions":  [
+                            {
+                                "id":  "durable-stop-001",
+                                "check_type":  "manual",
+                                "description":  "Unexpected file touch."
+                            },
+                            {
+                                "id":  "durable-stop-002",
+                                "check_type":  "manual",
+                                "description":  "Worker tool network request."
+                            },
+                            {
+                                "id":  "durable-stop-003",
+                                "check_type":  "manual",
+                                "description":  "Native identity mismatch."
+                            },
+                            {
+                                "id":  "durable-stop-004",
+                                "check_type":  "manual",
+                                "description":  "Timeout."
+                            },
+                            {
+                                "id":  "durable-stop-005",
+                                "check_type":  "manual",
+                                "description":  "Verifier failure."
+                            }
+                        ],
+    "exact_next_action":  "Review fixture lifecycle output. Commit only if verifier is GREEN and touched files are expected.",
+    "restricted_action_confirmation":  {
+                                           "background_runner_started":  false,
+                                           "all_fleet_started":  false,
+                                           "product_repos_mutated":  false,
+                                           "canonical_nwr_mutated":  false,
+                                           "push_merge_deploy_attempted":  false
+                                       }
+}

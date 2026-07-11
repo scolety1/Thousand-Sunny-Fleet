@@ -17,6 +17,7 @@ param(
     [string]$ActivePolicyManifestPath = "fleet/control/policy-manifest.v1.json",
 
     [switch]$UnsupportedDevelopmentMode,
+    [switch]$TestOnlyAllowAlternateQueueRoot,
     [int]$WorkerTimeoutSeconds = 180
 )
 
@@ -136,6 +137,7 @@ function Invoke-QueueExecutorTransition {
         OutFile = $OutPath
     }
     if ($DryRunTransition) { $params.DryRun = $true }
+    if ($TestOnlyAllowAlternateQueueRoot -or $DryRun) { $params.TestOnlyAllowAlternateQueueRoot = $true }
     $transition = & (Join-Path $fleetRoot "tools\Move-TsfMissionState.ps1") @params
     if ([string]$transition.verdict -ne "GREEN") {
         throw "Queue transition failed: $FromState -> $ToState :: $($transition.blocked_reasons -join '; ')"
@@ -201,7 +203,8 @@ function Test-QueueExecutorFixtureMission {
 
 $policy = Read-QueueExecutorJson -Path (Get-QueueExecutorFullPath -Path $PolicyPath)
 $statePolicy = Read-QueueExecutorJson -Path (Get-QueueExecutorFullPath -Path $StatePolicyPath)
-$queueRootFull = Get-QueueExecutorFullPath -Path $QueueRoot
+$queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+$queueRootFull = [string]$queueAuthority.root
 $missionFull = Get-QueueExecutorFullPath -Path $MissionPath
 if (!(Test-Path -LiteralPath $missionFull)) { throw "Mission file not found: $missionFull" }
 
@@ -218,8 +221,10 @@ if ([string]::IsNullOrWhiteSpace($missionId)) { $missionId = "queue-mission-" + 
 $missionRevision=if($missionInput.PSObject.Properties.Name-contains'source_binding'){[int]$missionInput.source_binding.durable_mission_revision}else{1}
 $runId=if($missionInput.PSObject.Properties.Name-contains'source_binding'){"canonical-result-$missionId-$missionRevision"}else{Get-TsfRuntimeSha256Text "$missionId|$missionRevision|$((Get-FileHash -LiteralPath $missionFull -Algorithm SHA256).Hash.ToLowerInvariant())"}
 $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
-$queueStoragePlan=New-TsfRuntimeStoragePlan -RuntimeRoot $canonicalRuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout queue_control
-$lifecycleStoragePlan=New-TsfRuntimeStoragePlan -RuntimeRoot $canonicalRuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout lifecycle_control
+$completeRuntimePlan=New-TsfCompleteRuntimePathPlan -MissionId $missionId -MissionRevision $missionRevision -RunId $runId
+if(!$completeRuntimePlan.budget.valid){throw "COMPLETE_RUNTIME_PATH_PLAN_REJECTED: $($completeRuntimePlan.budget.errors -join '; ')"}
+$queueStoragePlan=$completeRuntimePlan.queue_plan
+$lifecycleStoragePlan=$completeRuntimePlan.lifecycle_plan
 $artifactCatalog=Get-TsfRuntimeArtifactCatalog
 
 if ([string]::IsNullOrWhiteSpace($OutDirectory)) {
@@ -233,6 +238,12 @@ if ([string]::IsNullOrWhiteSpace($OutFile)) {
     throw 'NONCANONICAL_QUEUE_EXECUTOR_RESULT_REJECTED'
 }
 New-Item -ItemType Directory -Force -Path $OutDirectory | Out-Null
+$canonicalQueueEvidencePath=[string]$queueStoragePlan.artifacts.queue_document
+if([string]$missionInput.schema_version-eq'tsf_canonical_queue_document_v1'){
+    if(Test-Path $canonicalQueueEvidencePath -PathType Leaf){
+        if((Get-FileHash $canonicalQueueEvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()-ne(Get-FileHash $missionFull -Algorithm SHA256).Hash.ToLowerInvariant()){throw 'CANONICAL_QUEUE_EVIDENCE_IMMUTABLE_CONFLICT'}
+    }else{Copy-Item -LiteralPath $missionFull -Destination $canonicalQueueEvidencePath}
+}
 
 $originalQueueRootFull = $queueRootFull
 $originalMissionFull = $missionFull
@@ -265,11 +276,11 @@ $workerInvocationsUsed = 0
 $codexCliInvoked = $false
 $codexExitCode = $null
 $workerStatus = "NOT_RUN"
-$workerResultPath = Join-Path $OutDirectory "worker_result.json"
-$verifierPath = Join-Path $OutDirectory "verifier_result.json"
-$preflightPath = Join-Path $OutDirectory "preflight_result.json"
-$rolePreflightPath = Join-Path $OutDirectory "role_permission_preflight.json"
-$workerInstructionPath = Join-Path $OutDirectory "worker_instruction.json"
+$workerResultPath = [string]$queueStoragePlan.artifacts.worker_result
+$verifierPath = [string]$queueStoragePlan.artifacts.verifier_result
+$preflightPath = [string]$queueStoragePlan.artifacts.preflight
+$rolePreflightPath = [string]$queueStoragePlan.artifacts.role_preflight
+$workerInstructionPath = [string]$queueStoragePlan.artifacts.worker_instruction
 $contextUpdatePath = ""
 $preservationPacketPath = ""
 $finalDecision = "RED_QUEUE_EXECUTOR_BLOCKED"
@@ -288,14 +299,14 @@ try {
     Add-QueueExecutorEvent -Events $events -Step "queue_start" -Status "PASS" -Message "Mission accepted from queue state $currentState." -Evidence $currentMissionPath
 
     if ($currentState -eq "inbox") {
-        $transitionPath = Join-Path $OutDirectory "transition_inbox_to_drafted.json"
+        $transitionPath = [string]$queueStoragePlan.artifacts.transition_01
         $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "inbox" -ToState "drafted" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
         Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "inbox -> drafted" -Evidence $transitionPath
         $currentMissionPath = [string]$transition.destination_path
         $currentState = "drafted"
     }
 
-    $transitionPath = Join-Path $OutDirectory "transition_drafted_to_preflight_pending.json"
+    $transitionPath = [string]$queueStoragePlan.artifacts.transition_02
     $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "drafted" -ToState "preflight_pending" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
     Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "drafted -> preflight_pending" -Evidence $transitionPath
     $currentMissionPath = [string]$transition.destination_path
@@ -311,8 +322,10 @@ try {
             '-OutDirectory',$lifecycleDirectory,'-OutFile',$lifecyclePath,
             '-StateRoot',(Join-Path $lifecycleDirectory 's'),'-RunCanonicalAppServerWorker',
             '-ManageQueueTransitions','-QueueMissionPath',$currentMissionPath,'-QueueRoot',$queueRootForTransitions,
+            '-CanonicalQueueDocumentEvidencePath',$canonicalQueueEvidencePath,
             '-WorkerTimeoutSeconds',[string]$WorkerTimeoutSeconds
         )
+        if($TestOnlyAllowAlternateQueueRoot){$lifecycleArgs+='-TestOnlyAllowAlternateQueueRoot'}
         & powershell @lifecycleArgs | Out-Null
         $lifecycleExit = $LASTEXITCODE
         if (!(Test-Path -LiteralPath $lifecyclePath -PathType Leaf)) { throw 'Canonical lifecycle did not write its result.' }
@@ -320,10 +333,9 @@ try {
         if ($lifecycleExit -ne 0 -or [string]$lifecycle.final_decision -ne 'GREEN') { throw "Canonical lifecycle failed: $($lifecycle.blocked_reasons -join '; ')" }
         $currentMissionPath = [string]$lifecycle.queue_mission_path
         $currentState = 'postrun_pending'
-        $registry = Join-Path $OutDirectory 'g'
+        $durableMissionPath = [string]$completeRuntimePlan.registry_mission_path
+        $registry = Split-Path -Parent $durableMissionPath
         New-Item -ItemType Directory -Force -Path $registry | Out-Null
-        $missionStorageIdentity = Get-TsfRuntimeIdentity mission ([pscustomobject][ordered]@{mission_id=$missionId;mission_revision=[int]$missionInput.source_binding.durable_mission_revision})
-        $durableMissionPath = Join-Path $registry "m-$($missionStorageIdentity.short_key).json"
         Write-QueueExecutorJson -Value $missionInput.durable_mission -Path $durableMissionPath
         if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) {
             $ApprovalLedgerPath = Join-Path $OutDirectory $artifactCatalog.approval_ledger
@@ -358,7 +370,7 @@ try {
         $durableResult = ConvertTo-TsfDurableResultEnvelope -Mission $missionInput.durable_mission -RuntimeEvidence $runtimeEvidence
         $durableStorage = Add-TsfRuntimeDurableResult -Value $durableResult -PreservationPacketPath ([string]$lifecycle.preservation_packet_file)
         $durableResultPath = [string]$durableStorage.path
-        $admission = Get-TsfAdmissionDecision -ResultPath $durableResultPath -MissionRegistryPath $registry -ActivePolicyManifestPath $policyPathFull -ApprovalLedgerPath $ApprovalLedgerPath -QueueMissionPath $currentMissionPath -QueueRootPath $queueRootForTransitions -UnsupportedDevelopmentMode:$UnsupportedDevelopmentMode
+        $admission = Get-TsfAdmissionDecision -ResultPath $durableResultPath -MissionRegistryPath $registry -ActivePolicyManifestPath $policyPathFull -ApprovalLedgerPath $ApprovalLedgerPath -QueueMissionPath $currentMissionPath -QueueRootPath $queueRootForTransitions -UnsupportedDevelopmentMode:$UnsupportedDevelopmentMode -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
         $result = [pscustomobject][ordered]@{
             schema_version='tsf_canonical_queue_app_server_vertical_slice_result_v1'
             mission_id=$missionId
@@ -372,6 +384,10 @@ try {
             admission_receipt=$admission
             final_queue_state=[string]$admission.queue_state_to
             final_queue_mission_path=[string]$admission.queue_transition_path
+            queue_authority_kind=[string]$queueAuthority.kind
+            queue_authority_identity_sha256=[string]$queueAuthority.identity_sha256
+            complete_runtime_path_maximum=[int]$completeRuntimePlan.maximum_path_length
+            complete_runtime_path_maximum_logical_type=[string]$completeRuntimePlan.maximum_logical_type
             thread_id=[string](Read-QueueExecutorJson -Path ([string]$lifecycle.adapter_result_path)).thread_id
             turn_id=[string](Read-QueueExecutorJson -Path ([string]$lifecycle.adapter_result_path)).turn_id
             child_exited=[bool](Read-QueueExecutorJson -Path ([string]$lifecycle.adapter_result_path)).child_exited
@@ -383,13 +399,13 @@ try {
         if ($result.final_decision -eq 'GREEN') { exit 0 } else { exit 1 }
     }
 
-    $preflight = Invoke-TsfKernelPreflight -MissionPath $currentMissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $preflightPath -StateRoot (Join-Path $OutDirectory "kernel_states")
+    $preflight = Invoke-TsfKernelPreflight -MissionPath $currentMissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $preflightPath -StateRoot (Join-Path $OutDirectory 's')
     Add-QueueExecutorEvent -Events $events -Step "kernel_preflight" -Status ([string]$preflight.verdict) -Message "Kernel preflight completed." -Evidence $preflightPath
 
     if (![bool]$preflight.preflight_approved) {
         foreach ($reason in @(ConvertTo-TsfKernelArray -Value $preflight.blocked_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
         foreach ($reason in @(ConvertTo-TsfKernelArray -Value $preflight.tim_required_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
-        $transitionPath = Join-Path $OutDirectory "transition_preflight_pending_to_blocked_needs_tim.json"
+        $transitionPath = [string]$queueStoragePlan.artifacts.transition_03
         $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "preflight_pending" -ToState "blocked_needs_tim" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
         $currentMissionPath = [string]$transition.destination_path
         $finalState = "blocked_needs_tim"
@@ -401,19 +417,19 @@ try {
         if (![bool]$rolePreflight.role_preflight_approved) {
             foreach ($reason in @(ConvertTo-TsfKernelArray -Value $rolePreflight.blocked_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
             foreach ($reason in @(ConvertTo-TsfKernelArray -Value $rolePreflight.tim_required_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
-            $transitionPath = Join-Path $OutDirectory "transition_preflight_pending_to_blocked_needs_tim.json"
+            $transitionPath = [string]$queueStoragePlan.artifacts.transition_03
             $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "preflight_pending" -ToState "blocked_needs_tim" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
             $currentMissionPath = [string]$transition.destination_path
             $finalState = "blocked_needs_tim"
             $finalDecision = if ([string]$rolePreflight.verdict -eq "TIM_REQUIRED") { "TIM_REQUIRED_QUEUE_ROLE_BLOCKED" } else { "RED_QUEUE_ROLE_BLOCKED" }
         } else {
-            $transitionPath = Join-Path $OutDirectory "transition_preflight_pending_to_approved_for_worker.json"
+            $transitionPath = [string]$queueStoragePlan.artifacts.transition_04
             $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "preflight_pending" -ToState "approved_for_worker" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
             Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "preflight_pending -> approved_for_worker" -Evidence $transitionPath
             $currentMissionPath = [string]$transition.destination_path
             $currentState = "approved_for_worker"
 
-            $workerInstruction = New-TsfKernelWorkerInstruction -MissionPath $currentMissionPath -PreflightResultPath $preflightPath -OutFile $workerInstructionPath -StateRoot (Join-Path $OutDirectory "kernel_states")
+            $workerInstruction = New-TsfKernelWorkerInstruction -MissionPath $currentMissionPath -PreflightResultPath $preflightPath -OutFile $workerInstructionPath -StateRoot (Join-Path $OutDirectory 's')
             Add-QueueExecutorEvent -Events $events -Step "worker_instruction" -Status ([string]$workerInstruction.adapter_status) -Message "Worker instruction generated." -Evidence $workerInstructionPath
 
             if (!$RunApprovedFixtureWorker -or $DryRun) {
@@ -442,10 +458,10 @@ try {
                     $workerStatus = "BLOCKED_QUEUE_FIXTURE_SAFETY_CHECK"
                     $finalDecision = "RED_QUEUE_FIXTURE_SAFETY_BLOCKED"
                     $finalState = "blocked_needs_tim"
-                    $transitionPath = Join-Path $OutDirectory "transition_approved_for_worker_to_worker_running.blocked.json"
+                    $transitionPath = [string]$queueStoragePlan.artifacts.transition_05
                 } else {
-                    $transitionPath = Join-Path $OutDirectory "transition_approved_for_worker_to_worker_running.json"
-                    $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "approved_for_worker" -ToState "worker_running" -QueueRootPath $QueueRoot -OutPath $transitionPath -DryRunTransition:$false
+                    $transitionPath = [string]$queueStoragePlan.artifacts.transition_05
+                    $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "approved_for_worker" -ToState "worker_running" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
                     Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "approved_for_worker -> worker_running" -Evidence $transitionPath
                     $currentMissionPath = [string]$transition.destination_path
                     $currentState = "worker_running"
@@ -534,7 +550,7 @@ Return a concise status after the file is written.
                     }
                     Write-QueueExecutorJson -Value $workerResult -Path $workerResultPath
 
-                    $transitionPath = Join-Path $OutDirectory "transition_worker_running_to_postrun_pending.json"
+                    $transitionPath = [string]$queueStoragePlan.artifacts.transition_06
                     $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "worker_running" -ToState "postrun_pending" -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
                     Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "worker_running -> postrun_pending" -Evidence $transitionPath
                     $currentMissionPath = [string]$transition.destination_path
@@ -554,7 +570,7 @@ Return a concise status after the file is written.
                         $finalState = "blocked_needs_tim"
                     }
 
-                    $transitionPath = Join-Path $OutDirectory ("transition_postrun_pending_to_$finalState.json")
+                    $transitionPath = [string]$queueStoragePlan.artifacts.transition_07
                     $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState "postrun_pending" -ToState $finalState -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
                     $currentMissionPath = [string]$transition.destination_path
                     Add-QueueExecutorEvent -Events $events -Step "transition" -Status "PASS" -Message "postrun_pending -> $finalState" -Evidence $transitionPath
@@ -582,13 +598,13 @@ Return a concise status after the file is written.
     }
 
     if (Test-Path -LiteralPath $preflightPath) {
-        $preservation = Write-TsfKernelPreservationPacket -MissionPath $currentMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory (Join-Path $fleetRoot '.codex-local\rt') -ExactNextAction "Review queue executor result; continue only through a new TSF gate."
+        $preservation = Write-TsfKernelPreservationPacket -MissionPath $currentMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory (Join-Path $fleetRoot '.codex-local\rt') -ExactNextAction "Review queue executor result; continue only through a new TSF gate." -TestOnlyAllowSyntheticProducerRegistry:$TestOnlyAllowAlternateQueueRoot
         $preservationPacketPath = [string]$preservation.packet_directory
         Add-QueueExecutorEvent -Events $events -Step "preserve" -Status ([string]$preservation.final_decision) -Message "Preservation packet written." -Evidence $preservationPacketPath
     }
 
     if (![string]::IsNullOrWhiteSpace($ContextCapsulePath) -and (Test-Path -LiteralPath (Join-Path $fleetRoot "tools\Update-TsfProjectContextCapsule.ps1"))) {
-        $contextUpdatePath = Join-Path $OutDirectory "context_capsule.updated.json"
+        $contextUpdatePath = [string]$queueStoragePlan.artifacts.context_update
         & (Join-Path $fleetRoot "tools\Update-TsfProjectContextCapsule.ps1") -CapsulePath $ContextCapsulePath -MissionId $missionId -MissionResult $finalDecision -WorkerRole ([string]$mission.role_extension.worker_role) -CurrentLane "MASTER_TSF_CONTROL_PLANE" -ArtifactsCreated @($workerResultPath, $verifierPath, $preservationPacketPath) -NextRecommendedAction "Review queue executor result and continue only through an approved TSF gate." -OutFile $contextUpdatePath | Out-Null
     }
 } catch {
