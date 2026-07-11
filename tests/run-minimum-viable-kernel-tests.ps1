@@ -154,7 +154,7 @@ Assert-Equal -Actual $greenVerifier.verdict -Expected "GREEN" -Message "Verifier
 Assert-True -Condition ([bool]$greenVerifier.verified) -Message "Green verifier marks result verified"
 Assert-Equal -Actual $greenVerifier.final_state -Expected "complete_green" -Message "Verifier writes deterministic final state"
 
-$preserveOut = Join-Path $fleetRoot '.codex-local\rt-kernel-test'
+$preserveOut = Get-TsfCanonicalRuntimeRoot
 $preservation = Write-TsfKernelPreservationPacket -MissionPath $validMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $validWorkerResultPath -VerifierResultPath $greenVerifierPath -OutputDirectory $preserveOut -ExactNextAction "Fixture preservation complete."
 Write-TsfKernelJson -Value $preservation -Path $preservationSummaryPath
 Assert-True -Condition (Test-Path -LiteralPath $preservation.packet_file) -Message "Compact preservation packet is written"

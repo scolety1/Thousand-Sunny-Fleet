@@ -27,13 +27,19 @@ $codexExe = Join-Path $npmRoot 'node_modules\@openai\codex\node_modules\@openai\
 if (!(Test-Path -LiteralPath $codexExe -PathType Leaf)) { throw "Codex app-server executable not found: $codexExe" }
 $effortMap = @{ LIGHT='low'; MEDIUM='medium'; HIGH='high'; EXTRA_HIGH='xhigh'; MAX='max'; ULTRA='ultra' }
 if (!$effortMap.ContainsKey($ReasoningEffort)) { throw "Unsupported app-server effort: $ReasoningEffort" }
-New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $artifactCatalog=Get-TsfRuntimeArtifactCatalog
+$canonicalRoot=Get-TsfCanonicalRuntimeRoot
+$expectedPlan=New-TsfRuntimeStoragePlan -RuntimeRoot $canonicalRoot -MissionId $MissionId -MissionRevision $MissionRevision -RunId "canonical-result-$MissionId-$MissionRevision" -Layout adapter
+if(![string]::Equals((Get-TsfKernelFullPath $OutputDirectory),([string]$expectedPlan.directory),[StringComparison]::OrdinalIgnoreCase)){throw 'NONCANONICAL_ADAPTER_OUTPUT_REJECTED'}
 if ([string]::IsNullOrWhiteSpace($ResultPath)) { $ResultPath = Join-Path $OutputDirectory $artifactCatalog.adapter_result }
 if ([string]::IsNullOrWhiteSpace($EventJournalPath)) { $EventJournalPath = Join-Path $OutputDirectory $artifactCatalog.event_journal }
 if ([string]::IsNullOrWhiteSpace($StderrPath)) { $StderrPath = Join-Path $OutputDirectory $artifactCatalog.stderr }
+if(![string]::Equals((Get-TsfKernelFullPath $ResultPath),([string]$expectedPlan.artifacts.adapter_result),[StringComparison]::OrdinalIgnoreCase)-or
+   ![string]::Equals((Get-TsfKernelFullPath $EventJournalPath),([string]$expectedPlan.artifacts.event_journal),[StringComparison]::OrdinalIgnoreCase)-or
+   ![string]::Equals((Get-TsfKernelFullPath $StderrPath),([string]$expectedPlan.artifacts.stderr),[StringComparison]::OrdinalIgnoreCase)){throw 'NONCANONICAL_ADAPTER_ARTIFACT_REJECTED'}
 $pathPlan = Test-TsfRuntimePathPlan -RuntimeRoot $OutputDirectory -Paths @($ResultPath,$EventJournalPath,$StderrPath)
 if (!$pathPlan.valid) { throw "App-server runtime artifact path preflight failed: $($pathPlan.errors -join '; ')" }
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $arguments = @(
     (Join-Path $fleetRoot 'tools\tsf-codex-app-server-adapter.mjs'),
     '--codex-executable', $codexExe,

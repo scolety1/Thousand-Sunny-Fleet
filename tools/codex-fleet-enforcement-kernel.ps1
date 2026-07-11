@@ -774,8 +774,16 @@ function Copy-TsfKernelMissionToState {
     }
 
     Initialize-TsfKernelMissionFolders -StateRoot $StateRoot | Out-Null
-    $safeMissionId = ([string]$MissionId) -replace "[^A-Za-z0-9._:-]", "_"
-    $destination = Join-Path (Join-Path $StateRoot $State) "$safeMissionId.json"
+    $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+    if(Test-TsfKernelPathInside (Get-TsfKernelFullPath $StateRoot) $canonicalRuntimeRoot){
+        $stateIdentity=Get-TsfRuntimeIdentity mission ([pscustomobject][ordered]@{mission_id=[string]$MissionId;mission_revision=1})
+        $leaf="k-$($stateIdentity.short_key).json"
+    }else{
+        # The durable queue is an operational record system outside runtime-artifact storage.
+        $safeMissionId = ([string]$MissionId) -replace "[^A-Za-z0-9._:-]", "_"
+        $leaf="$safeMissionId.json"
+    }
+    $destination = Join-Path (Join-Path $StateRoot $State) $leaf
     Copy-Item -LiteralPath $MissionPath -Destination $destination -Force
     return $destination
 }
@@ -1210,6 +1218,9 @@ function Write-TsfKernelPreservationPacket {
         [string]$VerifierResultPath = "",
         [string]$AdapterResultPath = "",
         [string]$EventJournalPath = "",
+        [string]$QueueDocumentPath = "",
+        [string]$PromptPath = "",
+        [string]$StderrPath = "",
         [string]$OutputDirectory = "",
         [string]$RunId = "",
         [object]$DurableMission = $null,
@@ -1224,9 +1235,9 @@ function Write-TsfKernelPreservationPacket {
         $verifier = Read-TsfKernelJson -Path $VerifierResultPath
     }
 
-    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path (Get-TsfKernelRoot) '.codex-local\rt' }
-    $allowedRuntimeParent=Join-Path (Get-TsfKernelRoot) '.codex-local'
-    if(!(Test-TsfKernelPathInside $OutputDirectory $allowedRuntimeParent)){throw 'Compact preservation root must remain beneath the canonical TSF .codex-local runtime store.'}
+    $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = $canonicalRuntimeRoot }
+    $OutputDirectory=Assert-TsfCanonicalRuntimeRoot $OutputDirectory
     $sourceBinding = if ($mission.PSObject.Properties.Name -contains 'durable_source_binding') { $mission.durable_source_binding } else { $null }
     $revision = if ($null -ne $DurableMission) { [int]$DurableMission.mission_revision } elseif ($null -ne $sourceBinding) { [int]$sourceBinding.durable_mission_revision } else { 1 }
     $missionHash = if ($null -ne $DurableMission) { Get-TsfContractJsonHash $DurableMission } elseif ($null -ne $sourceBinding) { [string]$sourceBinding.durable_mission_content_hash } else { Get-TsfContractJsonHash $mission }
@@ -1262,7 +1273,10 @@ function Write-TsfKernelPreservationPacket {
         [pscustomobject]@{key='worker_result';path=$WorkerResultPath;evidence='KERNEL_OBSERVED';producer='mission_lifecycle'},
         [pscustomobject]@{key='adapter_result';path=$AdapterResultPath;evidence='ADAPTER_OBSERVED';producer='codex_app_server_adapter'},
         [pscustomobject]@{key='verifier_result';path=$VerifierResultPath;evidence='VERIFIER_OBSERVED';producer='enforcement_kernel_verifier'},
-        [pscustomobject]@{key='event_journal';path=$EventJournalPath;evidence='NATIVE_OBSERVED';producer='codex_app_server_adapter'}
+        [pscustomobject]@{key='event_journal';path=$EventJournalPath;evidence='NATIVE_OBSERVED';producer='codex_app_server_adapter'},
+        [pscustomobject]@{key='queue_document';path=$QueueDocumentPath;evidence='KERNEL_OBSERVED';producer='canonical_queue_executor'},
+        [pscustomobject]@{key='prompt';path=$PromptPath;evidence='KERNEL_OBSERVED';producer='mission_lifecycle'},
+        [pscustomobject]@{key='stderr';path=$StderrPath;evidence='UNVERIFIED';producer='codex_app_server_diagnostic'}
     )) {
         if (![string]::IsNullOrWhiteSpace([string]$candidate.path) -and (Test-Path -LiteralPath $candidate.path -PathType Leaf)) { $sources[[string]$candidate.key]=$candidate }
     }
@@ -1285,7 +1299,7 @@ function Write-TsfKernelPreservationPacket {
     $artifactCatalog=Get-TsfRuntimeArtifactCatalog
     $packet = [pscustomobject][ordered]@{
         schema_version='tsf_compact_preservation_packet_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');mission_id=[string]$mission.mission_id;mission_revision=$revision;run_id=$RunId
-        final_decision=$finalDecision;manifest=$artifactCatalog.manifest;mission_packet=$artifactCatalog.mission;preflight_result=$artifactCatalog.preflight;role_preflight=if($sources.Contains('role_preflight')){$artifactCatalog.role_preflight}else{''};worker_instruction=if($sources.Contains('worker_instruction')){$artifactCatalog.worker_instruction}else{''};worker_result=if($sources.Contains('worker_result')){$artifactCatalog.worker_result}else{''};adapter_result=if($sources.Contains('adapter_result')){$artifactCatalog.adapter_result}else{''};verifier_result=if($sources.Contains('verifier_result')){$artifactCatalog.verifier_result}else{''};event_journal=if($sources.Contains('event_journal')){$artifactCatalog.event_journal}else{''};usage=if(Test-Path -LiteralPath $plan.staging_artifacts.usage){$artifactCatalog.usage}else{''}
+        final_decision=$finalDecision;manifest=$artifactCatalog.manifest;mission_packet=$artifactCatalog.mission;queue_document=if($sources.Contains('queue_document')){$artifactCatalog.queue_document}else{''};preflight_result=$artifactCatalog.preflight;role_preflight=if($sources.Contains('role_preflight')){$artifactCatalog.role_preflight}else{''};worker_instruction=if($sources.Contains('worker_instruction')){$artifactCatalog.worker_instruction}else{''};worker_result=if($sources.Contains('worker_result')){$artifactCatalog.worker_result}else{''};adapter_result=if($sources.Contains('adapter_result')){$artifactCatalog.adapter_result}else{''};verifier_result=if($sources.Contains('verifier_result')){$artifactCatalog.verifier_result}else{''};event_journal=if($sources.Contains('event_journal')){$artifactCatalog.event_journal}else{''};usage=if(Test-Path -LiteralPath $plan.staging_artifacts.usage){$artifactCatalog.usage}else{''};prompt=if($sources.Contains('prompt')){$artifactCatalog.prompt}else{''};stderr=if($sources.Contains('stderr')){$artifactCatalog.stderr}else{''}
         expected_artifacts=@(ConvertTo-TsfKernelArray $mission.expected_artifacts);stop_conditions=@(ConvertTo-TsfKernelArray $mission.stop_conditions);exact_next_action=$ExactNextAction
         restricted_action_confirmation=[pscustomobject]@{background_runner_started=$false;all_fleet_started=$false;product_repos_mutated=$false;canonical_nwr_mutated=$false;push_merge_deploy_attempted=$false}
     }

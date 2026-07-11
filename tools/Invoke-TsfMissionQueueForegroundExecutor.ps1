@@ -215,13 +215,22 @@ if ($RunCanonicalAppServerWorker) {
 $mission = if ($missionInput.PSObject.Properties.Name -contains "mission_packet") { $missionInput.mission_packet } else { $missionInput }
 $missionId = [string]$mission.mission_id
 if ([string]::IsNullOrWhiteSpace($missionId)) { $missionId = "queue-mission-" + (Get-Date -Format "yyyyMMddHHmmss") }
+$missionRevision=if($missionInput.PSObject.Properties.Name-contains'source_binding'){[int]$missionInput.source_binding.durable_mission_revision}else{1}
+$runId=if($missionInput.PSObject.Properties.Name-contains'source_binding'){"canonical-result-$missionId-$missionRevision"}else{Get-TsfRuntimeSha256Text "$missionId|$missionRevision|$((Get-FileHash -LiteralPath $missionFull -Algorithm SHA256).Hash.ToLowerInvariant())"}
+$canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+$queueStoragePlan=New-TsfRuntimeStoragePlan -RuntimeRoot $canonicalRuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout queue_control
+$lifecycleStoragePlan=New-TsfRuntimeStoragePlan -RuntimeRoot $canonicalRuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout lifecycle_control
+$artifactCatalog=Get-TsfRuntimeArtifactCatalog
 
 if ([string]::IsNullOrWhiteSpace($OutDirectory)) {
-    $safeMissionId = $missionId -replace "[^A-Za-z0-9._:-]", "_"
-    $OutDirectory = Join-Path $fleetRoot ".codex-local\mission-queue-foreground-executor\$safeMissionId"
+    $OutDirectory = [string]$queueStoragePlan.directory
+} elseif(![string]::Equals((Get-TsfKernelFullPath $OutDirectory),([string]$queueStoragePlan.directory),[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'NONCANONICAL_QUEUE_EXECUTOR_OUTPUT_REJECTED'
 }
 if ([string]::IsNullOrWhiteSpace($OutFile)) {
-    $OutFile = Join-Path $OutDirectory "queue_executor_result.json"
+    $OutFile = Join-Path $OutDirectory $artifactCatalog.queue_result
+} elseif(![string]::Equals((Get-TsfKernelFullPath $OutFile),([string]$queueStoragePlan.artifacts.queue_result),[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'NONCANONICAL_QUEUE_EXECUTOR_RESULT_REJECTED'
 }
 New-Item -ItemType Directory -Force -Path $OutDirectory | Out-Null
 
@@ -235,6 +244,7 @@ if ($DryRun) {
         throw "Mission path is not inside a known queue state folder."
     }
     $simulationQueueRoot = Join-Path $OutDirectory "dry_run_queue"
+    if(Test-Path -LiteralPath $simulationQueueRoot){if(!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $simulationQueueRoot) (Get-TsfKernelFullPath $OutDirectory))){throw 'Unsafe dry-run queue reset path.'};Remove-Item -LiteralPath $simulationQueueRoot -Recurse -Force}
     foreach ($state in @($statePolicy.states)) {
         New-Item -ItemType Directory -Force -Path (Join-Path $simulationQueueRoot ([string]$state)) | Out-Null
     }
@@ -292,14 +302,14 @@ try {
     $currentState = "preflight_pending"
 
     if ($RunCanonicalAppServerWorker) {
-        $lifecycleDirectory = Join-Path $OutDirectory 'canonical_lifecycle'
-        $lifecyclePath = Join-Path $lifecycleDirectory 'lifecycle_result.json'
+        $lifecycleDirectory = [string]$lifecycleStoragePlan.directory
+        $lifecyclePath = [string]$lifecycleStoragePlan.artifacts.lifecycle_result
         New-Item -ItemType Directory -Force -Path $lifecycleDirectory | Out-Null
         $lifecycleArgs = @(
             '-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $fleetRoot 'tools\Invoke-TsfMissionLifecycle.ps1'),
             '-MissionPath',$currentMissionPath,'-ApprovalLedgerPath',$ApprovalLedgerPath,
             '-OutDirectory',$lifecycleDirectory,'-OutFile',$lifecyclePath,
-            '-StateRoot',(Join-Path $lifecycleDirectory 'states'),'-RunCanonicalAppServerWorker',
+            '-StateRoot',(Join-Path $lifecycleDirectory 's'),'-RunCanonicalAppServerWorker',
             '-ManageQueueTransitions','-QueueMissionPath',$currentMissionPath,'-QueueRoot',$queueRootForTransitions,
             '-WorkerTimeoutSeconds',[string]$WorkerTimeoutSeconds
         )
@@ -310,25 +320,32 @@ try {
         if ($lifecycleExit -ne 0 -or [string]$lifecycle.final_decision -ne 'GREEN') { throw "Canonical lifecycle failed: $($lifecycle.blocked_reasons -join '; ')" }
         $currentMissionPath = [string]$lifecycle.queue_mission_path
         $currentState = 'postrun_pending'
-        $registry = Join-Path $OutDirectory 'durable_mission_registry'
+        $registry = Join-Path $OutDirectory 'g'
         New-Item -ItemType Directory -Force -Path $registry | Out-Null
         $missionStorageIdentity = Get-TsfRuntimeIdentity mission ([pscustomobject][ordered]@{mission_id=$missionId;mission_revision=[int]$missionInput.source_binding.durable_mission_revision})
         $durableMissionPath = Join-Path $registry "m-$($missionStorageIdentity.short_key).json"
         Write-QueueExecutorJson -Value $missionInput.durable_mission -Path $durableMissionPath
         if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) {
-            $ApprovalLedgerPath = Join-Path $OutDirectory 'empty-approval-ledger.json'
+            $ApprovalLedgerPath = Join-Path $OutDirectory $artifactCatalog.approval_ledger
             Write-QueueExecutorJson -Value ([pscustomobject]@{schema_version=1;ledger_id='canonical-empty-ledger';approvals=@()}) -Path $ApprovalLedgerPath
         }
         $policyPathFull = Get-QueueExecutorFullPath -Path $ActivePolicyManifestPath
+        $packetDescriptor=Get-TsfPreservationPacketDescriptor -PacketPath ([string]$lifecycle.preservation_packet_file) -ExpectedMissionId $missionId -ExpectedMissionRevision $missionRevision
+        $boundQueue=Get-TsfManifestBoundArtifact $packetDescriptor 'queue_document' $artifactCatalog.queue_document 'canonical_queue_executor' @('KERNEL_OBSERVED')
+        $boundAdapter=Get-TsfManifestBoundArtifact $packetDescriptor 'adapter_result' $artifactCatalog.adapter_result 'codex_app_server_adapter' @('ADAPTER_OBSERVED')
+        $boundPreflight=Get-TsfManifestBoundArtifact $packetDescriptor 'preflight' $artifactCatalog.preflight 'enforcement_kernel' @('KERNEL_OBSERVED')
+        $boundRole=Get-TsfManifestBoundArtifact $packetDescriptor 'role_preflight' $artifactCatalog.role_preflight 'role_permission_preflight' @('KERNEL_OBSERVED')
+        $boundWorker=Get-TsfManifestBoundArtifact $packetDescriptor 'worker_result' $artifactCatalog.worker_result 'mission_lifecycle' @('KERNEL_OBSERVED')
+        $boundVerifier=Get-TsfManifestBoundArtifact $packetDescriptor 'verifier_result' $artifactCatalog.verifier_result 'enforcement_kernel_verifier' @('VERIFIER_OBSERVED')
         $runtimeEvidence = [pscustomobject][ordered]@{
             schema_version='tsf_authenticated_runtime_evidence_v1'
             result_id="canonical-result-$missionId-$([int]$missionInput.source_binding.durable_mission_revision)"
-            queue_document_path=$currentMissionPath
-            adapter_result_path=[string]$lifecycle.adapter_result_path
-            preflight_path=(Join-Path $lifecycleDirectory 'preflight_result.json')
-            role_preflight_path=[string]$lifecycle.role_preflight_path
-            worker_result_path=[string]$lifecycle.worker_result_path
-            verifier_result_path=(Join-Path $lifecycleDirectory 'verifier_result.json')
+            queue_document_path=[string]$boundQueue.path
+            adapter_result_path=[string]$boundAdapter.path
+            preflight_path=[string]$boundPreflight.path
+            role_preflight_path=[string]$boundRole.path
+            worker_result_path=[string]$boundWorker.path
+            verifier_result_path=[string]$boundVerifier.path
             preservation_packet_path=[string]$lifecycle.preservation_packet_file
             starting_head=$missionInput.durable_mission.branch_worktree_policy.starting_head
             base_head=$missionInput.durable_mission.branch_worktree_policy.starting_head
@@ -336,7 +353,7 @@ try {
             proposed_next_action='Review canonical admission receipt.'
             created_at=[datetimeoffset]::UtcNow.ToString('o')
         }
-        $runtimeEvidencePath = Join-Path $OutDirectory 'authenticated_runtime_evidence.json'
+        $runtimeEvidencePath = Join-Path $OutDirectory $artifactCatalog.runtime_evidence
         Write-QueueExecutorJson -Value $runtimeEvidence -Path $runtimeEvidencePath
         $durableResult = ConvertTo-TsfDurableResultEnvelope -Mission $missionInput.durable_mission -RuntimeEvidence $runtimeEvidence
         $durableStorage = Add-TsfRuntimeDurableResult -Value $durableResult -PreservationPacketPath ([string]$lifecycle.preservation_packet_file)

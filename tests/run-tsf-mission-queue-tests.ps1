@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $repoRoot 'tools\codex-fleet-enforcement-kernel.ps1')
 $workRoot = Join-Path $repoRoot ".codex-local\mission-queue-tests"
 if (Test-Path -LiteralPath $workRoot) { Remove-Item -LiteralPath $workRoot -Recurse -Force }
 foreach ($state in @("inbox", "drafted", "preflight_pending", "blocked_needs_tim", "approved_for_worker", "worker_running", "postrun_pending", "complete_review_only", "complete_ready_for_gate", "stopped", "archived")) {
@@ -147,15 +148,15 @@ $executorArtifact = "tests/fixtures/fleet/mission-queue/worker-output/queue_exec
 New-QueueExecutorMission -MissionId "queue-executor-dry-run-001" -WorkerRole "builder_worker" -ArtifactPath $executorArtifact -ExpectedContent "TSF queue executor dry-run fixture." -Path $executorMission
 $ledgerPath = Join-Path $workRoot "approval-ledger.queue-executor.json"
 New-QueueExecutorApprovalLedger -Path $ledgerPath -AllowedPath $executorArtifact
-$executorOut = Join-Path $workRoot "executor-dry-run\queue_executor_result.json"
-$executor = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $executorMission -QueueRoot $workRoot -ApprovalLedgerPath $ledgerPath -OutDirectory (Join-Path $workRoot "executor-dry-run") -OutFile $executorOut -DryRun
+$executorDoc=Get-Content $executorMission -Raw|ConvertFrom-Json;$executorRun=Get-TsfRuntimeSha256Text "$($executorDoc.mission_id)|1|$((Get-FileHash $executorMission -Algorithm SHA256).Hash.ToLowerInvariant())";$executorPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $executorDoc.mission_id 1 $executorRun -Layout queue_control;$executorOut=[string]$executorPlan.artifacts.queue_result
+$executor = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $executorMission -QueueRoot $workRoot -ApprovalLedgerPath $ledgerPath -OutDirectory $executorPlan.directory -OutFile $executorOut -DryRun
 Assert-Queue ($executor.final_decision -eq "YELLOW_QUEUE_DRY_RUN_APPROVED") "queue executor dry-run reaches approved state"
 Assert-Queue ($executor.codex_cli_worker_execution_invoked -eq $false) "queue executor dry-run invokes no Codex worker"
 
 $missingApprovalMission = Join-Path $workRoot "inbox\queue-executor-missing-approval.json"
 New-QueueExecutorMission -MissionId "queue-executor-missing-approval-001" -WorkerRole "builder_worker" -ArtifactPath "tests/fixtures/fleet/mission-queue/worker-output/missing_approval.txt" -ExpectedContent "not used" -Path $missingApprovalMission
-$missingApprovalOut = Join-Path $workRoot "executor-missing-approval\queue_executor_result.json"
-$missingApproval = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $missingApprovalMission -QueueRoot $workRoot -OutDirectory (Join-Path $workRoot "executor-missing-approval") -OutFile $missingApprovalOut -DryRun
+$missingDoc=Get-Content $missingApprovalMission -Raw|ConvertFrom-Json;$missingRun=Get-TsfRuntimeSha256Text "$($missingDoc.mission_id)|1|$((Get-FileHash $missingApprovalMission -Algorithm SHA256).Hash.ToLowerInvariant())";$missingPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $missingDoc.mission_id 1 $missingRun -Layout queue_control;$missingApprovalOut=[string]$missingPlan.artifacts.queue_result
+$missingApproval = & (Join-Path $repoRoot "tools\Invoke-TsfMissionQueueForegroundExecutor.ps1") -MissionPath $missingApprovalMission -QueueRoot $workRoot -OutDirectory $missingPlan.directory -OutFile $missingApprovalOut -DryRun
 Assert-Queue ($missingApproval.final_decision -eq "TIM_REQUIRED_QUEUE_PREFLIGHT_BLOCKED") "queue executor blocks missing approval"
 Assert-Queue ($missingApproval.codex_cli_worker_execution_invoked -eq $false) "missing approval invokes no Codex worker"
 

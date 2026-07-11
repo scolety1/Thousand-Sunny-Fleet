@@ -161,7 +161,7 @@
   },
   "development_policy_fingerprint": "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
   "post_reconciliation_integrity": { "powershell_parse_errors": 0, "node_check_exit": 0, "json_parse_errors": 0, "git_diff_check_exit": 0 },
-  "clean_head_policy_fingerprint": "TO_BE_OBSERVED_AFTER_AUTHORIZED_COMMIT_WITHOUT_TRACKED_FILE_MUTATION",
+  "clean_head_policy_fingerprint": "SUPERSEDED_BY_RUNTIME_AUTHORITY_CORRECTION_POST_COMMIT_OBSERVATION",
   "not_tested": ["native approval relay", "real approval consumption", "live production mission"],
   "deferred": ["interactive question relay", "Work integration", "plugins/MCP", "HQ Dispatch", "deployment"],
   "prohibited_actions_observed": false

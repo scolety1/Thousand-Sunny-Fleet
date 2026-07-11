@@ -113,8 +113,9 @@ $validMissionPath = Join-Path $testRoot "mission.lifecycle-valid.json"
 $validMission = New-BaseMission -MissionId "tsf-kernel-v2-lifecycle-valid" -RepoPath $repoPath
 Write-TestJson -Value $validMission -Path $validMissionPath
 
-$lifecycleOut = Join-Path $testRoot "lifecycle-dry-run"
-$lifecycleResultPath = Join-Path $lifecycleOut "lifecycle_result.json"
+$lifecycleRunId=Get-TsfRuntimeSha256Text "$($validMission.mission_id)|1|$((Get-FileHash $validMissionPath -Algorithm SHA256).Hash.ToLowerInvariant())";$lifecyclePlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $validMission.mission_id 1 $lifecycleRunId -Layout lifecycle_control
+$lifecycleOut = [string]$lifecyclePlan.directory
+$lifecycleResultPath = [string]$lifecyclePlan.artifacts.lifecycle_result
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "tools\Invoke-TsfMissionLifecycle.ps1") -MissionPath $validMissionPath -OutDirectory $lifecycleOut -OutFile $lifecycleResultPath | Out-Null
 Assert-Equal -Actual $LASTEXITCODE -Expected 0 -Message "Lifecycle dry-run wrapper exits 0"
 $lifecycleResult = Read-TsfKernelJson -Path $lifecycleResultPath

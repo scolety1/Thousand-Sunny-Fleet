@@ -1,0 +1,10 @@
+item,status,reason
+interactive_question_relay,DEFERRED,Automatic stable-method missions do not require question relay
+native_approval_relay,NOT_TESTED,No authorized live mission requires native approval
+real_approval_consumption,DEFERRED,Approval-requiring missions continue to fail closed
+work_integration,DEFERRED,Outside this correction
+plugins_and_mcp,DEFERRED,Outside this correction
+hq_dispatch,DEFERRED,Outside this correction
+deployment,DEFERRED,Prohibited
+production_mission,NOT_TESTED,Only bounded synthetic fixtures are authorized
+pr11_research_regression,CONDITIONAL_NOT_APPLICABLE,Attempted and exposed a pre-existing long research-import path; no corrected canonical runtime call path overlaps that subsystem

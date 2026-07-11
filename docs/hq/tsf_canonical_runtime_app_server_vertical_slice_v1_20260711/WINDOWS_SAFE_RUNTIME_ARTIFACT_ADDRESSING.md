@@ -1,6 +1,6 @@
 # Windows-Safe Runtime Artifact Addressing V1
 
-New TSF V1 runtime writes use one addressing authority: `tools/TsfRuntimeArtifactAddressing.ps1`.
+Superseded publication judgment: the follow-up runtime-authority correction enforces one exact normal V1 root, `<repo>/.codex-local/rt`, through `tools/TsfRuntimeArtifactAddressing.ps1`.
 
 The canonical preservation layout is:
 
@@ -16,4 +16,6 @@ The hard path limit is 240 characters and the live target is 225 characters. Fin
 
 Admission and transaction receipts live beneath the verified compact packet in `r/`. They retain complete mission, revision, result, policy, preservation, decision, transition, and receipt identities in their bodies. Exact replay is idempotent; conflicting replay preserves the original receipt and writes an immutable, collision-checked conflict record.
 
-Historical `preservation_packet.json` packets are not renamed. They remain readable through the explicit `LEGACY_READ_ONLY` descriptor. New V1 writes cannot select the legacy layout.
+Historical `preservation_packet.json` packets are not renamed. They remain readable through the explicit `LEGACY_READ_ONLY` descriptor. Durable-result, admission, transaction, conflict, preservation, and queue-mutating operations against that layout fail `LEGACY_PACKET_WRITE_PROHIBITED` before a write.
+
+Normal queue-executor and lifecycle control outputs use compact `q/<mission-key>/<run-key>` and `l/<mission-key>/<run-key>` addresses. Durable queue records remain the one operational queue outside artifact storage; their state filenames are not runtime-artifact addresses.

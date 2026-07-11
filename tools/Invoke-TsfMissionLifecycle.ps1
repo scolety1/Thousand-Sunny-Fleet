@@ -159,9 +159,12 @@ $roleExtension = if (Test-LifecycleProperty -Value $inputDocument -Name "role_ex
 $missionId = [string]$mission.mission_id
 $missionRevision = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { [int]$inputDocument.source_binding.durable_mission_revision } elseif (Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission') { [int]$inputDocument.durable_mission.mission_revision } else { 1 }
 $runId = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { "canonical-result-$missionId-$missionRevision" } else { Get-TsfRuntimeSha256Text "$missionId|$missionRevision|$((Get-FileHash -LiteralPath $MissionPath -Algorithm SHA256).Hash.ToLowerInvariant())" }
-if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) { $RuntimeRoot = Join-Path $fleetRoot '.codex-local\rt' }
+$canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
+if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) { $RuntimeRoot = $canonicalRuntimeRoot }
+$RuntimeRoot=Assert-TsfCanonicalRuntimeRoot $RuntimeRoot
 $adapterStoragePlan = New-TsfRuntimeStoragePlan -RuntimeRoot $RuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout adapter
 $preservationStoragePlan = New-TsfRuntimeStoragePlan -RuntimeRoot $RuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout preservation
+$lifecycleStoragePlan = New-TsfRuntimeStoragePlan -RuntimeRoot $RuntimeRoot -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Layout lifecycle_control
 $completeRuntimePaths=@()
 $completeRuntimePaths+=@($adapterStoragePlan.artifacts.PSObject.Properties|ForEach-Object{[string]$_.Value})
 $completeRuntimePaths+=@($preservationStoragePlan.artifacts.PSObject.Properties|ForEach-Object{[string]$_.Value})
@@ -169,32 +172,39 @@ $completeRuntimePaths+=@($preservationStoragePlan.staging_artifacts.PSObject.Pro
 $completeRuntimePaths+=@($preservationStoragePlan.receipt_paths.PSObject.Properties|ForEach-Object{[string]$_.Value})
 $completePathPlan = Test-TsfRuntimePathPlan -RuntimeRoot $RuntimeRoot -Paths $completeRuntimePaths
 if (!$completePathPlan.valid) { throw "Lifecycle runtime artifact path preflight failed before worker execution: $($completePathPlan.errors -join '; ')" }
+$artifactCatalog=Get-TsfRuntimeArtifactCatalog
+$expectedOutDirectory=[string]$lifecycleStoragePlan.directory
 if ([string]::IsNullOrWhiteSpace($OutDirectory)) {
-    $safeMissionId = $missionId -replace "[^A-Za-z0-9._:-]", "_"
-    $OutDirectory = Join-Path $fleetRoot ".codex-local\mission-lifecycle\$safeMissionId"
+    $OutDirectory = $expectedOutDirectory
+} elseif(![string]::Equals((Get-TsfKernelFullPath $OutDirectory),$expectedOutDirectory,[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'NONCANONICAL_LIFECYCLE_OUTPUT_REJECTED'
 }
 if ([string]::IsNullOrWhiteSpace($StateRoot)) {
-    $StateRoot = Join-Path $OutDirectory "states"
+    $StateRoot = Join-Path $OutDirectory 's'
+} elseif(!(Test-TsfKernelPathInside (Get-TsfKernelFullPath $StateRoot) $OutDirectory)) {
+    throw 'NONCANONICAL_LIFECYCLE_STATE_ROOT_REJECTED'
 }
 if ([string]::IsNullOrWhiteSpace($OutFile)) {
-    $OutFile = Join-Path $OutDirectory "lifecycle_result.json"
+    $OutFile = Join-Path $OutDirectory $artifactCatalog.lifecycle_result
+} elseif(![string]::Equals((Get-TsfKernelFullPath $OutFile),(Get-TsfKernelFullPath (Join-Path $OutDirectory $artifactCatalog.lifecycle_result)),[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'NONCANONICAL_LIFECYCLE_RESULT_REJECTED'
 }
 
 New-Item -ItemType Directory -Force -Path $OutDirectory | Out-Null
 $events = [System.Collections.Generic.List[object]]::new()
 $effectiveMissionPath = $MissionPath
-$rolePreflightPath = Join-Path $OutDirectory "role_permission_preflight.json"
-$workerResultPath = Join-Path $OutDirectory "worker_result.json"
-$preflightPath = Join-Path $OutDirectory "preflight_result.json"
-$workerInstructionPath = Join-Path $OutDirectory "worker_instruction.json"
-$verifierPath = Join-Path $OutDirectory "verifier_result.json"
+$rolePreflightPath = Join-Path $OutDirectory $artifactCatalog.role_preflight
+$workerResultPath = Join-Path $OutDirectory $artifactCatalog.worker_result
+$preflightPath = Join-Path $OutDirectory $artifactCatalog.preflight
+$workerInstructionPath = Join-Path $OutDirectory $artifactCatalog.worker_instruction
+$verifierPath = Join-Path $OutDirectory $artifactCatalog.verifier_result
 $preservationRoot = $RuntimeRoot
 
 if (Test-LifecycleProperty -Value $inputDocument -Name "mission_packet") {
     if ($null -ne $roleExtension -and !(Test-LifecycleProperty -Value $mission -Name "role_extension")) {
         $mission | Add-Member -NotePropertyName "role_extension" -NotePropertyValue $roleExtension -Force
     }
-    $effectiveMissionPath = Join-Path $OutDirectory "mission_packet.effective.json"
+    $effectiveMissionPath = Join-Path $OutDirectory $artifactCatalog.mission
     Write-TsfKernelJson -Value $mission -Path $effectiveMissionPath
     $events.Add((New-LifecycleEvent -Step "mission_normalize" -Status "PASS" -Message "Project Main Bot draft normalized to mission packet for kernel lifecycle." -Evidence $effectiveMissionPath)) | Out-Null
 }
@@ -422,7 +432,7 @@ $exactNextAction = if ($RunApprovedFixtureWorker -or $RunCanonicalAppServerWorke
 } else {
     "Dry-run lifecycle complete. Run with -RunApprovedFixtureWorker only for the approved fixture pilot."
 }
-$preservation = Write-TsfKernelPreservationPacket -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -RolePreflightPath $(if($requiresRolePreflight){$rolePreflightPath}else{''}) -WorkerInstructionPath $workerInstructionPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -AdapterResultPath $(if($null-ne$adapterResult){$adapterResultPath}else{''}) -EventJournalPath $(if($null-ne$adapterResult){$adapterEventPath}else{''}) -OutputDirectory $preservationRoot -RunId $runId -DurableMission $(if(Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission'){$inputDocument.durable_mission}else{$null}) -ExactNextAction $exactNextAction
+$preservation = Write-TsfKernelPreservationPacket -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -RolePreflightPath $(if($requiresRolePreflight){$rolePreflightPath}else{''}) -WorkerInstructionPath $workerInstructionPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -AdapterResultPath $(if($null-ne$adapterResult){$adapterResultPath}else{''}) -EventJournalPath $(if($null-ne$adapterResult){$adapterEventPath}else{''}) -QueueDocumentPath $(if([string]$inputDocument.schema_version-eq'tsf_canonical_queue_document_v1'){$script:currentQueueMissionPath}else{''}) -PromptPath $(if($null-ne$adapterResult){$promptPath}else{''}) -StderrPath $(if($null-ne$adapterResult){$adapterStderrPath}else{''}) -OutputDirectory $preservationRoot -RunId $runId -DurableMission $(if(Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission'){$inputDocument.durable_mission}else{$null}) -ExactNextAction $exactNextAction
 $events.Add((New-LifecycleEvent -Step "preserve" -Status ([string]$preservation.final_decision) -Message "Preservation packet written." -Evidence ([string]$preservation.packet_directory))) | Out-Null
 
 $finalDecision = "YELLOW"

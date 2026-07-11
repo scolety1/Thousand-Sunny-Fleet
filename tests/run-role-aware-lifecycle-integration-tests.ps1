@@ -48,8 +48,9 @@ $builderRuntimeFixture = Join-Path $outRoot "builder_worker.runtime.mission-draf
 $builderRuntimeDraft = Get-Content -LiteralPath $builderFixture -Raw | ConvertFrom-Json
 $builderRuntimeDraft.mission_packet.repo_path = $fleetRoot
 Write-Json -Path $builderRuntimeFixture -Value $builderRuntimeDraft
-$builderLifecyclePath = Join-Path $outRoot "builder.lifecycle.json"
-& ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderRuntimeFixture -OutDirectory (Join-Path $outRoot "builder-lifecycle") -OutFile $builderLifecyclePath -DryRun | Out-Null
+$builderRunId=Get-TsfRuntimeSha256Text "$( [string]$builderRuntimeDraft.mission_packet.mission_id )|1|$((Get-FileHash $builderRuntimeFixture -Algorithm SHA256).Hash.ToLowerInvariant())";$builderPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) ([string]$builderRuntimeDraft.mission_packet.mission_id) 1 $builderRunId -Layout lifecycle_control
+$builderLifecyclePath = [string]$builderPlan.artifacts.lifecycle_result
+& ".\tools\Invoke-TsfMissionLifecycle.ps1" -MissionPath $builderRuntimeFixture -OutDirectory $builderPlan.directory -OutFile $builderLifecyclePath -DryRun | Out-Null
 $builderLifecycle = Read-Json $builderLifecyclePath
 Assert-True -Condition ([bool]$builderLifecycle.preflight_approved) -Message "safe Builder dry-run mission passes kernel preflight"
 Assert-True -Condition ([bool]$builderLifecycle.role_preflight_approved) -Message "safe Builder dry-run mission passes role preflight"

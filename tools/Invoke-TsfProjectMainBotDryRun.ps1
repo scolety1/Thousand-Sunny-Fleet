@@ -114,9 +114,10 @@ if ($classification -eq "BLOCKED_UNSAFE") {
 } elseif ($classification -eq "NEEDS_MAIN_BOT_REVIEW") {
     $nextAction = "STOP_AND_PRESERVE"
 } else {
+    $lifecycleMissionId=[string]$draft.mission_packet.mission_id;$lifecycleRunId=Get-TsfRuntimeSha256Text "$lifecycleMissionId|1|$((Get-FileHash $draftPath -Algorithm SHA256).Hash.ToLowerInvariant())";$lifecyclePlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $lifecycleMissionId 1 $lifecycleRunId -Layout lifecycle_control;$lifecyclePath=[string]$lifecyclePlan.artifacts.lifecycle_result
     $lifecycleParams = @{
         MissionPath = $draftPath
-        OutDirectory = (Join-Path $OutDirectory "lifecycle")
+        OutDirectory = [string]$lifecyclePlan.directory
         OutFile = $lifecyclePath
         DryRun = $true
     }

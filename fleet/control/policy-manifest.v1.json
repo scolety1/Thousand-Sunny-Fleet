@@ -11,6 +11,7 @@
     "tools/Move-TsfMissionState.ps1",
     "tools/Invoke-TsfMissionQueueForegroundExecutor.ps1",
     "tools/Invoke-TsfMissionLifecycle.ps1",
+    "tools/codex-fleet-runtime.ps1",
     "tools/Test-TsfWorkerRolePermission.ps1",
     "tools/Invoke-TsfCodexAppServerForeground.ps1",
     "tools/tsf-codex-app-server-adapter.mjs",

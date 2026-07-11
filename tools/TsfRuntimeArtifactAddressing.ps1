@@ -19,6 +19,12 @@ $script:TsfRuntimeArtifacts=[ordered]@{
     event_journal='ej.jsonl'
     usage='u.json'
     stderr='se.log'
+    prompt='q.txt'
+    queue_document='qd.json'
+    queue_result='qe.json'
+    lifecycle_result='lc.json'
+    runtime_evidence='re.json'
+    approval_ledger='al.json'
 }
 
 function Get-TsfRuntimeSha256Text {
@@ -45,6 +51,26 @@ function Get-TsfRuntimeIdentity {
 
 function Get-TsfRuntimeArtifactCatalog { [pscustomobject]$script:TsfRuntimeArtifacts }
 
+function Get-TsfCanonicalRuntimeRoot {
+    $repo=Get-TsfKernelFullPath (Get-TsfKernelRoot)
+    Get-TsfKernelFullPath (Join-Path $repo '.codex-local\rt')
+}
+
+function Assert-TsfCanonicalRuntimeRoot {
+    param([Parameter(Mandatory)][string]$RuntimeRoot)
+    $expected=Get-TsfCanonicalRuntimeRoot;$actual=Get-TsfKernelFullPath $RuntimeRoot;$repo=Get-TsfKernelFullPath (Get-TsfKernelRoot)
+    if(![string]::Equals($actual,$expected,[StringComparison]::OrdinalIgnoreCase)){throw "NONCANONICAL_RUNTIME_ROOT_REJECTED: $actual"}
+    if(!(Test-TsfKernelPathInside $actual $repo)-or!(Test-TsfKernelReparseContained $actual $repo)){throw 'CANONICAL_RUNTIME_ROOT_CONTAINMENT_FAILED'}
+    $actual
+}
+
+function Assert-TsfRuntimePathUnderCanonicalRoot {
+    param([Parameter(Mandatory)][string]$Path)
+    $root=Assert-TsfCanonicalRuntimeRoot (Get-TsfCanonicalRuntimeRoot);$full=Get-TsfKernelFullPath $Path
+    if(!(Test-TsfKernelPathInside $full $root)-or!(Test-TsfKernelReparseContained $full (Get-TsfKernelRoot))){throw "RUNTIME_PATH_OUTSIDE_CANONICAL_ROOT: $full"}
+    $full
+}
+
 function Test-TsfRuntimePathPlan {
     param([Parameter(Mandatory)][string]$RuntimeRoot,[Parameter(Mandatory)][string[]]$Paths)
     $root=Get-TsfKernelFullPath $RuntimeRoot
@@ -67,12 +93,13 @@ function New-TsfRuntimeStoragePlan {
         [Parameter(Mandatory)][string]$MissionId,
         [Parameter(Mandatory)][int]$MissionRevision,
         [Parameter(Mandatory)][string]$RunId,
-        [ValidateSet('preservation','adapter')][string]$Layout='preservation'
+        [ValidateSet('preservation','adapter','queue_control','lifecycle_control')][string]$Layout='preservation',
+        [switch]$TestOnlyAllowAlternateRoot
     )
-    $root=Get-TsfKernelFullPath $RuntimeRoot
+    $root=if($TestOnlyAllowAlternateRoot){Get-TsfKernelFullPath $RuntimeRoot}else{Assert-TsfCanonicalRuntimeRoot $RuntimeRoot}
     $missionIdentity=Get-TsfRuntimeIdentity mission ([pscustomobject][ordered]@{mission_id=$MissionId;mission_revision=$MissionRevision})
     $runIdentity=Get-TsfRuntimeIdentity run ([pscustomobject][ordered]@{mission_identity_sha256=$missionIdentity.full_sha256;run_id=$RunId})
-    $prefix=if($Layout-eq'preservation'){'p'}else{'a'}
+    $prefix=switch($Layout){'preservation'{'p'}'adapter'{'a'}'queue_control'{'q'}'lifecycle_control'{'l'}}
     $directory=Join-Path (Join-Path (Join-Path $root $prefix) $missionIdentity.short_key) $runIdentity.short_key
     $staging=Join-Path (Join-Path (Join-Path $root 'x') $missionIdentity.short_key) $runIdentity.short_key
     $artifacts=[ordered]@{};$stagingArtifacts=[ordered]@{}
@@ -177,6 +204,28 @@ function Test-TsfRuntimeStorageManifest {
     [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors);mission_identity=$missionIdentity;run_identity=$runIdentity}
 }
 
+function Get-TsfManifestBoundArtifact {
+    param(
+        [Parameter(Mandatory)][object]$Descriptor,
+        [Parameter(Mandatory)][string]$LogicalType,
+        [Parameter(Mandatory)][string]$ExpectedPath,
+        [Parameter(Mandatory)][string]$ExpectedProducer,
+        [Parameter(Mandatory)][string[]]$AllowedEvidenceClassifications
+    )
+    if([string]$Descriptor.layout-ne'COMPACT_V1'){throw 'LEGACY_PACKET_WRITE_PROHIBITED'}
+    $records=@($Descriptor.manifest.artifacts|Where-Object{[string]$_.logical_type-eq$LogicalType})
+    if($records.Count-ne1){throw "MANIFEST_ARTIFACT_MISSING_OR_AMBIGUOUS: $LogicalType"}
+    $record=$records[0]
+    if([string]$record.path-ne$ExpectedPath){throw "MANIFEST_ARTIFACT_PATH_MISMATCH: $LogicalType"}
+    if([string]$record.producer-ne$ExpectedProducer){throw "MANIFEST_ARTIFACT_PRODUCER_MISMATCH: $LogicalType"}
+    if($AllowedEvidenceClassifications-notcontains[string]$record.evidence_classification){throw "MANIFEST_ARTIFACT_EVIDENCE_CLASS_MISMATCH: $LogicalType"}
+    $path=Get-TsfKernelFullPath ([string]$record.path) ([string]$Descriptor.packet_directory)
+    if(!(Test-TsfKernelPathInside $path ([string]$Descriptor.packet_directory))-or!(Test-Path -LiteralPath $path -PathType Leaf)){throw "MANIFEST_ARTIFACT_OUTSIDE_PACKET: $LogicalType"}
+    $hash=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if($hash-ne[string]$record.sha256){throw "MANIFEST_ARTIFACT_HASH_MISMATCH: $LogicalType"}
+    [pscustomobject]@{record=$record;path=$path;sha256=$hash}
+}
+
 function Get-TsfPreservationPacketDescriptor {
     param([Parameter(Mandatory)][string]$PacketPath,[string]$ExpectedMissionId='',[int]$ExpectedMissionRevision=0)
     $path=Get-TsfKernelFullPath $PacketPath;$leaf=Split-Path -Leaf $path
@@ -204,7 +253,7 @@ function Get-TsfRuntimeReceiptPlan {
         $durableResultBound=($durable.Count-eq1-and[string]$durable[0].sha256-eq$ResultHash)
         $root=Join-Path $descriptor.packet_directory 'r';$containmentRoot=$descriptor.preservation_store
     }else{
-        $root=Join-Path $descriptor.preservation_store 'r';$containmentRoot=$descriptor.preservation_store;$durableResultBound=$true
+        throw 'LEGACY_PACKET_WRITE_PROHIBITED'
     }
     $identity=[pscustomobject][ordered]@{mission_id=[string]$Result.mission_id;mission_revision=[int]$Result.mission_revision;result_id=[string]$Result.result_id;policy_fingerprint=[string]$Result.policy_fingerprint;preservation_packet_sha256=$PreservationHash}
     $identitySha256=Get-TsfContractJsonHash $identity;$key=ConvertTo-TsfRuntimeShortKey $identitySha256

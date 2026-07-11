@@ -1,4 +1,6 @@
-# Remaining Audit Finding Disposition
+# Remaining Audit Finding Disposition — Superseded
+
+The independent publication audit found remaining runtime-root, legacy-write, producer-provenance, recovery, and fingerprint blockers. The bounded correction packet at `docs/hq/tsf_canonical_runtime_authority_correction_v1_20260711/` supersedes the prior readiness conclusion while preserving the original live evidence.
 
 ## Corrected and executed
 
@@ -16,4 +18,4 @@
 - Interactive question relay is deferred after the automatic round trip.
 - Work, plugin/MCP, HQ Dispatch, product, deployment, and direct external API integrations remain outside this foundation.
 
-No pre-publication or pre-adapter source correction remains after the clean-HEAD fingerprint and final independent audit gates.
+This prior conclusion is withdrawn. Publication requires the correction commit and a repeat independent read-only audit.
