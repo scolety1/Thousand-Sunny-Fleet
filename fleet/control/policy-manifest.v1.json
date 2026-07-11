@@ -36,6 +36,7 @@
     "fleet/control/result-envelope.schema.v1.json",
     "fleet/control/runtime-artifact-manifest.schema.v1.json",
     "fleet/control/producer-evidence-registry.schema.v1.json",
+    "fleet/control/canonical-recovery-envelope.schema.v1.json",
     "fleet/control/admission-decision.schema.v1.json",
     "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/mission_schema_v1.json",
     "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/approval_ledger_schema_v1.json",
@@ -46,6 +47,7 @@
     "result_envelope": "tsf_result_envelope_v1",
     "admission_decision": "tsf_admission_decision_v1",
     "runtime_artifact_manifest": "tsf_runtime_artifact_manifest_v1",
+    "canonical_recovery_envelope": "tsf_canonical_recovery_envelope_v1",
     "worker_instruction_packet": "v1",
     "project_context_capsule": "v1",
     "research_import_metadata": "tsf_deep_research_import_metadata_v1"

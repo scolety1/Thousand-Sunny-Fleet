@@ -1226,6 +1226,7 @@ function Write-TsfKernelPreservationPacket {
         [string]$PromptPath = "",
         [string]$StderrPath = "",
         [string]$ProducerRegistryPath = "",
+        [object]$ProducerCapability = $null,
         [string]$OutputDirectory = "",
         [string]$RunId = "",
         [object]$DurableMission = $null,
@@ -1254,6 +1255,7 @@ function Write-TsfKernelPreservationPacket {
     if (!$plan.budget.valid) { throw "Compact preservation path preflight failed before writes: $($plan.budget.errors -join '; ')" }
 
     $queueDocumentHash=if(![string]::IsNullOrWhiteSpace($QueueDocumentPath)-and(Test-Path $QueueDocumentPath -PathType Leaf)){Get-TsfContractJsonHash (Read-TsfKernelJson $QueueDocumentPath)}else{'0'*64}
+    $testCanonicalCallerPaths=@{}
     if([string]::IsNullOrWhiteSpace($ProducerRegistryPath)){
         if(!$TestOnlyAllowSyntheticProducerRegistry){throw 'PRODUCER_EVIDENCE_REGISTRY_REQUIRED'}
         $fixtureRoot=Get-TsfKernelFullPath (Join-Path (Get-TsfKernelRoot) '.codex-local\fixtures')
@@ -1264,7 +1266,8 @@ function Write-TsfKernelPreservationPacket {
         New-Item -ItemType Directory -Force $lPlan.directory,$aPlan.directory,$qPlan.directory|Out-Null
         $ProducerRegistryPath=[string]$lPlan.artifacts.producer_registry
         $repo=Get-TsfKernelFullPath ([string]$mission.repo_path);$git=Get-TsfKernelGitState $repo
-        New-TsfProducerEvidenceRegistry $ProducerRegistryPath ([string]$mission.mission_id) $revision $RunId $policyFingerprint $queueDocumentHash $repo $(if($git.can_capture){[string]$git.branch}else{''}) $repo "test-only-preservation|$RunId" -TestOnly|Out-Null
+        $ProducerCapability=New-TsfTestOnlyProducerCapability -MissionId ([string]$mission.mission_id) -MissionRevision $revision -RunId $RunId -PolicyFingerprint $policyFingerprint -QueueDocumentSha256 $queueDocumentHash -Repository $repo -Branch $(if($git.can_capture){[string]$git.branch}else{''}) -Worktree $repo -ExistingRegistryPath $ProducerRegistryPath
+        New-TsfProducerEvidenceRegistry -RegistryPath $ProducerRegistryPath -Capability $ProducerCapability|Out-Null
         $testInputs=[ordered]@{mission=$MissionPath;preflight=$PreflightResultPath;role_preflight=$RolePreflightPath;worker_instruction=$WorkerInstructionPath;worker_result=$WorkerResultPath;adapter_result=$AdapterResultPath;event_journal=$EventJournalPath;queue_document=$QueueDocumentPath;verifier_result=$VerifierResultPath;prompt=$PromptPath;stderr=$StderrPath}
         foreach($entry in $testInputs.GetEnumerator()){
             if([string]::IsNullOrWhiteSpace([string]$entry.Value)-or!(Test-Path $entry.Value -PathType Leaf)){continue}
@@ -1272,14 +1275,17 @@ function Write-TsfKernelPreservationPacket {
             $targetPlan=switch([string]$contract.layout){'adapter'{$aPlan}'queue_control'{$qPlan}default{$lPlan}}
             $target=[string]$targetPlan.artifacts.([string]$contract.artifact)
             if(![string]::Equals((Get-TsfKernelFullPath $entry.Value),(Get-TsfKernelFullPath $target),[StringComparison]::OrdinalIgnoreCase)){Copy-Item -LiteralPath $entry.Value -Destination $target -Force}
-            Register-TsfProducerEvidence $ProducerRegistryPath ([string]$entry.Key) $target "test-only-injection|$RunId|$([string]$entry.Key)"|Out-Null
+            Register-TsfProducerEvidence $ProducerRegistryPath ([string]$entry.Key) $target $ProducerCapability|Out-Null
+            $testCanonicalCallerPaths[[string]$entry.Key]=$target
         }
         if(Test-Path $aPlan.artifacts.adapter_result -PathType Leaf){
             $testAdapter=Read-TsfKernelJson $aPlan.artifacts.adapter_result
-            if($null-ne$testAdapter.turn_usage){Write-TsfKernelJson $testAdapter.turn_usage $lPlan.artifacts.usage;Register-TsfProducerEvidence $ProducerRegistryPath usage $lPlan.artifacts.usage "test-only-injection|$RunId|usage"|Out-Null}
+            if($null-ne$testAdapter.turn_usage){Write-TsfKernelJson $testAdapter.turn_usage $lPlan.artifacts.usage;Register-TsfProducerEvidence $ProducerRegistryPath usage $lPlan.artifacts.usage $ProducerCapability|Out-Null}
         }
     }
-    $registryCheck=Test-TsfProducerEvidenceRegistry $ProducerRegistryPath ([string]$mission.mission_id) $revision $RunId $policyFingerprint $queueDocumentHash -AllowTestOnly:$TestOnlyAllowSyntheticProducerRegistry
+    if($null-eq$ProducerCapability){throw 'ORCHESTRATOR_HELD_RUN_CAPABILITY_REQUIRED'}
+    $registryRepo=Get-TsfKernelFullPath ([string]$mission.repo_path);$registryGit=Get-TsfKernelGitState $registryRepo
+    $registryCheck=Test-TsfProducerEvidenceRegistry $ProducerRegistryPath ([string]$mission.mission_id) $revision $RunId $policyFingerprint $queueDocumentHash -Repository $registryRepo -Branch $(if($registryGit.can_capture){[string]$registryGit.branch}else{''}) -Worktree $registryRepo -Capability $ProducerCapability -RequireHeldCapability -AllowTestOnly:$TestOnlyAllowSyntheticProducerRegistry
     if(!$registryCheck.valid){throw "PRODUCER_EVIDENCE_REGISTRY_INVALID: $($registryCheck.errors -join '; ')"}
     $registry=$registryCheck.registry
     $requiredRegistryTypes=@('mission','preflight')
@@ -1304,17 +1310,15 @@ function Write-TsfKernelPreservationPacket {
     if ($TestFault -eq 'TEMP_WRITE') { throw 'Simulated compact preservation temporary-write failure.' }
     New-Item -ItemType Directory -Force -Path $plan.staging_directory | Out-Null
 
-    $callerPaths=[ordered]@{mission=$MissionPath;preflight=$PreflightResultPath;role_preflight=$RolePreflightPath;worker_instruction=$WorkerInstructionPath;worker_result=$WorkerResultPath;adapter_result=$AdapterResultPath;verifier_result=$VerifierResultPath;event_journal=$EventJournalPath;queue_document=$QueueDocumentPath;prompt=$PromptPath;stderr=$StderrPath}
+    $callerPaths=[ordered]@{mission=$(if($testCanonicalCallerPaths.ContainsKey('mission')){$testCanonicalCallerPaths.mission}else{$MissionPath});preflight=$(if($testCanonicalCallerPaths.ContainsKey('preflight')){$testCanonicalCallerPaths.preflight}else{$PreflightResultPath});role_preflight=$(if($testCanonicalCallerPaths.ContainsKey('role_preflight')){$testCanonicalCallerPaths.role_preflight}else{$RolePreflightPath});worker_instruction=$(if($testCanonicalCallerPaths.ContainsKey('worker_instruction')){$testCanonicalCallerPaths.worker_instruction}else{$WorkerInstructionPath});worker_result=$(if($testCanonicalCallerPaths.ContainsKey('worker_result')){$testCanonicalCallerPaths.worker_result}else{$WorkerResultPath});adapter_result=$(if($testCanonicalCallerPaths.ContainsKey('adapter_result')){$testCanonicalCallerPaths.adapter_result}else{$AdapterResultPath});verifier_result=$(if($testCanonicalCallerPaths.ContainsKey('verifier_result')){$testCanonicalCallerPaths.verifier_result}else{$VerifierResultPath});event_journal=$(if($testCanonicalCallerPaths.ContainsKey('event_journal')){$testCanonicalCallerPaths.event_journal}else{$EventJournalPath});queue_document=$(if($testCanonicalCallerPaths.ContainsKey('queue_document')){$testCanonicalCallerPaths.queue_document}else{$QueueDocumentPath});prompt=$(if($testCanonicalCallerPaths.ContainsKey('prompt')){$testCanonicalCallerPaths.prompt}else{$PromptPath});stderr=$(if($testCanonicalCallerPaths.ContainsKey('stderr')){$testCanonicalCallerPaths.stderr}else{$StderrPath})}
     $sources=[ordered]@{}
     foreach($registered in @($registry.artifacts)){
         $key=[string]$registered.logical_type;$path=Get-TsfKernelFullPath ([string]$registered.canonical_relative_path) (Get-TsfCanonicalRuntimeRoot)
-        if(![bool]$registry.test_only-and$callerPaths.Contains($key)-and![string]::IsNullOrWhiteSpace([string]$callerPaths[$key])-and![string]::Equals((Get-TsfKernelFullPath ([string]$callerPaths[$key])),$path,[StringComparison]::OrdinalIgnoreCase)){throw "CALLER_EVIDENCE_PATH_NOT_REGISTERED: $key"}
+        if($callerPaths.Contains($key)-and![string]::IsNullOrWhiteSpace([string]$callerPaths[$key])-and![string]::Equals((Get-TsfKernelFullPath ([string]$callerPaths[$key])),$path,[StringComparison]::OrdinalIgnoreCase)){throw "CALLER_EVIDENCE_PATH_NOT_REGISTERED: $key"}
         $sources[$key]=[pscustomobject]@{path=$path;evidence=[string]$registered.evidence_classification;producer=[string]$registered.producer}
     }
-    if(![bool]$registry.test_only){
-        foreach($entry in $callerPaths.GetEnumerator()){
-            if(![string]::IsNullOrWhiteSpace([string]$entry.Value)-and!$sources.Contains([string]$entry.Key)){throw "UNREGISTERED_CALLER_EVIDENCE: $($entry.Key)"}
-        }
+    foreach($entry in $callerPaths.GetEnumerator()){
+        if(![string]::IsNullOrWhiteSpace([string]$entry.Value)-and!$sources.Contains([string]$entry.Key)){throw "UNREGISTERED_CALLER_EVIDENCE: $($entry.Key)"}
     }
     $records=[Collections.Generic.List[object]]::new()
     foreach ($entry in $sources.GetEnumerator()) {

@@ -3,8 +3,8 @@ param(
     [string]$MissionPath,
 
     [string]$QueueRoot = "fleet/missions",
-    [string]$PolicyPath = "fleet/control/mission-queue-foreground-executor-policy.v1.json",
-    [string]$StatePolicyPath = "fleet/control/mission-queue-state-policy.v1.json",
+    [string]$PolicyPath = "",
+    [string]$StatePolicyPath = "",
     [string]$ApprovalLedgerPath = "",
     [string]$ContextCapsulePath = "",
     [string]$OutDirectory = "",
@@ -18,6 +18,7 @@ param(
 
     [switch]$UnsupportedDevelopmentMode,
     [switch]$TestOnlyAllowAlternateQueueRoot,
+    [object]$TestOnlyPolicyCapability = $null,
     [int]$WorkerTimeoutSeconds = 180
 )
 
@@ -138,6 +139,7 @@ function Invoke-QueueExecutorTransition {
     }
     if ($DryRunTransition) { $params.DryRun = $true }
     if ($TestOnlyAllowAlternateQueueRoot -or $DryRun) { $params.TestOnlyAllowAlternateQueueRoot = $true }
+    if($null-ne$TestOnlyPolicyCapability){$params.TestOnlyPolicyCapability=$TestOnlyPolicyCapability}
     $transition = & (Join-Path $fleetRoot "tools\Move-TsfMissionState.ps1") @params
     if ([string]$transition.verdict -ne "GREEN") {
         throw "Queue transition failed: $FromState -> $ToState :: $($transition.blocked_reasons -join '; ')"
@@ -201,9 +203,10 @@ function Test-QueueExecutorFixtureMission {
     return @($reasons)
 }
 
-$policy = Read-QueueExecutorJson -Path (Get-QueueExecutorFullPath -Path $PolicyPath)
-$statePolicy = Read-QueueExecutorJson -Path (Get-QueueExecutorFullPath -Path $StatePolicyPath)
 $queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+$transitionPolicyAuthority=Resolve-TsfTransitionPolicyAuthority -QueueAuthority $queueAuthority -StatePolicyPath $StatePolicyPath -ExecutorPolicyPath $PolicyPath -TestOnlyPolicyCapability $TestOnlyPolicyCapability
+$policy = Read-QueueExecutorJson -Path ([string]$transitionPolicyAuthority.executor_policy_path)
+$statePolicy = Read-QueueExecutorJson -Path ([string]$transitionPolicyAuthority.state_policy_path)
 $queueRootFull = [string]$queueAuthority.root
 $missionFull = Get-QueueExecutorFullPath -Path $MissionPath
 if (!(Test-Path -LiteralPath $missionFull)) { throw "Mission file not found: $missionFull" }
@@ -386,6 +389,7 @@ try {
             final_queue_mission_path=[string]$admission.queue_transition_path
             queue_authority_kind=[string]$queueAuthority.kind
             queue_authority_identity_sha256=[string]$queueAuthority.identity_sha256
+            transition_policy_authority_identity_sha256=[string]$transitionPolicyAuthority.authority_identity_sha256
             complete_runtime_path_maximum=[int]$completeRuntimePlan.maximum_path_length
             complete_runtime_path_maximum_logical_type=[string]$completeRuntimePlan.maximum_logical_type
             thread_id=[string](Read-QueueExecutorJson -Path ([string]$lifecycle.adapter_result_path)).thread_id
@@ -598,7 +602,7 @@ Return a concise status after the file is written.
     }
 
     if (Test-Path -LiteralPath $preflightPath) {
-        $preservation = Write-TsfKernelPreservationPacket -MissionPath $currentMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory (Join-Path $fleetRoot '.codex-local\rt') -ExactNextAction "Review queue executor result; continue only through a new TSF gate." -TestOnlyAllowSyntheticProducerRegistry:$TestOnlyAllowAlternateQueueRoot
+        $preservation = Write-TsfKernelPreservationPacket -MissionPath $currentMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $(if(Test-Path -LiteralPath $verifierPath -PathType Leaf){$verifierPath}else{''}) -OutputDirectory (Join-Path $fleetRoot '.codex-local\rt') -ExactNextAction "Review queue executor result; continue only through a new TSF gate." -TestOnlyAllowSyntheticProducerRegistry:$TestOnlyAllowAlternateQueueRoot
         $preservationPacketPath = [string]$preservation.packet_directory
         Add-QueueExecutorEvent -Events $events -Step "preserve" -Status ([string]$preservation.final_decision) -Message "Preservation packet written." -Evidence $preservationPacketPath
     }
@@ -621,6 +625,9 @@ $result = [pscustomobject]@{
     original_mission_path = $originalMissionFull
     queue_root = $originalQueueRootFull
     effective_queue_root = $queueRootFull
+    queue_authority_kind = [string]$queueAuthority.kind
+    queue_authority_identity_sha256 = [string]$queueAuthority.identity_sha256
+    transition_policy_authority_identity_sha256 = [string]$transitionPolicyAuthority.authority_identity_sha256
     start_state = $startState
     final_state = $finalState
     final_decision = $finalDecision

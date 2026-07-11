@@ -24,7 +24,7 @@ function Get-TsfPolicyFingerprint {
         'tools/codex-fleet-runtime.ps1','tools/Test-TsfWorkerRolePermission.ps1','tools/Invoke-TsfCodexAppServerForeground.ps1',
         'tools/tsf-codex-app-server-adapter.mjs','tools/Get-TsfAdmissionDecision.ps1','tools/Repair-TsfSyntheticAdmissionFixture.ps1',
         'projects.json','fleet/control/mission-envelope.schema.v1.json','fleet/control/canonical-queue-document.schema.v1.json',
-        'fleet/control/result-envelope.schema.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
+        'fleet/control/result-envelope.schema.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/canonical-recovery-envelope.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
         'fleet/control/model-routing-alias-policy.v1.json','fleet/control/worker-role-registry.v1.json',
         'fleet/control/worker-permission-profiles.v1.json','fleet/control/mission-queue-state-policy.v1.json',
         'fleet/control/mission-queue-foreground-executor-policy.v1.json','fleet/control/role-aware-mission-extension.v1.json',
@@ -180,11 +180,13 @@ function ConvertTo-TsfOperationalForbiddenActions {
 }
 function ConvertTo-TsfCanonicalExecutionArtifacts {
     [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[string]$RepositoryRoot=$script:TsfRoot)
-    $validation=Test-TsfMissionEnvelope $Mission; if(!$validation.valid){throw "Invalid durable mission: $($validation.errors -join '; ')"}
-    $roles=Read-TsfKernelJson (Join-Path $script:TsfRoot 'fleet\control\worker-role-registry.v1.json'); $role=@($roles.roles|Where-Object{[string]$_.role_id -eq [string]$Mission.worker_role}); if($role.Count -ne 1){throw 'Worker role is absent or ambiguous in canonical registry.'}
-    $profiles=Read-TsfKernelJson (Join-Path $script:TsfRoot 'fleet\control\worker-permission-profiles.v1.json'); if(!(Test-TsfContractProperty $profiles.profiles ([string]$Mission.worker_role))){throw 'Permission profile is absent from canonical registry.'}; $profile=$profiles.profiles.([string]$Mission.worker_role)
+    $contractRoot=Get-TsfKernelFullPath $RepositoryRoot
+    $translatorVersion='tsf_durable_to_operational_v1'
+    $validation=Test-TsfMissionEnvelope $Mission (Join-Path $contractRoot 'fleet\control\mission-envelope.schema.v1.json'); if(!$validation.valid){throw "Invalid durable mission: $($validation.errors -join '; ')"}
+    $roles=Read-TsfKernelJson (Join-Path $contractRoot 'fleet\control\worker-role-registry.v1.json'); $role=@($roles.roles|Where-Object{[string]$_.role_id -eq [string]$Mission.worker_role}); if($role.Count -ne 1){throw 'Worker role is absent or ambiguous in canonical registry.'}
+    $profiles=Read-TsfKernelJson (Join-Path $contractRoot 'fleet\control\worker-permission-profiles.v1.json'); if(!(Test-TsfContractProperty $profiles.profiles ([string]$Mission.worker_role))){throw 'Permission profile is absent from canonical registry.'}; $profile=$profiles.profiles.([string]$Mission.worker_role)
     if(@($Mission.allowed_writes).Count -gt 0 -and ![bool]$profile.may_commit_locally){throw 'Durable writes conflict with canonical permission profile.'}
-    $routing=Resolve-TsfModelRouting ([string]$Mission.model_policy_alias) ([string]$Mission.recommended_surface); if([string]$Mission.resolved_model -and [string]$Mission.resolved_model -ne $routing.resolved_model){throw 'Durable resolved_model conflicts with canonical model routing.'};if([string]$Mission.reasoning_effort -ne [string]$routing.reasoning_effort){throw 'Durable reasoning_effort conflicts with canonical model routing.'}
+    $routing=Resolve-TsfModelRouting ([string]$Mission.model_policy_alias) ([string]$Mission.recommended_surface) (Join-Path $contractRoot 'fleet\control\model-routing-alias-policy.v1.json'); if([string]$Mission.resolved_model -and [string]$Mission.resolved_model -ne $routing.resolved_model){throw 'Durable resolved_model conflicts with canonical model routing.'};if([string]$Mission.reasoning_effort -ne [string]$routing.reasoning_effort){throw 'Durable reasoning_effort conflicts with canonical model routing.'}
     $repo=Resolve-TsfDurableRepository $Mission $RepositoryRoot; $forbidden=ConvertTo-TsfOperationalForbiddenActions (@($Mission.forbidden_actions)+@($profile.mandatory_forbidden_actions))
     $stops=@(); $n=0; foreach($text in @($Mission.stop_conditions)){$n++;$stops+=[pscustomobject]@{id=('durable-stop-{0:d3}' -f $n);check_type='manual';description=[string]$text}}
     $approvals=@($Mission.approval_references|ForEach-Object{[pscustomobject]@{approval_id=[string]$_.approval_id;exact_action=[string]$_.exact_action;required=$true;reason='Required by canonical durable mission.'}})
@@ -192,20 +194,21 @@ function ConvertTo-TsfCanonicalExecutionArtifacts {
     $roleExt=[pscustomobject][ordered]@{requested_by='TSF_DURABLE_MISSION';project_main_bot_id=[string]$Mission.project_id;worker_role=[string]$Mission.worker_role;translator_used=$true;lane_id='MASTER_TSF_CONTROL_PLANE';parent_mission_id=if($null -eq $Mission.parent_mission_id){''}else{[string]$Mission.parent_mission_id};sibling_lane_ids=@();role_permission_profile_id=[string]$profile.profile_id;role_output_contract=[string]$role[0].output_contract;verifier_role=if([bool]$profile.requires_verifier){'verifier_worker'}else{'NONE'};escalation_policy_id='canonical_durable_v1'}
     $worker=[pscustomobject][ordered]@{mission_id=[string]$Mission.mission_id;worker_role=[string]$Mission.worker_role;allowed_reads=@($Mission.allowed_reads);allowed_writes=@($Mission.allowed_writes);forbidden_actions=$forbidden;exact_task=[string]$Mission.normalized_goal;expected_artifacts=@($packet.expected_artifacts);stop_conditions=$stops;verifier_contract=[string]$Mission.required_verifier_independence;escalation_triggers=@('approval_gap','scope_conflict','validation_failure');do_not_exceed_role_authority=$true}
     foreach($contract in @(
-        [pscustomobject]@{value=$packet;schema=(Join-Path $script:TsfRoot 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\mission_schema_v1.json');name='mission_packet'},
-        [pscustomobject]@{value=$roleExt;schema=(Join-Path $script:TsfRoot 'fleet\control\role-aware-mission-extension.v1.json');name='role_extension'},
-        [pscustomobject]@{value=$worker;schema=(Join-Path $script:TsfRoot 'fleet\control\worker-instruction-packet.schema.v1.json');name='worker_instruction_packet'}
+        [pscustomobject]@{value=$packet;schema=(Join-Path $contractRoot 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\mission_schema_v1.json');name='mission_packet'},
+        [pscustomobject]@{value=$roleExt;schema=(Join-Path $contractRoot 'fleet\control\role-aware-mission-extension.v1.json');name='role_extension'},
+        [pscustomobject]@{value=$worker;schema=(Join-Path $contractRoot 'fleet\control\worker-instruction-packet.schema.v1.json');name='worker_instruction_packet'}
     )){$check=Test-TsfJsonContract $contract.value $contract.schema;if(!$check.valid){throw "Generated $($contract.name) violates its canonical schema: $($check.errors -join '; ')"}}
-    $hash=Get-TsfContractJsonHash $Mission; $binding=[pscustomobject][ordered]@{durable_mission_id=[string]$Mission.mission_id;durable_mission_revision=[int]$Mission.mission_revision;policy_fingerprint=[string]$Mission.policy.fingerprint;durable_mission_content_hash=$hash;translator_version=$script:TranslatorVersion;generated_at=[string]$Mission.created_at;mission_packet_sha256=Get-TsfContractJsonHash $packet;role_extension_sha256=Get-TsfContractJsonHash $roleExt;worker_instruction_sha256=Get-TsfContractJsonHash $worker;expected_repository=$repo;expected_branch=$Mission.branch_worktree_policy.expected_branch;expected_worktree=$Mission.branch_worktree_policy.expected_worktree;expected_role=[string]$Mission.worker_role}
+    $hash=Get-TsfContractJsonHash $Mission; $binding=[pscustomobject][ordered]@{durable_mission_id=[string]$Mission.mission_id;durable_mission_revision=[int]$Mission.mission_revision;policy_fingerprint=[string]$Mission.policy.fingerprint;durable_mission_content_hash=$hash;translator_version=$translatorVersion;generated_at=[string]$Mission.created_at;mission_packet_sha256=Get-TsfContractJsonHash $packet;role_extension_sha256=Get-TsfContractJsonHash $roleExt;worker_instruction_sha256=Get-TsfContractJsonHash $worker;expected_repository=$repo;expected_branch=$Mission.branch_worktree_policy.expected_branch;expected_worktree=$Mission.branch_worktree_policy.expected_worktree;expected_role=[string]$Mission.worker_role}
     $document=[pscustomobject][ordered]@{schema_version='tsf_canonical_queue_document_v1';compatibility_status='GENERATED_EXECUTION_PACKET';durable_mission=$Mission;source_binding=$binding;model_resolution=$routing;mission_packet=$packet;role_extension=$roleExt;worker_instruction_packet=$worker}
-    $queueCheck=Test-TsfJsonContract $document (Join-Path $script:TsfRoot 'fleet\control\canonical-queue-document.schema.v1.json');if(!$queueCheck.valid){throw "Generated canonical queue document is invalid: $($queueCheck.errors -join '; ')"};return $document
+    $queueCheck=Test-TsfJsonContract $document (Join-Path $contractRoot 'fleet\control\canonical-queue-document.schema.v1.json');if(!$queueCheck.valid){throw "Generated canonical queue document is invalid: $($queueCheck.errors -join '; ')"};return $document
 }
 
 function Test-TsfCanonicalQueueDocument {
     [CmdletBinding()] param([Parameter(Mandatory)][object]$QueueDocument,[object]$ExpectedMission,[string]$RepositoryRoot=$script:TsfRoot,[switch]$SkipRuntimeObservation)
-    $errors=[Collections.Generic.List[string]]::new();$schema=Test-TsfJsonContract $QueueDocument (Join-Path $script:TsfRoot 'fleet\control\canonical-queue-document.schema.v1.json');if(!$schema.valid){@($schema.errors)|ForEach-Object{$errors.Add([string]$_)|Out-Null}}
+    $contractRoot=Get-TsfKernelFullPath $RepositoryRoot
+    $errors=[Collections.Generic.List[string]]::new();$schema=Test-TsfJsonContract $QueueDocument (Join-Path $contractRoot 'fleet\control\canonical-queue-document.schema.v1.json');if(!$schema.valid){@($schema.errors)|ForEach-Object{$errors.Add([string]$_)|Out-Null}}
     if($errors.Count -eq 0){
-        $mission=$QueueDocument.durable_mission;$missionCheck=Test-TsfMissionEnvelope $mission;if(!$missionCheck.valid){@($missionCheck.errors)|ForEach-Object{$errors.Add([string]$_)|Out-Null}}
+        $mission=$QueueDocument.durable_mission;$missionCheck=Test-TsfMissionEnvelope $mission (Join-Path $contractRoot 'fleet\control\mission-envelope.schema.v1.json');if(!$missionCheck.valid){@($missionCheck.errors)|ForEach-Object{$errors.Add([string]$_)|Out-Null}}
         if($null -ne $ExpectedMission -and (Get-TsfContractJsonHash $ExpectedMission) -ne (Get-TsfContractJsonHash $mission)){$errors.Add('Queue durable mission differs from the expected canonical mission.')|Out-Null}
         try{$regenerated=ConvertTo-TsfCanonicalExecutionArtifacts $mission $RepositoryRoot}catch{$errors.Add($_.Exception.Message)|Out-Null;$regenerated=$null}
         if($null -ne $regenerated){foreach($name in @('source_binding','model_resolution','mission_packet','role_extension','worker_instruction_packet')){if((Get-TsfContractJsonHash $QueueDocument.$name) -ne (Get-TsfContractJsonHash $regenerated.$name)){$errors.Add("Queue $name conflicts with deterministic translation.")|Out-Null}}}
@@ -393,9 +396,15 @@ function New-TsfAdmissionTransaction {
     $transaction
 }
 
+function Get-TsfAdmissionDecisionIdentity {
+    param([Parameter(Mandatory)][object]$Receipt)
+    [pscustomobject][ordered]@{result_sha256=[string]$Receipt.result_sha256;status=[string]$Receipt.status;reasons=@($Receipt.reasons);caveats=@($Receipt.caveats);queue_state_from=[string]$Receipt.queue_state_from;queue_state_to=[string]$Receipt.queue_state_to;queue_transition_path=[string]$Receipt.queue_transition_path}
+}
+
 function Test-TsfAdmissionRelationship {
-    param($Result,[string]$ResultHash,[string]$PreservationPath,[string]$PreservationHash,$Receipt,[string]$ReceiptPath,$Transaction,[string]$TransactionPath,$QueueDocument,[string]$QueueDocumentHash,$QueueAuthority)
+    param($Result,[string]$ResultHash,[string]$PreservationPath,[string]$PreservationHash,$Receipt,[string]$ReceiptPath,$Transaction,[string]$TransactionPath,$QueueDocument,[string]$QueueDocumentHash,$QueueAuthority,[string]$CanonicalReceiptPath='',[string]$ExpectedTransactionFileHash='',[string]$ActualQueueRecordPath='',[string]$RepositoryRoot=$script:TsfRoot)
     $errors=[Collections.Generic.List[string]]::new()
+    if(!$CanonicalReceiptPath){$CanonicalReceiptPath=$ReceiptPath}
     $pairs=@(
         @([string]$Receipt.mission_id,[string]$Result.mission_id,'mission id'),@([string]$Receipt.mission_revision,[string]$Result.mission_revision,'mission revision'),
         @([string]$Receipt.mission_content_hash,[string]$Result.mission_content_hash,'mission content hash'),@([string]$Receipt.policy_fingerprint,[string]$Result.policy_fingerprint,'policy fingerprint'),
@@ -403,7 +412,15 @@ function Test-TsfAdmissionRelationship {
         @([string]$Receipt.preservation_packet_path,(Get-TsfKernelFullPath $PreservationPath),'preservation path'),@([string]$Receipt.preservation_packet_sha256,$PreservationHash,'preservation hash'),
         @([string]$Receipt.queue_document_sha256,$QueueDocumentHash,'queue hash'),@([string]$Receipt.queue_authority_identity_sha256,[string]$QueueAuthority.identity_sha256,'queue authority'))
     foreach($pair in $pairs){$left=if($pair[2]-match'path'){Get-TsfKernelFullPath $pair[0]}else{$pair[0]};if([string]$left-ne[string]$pair[1]){$errors.Add("Admission relationship mismatch: $($pair[2])")|Out-Null}}
-    if(![string]::Equals((Get-TsfKernelFullPath ([string]$Receipt.admission_receipt_path)),(Get-TsfKernelFullPath $ReceiptPath),[StringComparison]::OrdinalIgnoreCase)-or![string]::Equals((Get-TsfKernelFullPath ([string]$Receipt.transaction_receipt_path)),(Get-TsfKernelFullPath $TransactionPath),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Receipt path relationship mismatch.')|Out-Null}
+    if(![string]::Equals((Get-TsfKernelFullPath ([string]$Receipt.admission_receipt_path)),(Get-TsfKernelFullPath $CanonicalReceiptPath),[StringComparison]::OrdinalIgnoreCase)-or![string]::Equals((Get-TsfKernelFullPath ([string]$Receipt.transaction_receipt_path)),(Get-TsfKernelFullPath $TransactionPath),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Receipt path relationship mismatch.')|Out-Null}
+    if([string]$Receipt.admission_decision_sha256-ne(Get-TsfContractJsonHash (Get-TsfAdmissionDecisionIdentity $Receipt))){$errors.Add('Admission decision hash mismatch.')|Out-Null}
+    try{
+        $queueCheck=Test-TsfCanonicalQueueDocument $QueueDocument -RepositoryRoot $RepositoryRoot
+        if(!$queueCheck.valid){$errors.Add("Actual queue document canonical identity mismatch: $(@($queueCheck.errors)-join'; ')")|Out-Null}
+        if([string]$queueCheck.queue_document_sha256-ne$QueueDocumentHash){$errors.Add('Actual queue document hash mismatch.')|Out-Null}
+        $source=$QueueDocument.source_binding
+        if([string]$source.durable_mission_id-ne[string]$Result.mission_id-or[int]$source.durable_mission_revision-ne[int]$Result.mission_revision-or[string]$source.durable_mission_content_hash-ne[string]$Result.mission_content_hash-or[string]$source.policy_fingerprint-ne[string]$Result.policy_fingerprint-or[string]$source.translator_version-ne[string]$Receipt.translator_version){$errors.Add('Queue source binding relationship mismatch.')|Out-Null}
+    }catch{$errors.Add("Queue document validation failed: $($_.Exception.Message)")|Out-Null}
     if($null-ne$Transaction){
         foreach($field in @('receipt_identity_sha256','mission_id','mission_revision','mission_content_hash','result_id','result_sha256','policy_fingerprint','queue_document_sha256','translator_version','preservation_packet_path','preservation_packet_sha256','admission_receipt_path','queue_state_from','queue_state_to','admission_status','admission_decision_sha256','queue_authority_identity_sha256')){
             $receiptField=switch($field){'admission_status'{'status'}default{$field}}
@@ -413,12 +430,90 @@ function Test-TsfAdmissionRelationship {
             $receiptHash=(Get-FileHash $ReceiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
             if([string]$Transaction.admission_receipt_sha256-ne$receiptHash){$errors.Add('Admission receipt file hash mismatch.')|Out-Null}
         }
+        if($ActualQueueRecordPath-and![string]::Equals((Get-TsfKernelFullPath ([string]$Transaction.destination_path)),(Get-TsfKernelFullPath $ActualQueueRecordPath),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Actual destination queue record path mismatch.')|Out-Null}
         $stable=[pscustomobject][ordered]@{receipt_identity_sha256=$Transaction.receipt_identity_sha256;mission_id=$Transaction.mission_id;mission_revision=$Transaction.mission_revision;mission_content_hash=$Transaction.mission_content_hash;result_id=$Transaction.result_id;result_sha256=$Transaction.result_sha256;policy_fingerprint=$Transaction.policy_fingerprint;queue_document_sha256=$Transaction.queue_document_sha256;translator_version=$Transaction.translator_version;preservation_packet_path=$Transaction.preservation_packet_path;preservation_packet_sha256=$Transaction.preservation_packet_sha256;admission_receipt_path=$Transaction.admission_receipt_path;queue_state_from=$Transaction.queue_state_from;queue_state_to=$Transaction.queue_state_to;source_path=$Transaction.source_path;destination_path=$Transaction.destination_path;admission_status=$Transaction.admission_status;admission_decision_sha256=$Transaction.admission_decision_sha256;queue_authority_identity_sha256=$Transaction.queue_authority_identity_sha256}
         if([string]$Transaction.transaction_identity_sha256-ne(Get-TsfContractJsonHash $stable)){$errors.Add('Transaction identity hash mismatch.')|Out-Null}
         $content=[pscustomobject][ordered]@{stable=$stable;state=$Transaction.state;admission_receipt_sha256=$Transaction.admission_receipt_sha256;history=@($Transaction.history)}
         if([string]$Transaction.transaction_content_sha256-ne(Get-TsfContractJsonHash $content)){$errors.Add('Transaction content hash mismatch.')|Out-Null}
+        if($ExpectedTransactionFileHash){
+            if(!(Test-Path $TransactionPath -PathType Leaf)-or(Get-FileHash $TransactionPath -Algorithm SHA256).Hash.ToLowerInvariant()-ne$ExpectedTransactionFileHash){$errors.Add('Transaction file hash mismatch.')|Out-Null}
+        }
     }
     [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors);transaction_file_sha256=if($null-ne$Transaction-and(Test-Path $TransactionPath)){(Get-FileHash $TransactionPath -Algorithm SHA256).Hash.ToLowerInvariant()}else{''}}
+}
+
+function Get-TsfRecoveryEnvelopeIdentity {
+    param([Parameter(Mandatory)][object]$Envelope)
+    [pscustomobject][ordered]@{mission_id=[string]$Envelope.mission_id;mission_revision=[int]$Envelope.mission_revision;mission_content_hash=[string]$Envelope.mission_content_hash;policy_fingerprint=[string]$Envelope.policy_fingerprint;queue_document_sha256=[string]$Envelope.queue_document_sha256;translator_version=[string]$Envelope.translator_version;result_id=[string]$Envelope.result_id;result_path=[string]$Envelope.result_path;result_sha256=[string]$Envelope.result_sha256;preservation_packet_path=[string]$Envelope.preservation_packet_path;preservation_packet_sha256=[string]$Envelope.preservation_packet_sha256;admission_receipt_path=[string]$Envelope.admission_receipt_path;canonical_admission_receipt_path=[string]$Envelope.canonical_admission_receipt_path;admission_receipt_sha256=[string]$Envelope.admission_receipt_sha256;transaction_path=[string]$Envelope.transaction_path;transaction_sha256=[string]$Envelope.transaction_sha256;transaction_identity_sha256=[string]$Envelope.transaction_identity_sha256;transaction_content_sha256=[string]$Envelope.transaction_content_sha256;admission_status=[string]$Envelope.admission_status;admission_decision_sha256=[string]$Envelope.admission_decision_sha256;queue_authority_identity_sha256=[string]$Envelope.queue_authority_identity_sha256;expected_source_state=[string]$Envelope.expected_source_state;expected_destination_state=[string]$Envelope.expected_destination_state;actual_destination_queue_record_path=[string]$Envelope.actual_destination_queue_record_path;rollback_destination_path=[string]$Envelope.rollback_destination_path}
+}
+
+function New-TsfCanonicalRecoveryEnvelope {
+    param([Parameter(Mandatory)][string]$ResultPath,[Parameter(Mandatory)][object]$Receipt,[Parameter(Mandatory)][string]$ReceiptFilePath,[Parameter(Mandatory)][string]$TransactionPath,[Parameter(Mandatory)][string]$QueueMissionPath,[Parameter(Mandatory)][string]$QueueRootPath,[Parameter(Mandatory)][object]$Storage,[Parameter(Mandatory)][string]$RepositoryRoot,[switch]$TestOnlyAllowAlternateQueueRoot)
+    $result=Read-TsfKernelJson $ResultPath;$transaction=Read-TsfKernelJson $TransactionPath;$queueDocument=Read-TsfKernelJson $QueueMissionPath
+    $resultHash=(Get-FileHash $ResultPath -Algorithm SHA256).Hash.ToLowerInvariant();$receiptHash=(Get-FileHash $ReceiptFilePath -Algorithm SHA256).Hash.ToLowerInvariant();$transactionHash=(Get-FileHash $TransactionPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $presPath=Get-TsfKernelFullPath ([string]$Receipt.preservation_packet_path);$presHash=(Get-FileHash $presPath -Algorithm SHA256).Hash.ToLowerInvariant();$queueHash=Get-TsfContractJsonHash $queueDocument
+    $queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRootPath -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+    $relationship=Test-TsfAdmissionRelationship $result $resultHash $presPath $presHash $Receipt $ReceiptFilePath $transaction $TransactionPath $queueDocument $queueHash $queueAuthority -CanonicalReceiptPath ([string]$Storage.admission) -ExpectedTransactionFileHash $transactionHash -ActualQueueRecordPath $QueueMissionPath -RepositoryRoot $RepositoryRoot
+    if(!$relationship.valid){throw "RECOVERY_ENVELOPE_RELATIONSHIP_INVALID: $($relationship.errors -join '; ')"}
+    if([string]$transaction.state-notin@('PREPARED','RECOVERY_REQUIRED')){throw 'RECOVERY_ENVELOPE_TRANSACTION_NOT_RECOVERABLE'}
+    $envelope=[pscustomobject][ordered]@{schema_version='tsf_canonical_recovery_envelope_v1';created_at=[datetimeoffset]::UtcNow.ToString('o');mission_id=[string]$Receipt.mission_id;mission_revision=[int]$Receipt.mission_revision;mission_content_hash=[string]$Receipt.mission_content_hash;policy_fingerprint=[string]$Receipt.policy_fingerprint;queue_document_sha256=$queueHash;translator_version=[string]$Receipt.translator_version;result_id=[string]$Receipt.result_id;result_path=Get-TsfKernelFullPath $ResultPath;result_sha256=$resultHash;preservation_packet_path=$presPath;preservation_packet_sha256=$presHash;admission_receipt_path=Get-TsfKernelFullPath $ReceiptFilePath;canonical_admission_receipt_path=Get-TsfKernelFullPath ([string]$Storage.admission);admission_receipt_sha256=$receiptHash;transaction_path=Get-TsfKernelFullPath $TransactionPath;transaction_sha256=$transactionHash;transaction_identity_sha256=[string]$transaction.transaction_identity_sha256;transaction_content_sha256=[string]$transaction.transaction_content_sha256;admission_status=[string]$Receipt.status;admission_decision_sha256=[string]$Receipt.admission_decision_sha256;queue_authority_identity_sha256=[string]$queueAuthority.identity_sha256;expected_source_state=[string]$transaction.queue_state_to;expected_destination_state=[string]$transaction.queue_state_from;actual_destination_queue_record_path=Get-TsfKernelFullPath $QueueMissionPath;rollback_destination_path=Get-TsfKernelFullPath ([string]$transaction.source_path)}
+    $envelope|Add-Member -NotePropertyName recovery_identity_sha256 -NotePropertyValue (Get-TsfContractJsonHash (Get-TsfRecoveryEnvelopeIdentity $envelope))
+    $validation=Test-TsfJsonContract $envelope (Join-Path (Get-TsfKernelRoot) 'fleet\control\canonical-recovery-envelope.schema.v1.json');if(!$validation.valid){throw "Recovery envelope schema invalid: $($validation.errors -join '; ')"}
+    if(Test-Path $Storage.recovery -PathType Leaf){$existing=Read-TsfKernelJson $Storage.recovery;if([string]$existing.recovery_identity_sha256-ne[string]$envelope.recovery_identity_sha256){throw 'IMMUTABLE_RECOVERY_ENVELOPE_CONFLICT'};return [pscustomobject]@{path=[string]$Storage.recovery;envelope=$existing;idempotent=$true}}
+    Write-TsfAtomicJson $envelope $Storage.recovery $Storage.transaction_temp -NoReplace|Out-Null
+    [pscustomobject]@{path=[string]$Storage.recovery;envelope=$envelope;idempotent=$false}
+}
+
+function Test-TsfCanonicalRecoveryEnvelope {
+    param([Parameter(Mandatory)][string]$EnvelopePath,[Parameter(Mandatory)][string]$ExpectedMissionPath,[Parameter(Mandatory)][string]$ExpectedFromState,[Parameter(Mandatory)][string]$ExpectedToState,[Parameter(Mandatory)][string]$QueueRootPath,[Parameter(Mandatory)][string]$RepositoryRoot,[switch]$TestOnlyAllowAlternateQueueRoot)
+    $errors=[Collections.Generic.List[string]]::new();$envelope=$null;$transaction=$null
+    try{
+        $envelope=Read-TsfKernelJson $EnvelopePath
+        $schema=Test-TsfJsonContract $envelope (Join-Path (Get-TsfKernelFullPath $RepositoryRoot) 'fleet\control\canonical-recovery-envelope.schema.v1.json');if(!$schema.valid){$errors.Add("Recovery envelope schema invalid: $($schema.errors -join '; ')")|Out-Null}
+        if([string]$envelope.recovery_identity_sha256-ne(Get-TsfContractJsonHash (Get-TsfRecoveryEnvelopeIdentity $envelope))){$errors.Add('Recovery envelope identity hash mismatch.')|Out-Null}
+        $result=Read-TsfKernelJson ([string]$envelope.result_path);$receipt=Read-TsfKernelJson ([string]$envelope.admission_receipt_path);$transaction=Read-TsfKernelJson ([string]$envelope.transaction_path);$queueDocument=Read-TsfKernelJson ([string]$envelope.actual_destination_queue_record_path)
+        $storage=Get-TsfAdmissionStorage $result ([string]$envelope.result_sha256) ([string]$envelope.preservation_packet_path) ([string]$envelope.preservation_packet_sha256)
+        if(![string]::Equals((Get-TsfKernelFullPath $EnvelopePath),(Get-TsfKernelFullPath ([string]$storage.recovery)),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Recovery envelope path is not canonical for the transaction.')|Out-Null}
+        $queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRootPath -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+        $relationship=Test-TsfAdmissionRelationship $result ([string]$envelope.result_sha256) ([string]$envelope.preservation_packet_path) ([string]$envelope.preservation_packet_sha256) $receipt ([string]$envelope.admission_receipt_path) $transaction ([string]$envelope.transaction_path) $queueDocument ([string]$envelope.queue_document_sha256) $queueAuthority -CanonicalReceiptPath ([string]$envelope.canonical_admission_receipt_path) -ExpectedTransactionFileHash ([string]$envelope.transaction_sha256) -ActualQueueRecordPath ([string]$envelope.actual_destination_queue_record_path) -RepositoryRoot $RepositoryRoot
+        foreach($error in @($relationship.errors)){$errors.Add([string]$error)|Out-Null}
+        foreach($pair in @(
+            @([string]$envelope.mission_id,[string]$result.mission_id,'mission id'),
+            @([string]$envelope.mission_revision,[string]$result.mission_revision,'mission revision'),
+            @([string]$envelope.mission_content_hash,[string]$result.mission_content_hash,'mission content hash'),
+            @([string]$envelope.policy_fingerprint,[string]$result.policy_fingerprint,'policy fingerprint'),
+            @([string]$envelope.result_id,[string]$result.result_id,'result id'),
+            @([string]$envelope.queue_document_sha256,[string]$receipt.queue_document_sha256,'queue document hash'),
+            @([string]$envelope.translator_version,[string]$receipt.translator_version,'translator version'),
+            @([string]$envelope.transaction_identity_sha256,[string]$transaction.transaction_identity_sha256,'transaction identity'),
+            @([string]$envelope.transaction_content_sha256,[string]$transaction.transaction_content_sha256,'transaction content'),
+            @([string]$envelope.admission_status,[string]$receipt.status,'admission status'),
+            @([string]$envelope.admission_decision_sha256,[string]$receipt.admission_decision_sha256,'admission decision'),
+            @([string]$envelope.queue_authority_identity_sha256,[string]$queueAuthority.identity_sha256,'queue authority identity')
+        )){if([string]$pair[0]-ne[string]$pair[1]){$errors.Add("Recovery envelope/artifact mismatch: $($pair[2])")|Out-Null}}
+        foreach($pair in @(
+            @([string]$envelope.preservation_packet_path,[string]$receipt.preservation_packet_path,'preservation path'),
+            @([string]$envelope.canonical_admission_receipt_path,[string]$receipt.admission_receipt_path,'canonical admission receipt path'),
+            @([string]$envelope.transaction_path,[string]$receipt.transaction_receipt_path,'transaction path'),
+            @([string]$envelope.actual_destination_queue_record_path,[string]$transaction.destination_path,'actual destination queue record path'),
+            @([string]$envelope.rollback_destination_path,[string]$transaction.source_path,'rollback destination path')
+        )){if(![string]::Equals((Get-TsfKernelFullPath $pair[0]),(Get-TsfKernelFullPath $pair[1]),[StringComparison]::OrdinalIgnoreCase)){$errors.Add("Recovery envelope/artifact mismatch: $($pair[2])")|Out-Null}}
+        foreach($pair in @(@((Get-FileHash $envelope.result_path -Algorithm SHA256).Hash.ToLowerInvariant(),[string]$envelope.result_sha256,'result hash'),@((Get-FileHash $envelope.preservation_packet_path -Algorithm SHA256).Hash.ToLowerInvariant(),[string]$envelope.preservation_packet_sha256,'preservation hash'),@((Get-FileHash $envelope.admission_receipt_path -Algorithm SHA256).Hash.ToLowerInvariant(),[string]$envelope.admission_receipt_sha256,'receipt hash'),@((Get-FileHash $envelope.transaction_path -Algorithm SHA256).Hash.ToLowerInvariant(),[string]$envelope.transaction_sha256,'transaction hash'),@([string]$transaction.transaction_identity_sha256,[string]$envelope.transaction_identity_sha256,'transaction identity'),@([string]$transaction.transaction_content_sha256,[string]$envelope.transaction_content_sha256,'transaction content'),@([string]$receipt.admission_decision_sha256,[string]$envelope.admission_decision_sha256,'decision hash'),@([string]$receipt.status,[string]$envelope.admission_status,'admission status'),@([string]$queueAuthority.identity_sha256,[string]$envelope.queue_authority_identity_sha256,'queue authority'))){if([string]$pair[0]-ne[string]$pair[1]){$errors.Add("Recovery envelope mismatch: $($pair[2])")|Out-Null}}
+        if([string]$envelope.expected_source_state-ne$ExpectedFromState-or[string]$envelope.expected_destination_state-ne$ExpectedToState-or[string]$transaction.queue_state_to-ne$ExpectedFromState-or[string]$transaction.queue_state_from-ne$ExpectedToState){$errors.Add('Recovery state relationship mismatch.')|Out-Null}
+        if(![string]::Equals((Get-TsfKernelFullPath $ExpectedMissionPath),(Get-TsfKernelFullPath ([string]$envelope.actual_destination_queue_record_path)),[StringComparison]::OrdinalIgnoreCase)-or![string]::Equals((Get-TsfKernelFullPath ([string]$transaction.destination_path)),(Get-TsfKernelFullPath ([string]$envelope.actual_destination_queue_record_path)),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Recovery destination queue record mismatch.')|Out-Null}
+        if([string]$transaction.state-notin@('PREPARED','RECOVERY_REQUIRED')){$errors.Add('Recovery transaction is not recoverable.')|Out-Null}
+    }catch{$errors.Add("$($_.Exception.Message) [line $($_.InvocationInfo.ScriptLineNumber)]")|Out-Null}
+    [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors);envelope=$envelope;transaction=$transaction}
+}
+
+function Write-TsfRecoveryConflictDiagnostic {
+    param([Parameter(Mandatory)][string]$EnvelopePath,[Parameter(Mandatory)][string[]]$Errors)
+    $full=Get-TsfKernelFullPath $EnvelopePath;$root=Get-TsfCanonicalRuntimeRoot
+    if(!(Test-TsfKernelPathInside $full $root)){return $null}
+    $parent=Split-Path -Parent $full;$sourceHash=if(Test-Path $full -PathType Leaf){(Get-FileHash $full -Algorithm SHA256).Hash.ToLowerInvariant()}else{Get-TsfRuntimeSha256Text $full};$key=ConvertTo-TsfRuntimeShortKey (Get-TsfRuntimeSha256Text "$full|$sourceHash|$($Errors -join '|')")
+    $path=Join-Path $parent "k-$key.json";$temp=Join-Path $parent "y-$key.tmp"
+    $diagnostic=[pscustomobject][ordered]@{schema_version='tsf_recovery_conflict_v1';recovery_envelope_path=$full;recovery_envelope_sha256=$sourceHash;errors=@($Errors);status='REJECTED_INVALID_EVIDENCE';recorded_at=[datetimeoffset]::UtcNow.ToString('o')}
+    if(Test-Path $path -PathType Leaf){return $path};Write-TsfAtomicJson $diagnostic $path $temp -NoReplace|Out-Null;$path
 }
 
 function Get-TsfAdmissionDecision {
@@ -474,7 +569,7 @@ function Get-TsfAdmissionDecision {
         if([string]$old.result_sha256-eq$resultHash){
             if(!(Test-Path -LiteralPath $storage.transaction)){throw 'Admission receipt exists without its mandatory transaction receipt.'}
             $transaction=Read-TsfKernelJson $storage.transaction
-            $relationship=Test-TsfAdmissionRelationship $result $resultHash $presPath ([string]$result.preservation_evidence.packet_sha256) $old $storage.admission $transaction $storage.transaction $queueDocument $queueDocumentHash $queueAuthority
+            $relationship=Test-TsfAdmissionRelationship $result $resultHash $presPath ([string]$result.preservation_evidence.packet_sha256) $old $storage.admission $transaction $storage.transaction $queueDocument $queueDocumentHash $queueAuthority -ActualQueueRecordPath $QueueMissionPath -RepositoryRoot $script:TsfRoot
             if(!$relationship.valid){throw "RECOVERY_QUEUE_IDENTITY_MISMATCH: $($relationship.errors -join '; ')"}
             if([string]$transaction.receipt_identity_sha256-ne[string]$storage.identity_sha256-or![string]::Equals((Get-TsfKernelFullPath ([string]$transaction.destination_path)),(Get-TsfKernelFullPath $QueueMissionPath),[StringComparison]::OrdinalIgnoreCase)){throw 'RECOVERY_QUEUE_IDENTITY_MISMATCH'}
             if([string]$transaction.state-ne'COMMITTED'){
@@ -548,14 +643,15 @@ function Get-TsfAdmissionDecision {
         if($TestFault-eq'FINALIZE_TRANSACTION'){throw 'Simulated final transaction receipt write failure.'}
         Write-TsfAtomicJson $transaction $storage.transaction $storage.transaction_temp $storage.transaction_backup|Out-Null
         $committed=Read-TsfKernelJson $storage.transaction
-        $committedRelationship=Test-TsfAdmissionRelationship $result $resultHash $presPath ([string]$result.preservation_evidence.packet_sha256) $receipt $storage.admission $committed $storage.transaction $queueDocument $queueDocumentHash $queueAuthority
+        $committedRelationship=Test-TsfAdmissionRelationship $result $resultHash $presPath ([string]$result.preservation_evidence.packet_sha256) $receipt $storage.admission $committed $storage.transaction $queueDocument $queueDocumentHash $queueAuthority -ActualQueueRecordPath ([string]$transition.destination_path) -RepositoryRoot $script:TsfRoot
         if([string]$committed.state-ne'COMMITTED'-or!(Test-Path -LiteralPath $storage.admission)-or!$committedRelationship.valid){throw "Admission transaction did not durably commit: $($committedRelationship.errors -join '; ')"}
         return $receipt
     }catch{
         $failure=$_.Exception.Message
         if($moved-and!$admissionFinalized){
             try{
-                $rollback=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath ([string]$dryRun.destination_path) -FromState $target -ToState 'postrun_pending' -QueueRoot $QueueRootPath -RecoveryTransactionPath $storage.transaction -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+                $recoveryEnvelope=New-TsfCanonicalRecoveryEnvelope -ResultPath $ResultPath -Receipt $receipt -ReceiptFilePath $storage.admission_temp -TransactionPath $storage.transaction -QueueMissionPath ([string]$dryRun.destination_path) -QueueRootPath $QueueRootPath -Storage $storage -RepositoryRoot $script:TsfRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+                $rollback=&(Join-Path $script:TsfRoot 'tools\Move-TsfMissionState.ps1') -MissionPath ([string]$dryRun.destination_path) -FromState $target -ToState 'postrun_pending' -QueueRoot $QueueRootPath -RecoveryEnvelopePath ([string]$recoveryEnvelope.path) -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
                 if([string]$rollback.verdict-ne'GREEN'){throw ($rollback.blocked_reasons -join '; ')}
                 $history.Add([pscustomobject]@{state='ROLLED_BACK';at=[datetimeoffset]::UtcNow.ToString('o');detail=$failure})|Out-Null
                 $rolled=New-TsfAdmissionTransaction $receipt $storage 'ROLLED_BACK' ([string]$dryRun.mission_path) ([string]$dryRun.destination_path) '' ([datetimeoffset]::UtcNow) $history

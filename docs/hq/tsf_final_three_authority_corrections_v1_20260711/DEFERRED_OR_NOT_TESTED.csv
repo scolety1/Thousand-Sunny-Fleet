@@ -1,0 +1,10 @@
+capability,status,reason
+live_app_server,DEFERRED,"Existing committed live evidence preserved; no service task authorized."
+codex_worker,DEFERRED,"No worker execution authorized for this static correction."
+interactive_question_relay,DEFERRED,"Outside the three bounded authority corrections."
+native_approval_relay_and_consumption,DEFERRED,"Existing fail-closed behavior preserved."
+plugins_and_mcp,DEFERRED,"Remain non-authoritative and deferred until publication and merge."
+work_integration,DEFERRED,"Outside scope."
+hq_dispatch,DEFERRED,"Outside scope."
+deployment_and_production_missions,DEFERRED,"Not authorized."
+network_validation,NOT_TESTED,"Network access prohibited."

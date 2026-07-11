@@ -2,6 +2,10 @@ $script:TsfRuntimeManifestVersion='tsf_runtime_artifact_manifest_v1'
 $script:TsfRuntimeKeyLength=32
 $script:TsfRuntimeHardPathLimit=240
 $script:TsfRuntimeTargetPathLimit=225
+$script:TsfLocalCapabilityStoreName="TSF_CAPABILITY_$([guid]::NewGuid().ToString('N'))"
+[AppDomain]::CurrentDomain.SetData($script:TsfLocalCapabilityStoreName,[Collections.Hashtable]::Synchronized(@{}))
+$script:TsfTestTransitionPolicyStoreName='TSF_TEST_ONLY_TRANSITION_POLICY_CAPABILITIES_V1'
+if($null-eq[AppDomain]::CurrentDomain.GetData($script:TsfTestTransitionPolicyStoreName)){[AppDomain]::CurrentDomain.SetData($script:TsfTestTransitionPolicyStoreName,[Collections.Hashtable]::Synchronized(@{}))}
 $script:TsfRuntimeArtifacts=[ordered]@{
     manifest='manifest.json'
     manifest_temp='mn.tmp'
@@ -114,6 +118,58 @@ function Resolve-TsfQueueAuthority {
     [pscustomobject]@{schema_version='tsf_queue_authority_v1';kind=$kind;root=$actual;policy_sha256=$policyHash;identity_sha256=$identity;production_root=$production}
 }
 
+function New-TsfTestOnlyTransitionPolicyCapability {
+    $nonce=[guid]::NewGuid().ToString('N')
+    $capability=[object]::new();$key=[Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($capability)
+    $store=[hashtable][AppDomain]::CurrentDomain.GetData($script:TsfTestTransitionPolicyStoreName)
+    $store[$key]=[pscustomobject]@{capability=$capability;context=[pscustomobject]@{kind='TEST_TRANSITION_POLICY';test_only=$true;nonce=$nonce;authority_identity_sha256=(Get-TsfRuntimeSha256Text "test-transition-policy|$nonce")}}
+    $capability
+}
+
+function Get-TsfTestOnlyTransitionPolicyCapabilityContext {
+    param([Parameter(Mandatory)][object]$Capability)
+    if($null-eq$Capability-or$Capability.GetType()-ne[object]){throw 'TEST_TRANSITION_POLICY_CAPABILITY_REQUIRED'}
+    $key=[Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Capability)
+    $store=[hashtable][AppDomain]::CurrentDomain.GetData($script:TsfTestTransitionPolicyStoreName)
+    if($null-eq$store-or!$store.ContainsKey($key)){throw 'TEST_TRANSITION_POLICY_CAPABILITY_REQUIRED'}
+    $entry=$store[$key]
+    if(![object]::ReferenceEquals($entry.capability,$Capability)-or[string]$entry.context.kind-ne'TEST_TRANSITION_POLICY'){throw 'TEST_TRANSITION_POLICY_CAPABILITY_REQUIRED'}
+    $entry.context
+}
+
+function Resolve-TsfTransitionPolicyAuthority {
+    param(
+        [Parameter(Mandatory)][object]$QueueAuthority,
+        [string]$StatePolicyPath='',
+        [string]$ExecutorPolicyPath='',
+        [object]$TestOnlyPolicyCapability=$null
+    )
+    $repo=Get-TsfKernelFullPath (Get-TsfKernelRoot)
+    $canonicalState=Get-TsfKernelFullPath (Join-Path $repo 'fleet\control\mission-queue-state-policy.v1.json')
+    $canonicalExecutor=Get-TsfKernelFullPath (Join-Path $repo 'fleet\control\mission-queue-foreground-executor-policy.v1.json')
+    $override=![string]::IsNullOrWhiteSpace($StatePolicyPath)-or![string]::IsNullOrWhiteSpace($ExecutorPolicyPath)
+    if($override){
+        $testContext=Get-TsfTestOnlyTransitionPolicyCapabilityContext $TestOnlyPolicyCapability
+        if([string]$QueueAuthority.kind-ne'TEST_ONLY'-or![bool]$testContext.test_only){throw 'TRANSITION_POLICY_OVERRIDE_REQUIRES_ISOLATED_TEST_AUTHORITY'}
+        $fixtureRoot=Get-TsfKernelFullPath (Join-Path $repo '.codex-local\fixtures')
+        $state=if($StatePolicyPath){Get-TsfKernelFullPath $StatePolicyPath $repo}else{$canonicalState}
+        $executor=if($ExecutorPolicyPath){Get-TsfKernelFullPath $ExecutorPolicyPath $repo}else{$canonicalExecutor}
+        foreach($path in @($state,$executor)){if(![string]::Equals($path,$canonicalState,[StringComparison]::OrdinalIgnoreCase)-and![string]::Equals($path,$canonicalExecutor,[StringComparison]::OrdinalIgnoreCase)-and(!(Test-TsfKernelPathInside $path $fixtureRoot)-or!(Test-TsfKernelReparseContained $path $repo))){throw 'TEST_TRANSITION_POLICY_NOT_ISOLATED'}}
+        return [pscustomobject]@{schema_version='tsf_transition_policy_authority_v1';kind='TEST_ONLY';state_policy_path=$state;executor_policy_path=$executor;state_policy_sha256=(Get-FileHash $state -Algorithm SHA256).Hash.ToLowerInvariant();executor_policy_sha256=(Get-FileHash $executor -Algorithm SHA256).Hash.ToLowerInvariant();authority_identity_sha256=[string]$testContext.authority_identity_sha256;committed_blob_verified=$false}
+    }
+    if($null-ne$TestOnlyPolicyCapability){throw 'TEST_POLICY_CAPABILITY_REJECTED_FOR_PRODUCTION'}
+    if([string]$QueueAuthority.kind-ne'PRODUCTION'){return [pscustomobject]@{schema_version='tsf_transition_policy_authority_v1';kind='TEST_ONLY_CANONICAL_POLICY';state_policy_path=$canonicalState;executor_policy_path=$canonicalExecutor;state_policy_sha256=(Get-FileHash $canonicalState -Algorithm SHA256).Hash.ToLowerInvariant();executor_policy_sha256=(Get-FileHash $canonicalExecutor -Algorithm SHA256).Hash.ToLowerInvariant();authority_identity_sha256=Get-TsfRuntimeSha256Text "TEST_ONLY_CANONICAL_POLICY|$($QueueAuthority.identity_sha256)";committed_blob_verified=$true}}
+    $entries=@()
+    foreach($item in @(@{name='state';rel='fleet/control/mission-queue-state-policy.v1.json';path=$canonicalState},@{name='executor';rel='fleet/control/mission-queue-foreground-executor-policy.v1.json';path=$canonicalExecutor})){
+        & git -C $repo diff --quiet HEAD -- ([string]$item.rel)
+        if($LASTEXITCODE-ne0){throw "CANONICAL_TRANSITION_POLICY_DIRTY: $($item.rel)"}
+        $blob=([string](& git -C $repo rev-parse "HEAD:$($item.rel)" 2>$null)).Trim()
+        if($LASTEXITCODE-ne0-or!$blob){throw "CANONICAL_TRANSITION_POLICY_NOT_COMMITTED: $($item.rel)"}
+        $entries+=[pscustomobject]@{name=$item.name;path=$item.path;relative_path=$item.rel;blob_oid=$blob;sha256=(Get-FileHash $item.path -Algorithm SHA256).Hash.ToLowerInvariant()}
+    }
+    [pscustomobject]@{schema_version='tsf_transition_policy_authority_v1';kind='PRODUCTION';state_policy_path=$canonicalState;executor_policy_path=$canonicalExecutor;state_policy_sha256=[string]$entries[0].sha256;executor_policy_sha256=[string]$entries[1].sha256;state_policy_blob_oid=[string]$entries[0].blob_oid;executor_policy_blob_oid=[string]$entries[1].blob_oid;authority_identity_sha256=Get-TsfContractJsonHash ([pscustomobject]@{queue_authority=[string]$QueueAuthority.identity_sha256;state_blob=[string]$entries[0].blob_oid;executor_blob=[string]$entries[1].blob_oid});committed_blob_verified=$true}
+}
+
 function Assert-TsfCanonicalRuntimeRoot {
     param([Parameter(Mandatory)][string]$RuntimeRoot)
     $expected=Get-TsfCanonicalRuntimeRoot;$actual=Get-TsfKernelFullPath $RuntimeRoot;$repo=Get-TsfKernelFullPath (Get-TsfKernelRoot)
@@ -198,10 +254,11 @@ function New-TsfCompleteRuntimePathPlan {
     $templateKey='a234567a234567a234567a234567a2345'
     foreach($entry in @(
         @{type='receipt.conflict';leaf="c-$templateKey.json"},
-        @{type='receipt.recovery';leaf="r-$templateKey.json"}
+        @{type='receipt.recovery';leaf="r-$templateKey.json"},
+        @{type='receipt.recovery_conflict';leaf="k-$templateKey.json"}
     )){Add-PlanPath $entry.type (Join-Path $p.receipt_root $entry.leaf)}
     $budget=Test-TsfRuntimePathPlan $root @($rows)
-    $required=@('queue.preflight','queue.role_preflight','queue.worker_instruction','queue.worker_result','queue.verifier_result','queue.registry_mission','queue.kernel_state.s1','queue.transition_01','queue.transition_temp','queue.transition_backup','queue.recovery_marker','lifecycle.producer_registry','lifecycle.producer_registry_temp','preservation.manifest_temp','preservation.manifest_backup','receipt.admission','receipt.transaction','receipt.conflict','receipt.recovery')
+    $required=@('queue.preflight','queue.role_preflight','queue.worker_instruction','queue.worker_result','queue.verifier_result','queue.registry_mission','queue.kernel_state.s1','queue.transition_01','queue.transition_temp','queue.transition_backup','queue.recovery_marker','lifecycle.producer_registry','lifecycle.producer_registry_temp','preservation.manifest_temp','preservation.manifest_backup','receipt.admission','receipt.transaction','receipt.conflict','receipt.recovery','receipt.recovery_conflict')
     $missing=@($required|Where-Object{$candidate=$_;@($rows|Where-Object{$_.logical_type-eq$candidate}).Count-ne1})
     if($missing.Count){$budget.valid=$false;$budget.errors=@($budget.errors)+@("Complete path plan omits categories: $($missing -join ', ')")}
     [pscustomobject]@{schema_version='tsf_complete_runtime_path_plan_v1';created_before_mutation=$true;runtime_root=$root;mission_id=$MissionId;mission_revision=$MissionRevision;run_id=$RunId;queue_plan=$q;lifecycle_plan=$l;adapter_plan=$a;preservation_plan=$p;registry_mission_path=$registryMissionPath;required_categories=$required;paths=@($rows);budget=$budget;maximum_path_length=$budget.maximum_path_length;maximum_logical_type=$budget.maximum_logical_type}
@@ -209,32 +266,84 @@ function New-TsfCompleteRuntimePathPlan {
 
 function Get-TsfProducerEvidenceContract { [pscustomobject]$script:TsfProducerEvidenceContract }
 
+function Add-TsfLocalCapabilityContext {
+    param([Parameter(Mandatory)][hashtable]$Context)
+    $capability=[object]::new();$key=[Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($capability)
+    $store=[hashtable][AppDomain]::CurrentDomain.GetData($script:TsfLocalCapabilityStoreName)
+    $store[$key]=[pscustomobject]@{capability=$capability;context=[pscustomobject]$Context}
+    $capability
+}
+
+function Get-TsfLocalCapabilityContext {
+    param([Parameter(Mandatory)][object]$Capability,[Parameter(Mandatory)][string]$Kind)
+    if($null-eq$Capability-or$Capability.GetType()-ne[object]){throw 'ORCHESTRATOR_HELD_RUN_CAPABILITY_REQUIRED'}
+    $key=[Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Capability)
+    $store=[hashtable][AppDomain]::CurrentDomain.GetData($script:TsfLocalCapabilityStoreName)
+    if($null-eq$store-or!$store.ContainsKey($key)){throw 'ORCHESTRATOR_HELD_RUN_CAPABILITY_REQUIRED'}
+    $entry=$store[$key]
+    if(![object]::ReferenceEquals($entry.capability,$Capability)-or[string]$entry.context.kind-ne$Kind){throw 'ORCHESTRATOR_HELD_RUN_CAPABILITY_REQUIRED'}
+    $entry.context
+}
+
+function New-TsfOrchestratorProducerCapability {
+    param(
+        [Parameter(Mandatory)][Management.Automation.InvocationInfo]$InvocationInfo,
+        [Parameter(Mandatory)][string]$MissionId,[Parameter(Mandatory)][int]$MissionRevision,
+        [Parameter(Mandatory)][string]$RunId,[Parameter(Mandatory)][string]$PolicyFingerprint,
+        [Parameter(Mandatory)][string]$QueueDocumentSha256,[Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Branch,[Parameter(Mandatory)][string]$Worktree
+    )
+    $expected=Get-TsfKernelFullPath (Join-Path (Get-TsfKernelRoot) 'tools\Invoke-TsfMissionLifecycle.ps1')
+    $actual=if($InvocationInfo.MyCommand.Path){Get-TsfKernelFullPath $InvocationInfo.MyCommand.Path}else{''}
+    $stackPaths=@(Get-PSCallStack|ForEach-Object{if($_.InvocationInfo.MyCommand.Path){Get-TsfKernelFullPath $_.InvocationInfo.MyCommand.Path}})
+    if(!$actual-or![string]::Equals($actual,$expected,[StringComparison]::OrdinalIgnoreCase)-or@($stackPaths|Where-Object{[string]::Equals($_,$expected,[StringComparison]::OrdinalIgnoreCase)}).Count-eq0){throw 'CANONICAL_ORCHESTRATOR_INVOCATION_REQUIRED'}
+    $nonce=[guid]::NewGuid().ToString('N');$invocation=Get-TsfRuntimeSha256Text "mission-lifecycle|$MissionId|$MissionRevision|$RunId|$nonce"
+    Add-TsfLocalCapabilityContext @{kind='PRODUCER_RUN';test_only=$false;mission_id=$MissionId;mission_revision=$MissionRevision;run_id=$RunId;policy_fingerprint=$PolicyFingerprint;queue_document_sha256=$QueueDocumentSha256;repository=(Get-TsfKernelFullPath $Repository);branch=$Branch;worktree=(Get-TsfKernelFullPath $Worktree);orchestrator_invocation_identity=$invocation;run_nonce=$nonce}
+}
+
+function New-TsfTestOnlyProducerCapability {
+    param(
+        [Parameter(Mandatory)][string]$MissionId,[Parameter(Mandatory)][int]$MissionRevision,
+        [Parameter(Mandatory)][string]$RunId,[Parameter(Mandatory)][string]$PolicyFingerprint,
+        [Parameter(Mandatory)][string]$QueueDocumentSha256,[Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Branch,[Parameter(Mandatory)][string]$Worktree,
+        [string]$ExistingRegistryPath=''
+    )
+    if($ExistingRegistryPath-and(Test-Path $ExistingRegistryPath -PathType Leaf)){
+        $existing=Read-TsfKernelJson $ExistingRegistryPath
+        if(![bool]$existing.test_only){throw 'TEST_ONLY_CAPABILITY_CANNOT_BIND_NORMAL_REGISTRY'}
+        $b=$existing.binding
+        return Add-TsfLocalCapabilityContext @{kind='PRODUCER_RUN';test_only=$true;mission_id=[string]$b.mission_id;mission_revision=[int]$b.mission_revision;run_id=[string]$b.run_id;policy_fingerprint=[string]$b.policy_fingerprint;queue_document_sha256=[string]$b.queue_document_sha256;repository=[string]$b.repository;branch=[string]$b.branch;worktree=[string]$b.worktree;orchestrator_invocation_identity=[string]$b.orchestrator_invocation_identity;run_nonce=[string]$b.run_nonce}
+    }
+    $nonce=[guid]::NewGuid().ToString('N');$invocation=Get-TsfRuntimeSha256Text "test-only-producer|$MissionId|$MissionRevision|$RunId|$nonce"
+    Add-TsfLocalCapabilityContext @{kind='PRODUCER_RUN';test_only=$true;mission_id=$MissionId;mission_revision=$MissionRevision;run_id=$RunId;policy_fingerprint=$PolicyFingerprint;queue_document_sha256=$QueueDocumentSha256;repository=(Get-TsfKernelFullPath $Repository);branch=$Branch;worktree=(Get-TsfKernelFullPath $Worktree);orchestrator_invocation_identity=$invocation;run_nonce=$nonce}
+}
+
+function Test-TsfProducerCapabilityBinding {
+    param([Parameter(Mandatory)][object]$Capability,[Parameter(Mandatory)][object]$Registry,[switch]$AllowTestOnly)
+    $context=Get-TsfLocalCapabilityContext $Capability 'PRODUCER_RUN';$b=$Registry.binding
+    if([bool]$context.test_only-and!$AllowTestOnly){throw 'TEST_ONLY_CAPABILITY_CANNOT_ENTER_NORMAL_RUNTIME'}
+    $binding=[pscustomobject][ordered]@{mission_id=[string]$context.mission_id;mission_revision=[int]$context.mission_revision;run_id=[string]$context.run_id;policy_fingerprint=[string]$context.policy_fingerprint;queue_document_sha256=[string]$context.queue_document_sha256;repository=[string]$context.repository;branch=[string]$context.branch;worktree=[string]$context.worktree;orchestrator_invocation_identity=[string]$context.orchestrator_invocation_identity;run_nonce=[string]$context.run_nonce}
+    if([bool]$Registry.test_only-ne[bool]$context.test_only-or(Get-TsfContractJsonHash $binding)-ne[string]$Registry.binding_identity_sha256-or(Get-TsfContractJsonHash $b)-ne[string]$Registry.binding_identity_sha256){throw 'PRODUCER_CAPABILITY_REGISTRY_BINDING_MISMATCH'}
+    $context
+}
+
 function New-TsfProducerEvidenceRegistry {
     param(
         [Parameter(Mandatory)][string]$RegistryPath,
-        [Parameter(Mandatory)][string]$MissionId,
-        [Parameter(Mandatory)][int]$MissionRevision,
-        [Parameter(Mandatory)][string]$RunId,
-        [Parameter(Mandatory)][string]$PolicyFingerprint,
-        [Parameter(Mandatory)][string]$QueueDocumentSha256,
-        [Parameter(Mandatory)][string]$Repository,
-        [Parameter(Mandatory)][AllowEmptyString()][string]$Branch,
-        [Parameter(Mandatory)][string]$Worktree,
-        [Parameter(Mandatory)][string]$OrchestratorInvocationIdentity,
-        [string]$RunNonce=([guid]::NewGuid().ToString('N')),
-        [switch]$TestOnly
+        [Parameter(Mandatory)][object]$Capability
     )
-    $plan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $MissionId $MissionRevision $RunId -Layout lifecycle_control
+    $context=Get-TsfLocalCapabilityContext $Capability 'PRODUCER_RUN'
+    $plan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) ([string]$context.mission_id) ([int]$context.mission_revision) ([string]$context.run_id) -Layout lifecycle_control
     if(![string]::Equals((Get-TsfKernelFullPath $RegistryPath),(Get-TsfKernelFullPath ([string]$plan.artifacts.producer_registry)),[StringComparison]::OrdinalIgnoreCase)){throw 'NONCANONICAL_PRODUCER_REGISTRY_PATH'}
-    if($TestOnly-and!$OrchestratorInvocationIdentity.StartsWith('test-only-')){throw 'TEST_PRODUCER_REGISTRY_REQUIRES_EXPLICIT_TEST_INVOCATION'}
+    $binding=[pscustomobject][ordered]@{mission_id=[string]$context.mission_id;mission_revision=[int]$context.mission_revision;run_id=[string]$context.run_id;policy_fingerprint=[string]$context.policy_fingerprint;queue_document_sha256=[string]$context.queue_document_sha256;repository=[string]$context.repository;branch=[string]$context.branch;worktree=[string]$context.worktree;orchestrator_invocation_identity=[string]$context.orchestrator_invocation_identity;run_nonce=[string]$context.run_nonce}
+    $bindingHash=Get-TsfContractJsonHash $binding
     if(Test-Path $RegistryPath -PathType Leaf){
         $existing=Read-TsfKernelJson $RegistryPath
-        $repositoryFull=Get-TsfKernelFullPath $Repository;$worktreeFull=Get-TsfKernelFullPath $Worktree
-        if([string]$existing.binding.mission_id-ne$MissionId-or[int]$existing.binding.mission_revision-ne$MissionRevision-or[string]$existing.binding.run_id-ne$RunId-or[string]$existing.binding.policy_fingerprint-ne$PolicyFingerprint-or[string]$existing.binding.queue_document_sha256-ne$QueueDocumentSha256-or![string]::Equals([string]$existing.binding.repository,$repositoryFull,[StringComparison]::OrdinalIgnoreCase)-or[string]$existing.binding.branch-ne$Branch-or![string]::Equals([string]$existing.binding.worktree,$worktreeFull,[StringComparison]::OrdinalIgnoreCase)-or[string]$existing.binding.orchestrator_invocation_identity-ne$OrchestratorInvocationIdentity-or[bool]$existing.test_only-ne[bool]$TestOnly){throw 'PRODUCER_EVIDENCE_REGISTRY_IMMUTABLE_CONFLICT'}
+        if((Get-TsfContractJsonHash $existing.binding)-ne$bindingHash-or[string]$existing.binding_identity_sha256-ne$bindingHash-or[bool]$existing.test_only-ne[bool]$context.test_only){throw 'PRODUCER_EVIDENCE_REGISTRY_IMMUTABLE_CONFLICT'}
         return $existing
     }
-    $binding=[pscustomobject][ordered]@{mission_id=$MissionId;mission_revision=$MissionRevision;run_id=$RunId;policy_fingerprint=$PolicyFingerprint;queue_document_sha256=$QueueDocumentSha256;repository=Get-TsfKernelFullPath $Repository;branch=$Branch;worktree=Get-TsfKernelFullPath $Worktree;orchestrator_invocation_identity=$OrchestratorInvocationIdentity;run_nonce=$RunNonce}
-    $registry=[pscustomobject][ordered]@{schema_version='tsf_producer_evidence_registry_v1';created_at=[datetimeoffset]::UtcNow.ToString('o');test_only=[bool]$TestOnly;binding=$binding;binding_identity_sha256=Get-TsfRuntimeSha256Text ($binding|ConvertTo-Json -Compress -Depth 20);next_sequence=1;artifacts=@()}
+    $registry=[pscustomobject][ordered]@{schema_version='tsf_producer_evidence_registry_v1';authority_model='ORCHESTRATOR_HELD_RUN_CAPABILITY';created_at=[datetimeoffset]::UtcNow.ToString('o');test_only=[bool]$context.test_only;binding=$binding;binding_identity_sha256=$bindingHash;next_sequence=1;artifacts=@()}
     Write-TsfKernelJson $registry $RegistryPath
     $registry
 }
@@ -244,10 +353,11 @@ function Register-TsfProducerEvidence {
         [Parameter(Mandatory)][string]$RegistryPath,
         [Parameter(Mandatory)][ValidateSet('mission','queue_document','preflight','role_preflight','worker_instruction','worker_result','adapter_result','event_journal','usage','verifier_result','prompt','stderr')][string]$LogicalType,
         [Parameter(Mandatory)][string]$ArtifactPath,
-        [Parameter(Mandatory)][string]$ProducerInvocationIdentity
+        [Parameter(Mandatory)][object]$Capability
     )
     $registry=Read-TsfKernelJson $RegistryPath
     if([string]$registry.schema_version-ne'tsf_producer_evidence_registry_v1'){throw 'INVALID_PRODUCER_EVIDENCE_REGISTRY'}
+    $context=Test-TsfProducerCapabilityBinding $Capability $registry -AllowTestOnly
     $contract=$script:TsfProducerEvidenceContract[$LogicalType]
     $plan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) ([string]$registry.binding.mission_id) ([int]$registry.binding.mission_revision) ([string]$registry.binding.run_id) -Layout ([string]$contract.layout)
     $expected=[string]$plan.artifacts.([string]$contract.artifact);$actual=Get-TsfKernelFullPath $ArtifactPath
@@ -258,10 +368,12 @@ function Register-TsfProducerEvidence {
     $relative=$actual.Substring($runtimeRoot.Length).TrimStart('\','/').Replace('\','/')
     $existingRecord=@($registry.artifacts|Where-Object{[string]$_.logical_type-eq$LogicalType})
     if($existingRecord.Count){
-        if($existingRecord.Count-eq1-and[string]$existingRecord[0].canonical_relative_path-eq$relative-and[string]$existingRecord[0].sha256-eq(Get-FileHash $actual -Algorithm SHA256).Hash.ToLowerInvariant()-and[long]$existingRecord[0].size-eq(Get-Item $actual).Length-and[string]$existingRecord[0].producer_invocation_identity-eq$ProducerInvocationIdentity){return $existingRecord[0]}
+        if($existingRecord.Count-eq1-and[string]$existingRecord[0].canonical_relative_path-eq$relative-and[string]$existingRecord[0].sha256-eq(Get-FileHash $actual -Algorithm SHA256).Hash.ToLowerInvariant()-and[long]$existingRecord[0].size-eq(Get-Item $actual).Length){return $existingRecord[0]}
         throw "PRODUCER_EVIDENCE_CONFLICT: $LogicalType"
     }
-    $record=[pscustomobject][ordered]@{logical_type=$LogicalType;canonical_relative_path=$relative;producer=[string]$contract.producer;evidence_classification=[string]$contract.classification;sha256=(Get-FileHash $actual -Algorithm SHA256).Hash.ToLowerInvariant();size=[long](Get-Item $actual).Length;created_at=[datetimeoffset]::UtcNow.ToString('o');creation_sequence=[int]$registry.next_sequence;producer_invocation_identity=$ProducerInvocationIdentity;binding_identity_sha256=[string]$registry.binding_identity_sha256}
+    $sequence=[int]$registry.next_sequence
+    $producerInvocation=Get-TsfRuntimeSha256Text "$([string]$context.orchestrator_invocation_identity)|$([string]$registry.binding_identity_sha256)|$([string]$context.run_nonce)|$LogicalType|$([string]$contract.producer)|$sequence"
+    $record=[pscustomobject][ordered]@{logical_type=$LogicalType;canonical_relative_path=$relative;producer=[string]$contract.producer;evidence_classification=[string]$contract.classification;sha256=(Get-FileHash $actual -Algorithm SHA256).Hash.ToLowerInvariant();size=[long](Get-Item $actual).Length;created_at=[datetimeoffset]::UtcNow.ToString('o');creation_sequence=$sequence;orchestrator_invocation_identity=[string]$context.orchestrator_invocation_identity;producer_invocation_identity=$producerInvocation;run_nonce_sha256=Get-TsfRuntimeSha256Text ([string]$context.run_nonce);binding_identity_sha256=[string]$registry.binding_identity_sha256}
     $registry.artifacts=@($registry.artifacts)+@($record);$registry.next_sequence=[int]$registry.next_sequence+1
     $temp=(New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) ([string]$registry.binding.mission_id) ([int]$registry.binding.mission_revision) ([string]$registry.binding.run_id) -Layout lifecycle_control).artifacts.producer_registry_temp
     Write-TsfKernelJson $registry $temp
@@ -277,7 +389,8 @@ function Test-TsfProducerEvidenceRegistry {
         [Parameter(Mandatory)][string]$RunId,
         [Parameter(Mandatory)][string]$PolicyFingerprint,
         [Parameter(Mandatory)][string]$QueueDocumentSha256,
-        [switch]$AllowTestOnly
+        [string]$Repository='',[string]$Branch='',[string]$Worktree='',
+        [object]$Capability=$null,[switch]$RequireHeldCapability,[switch]$AllowTestOnly
     )
     $registry=Read-TsfKernelJson $RegistryPath;$errors=[Collections.Generic.List[string]]::new()
     $schemaValidation=Test-TsfJsonContract $registry (Join-Path (Get-TsfKernelRoot) 'fleet\control\producer-evidence-registry.schema.v1.json')
@@ -286,14 +399,28 @@ function Test-TsfProducerEvidenceRegistry {
     if([bool]$registry.test_only-and!$AllowTestOnly){$errors.Add('Test-only producer registry cannot enter normal preservation.')|Out-Null}
     $b=$registry.binding
     if([string]$b.mission_id-ne$MissionId-or[int]$b.mission_revision-ne$MissionRevision-or[string]$b.run_id-ne$RunId-or[string]$b.policy_fingerprint-ne$PolicyFingerprint-or[string]$b.queue_document_sha256-ne$QueueDocumentSha256){$errors.Add('Producer registry mission/run/policy/queue binding mismatch.')|Out-Null}
-    if([string]$registry.binding_identity_sha256-ne(Get-TsfRuntimeSha256Text ($b|ConvertTo-Json -Compress -Depth 20))){$errors.Add('Producer registry binding identity mismatch.')|Out-Null}
+    if($Repository-and![string]::Equals((Get-TsfKernelFullPath ([string]$b.repository)),(Get-TsfKernelFullPath $Repository),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Producer registry repository binding mismatch.')|Out-Null}
+    if($Worktree-and![string]::Equals((Get-TsfKernelFullPath ([string]$b.worktree)),(Get-TsfKernelFullPath $Worktree),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('Producer registry worktree binding mismatch.')|Out-Null}
+    if($Branch-and[string]$b.branch-ne$Branch){$errors.Add('Producer registry branch binding mismatch.')|Out-Null}
+    if([string]$registry.binding_identity_sha256-ne(Get-TsfContractJsonHash $b)){$errors.Add('Producer registry binding identity mismatch.')|Out-Null}
+    if($RequireHeldCapability){try{[void](Test-TsfProducerCapabilityBinding $Capability $registry -AllowTestOnly:$AllowTestOnly)}catch{$errors.Add($_.Exception.Message)|Out-Null}}
+    $expectedSequence=1;$seenSequences=@{}
     foreach($record in @($registry.artifacts)){
         $contract=$script:TsfProducerEvidenceContract[[string]$record.logical_type]
         if($null-eq$contract-or[string]$record.producer-ne[string]$contract.producer-or[string]$record.evidence_classification-ne[string]$contract.classification){$errors.Add("Producer contract mismatch: $($record.logical_type)")|Out-Null;continue}
+        $sequence=[int]$record.creation_sequence
+        if($sequence-ne$expectedSequence-or$seenSequences.ContainsKey($sequence)){$errors.Add("Producer sequence is duplicate or regressing: $sequence")|Out-Null}else{$seenSequences[$sequence]=$true};$expectedSequence++
+        if([string]$record.orchestrator_invocation_identity-ne[string]$b.orchestrator_invocation_identity){$errors.Add("Producer invocation differs from registry invocation: $($record.logical_type)")|Out-Null}
+        $expectedInvocation=Get-TsfRuntimeSha256Text "$([string]$b.orchestrator_invocation_identity)|$([string]$registry.binding_identity_sha256)|$([string]$b.run_nonce)|$([string]$record.logical_type)|$([string]$contract.producer)|$sequence"
+        if([string]$record.producer_invocation_identity-ne$expectedInvocation-or[string]$record.run_nonce_sha256-ne(Get-TsfRuntimeSha256Text ([string]$b.run_nonce))-or[string]$record.binding_identity_sha256-ne[string]$registry.binding_identity_sha256){$errors.Add("Producer record authority binding mismatch: $($record.logical_type)")|Out-Null}
         $path=Get-TsfKernelFullPath ([string]$record.canonical_relative_path) (Get-TsfCanonicalRuntimeRoot)
         if(!(Test-TsfKernelPathInside $path (Get-TsfCanonicalRuntimeRoot))-or!(Test-Path $path -PathType Leaf)){$errors.Add("Registered artifact missing/outside runtime: $($record.logical_type)")|Out-Null;continue}
+        $expectedPlan=New-TsfRuntimeStoragePlan (Get-TsfCanonicalRuntimeRoot) $MissionId $MissionRevision $RunId -Layout ([string]$contract.layout)
+        $expectedPath=[string]$expectedPlan.artifacts.([string]$contract.artifact)
+        if(![string]::Equals($path,(Get-TsfKernelFullPath $expectedPath),[StringComparison]::OrdinalIgnoreCase)){$errors.Add("Registered artifact canonical path mismatch: $($record.logical_type)")|Out-Null}
         if((Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()-ne[string]$record.sha256-or(Get-Item $path).Length-ne[long]$record.size){$errors.Add("Registered artifact bytes changed: $($record.logical_type)")|Out-Null}
     }
+    if([int]$registry.next_sequence-ne$expectedSequence){$errors.Add('Producer next sequence is not strictly monotonic.')|Out-Null}
     [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors);registry=$registry}
 }
 
@@ -443,8 +570,8 @@ function Get-TsfRuntimeReceiptPlan {
     $identity=[pscustomobject][ordered]@{mission_id=[string]$Result.mission_id;mission_revision=[int]$Result.mission_revision;result_id=[string]$Result.result_id;policy_fingerprint=[string]$Result.policy_fingerprint;preservation_packet_sha256=$PreservationHash}
     $identitySha256=Get-TsfContractJsonHash $identity;$key=ConvertTo-TsfRuntimeShortKey $identitySha256
     $conflictIdentitySha256=Get-TsfRuntimeSha256Text "$identitySha256|$ResultHash";$conflictKey=ConvertTo-TsfRuntimeShortKey $conflictIdentitySha256
-    $paths=[ordered]@{root=$root;key=$key;identity_sha256=$identitySha256;conflict_identity_sha256=$conflictIdentitySha256;admission=Join-Path $root "a-$key.json";transaction=Join-Path $root "t-$key.json";admission_temp=Join-Path $root "x-$key.tmp";transaction_temp=Join-Path $root "y-$key.tmp";transaction_backup=Join-Path $root "z-$key.tmp";conflict=Join-Path $root "c-$conflictKey.json";packet_descriptor=$descriptor;durable_result_bound=$durableResultBound}
-    $budget=Test-TsfRuntimePathPlan -RuntimeRoot $containmentRoot -Paths @($paths.admission,$paths.transaction,$paths.admission_temp,$paths.transaction_temp,$paths.transaction_backup,$paths.conflict)
+    $paths=[ordered]@{root=$root;key=$key;identity_sha256=$identitySha256;conflict_identity_sha256=$conflictIdentitySha256;admission=Join-Path $root "a-$key.json";transaction=Join-Path $root "t-$key.json";admission_temp=Join-Path $root "x-$key.tmp";transaction_temp=Join-Path $root "y-$key.tmp";transaction_backup=Join-Path $root "z-$key.tmp";conflict=Join-Path $root "c-$conflictKey.json";recovery=Join-Path $root "r-$key.json";recovery_conflict=Join-Path $root "k-$conflictKey.json";packet_descriptor=$descriptor;durable_result_bound=$durableResultBound}
+    $budget=Test-TsfRuntimePathPlan -RuntimeRoot $containmentRoot -Paths @($paths.admission,$paths.transaction,$paths.admission_temp,$paths.transaction_temp,$paths.transaction_backup,$paths.conflict,$paths.recovery,$paths.recovery_conflict)
     if(!$budget.valid){throw "Canonical receipt path preflight failed: $($budget.errors -join '; ')"}
     $paths['budget']=$budget
     [pscustomobject]$paths

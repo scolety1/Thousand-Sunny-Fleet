@@ -9,10 +9,13 @@ param(
     [string]$ToState,
 
     [string]$QueueRoot = "fleet/missions",
-    [string]$PolicyPath = "fleet/control/mission-queue-state-policy.v1.json",
+    [string]$PolicyPath = "",
+    [string]$ExecutorPolicyPath = "",
     [string]$OutFile = "",
+    [string]$RecoveryEnvelopePath = "",
     [string]$RecoveryTransactionPath = "",
     [switch]$TestOnlyAllowAlternateQueueRoot,
+    [object]$TestOnlyPolicyCapability = $null,
     [switch]$DryRun
 )
 
@@ -20,6 +23,7 @@ $ErrorActionPreference = "Stop"
 
 $fleetRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $fleetRoot "tools\codex-fleet-enforcement-kernel.ps1")
+Import-Module (Join-Path $fleetRoot 'tools\TsfDurableContract.psm1')
 
 function Get-QueueFullPath {
     param([string]$Path)
@@ -40,8 +44,9 @@ function Read-QueueJson {
     Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
-$policy = Read-QueueJson -Path (Get-QueueFullPath -Path $PolicyPath)
 $queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+$transitionPolicyAuthority=Resolve-TsfTransitionPolicyAuthority -QueueAuthority $queueAuthority -StatePolicyPath $PolicyPath -ExecutorPolicyPath $ExecutorPolicyPath -TestOnlyPolicyCapability $TestOnlyPolicyCapability
+$policy = Read-QueueJson -Path ([string]$transitionPolicyAuthority.state_policy_path)
 $queueRootFull = [string]$queueAuthority.root
 $missionFull = Get-QueueFullPath -Path $MissionPath
 $from = $FromState.Trim()
@@ -62,36 +67,15 @@ if (!(Test-Path -LiteralPath $missionFull)) {
 }
 
 $recovery = $null
-$isRecovery = ![string]::IsNullOrWhiteSpace($RecoveryTransactionPath)
+$isRecovery = ![string]::IsNullOrWhiteSpace($RecoveryEnvelopePath)
+if(![string]::IsNullOrWhiteSpace($RecoveryTransactionPath)){throw 'PARTIAL_RECOVERY_TRANSACTION_INPUT_REJECTED'}
 if ($isRecovery) {
-    $recoveryPath = Get-QueueFullPath -Path $RecoveryTransactionPath
+    $recoveryPath = Get-QueueFullPath -Path $RecoveryEnvelopePath
     if (!(Test-Path -LiteralPath $recoveryPath -PathType Leaf)) {
-        $blocked.Add("Recovery transaction marker not found.") | Out-Null
+        $blocked.Add("Canonical recovery envelope not found.") | Out-Null
     } else {
-        $recovery = Read-QueueJson -Path $recoveryPath
-        if ([string]$recovery.schema_version -ne 'tsf_admission_transaction_v1' -or [string]$recovery.state -notin @('PREPARED','RECOVERY_REQUIRED')) {
-            $blocked.Add("Recovery transaction marker is not in a recoverable state.") | Out-Null
-        }
-        if ([string]$recovery.queue_state_to -ne $from -or [string]$recovery.queue_state_from -ne $to) {
-            $blocked.Add("Recovery transition does not reverse the bound admission transition.") | Out-Null
-        }
-        if (![string]::Equals((Get-TsfKernelFullPath ([string]$recovery.destination_path)), $missionFull, [StringComparison]::OrdinalIgnoreCase)) {
-            $blocked.Add("Recovery mission path does not match the bound transaction destination.") | Out-Null
-        }
-        if (Test-Path -LiteralPath $missionFull -PathType Leaf) {
-            $missionDocument = Read-QueueJson -Path $missionFull
-            $missionHash=Get-TsfContractJsonHash $missionDocument.durable_mission
-            $queueHash=Get-TsfContractJsonHash $missionDocument
-            if ([string]$missionDocument.source_binding.durable_mission_id -ne [string]$recovery.mission_id -or
-                [int]$missionDocument.source_binding.durable_mission_revision -ne [int]$recovery.mission_revision -or
-                [string]$missionDocument.source_binding.durable_mission_content_hash -ne [string]$recovery.mission_content_hash -or
-                $missionHash -ne [string]$recovery.mission_content_hash -or
-                [string]$missionDocument.source_binding.policy_fingerprint -ne [string]$recovery.policy_fingerprint -or
-                [string]$missionDocument.source_binding.translator_version -ne [string]$recovery.translator_version -or
-                $queueHash -ne [string]$recovery.queue_document_sha256) {
-                $blocked.Add("Recovery mission identity does not match the transaction marker.") | Out-Null
-            }
-        }
+        $recoveryCheck=Test-TsfCanonicalRecoveryEnvelope -EnvelopePath $recoveryPath -ExpectedMissionPath $missionFull -ExpectedFromState $from -ExpectedToState $to -QueueRootPath ([string]$queueAuthority.root) -RepositoryRoot $fleetRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+        if(!$recoveryCheck.valid){foreach($reason in @($recoveryCheck.errors)){$blocked.Add([string]$reason)|Out-Null};[void](Write-TsfRecoveryConflictDiagnostic -EnvelopePath $recoveryPath -Errors @($recoveryCheck.errors))}else{$recovery=$recoveryCheck.transaction}
     }
 }
 
@@ -132,6 +116,8 @@ $result = [pscustomobject]@{
     recovery = $isRecovery
     queue_authority_kind = [string]$queueAuthority.kind
     queue_authority_identity_sha256 = [string]$queueAuthority.identity_sha256
+    transition_policy_authority_kind = [string]$transitionPolicyAuthority.kind
+    transition_policy_authority_identity_sha256 = [string]$transitionPolicyAuthority.authority_identity_sha256
     blocked_reasons = @($blocked)
     background_runner_started = $false
     push_performed = $false
