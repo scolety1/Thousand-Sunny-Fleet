@@ -24,6 +24,12 @@
       "default_reasoning_effort": "ULTRA"
     }
   },
+  "legacy_alias_map": {
+    "fast_readonly": "FAST",
+    "standard_patch": "BALANCED",
+    "deep_reasoning": "DEEP",
+    "premium_audit": "MAX_SINGLE"
+  },
   "surface_resolutions": {
     "CHAT": {
       "FAST": "gpt-5.6-luna",

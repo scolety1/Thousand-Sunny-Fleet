@@ -5,10 +5,10 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "result_id", "mission_id", "parent_mission_id", "policy_fingerprint",
+    "schema_version", "result_id", "mission_id", "mission_revision", "mission_content_hash", "parent_mission_id", "policy_fingerprint",
     "surface_used", "surface_task_identity", "actual_model", "actual_reasoning_effort", "model_assurance_level",
     "actual_repository", "actual_branch_worktree", "git_facts", "files_inspected", "files_changed",
-    "major_actions", "network_activity", "artifacts", "tests", "verifier_evidence", "approval_use",
+    "major_actions", "network_activity", "artifacts", "tests", "verifier_evidence", "approval_use", "preservation_evidence", "evidence_bindings",
     "deviations_from_mission", "uncertainty", "security_or_scope_warnings", "proposed_next_action",
     "authority_statement", "grants_approval", "grants_merge_authority", "grants_production_authority", "created_at"
   ],
@@ -16,6 +16,8 @@
     "schema_version": { "const": "tsf_result_envelope_v1" },
     "result_id": { "type": "string", "minLength": 8, "maxLength": 160, "pattern": "^[A-Za-z0-9._:-]+$" },
     "mission_id": { "type": ["string", "null"] },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "mission_content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "parent_mission_id": { "type": ["string", "null"] },
     "policy_fingerprint": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
     "surface_used": { "type": "string", "minLength": 1 },
@@ -48,34 +50,43 @@
     },
     "artifacts": {
       "type": "array", "items": {
-        "type": "object", "additionalProperties": false, "required": ["path", "sha256", "exists"],
-        "properties": { "path": { "type": "string", "minLength": 1 }, "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }, "exists": { "type": "boolean" } }
+        "type": "object", "additionalProperties": false, "required": ["path", "sha256", "exists", "evidence_classification"],
+        "properties": { "path": { "type": "string", "minLength": 1 }, "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }, "exists": { "type": "boolean" }, "evidence_classification": { "$ref": "#/$defs/evidenceClass" } }
       }
     },
     "tests": {
       "type": "array", "items": {
-        "type": "object", "additionalProperties": false, "required": ["test_id", "status", "observed", "evidence"],
+        "type": "object", "additionalProperties": false, "required": ["test_id", "status", "observed", "evidence", "evidence_classification"],
         "properties": {
           "test_id": { "type": "string", "minLength": 1 }, "status": { "enum": ["PASS", "FAIL", "NOT_RUN", "UNKNOWN"] },
-          "observed": { "type": "string" }, "evidence": { "type": ["string", "null"] }
+          "observed": { "type": "string" }, "evidence": { "type": ["string", "null"] }, "evidence_classification": { "$ref": "#/$defs/evidenceClass" }
         }
       }
     },
     "verifier_evidence": {
       "type": "array", "items": {
-        "type": "object", "additionalProperties": false, "required": ["verifier_id", "independence", "passed", "evidence"],
+        "type": "object", "additionalProperties": false, "required": ["verifier_id", "verifier_role", "independence", "passed", "evidence", "evidence_classification"],
         "properties": {
           "verifier_id": { "type": "string", "minLength": 1 },
+          "verifier_role": { "type": "string", "minLength": 1 },
           "independence": { "enum": ["NONE", "SEPARATE_TASK", "SEPARATE_ROLE", "INDEPENDENT_HUMAN"] },
-          "passed": { "type": "boolean" }, "evidence": { "type": ["string", "null"] }
+          "passed": { "type": "boolean" }, "evidence": { "type": ["string", "null"] }, "evidence_classification": { "$ref": "#/$defs/evidenceClass" }
         }
       }
     },
     "approval_use": {
       "type": "array", "items": {
-        "type": "object", "additionalProperties": false, "required": ["approval_id", "exact_action", "used"],
-        "properties": { "approval_id": { "type": "string", "minLength": 1 }, "exact_action": { "type": "string", "minLength": 1 }, "used": { "type": "boolean" } }
+        "type": "object", "additionalProperties": false, "required": ["approval_id", "exact_action", "used", "evidence_classification"],
+        "properties": { "approval_id": { "type": "string", "minLength": 1 }, "exact_action": { "type": "string", "minLength": 1 }, "used": { "type": "boolean" }, "evidence_classification": { "$ref": "#/$defs/evidenceClass" } }
       }
+    },
+    "preservation_evidence": {
+      "type": "object", "additionalProperties": false, "required": ["packet_path", "packet_sha256", "evidence_classification"],
+      "properties": { "packet_path": { "type": "string", "minLength": 1 }, "packet_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "evidence_classification": { "$ref": "#/$defs/evidenceClass" } }
+    },
+    "evidence_bindings": {
+      "type": "object", "additionalProperties": false, "required": ["mapper_version", "runtime_evidence_sha256", "repository", "git", "model", "files"],
+      "properties": { "mapper_version": { "const": "tsf_runtime_evidence_to_result_v1" }, "runtime_evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "repository": { "$ref": "#/$defs/evidenceClass" }, "git": { "$ref": "#/$defs/evidenceClass" }, "model": { "$ref": "#/$defs/evidenceClass" }, "files": { "$ref": "#/$defs/evidenceClass" } }
     },
     "deviations_from_mission": { "$ref": "#/$defs/stringArray" },
     "uncertainty": { "$ref": "#/$defs/stringArray" },
@@ -88,6 +99,7 @@
     "created_at": { "type": "string", "format": "date-time" }
   },
   "$defs": {
-    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "evidenceClass": { "enum": ["NATIVE_OBSERVED", "ADAPTER_OBSERVED", "KERNEL_OBSERVED", "FILESYSTEM_OBSERVED", "VERIFIER_OBSERVED", "AGENT_REPORTED", "UNVERIFIED"] }
   }
 }

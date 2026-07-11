@@ -3,10 +3,16 @@
   "purpose": "Ordered allowlist of TSF policy and schema files that govern durable mission admission.",
   "ordering_rule": "Array order is canonical and participates in the fingerprint.",
   "governing_files": [
+    "tools/TsfDurableContract.psm1",
+    "tools/TsfDurableContract.Canonical.ps1",
+    "tools/codex-fleet-enforcement-kernel.ps1",
+    "tools/Move-TsfMissionState.ps1",
     "fleet/control/main-bot-decision-authority.v1.json",
     "fleet/control/translator-helper-contract.v1.json",
     "fleet/control/worker-role-registry.v1.json",
     "fleet/control/worker-permission-profiles.v1.json",
+    "fleet/control/role-aware-mission-extension.v1.json",
+    "fleet/control/worker-instruction-packet.schema.v1.json",
     "fleet/control/mission-queue-state-policy.v1.json",
     "fleet/control/parallel-lane-worktree-policy.v1.json",
     "fleet/control/main-bot-loop-prevention-rules.v1.json",
@@ -16,6 +22,8 @@
     "fleet/control/mission-envelope.schema.v1.json",
     "fleet/control/result-envelope.schema.v1.json",
     "fleet/control/admission-decision.schema.v1.json",
+    "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/mission_schema_v1.json",
+    "docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/approval_ledger_schema_v1.json",
     "docs/hq/tsf_durable_mission_result_admission_contract_v1_20260710/OPERATING_MODEL_ADOPTION_DECISION.md"
   ],
   "schema_versions": {

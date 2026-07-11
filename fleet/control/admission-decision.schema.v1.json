@@ -4,7 +4,7 @@
   "title": "TSF Admission Decision Receipt V1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "receipt_id", "result_id", "mission_id", "result_sha256", "status", "reasons", "caveats", "duplicate_submission", "idempotent_replay", "decided_at", "grants_approval", "grants_merge_authority", "grants_production_authority"],
+  "required": ["schema_version", "receipt_id", "result_id", "mission_id", "result_sha256", "status", "reasons", "caveats", "duplicate_submission", "idempotent_replay", "decided_at", "queue_state_from", "queue_state_to", "queue_transition_applied", "queue_transition_path", "grants_approval", "grants_merge_authority", "grants_production_authority"],
   "properties": {
     "schema_version": { "const": "tsf_admission_decision_v1" },
     "receipt_id": { "type": "string", "minLength": 1 },
@@ -17,6 +17,10 @@
     "duplicate_submission": { "type": "boolean" },
     "idempotent_replay": { "type": "boolean" },
     "decided_at": { "type": "string", "format": "date-time" },
+    "queue_state_from": { "const": "postrun_pending" },
+    "queue_state_to": { "enum": ["complete_review_only", "complete_ready_for_gate", "blocked_needs_tim"] },
+    "queue_transition_applied": { "type": "boolean" },
+    "queue_transition_path": { "type": "string" },
     "grants_approval": { "const": false },
     "grants_merge_authority": { "const": false },
     "grants_production_authority": { "const": false }

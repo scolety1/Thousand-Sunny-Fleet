@@ -1,7 +1,8 @@
 {
   "schema_version": "tsf_durable_contract_validation_v1",
   "generated_at": "2026-07-10T23:07:33.9432771Z",
-  "verdict": "GREEN_DURABLE_MISSION_RESULT_CONTRACT_READY_FOR_REVIEW",
+  "historical_verdict": "GREEN_DURABLE_MISSION_RESULT_CONTRACT_READY_FOR_REVIEW",
+  "current_status": "SUPERSEDED_BY_CANONICAL_INTEGRATION_CORRECTION_V1",
   "verified_base": "b6862e5796250c6caa9dcee756c51b4365c45848",
   "pr11_source_commit_contained": "764f8b8feba3fbd0e41d3807f3629302f8a669b3",
   "branch": "work/durable-mission-result-admission-contract-v1-20260710",

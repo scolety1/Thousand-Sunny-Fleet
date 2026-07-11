@@ -1,6 +1,7 @@
 {
   "schema_version": "tsf_mission_envelope_v1",
   "mission_id": "synthetic-work-research-0001",
+  "mission_revision": 1,
   "parent_mission_id": null,
   "project_id": "TSF_CONTROL_PLANE",
   "original_request": "SYNTHETIC FIXTURE: research durable control-plane boundaries using public sources.",

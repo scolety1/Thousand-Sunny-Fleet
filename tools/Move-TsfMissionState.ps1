@@ -26,6 +26,14 @@ function Get-QueueFullPath {
     return [System.IO.Path]::GetFullPath((Join-Path $fleetRoot $Path))
 }
 
+function Test-QueuePathInside {
+    param([string]$ChildPath, [string]$ParentPath)
+    $child = [System.IO.Path]::GetFullPath($ChildPath).TrimEnd('\', '/')
+    $parent = [System.IO.Path]::GetFullPath($ParentPath).TrimEnd('\', '/')
+    return [string]::Equals($child, $parent, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $child.StartsWith($parent + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Read-QueueJson {
     param([string]$Path)
     Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
@@ -54,7 +62,7 @@ if (!$allowed) {
 }
 
 $expectedFromRoot = Join-Path $queueRootFull $from
-if ($missionFull -notlike "$expectedFromRoot*") {
+if (!(Test-QueuePathInside -ChildPath $missionFull -ParentPath $expectedFromRoot)) {
     $blocked.Add("Mission path is not inside from-state folder.") | Out-Null
 }
 

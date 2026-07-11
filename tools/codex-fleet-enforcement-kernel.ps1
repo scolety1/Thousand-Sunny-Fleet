@@ -405,6 +405,12 @@ function Find-TsfKernelApprovalMatches {
         }
 
         foreach ($approval in $approvals) {
+            if ($requirement.PSObject.Properties.Name -contains "approval_id" -and
+                ![string]::IsNullOrWhiteSpace([string]$requirement.approval_id) -and
+                [string]$approval.approval_id -ne [string]$requirement.approval_id) {
+                continue
+            }
+
             if ([string]$approval.exact_action -ne $exactAction) {
                 continue
             }
@@ -438,6 +444,28 @@ function Find-TsfKernelApprovalMatches {
 
             if (-not $active) {
                 $requirementResult.match_status = "MATCH_EXPIRED_OR_INACTIVE"
+                $requirementResult.approval_id = [string]$approval.approval_id
+                continue
+            }
+
+            if ($approval.PSObject.Properties.Name -contains "state" -and [string]$approval.state -ne "ACTIVE") {
+                $requirementResult.match_status = "MATCH_INACTIVE_STATE"
+                $requirementResult.approval_id = [string]$approval.approval_id
+                continue
+            }
+
+            if ($approval.PSObject.Properties.Name -contains "mission_id" -and
+                ![string]::IsNullOrWhiteSpace([string]$approval.mission_id) -and
+                [string]$approval.mission_id -ne [string]$Mission.mission_id) {
+                $requirementResult.match_status = "MATCH_MISSION_MISMATCH"
+                $requirementResult.approval_id = [string]$approval.approval_id
+                continue
+            }
+
+            if ($approval.PSObject.Properties.Name -contains "max_uses" -and
+                $approval.PSObject.Properties.Name -contains "usage_count" -and
+                [int]$approval.usage_count -ge [int]$approval.max_uses) {
+                $requirementResult.match_status = "MATCH_USAGE_EXHAUSTED"
                 $requirementResult.approval_id = [string]$approval.approval_id
                 continue
             }
