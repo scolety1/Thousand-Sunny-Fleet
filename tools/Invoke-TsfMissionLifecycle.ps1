@@ -29,7 +29,10 @@ param(
 
     [string]$RuntimeRoot = "",
 
-    [int]$WorkerTimeoutSeconds = 180
+    [int]$WorkerTimeoutSeconds = 180,
+
+    [ValidateSet('NONE','GREEN','PREFLIGHT','ROLE_PERMISSION','WORKER_START','VERIFIER','PRESERVATION')]
+    [string]$TestOnlyFault = 'NONE'
 )
 
 $ErrorActionPreference = "Stop"
@@ -142,6 +145,34 @@ function Test-LifecycleFixturePilotMission {
     return @($reasons)
 }
 
+$lifecycleStage = 'INVOCATION'
+$inputDocument = $null
+$mission = $null
+$missionId = ''
+$missionRevision = 1
+$runId = ''
+$queueDocumentHash = ''
+$policyFingerprintForRegistry = ('0' * 64)
+$completePathPlan = $null
+$producerRegistryPath = ''
+$producerCapability = $null
+$repoPathForRegistry = $fleetRoot
+$gitForRegistry = $null
+$events = [System.Collections.Generic.List[object]]::new()
+$blockedReasons = [System.Collections.Generic.List[string]]::new()
+$preflight = $null
+$rolePreflight = $null
+$verifier = $null
+$preservation = $null
+$workerStatus = 'NOT_RUN'
+$adapterResult = $null
+$effectiveMissionPath = ''
+$workerResultPath = ''
+$verifierPath = ''
+$script:currentQueueMissionPath = $QueueMissionPath
+
+try {
+$lifecycleStage = 'MISSION_BINDING'
 $inputDocument = Read-TsfKernelJson -Path $MissionPath
 $queueDocumentCheck = $null
 $queueDocumentHash = ""
@@ -213,8 +244,11 @@ if([string]$inputDocument.schema_version-eq'tsf_canonical_queue_document_v1'){
     $expectedQueueEvidence=[string]$queueStoragePlan.artifacts.queue_document
     if([string]::IsNullOrWhiteSpace($CanonicalQueueDocumentEvidencePath)){$CanonicalQueueDocumentEvidencePath=$expectedQueueEvidence}
     if(![string]::Equals((Get-TsfKernelFullPath $CanonicalQueueDocumentEvidencePath),(Get-TsfKernelFullPath $expectedQueueEvidence),[StringComparison]::OrdinalIgnoreCase)){throw 'NONCANONICAL_QUEUE_DOCUMENT_EVIDENCE_PATH'}
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $CanonicalQueueDocumentEvidencePath)|Out-Null
     if(!(Test-Path $CanonicalQueueDocumentEvidencePath -PathType Leaf)){Copy-Item -LiteralPath $MissionPath -Destination $CanonicalQueueDocumentEvidencePath}
-    if((Get-FileHash $CanonicalQueueDocumentEvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()-ne$queueDocumentHash){throw 'QUEUE_DOCUMENT_EVIDENCE_HASH_MISMATCH'}
+    $queueEvidenceDocument=Read-TsfKernelJson $CanonicalQueueDocumentEvidencePath
+    $queueEvidenceCheck=Test-TsfCanonicalQueueDocument -QueueDocument $queueEvidenceDocument
+    if(!$queueEvidenceCheck.valid-or[string]$queueEvidenceCheck.queue_document_sha256-ne$queueDocumentHash){throw 'QUEUE_DOCUMENT_EVIDENCE_HASH_MISMATCH'}
     Register-TsfProducerEvidence $producerRegistryPath queue_document $CanonicalQueueDocumentEvidencePath $producerCapability | Out-Null
 }
 
@@ -228,6 +262,11 @@ Write-TsfKernelJson -Value $mission -Path $effectiveMissionPath
 Register-TsfProducerEvidence $producerRegistryPath mission $effectiveMissionPath $producerCapability | Out-Null
 
 $preflight = Invoke-TsfKernelPreflight -MissionPath $effectiveMissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $preflightPath -StateRoot $StateRoot
+$lifecycleStage = 'PREFLIGHT'
+if($TestOnlyFault-ne'NONE'){
+    if(!$TestOnlyAllowAlternateQueueRoot-or[string]$queueAuthority.kind-ne'TEST_ONLY'){throw 'TEST_ONLY_LIFECYCLE_FAULT_REQUIRES_ISOLATED_QUEUE'}
+    if($TestOnlyFault-eq'PREFLIGHT'){$preflight.preflight_approved=$false;$preflight.verdict='RED';$preflight.blocked_reasons=@('TEST_ONLY_PREFLIGHT_BLOCK');Write-TsfKernelJson $preflight $preflightPath}
+}
 Register-TsfProducerEvidence $producerRegistryPath preflight $preflightPath $producerCapability | Out-Null
 $events.Add((New-LifecycleEvent -Step "preflight" -Status ([string]$preflight.verdict) -Message "Preflight completed." -Evidence $preflightPath)) | Out-Null
 
@@ -280,9 +319,10 @@ if (!([bool]$preflight.preflight_approved)) {
     if ($requiresRolePreflight) {
         & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "tools\Test-TsfWorkerRolePermission.ps1") -MissionDraftPath $effectiveMissionPath -OutFile $rolePreflightPath | Out-Null
         $rolePreflight = Read-TsfKernelJson -Path $rolePreflightPath
-        Register-TsfProducerEvidence $producerRegistryPath role_preflight $rolePreflightPath $producerCapability | Out-Null
         $rolePreflightVerdict = [string]$rolePreflight.verdict
         $rolePreflightApproved = [bool]$rolePreflight.role_preflight_approved
+        if($TestOnlyFault-eq'ROLE_PERMISSION'){$rolePreflightApproved=$false;$rolePreflightVerdict='RED';$rolePreflight.role_preflight_approved=$false;$rolePreflight.verdict='RED';$rolePreflight.blocked_reasons=@('TEST_ONLY_ROLE_PERMISSION_BLOCK');Write-TsfKernelJson $rolePreflight $rolePreflightPath}
+        Register-TsfProducerEvidence $producerRegistryPath role_preflight $rolePreflightPath $producerCapability | Out-Null
         $events.Add((New-LifecycleEvent -Step "worker_role_permission" -Status $rolePreflightVerdict -Message "Role-aware permission preflight completed." -Evidence $rolePreflightPath)) | Out-Null
         if (!$rolePreflightApproved) {
             foreach ($reason in @(ConvertTo-TsfKernelArray -Value $rolePreflight.blocked_reasons)) { $blockedReasons.Add([string]$reason) | Out-Null }
@@ -298,7 +338,11 @@ if (!([bool]$preflight.preflight_approved)) {
         Register-TsfProducerEvidence $producerRegistryPath worker_instruction $workerInstructionPath $producerCapability | Out-Null
         $events.Add((New-LifecycleEvent -Step "worker_instruction" -Status ([string]$workerInstruction.adapter_status) -Message "Worker instruction generated." -Evidence $workerInstructionPath)) | Out-Null
 
-        if (!$RunApprovedFixtureWorker -and !$RunCanonicalAppServerWorker) {
+        if ($TestOnlyFault -eq 'WORKER_START') {
+            $blockedReasons.Add('TEST_ONLY_WORKER_START_BLOCK') | Out-Null
+            $workerStatus = 'BLOCKED_WORKER_START'
+            $events.Add((New-LifecycleEvent -Step 'worker_execution' -Status $workerStatus -Message 'Worker start was deterministically blocked before launch.')) | Out-Null
+        } elseif (!$RunApprovedFixtureWorker -and !$RunCanonicalAppServerWorker) {
             $events.Add((New-LifecycleEvent -Step "worker_execution" -Status "DRY_RUN_NO_WORKER" -Message "Default lifecycle mode does not invoke a worker.")) | Out-Null
             $workerStatus = "DRY_RUN_NO_WORKER"
         } elseif ($RunCanonicalAppServerWorker) {
@@ -450,8 +494,12 @@ Register-TsfProducerEvidence $producerRegistryPath worker_result $workerResultPa
 
 if ($ManageQueueTransitions -and $rolePreflightApproved -and ($RunApprovedFixtureWorker -or $RunCanonicalAppServerWorker)) { Move-LifecycleQueueState -From 'worker_running' -To 'postrun_pending' }
 
-if ([bool]$preflight.preflight_approved -and ($RunApprovedFixtureWorker -or $RunCanonicalAppServerWorker)) {
-    $verifier = Invoke-TsfKernelPostRunVerify -MissionPath $effectiveMissionPath -WorkerResultPath $workerResultPath -OutFile $verifierPath -StateRoot $StateRoot
+if ([bool]$preflight.preflight_approved -and ($RunApprovedFixtureWorker -or $RunCanonicalAppServerWorker -or $TestOnlyFault -in @('GREEN','VERIFIER'))) {
+    $lifecycleStage = 'VERIFIER'
+    if($TestOnlyFault-in@('GREEN','VERIFIER')){
+        $verifier=[pscustomobject]@{schema_version=1;mission_id=$missionId;verdict=$(if($TestOnlyFault-eq'GREEN'){'GREEN'}else{'RED'});postrun_approved=($TestOnlyFault-eq'GREEN');blocked_reasons=$(if($TestOnlyFault-eq'GREEN'){@()}else{@('TEST_ONLY_VERIFIER_BLOCK')});tim_required_reasons=@()}
+        Write-TsfKernelJson $verifier $verifierPath
+    }else{$verifier = Invoke-TsfKernelPostRunVerify -MissionPath $effectiveMissionPath -WorkerResultPath $workerResultPath -OutFile $verifierPath -StateRoot $StateRoot}
     Register-TsfProducerEvidence $producerRegistryPath verifier_result $verifierPath $producerCapability | Out-Null
     $events.Add((New-LifecycleEvent -Step "postrun_verify" -Status ([string]$verifier.verdict) -Message "Post-run verifier completed." -Evidence $verifierPath)) | Out-Null
 }
@@ -461,68 +509,56 @@ $exactNextAction = if ($RunApprovedFixtureWorker -or $RunCanonicalAppServerWorke
 } else {
     "Dry-run lifecycle complete. Run with -RunApprovedFixtureWorker only for the approved fixture pilot."
 }
+$lifecycleStage = 'PRESERVATION'
+if($TestOnlyFault-eq'PRESERVATION'){throw 'TEST_ONLY_PRESERVATION_BLOCK'}
 $preservation = Write-TsfKernelPreservationPacket -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -RolePreflightPath $(if($null-ne$rolePreflight){$rolePreflightPath}else{''}) -WorkerInstructionPath $(if($null-ne$workerInstruction){$workerInstructionPath}else{''}) -WorkerResultPath $workerResultPath -VerifierResultPath $(if($null-ne$verifier){$verifierPath}else{''}) -AdapterResultPath $(if($null-ne$adapterResult){$adapterResultPath}else{''}) -EventJournalPath $(if($null-ne$adapterResult){$adapterEventPath}else{''}) -QueueDocumentPath $(if([string]$inputDocument.schema_version-eq'tsf_canonical_queue_document_v1'){$CanonicalQueueDocumentEvidencePath}else{''}) -PromptPath $(if($null-ne$adapterResult){$promptPath}else{''}) -StderrPath $(if($null-ne$adapterResult){$adapterStderrPath}else{''}) -ProducerRegistryPath $producerRegistryPath -ProducerCapability $producerCapability -OutputDirectory $preservationRoot -RunId $runId -DurableMission $(if(Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission'){$inputDocument.durable_mission}else{$null}) -ExactNextAction $exactNextAction
 $events.Add((New-LifecycleEvent -Step "preserve" -Status ([string]$preservation.final_decision) -Message "Preservation packet written." -Evidence ([string]$preservation.packet_directory))) | Out-Null
 
-$finalDecision = "YELLOW"
+$lifecycleStage = 'TERMINAL_RESULT'
+$terminalQueueDocumentHash=if($queueDocumentHash){$queueDocumentHash}else{'0'*64}
+$terminalStatus = 'COMPLETED_WITH_CAVEATS'
 if (![bool]$preflight.preflight_approved) {
-    $finalDecision = [string]$preflight.verdict
+    $terminalStatus = if ([string]$preflight.verdict -eq 'TIM_REQUIRED') { 'TIM_REQUIRED' } else { 'BLOCKED_PREFLIGHT' }
+} elseif (!$rolePreflightApproved) {
+    $terminalStatus = if ($rolePreflightVerdict -eq 'TIM_REQUIRED') { 'TIM_REQUIRED' } else { 'BLOCKED_ROLE_PERMISSION' }
+} elseif ($workerStatus -eq 'BLOCKED_WORKER_START') {
+    $terminalStatus = 'BLOCKED_WORKER_START'
+} elseif ($null -ne $verifier -and [string]$verifier.verdict -ne 'GREEN') {
+    $terminalStatus = if ([string]$verifier.verdict -eq 'TIM_REQUIRED') { 'TIM_REQUIRED' } else { 'BLOCKED_VERIFIER' }
 } elseif ($blockedReasons.Count -gt 0) {
-    $finalDecision = "RED"
-} elseif ($null -ne $verifier) {
-    $finalDecision = [string]$verifier.verdict
-} elseif ($workerStatus -eq "DRY_RUN_NO_WORKER") {
-    $finalDecision = "YELLOW"
+    $terminalStatus = if (@($blockedReasons | Where-Object { $_ -match 'TIM_REQUIRED' }).Count -gt 0) { 'TIM_REQUIRED' } else { 'BLOCKED_WORKER_RESULT' }
+} elseif ([string]$preservation.final_decision -notin @('GREEN','YELLOW')) {
+    $terminalStatus = 'BLOCKED_PRESERVATION'
+} elseif ($null -ne $verifier -and [string]$verifier.verdict -eq 'GREEN') {
+    $terminalStatus = 'COMPLETED_GREEN'
 }
-
-$result = [pscustomobject]@{
-    schema_version = 1
-    generated_at = (Get-Date).ToString("o")
-    mission_id = $missionId
-    mission_path = (Get-TsfKernelFullPath -Path $MissionPath)
-    effective_mission_path = (Get-TsfKernelFullPath -Path $effectiveMissionPath)
-    approval_ledger_path = if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) { "" } else { Get-TsfKernelFullPath -Path $ApprovalLedgerPath }
-    out_directory = (Get-TsfKernelFullPath -Path $OutDirectory)
-    final_decision = $finalDecision
-    preflight_verdict = [string]$preflight.verdict
-    preflight_approved = [bool]$preflight.preflight_approved
-    role_preflight_required = $requiresRolePreflight
-    role_preflight_verdict = $rolePreflightVerdict
-    role_preflight_approved = $rolePreflightApproved
-    role_preflight_path = if ($requiresRolePreflight) { $rolePreflightPath } else { "" }
-    worker_status = $workerStatus
-    codex_cli_detected = $codexCliDetected
-    codex_cli_invoked = $codexCliInvoked
-    codex_exit_code = $codexExitCode
-    worker_result_path = $workerResultPath
-    verifier_verdict = if ($null -ne $verifier) { [string]$verifier.verdict } else { "" }
-    preservation_packet_path = [string]$preservation.packet_directory
-    preservation_packet_file = [string]$preservation.packet_file
-    preservation_manifest_path = [string]$preservation.manifest_path
-    runtime_storage_run_id = $runId
-    runtime_path_maximum = [int]$completePathPlan.maximum_path_length
-    runtime_path_maximum_logical_type = [string]$completePathPlan.maximum_logical_type
-    runtime_path_target_met = [bool]$completePathPlan.budget.target_met
-    producer_registry_path = $producerRegistryPath
-    queue_authority_kind = [string]$queueAuthority.kind
-    queue_authority_identity_sha256 = [string]$queueAuthority.identity_sha256
-    adapter_result_path = if ($null -ne $adapterResult) { $adapterResultPath } else { "" }
-    app_server_event_journal_path = if ($null -ne $adapterResult) { $adapterEventPath } else { "" }
-    queue_mission_path = $script:currentQueueMissionPath
-    events = @($events)
-    blocked_reasons = @($blockedReasons)
-    background_runner_started = $false
-    all_fleet_started = $false
-    product_repos_mutated = $false
-    canonical_nwr_mutated = $false
-    push_merge_deploy_attempted = $false
-}
-
+$registry = Read-TsfKernelJson $producerRegistryPath
+$queueState = if([string]::IsNullOrWhiteSpace([string]$script:currentQueueMissionPath)){''}else{Split-Path -Leaf (Split-Path -Parent ([string]$script:currentQueueMissionPath))}
+$result = New-TsfLifecycleTerminalResult -TerminalStatus $terminalStatus -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -QueueDocumentSha256 $terminalQueueDocumentHash -PolicyFingerprint $policyFingerprintForRegistry -Repository $repoPathForRegistry -Branch ([string]$gitForRegistry.branch) -Worktree $repoPathForRegistry -ResultPath $OutFile -ProducerRegistryPath $producerRegistryPath -ProducerBindingIdentitySha256 ([string]$registry.binding_identity_sha256) -OrchestratorInvocationIdentity ([string]$registry.binding.orchestrator_invocation_identity) -OutcomeStage $lifecycleStage -MissionPath (Get-TsfKernelFullPath $MissionPath) -EffectiveMissionPath (Get-TsfKernelFullPath $effectiveMissionPath) -QueueMissionPath ([string]$script:currentQueueMissionPath) -QueueState $queueState -PreflightVerdict ([string]$preflight.verdict) -PreflightApproved ([bool]$preflight.preflight_approved) -RolePreflightVerdict $rolePreflightVerdict -RolePreflightRequired $requiresRolePreflight -RolePreflightApproved $rolePreflightApproved -WorkerStatus $workerStatus -VerifierVerdict $(if($null-ne$verifier){[string]$verifier.verdict}else{''}) -PreservationStatus 'PRESERVED' -PreservationPacketFile ([string]$preservation.packet_file) -PreservationManifestPath ([string]$preservation.manifest_path) -AdapterResultPath $(if($null-ne$adapterResult){$adapterResultPath}else{''}) -WorkerResultPath $workerResultPath -VerifierResultPath $(if($null-ne$verifier){$verifierPath}else{''}) -WorkerLaunched ([bool]($null-ne$adapterResult-or$codexCliInvoked)) -EvidencePreserved $true -RuntimePathMaximum ([int]$completePathPlan.maximum_path_length) -Events @($events) -BlockedReasons @($blockedReasons)
+$validation = Test-TsfLifecycleTerminalResult -Result $result -PathPlan $completePathPlan -QueueDocumentSha256 $terminalQueueDocumentHash -PolicyFingerprint $policyFingerprintForRegistry
+if(!$validation.valid){throw "LIFECYCLE_TERMINAL_RESULT_SCHEMA_MISMATCH: $($validation.errors -join '; ')"}
 Write-TsfKernelJson -Value $result -Path $OutFile
+Register-TsfProducerEvidence $producerRegistryPath lifecycle_result $OutFile $producerCapability | Out-Null
+$provenance = Test-TsfLifecycleTerminalResult -Result $result -PathPlan $completePathPlan -QueueDocumentSha256 $terminalQueueDocumentHash -PolicyFingerprint $policyFingerprintForRegistry -RequireProducerProvenance
+if(!$provenance.valid){throw "LIFECYCLE_TERMINAL_RESULT_PROVENANCE_MISMATCH: $($provenance.errors -join '; ')"}
 $result | ConvertTo-Json -Depth 30
-
-if ($finalDecision -eq "GREEN" -or $finalDecision -eq "YELLOW") {
-    exit 0
-}
-
+if($result.final_decision-in@('GREEN','YELLOW')){exit 0}
 exit 1
+} catch {
+    $failureMessage = $_.Exception.Message
+    if($null-eq$blockedReasons){$blockedReasons=[System.Collections.Generic.List[string]]::new()}
+    if(@($blockedReasons)-notcontains$failureMessage){$blockedReasons.Add($failureMessage)|Out-Null}
+    if($null-ne$events){$events.Add((New-LifecycleEvent -Step $lifecycleStage -Status 'FAIL' -Message $failureMessage))|Out-Null}
+    $terminalStatus = if($lifecycleStage-eq'PRESERVATION'){'BLOCKED_PRESERVATION'}elseif($failureMessage-match'TIM_REQUIRED'){'TIM_REQUIRED'}else{'INTERNAL_ERROR'}
+    if($null-ne$completePathPlan){
+        if([string]::IsNullOrWhiteSpace($OutFile)){$OutFile=[string]$completePathPlan.lifecycle_plan.artifacts.lifecycle_result}
+        if([string]::IsNullOrWhiteSpace($producerRegistryPath)){$producerRegistryPath=[string]$completePathPlan.lifecycle_plan.artifacts.producer_registry}
+        $bindingHash=('0'*64);$invocationHash=('0'*64);$branch=''
+        if(Test-Path $producerRegistryPath -PathType Leaf){$registry=Read-TsfKernelJson $producerRegistryPath;$bindingHash=[string]$registry.binding_identity_sha256;$invocationHash=[string]$registry.binding.orchestrator_invocation_identity;$branch=[string]$registry.binding.branch}
+        $result = New-TsfLifecycleTerminalResult -TerminalStatus $terminalStatus -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -QueueDocumentSha256 $(if($queueDocumentHash){$queueDocumentHash}else{'0'*64}) -PolicyFingerprint $(if($policyFingerprintForRegistry){$policyFingerprintForRegistry}else{'0'*64}) -Repository $repoPathForRegistry -Branch $branch -Worktree $repoPathForRegistry -ResultPath $OutFile -ProducerRegistryPath $producerRegistryPath -ProducerBindingIdentitySha256 $bindingHash -OrchestratorInvocationIdentity $invocationHash -OutcomeStage $lifecycleStage -MissionPath $(if($MissionPath){Get-TsfKernelFullPath $MissionPath}else{''}) -EffectiveMissionPath $effectiveMissionPath -QueueMissionPath ([string]$script:currentQueueMissionPath) -PreflightVerdict $(if($null-ne$preflight){[string]$preflight.verdict}else{''}) -PreflightApproved $(if($null-ne$preflight){[bool]$preflight.preflight_approved}else{$false}) -RolePreflightVerdict $(if($null-ne$rolePreflight){[string]$rolePreflight.verdict}else{''}) -RolePreflightRequired $(if($null-ne$requiresRolePreflight){[bool]$requiresRolePreflight}else{$false}) -RolePreflightApproved $(if($null-ne$rolePreflightApproved){[bool]$rolePreflightApproved}else{$false}) -WorkerStatus $workerStatus -VerifierVerdict $(if($null-ne$verifier){[string]$verifier.verdict}else{''}) -PreservationStatus $(if($null-ne$preservation){'PRESERVED'}else{'BLOCKED'}) -PreservationPacketFile $(if($null-ne$preservation){[string]$preservation.packet_file}else{''}) -PreservationManifestPath $(if($null-ne$preservation){[string]$preservation.manifest_path}else{''}) -AdapterResultPath $(if($null-ne$adapterResult){$adapterResultPath}else{''}) -WorkerResultPath $workerResultPath -VerifierResultPath $(if($null-ne$verifier){$verifierPath}else{''}) -WorkerLaunched ([bool]($null-ne$adapterResult)) -EvidencePreserved ([bool]($null-ne$preservation)) -RuntimePathMaximum ([int]$completePathPlan.maximum_path_length) -Events @($events) -BlockedReasons @($blockedReasons) -InternalError $failureMessage
+        Write-TsfKernelJson -Value $result -Path $OutFile
+        if($null-ne$producerCapability-and(Test-Path $producerRegistryPath -PathType Leaf)){try{Register-TsfProducerEvidence $producerRegistryPath lifecycle_result $OutFile $producerCapability|Out-Null}catch{}}
+        $result|ConvertTo-Json -Depth 30
+    }
+    exit 1
+}

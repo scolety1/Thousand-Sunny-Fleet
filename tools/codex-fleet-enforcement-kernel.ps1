@@ -1,6 +1,7 @@
 $script:TsfKernelRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $script:TsfKernelRoot "tools\TsfJsonContract.ps1")
 . (Join-Path $script:TsfKernelRoot "tools\TsfRuntimeArtifactAddressing.ps1")
+. (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleTerminalResult.ps1")
 
 $script:TsfKernelRestrictedActions = @(
     "push",

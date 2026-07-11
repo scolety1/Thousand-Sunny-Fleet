@@ -27,6 +27,7 @@ $script:TsfRuntimeArtifacts=[ordered]@{
     queue_document='qd.json'
     queue_result='qe.json'
     lifecycle_result='lc.json'
+    preparation_result='mp.json'
     runtime_evidence='re.json'
     approval_ledger='al.json'
     producer_registry='pr.json'
@@ -59,6 +60,7 @@ $script:TsfProducerEvidenceContract=[ordered]@{
     verifier_result=[pscustomobject]@{layout='lifecycle_control';artifact='verifier_result';producer='enforcement_kernel_verifier';classification='VERIFIER_OBSERVED'}
     prompt=[pscustomobject]@{layout='adapter';artifact='prompt';producer='mission_lifecycle';classification='KERNEL_OBSERVED'}
     stderr=[pscustomobject]@{layout='adapter';artifact='stderr';producer='codex_app_server_diagnostic';classification='UNVERIFIED'}
+    lifecycle_result=[pscustomobject]@{layout='lifecycle_control';artifact='lifecycle_result';producer='mission_lifecycle';classification='KERNEL_OBSERVED'}
 }
 
 function Get-TsfRuntimeSha256Text {
@@ -242,7 +244,7 @@ function New-TsfCompleteRuntimePathPlan {
     $p=New-TsfRuntimeStoragePlan $root $MissionId $MissionRevision $RunId -Layout preservation
     $rows=[Collections.Generic.List[object]]::new()
     function Add-PlanPath([string]$Type,[string]$Path){$rows.Add([pscustomobject]@{logical_type=$Type;path=$Path})|Out-Null}
-    foreach($name in @('queue_document','queue_result','runtime_evidence','approval_ledger','preflight','role_preflight','worker_instruction','worker_result','verifier_result','context_update','transition_01','transition_02','transition_03','transition_04','transition_05','transition_06','transition_07','transition_08','transition_temp','transition_backup','recovery_marker')){Add-PlanPath "queue.$name" ([string]$q.artifacts.$name)}
+    foreach($name in @('queue_document','queue_result','preparation_result','runtime_evidence','approval_ledger','preflight','role_preflight','worker_instruction','worker_result','verifier_result','context_update','transition_01','transition_02','transition_03','transition_04','transition_05','transition_06','transition_07','transition_08','transition_temp','transition_backup','recovery_marker')){Add-PlanPath "queue.$name" ([string]$q.artifacts.$name)}
     $registryMissionPath=Join-Path (Join-Path $q.directory 'g') $script:TsfRuntimeArtifacts.registry_mission
     Add-PlanPath 'queue.registry_mission' $registryMissionPath
     foreach($state in @('s1','s2','s3','s4','s5','s6')){Add-PlanPath "queue.kernel_state.$state" (Join-Path (Join-Path $q.directory 's') (Join-Path $state "k-$($q.mission_identity.short_key).json"))}
@@ -258,7 +260,7 @@ function New-TsfCompleteRuntimePathPlan {
         @{type='receipt.recovery_conflict';leaf="k-$templateKey.json"}
     )){Add-PlanPath $entry.type (Join-Path $p.receipt_root $entry.leaf)}
     $budget=Test-TsfRuntimePathPlan $root @($rows)
-    $required=@('queue.preflight','queue.role_preflight','queue.worker_instruction','queue.worker_result','queue.verifier_result','queue.registry_mission','queue.kernel_state.s1','queue.transition_01','queue.transition_temp','queue.transition_backup','queue.recovery_marker','lifecycle.producer_registry','lifecycle.producer_registry_temp','preservation.manifest_temp','preservation.manifest_backup','receipt.admission','receipt.transaction','receipt.conflict','receipt.recovery','receipt.recovery_conflict')
+    $required=@('queue.preparation_result','queue.preflight','queue.role_preflight','queue.worker_instruction','queue.worker_result','queue.verifier_result','queue.registry_mission','queue.kernel_state.s1','queue.transition_01','queue.transition_temp','queue.transition_backup','queue.recovery_marker','lifecycle.lifecycle_result','lifecycle.producer_registry','lifecycle.producer_registry_temp','preservation.manifest_temp','preservation.manifest_backup','receipt.admission','receipt.transaction','receipt.conflict','receipt.recovery','receipt.recovery_conflict')
     $missing=@($required|Where-Object{$candidate=$_;@($rows|Where-Object{$_.logical_type-eq$candidate}).Count-ne1})
     if($missing.Count){$budget.valid=$false;$budget.errors=@($budget.errors)+@("Complete path plan omits categories: $($missing -join ', ')")}
     [pscustomobject]@{schema_version='tsf_complete_runtime_path_plan_v1';created_before_mutation=$true;runtime_root=$root;mission_id=$MissionId;mission_revision=$MissionRevision;run_id=$RunId;queue_plan=$q;lifecycle_plan=$l;adapter_plan=$a;preservation_plan=$p;registry_mission_path=$registryMissionPath;required_categories=$required;paths=@($rows);budget=$budget;maximum_path_length=$budget.maximum_path_length;maximum_logical_type=$budget.maximum_logical_type}
@@ -351,7 +353,7 @@ function New-TsfProducerEvidenceRegistry {
 function Register-TsfProducerEvidence {
     param(
         [Parameter(Mandatory)][string]$RegistryPath,
-        [Parameter(Mandatory)][ValidateSet('mission','queue_document','preflight','role_preflight','worker_instruction','worker_result','adapter_result','event_journal','usage','verifier_result','prompt','stderr')][string]$LogicalType,
+        [Parameter(Mandatory)][ValidateSet('mission','queue_document','preflight','role_preflight','worker_instruction','worker_result','adapter_result','event_journal','usage','verifier_result','prompt','stderr','lifecycle_result')][string]$LogicalType,
         [Parameter(Mandatory)][string]$ArtifactPath,
         [Parameter(Mandatory)][object]$Capability
     )

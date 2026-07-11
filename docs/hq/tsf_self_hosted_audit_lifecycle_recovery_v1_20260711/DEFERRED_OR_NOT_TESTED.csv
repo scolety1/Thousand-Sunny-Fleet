@@ -1,0 +1,7 @@
+"item","status","reason","gate"
+"live stable app-server Auditor","DEFERRED_UNTIL_AFTER_COMMIT","Must bind exact committed repair HEAD and clean fingerprint","Phase 7"
+"Git fetch/push","DEFERRED_UNTIL_ADMITTED_AUDIT","Network forbidden during diagnosis and local tests","Phase 8"
+"GitHub PR creation/check inspection","DEFERRED_UNTIL_ADMITTED_AUDIT","Publication conditional on exact audited HEAD","Phase 8"
+"merge","NOT_AUTHORIZED","Stop before merge","Permanent"
+"plugin work","NOT_AUTHORIZED","Explicitly out of scope","Permanent"
+"exact earlier helper exception text","NOT_PRESERVED","STOP_RECORD records only the mechanical helper-import recovery note","Evidence limitation"

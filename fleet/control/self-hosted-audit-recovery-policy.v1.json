@@ -1,0 +1,12 @@
+{
+  "schema_version": "tsf_self_hosted_audit_recovery_policy_v1",
+  "eligible_mission_types": ["independent_foundation_publication_audit", "synthetic_self_hosted_audit"],
+  "original_attempt_disposition": "PRESERVED_FAILED_HISTORY_OUTSIDE_ACTIVE_QUEUE",
+  "retry_identity_rule": "NEW_MISSION_ID_OR_STRICTLY_HIGHER_REVISION",
+  "retry_head_rule": "BIND_EXACT_CURRENT_CLEAN_HEAD",
+  "required_original_evidence": ["STOP_RECORD.json", "queue-record-preflight-pending.json"],
+  "forbid_original_queue_resume": true,
+  "forbid_original_evidence_mutation": true,
+  "forbid_duplicate_worker": true,
+  "recovery_marker_required": true
+}

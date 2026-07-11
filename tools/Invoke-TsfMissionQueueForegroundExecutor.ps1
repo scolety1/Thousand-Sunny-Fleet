@@ -279,6 +279,9 @@ $workerInvocationsUsed = 0
 $codexCliInvoked = $false
 $codexExitCode = $null
 $workerStatus = "NOT_RUN"
+$lifecyclePath = [string]$lifecycleStoragePlan.artifacts.lifecycle_result
+$lifecycleExit = $null
+$lifecycleTerminalStatus = ''
 $workerResultPath = [string]$queueStoragePlan.artifacts.worker_result
 $verifierPath = [string]$queueStoragePlan.artifacts.verifier_result
 $preflightPath = [string]$queueStoragePlan.artifacts.preflight
@@ -317,7 +320,6 @@ try {
 
     if ($RunCanonicalAppServerWorker) {
         $lifecycleDirectory = [string]$lifecycleStoragePlan.directory
-        $lifecyclePath = [string]$lifecycleStoragePlan.artifacts.lifecycle_result
         New-Item -ItemType Directory -Force -Path $lifecycleDirectory | Out-Null
         $lifecycleArgs = @(
             '-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $fleetRoot 'tools\Invoke-TsfMissionLifecycle.ps1'),
@@ -331,9 +333,15 @@ try {
         if($TestOnlyAllowAlternateQueueRoot){$lifecycleArgs+='-TestOnlyAllowAlternateQueueRoot'}
         & powershell @lifecycleArgs | Out-Null
         $lifecycleExit = $LASTEXITCODE
-        if (!(Test-Path -LiteralPath $lifecyclePath -PathType Leaf)) { throw 'Canonical lifecycle did not write its result.' }
+        if (!(Test-Path -LiteralPath $lifecyclePath -PathType Leaf)) {
+            Add-QueueExecutorEvent -Events $events -Step 'lifecycle_result_collection' -Status 'FAIL' -Message 'Canonical lifecycle did not write its terminal result.' -Evidence $lifecyclePath
+            throw "LIFECYCLE_TERMINAL_RESULT_MISSING: exit=$lifecycleExit expected=$lifecyclePath"
+        }
         $lifecycle = Read-QueueExecutorJson -Path $lifecyclePath
-        if ($lifecycleExit -ne 0 -or [string]$lifecycle.final_decision -ne 'GREEN') { throw "Canonical lifecycle failed: $($lifecycle.blocked_reasons -join '; ')" }
+        $lifecycleTerminalStatus=[string]$lifecycle.terminal_status
+        $lifecycleValidation=Test-TsfLifecycleTerminalResult -Result $lifecycle -PathPlan $completeRuntimePlan -QueueDocumentSha256 ([string]$canonicalQueueCheck.queue_document_sha256) -PolicyFingerprint ([string]$missionInput.source_binding.policy_fingerprint) -RequireProducerProvenance
+        if(!$lifecycleValidation.valid){throw "LIFECYCLE_TERMINAL_RESULT_REJECTED: $($lifecycleValidation.errors -join '; ')"}
+        if ($lifecycleExit -ne 0 -or [string]$lifecycle.terminal_status -ne 'COMPLETED_GREEN') { throw "Canonical lifecycle terminal status $($lifecycle.terminal_status): $($lifecycle.blocked_reasons -join '; ')" }
         $currentMissionPath = [string]$lifecycle.queue_mission_path
         $currentState = 'postrun_pending'
         $durableMissionPath = [string]$completeRuntimePlan.registry_mission_path
@@ -642,6 +650,9 @@ $result = [pscustomobject]@{
     worker_instruction_path = $workerInstructionPath
     worker_result_path = $workerResultPath
     verifier_result_path = if (Test-Path -LiteralPath $verifierPath) { $verifierPath } else { "" }
+    lifecycle_result_path = $lifecyclePath
+    lifecycle_exit_code = $lifecycleExit
+    lifecycle_terminal_status = $lifecycleTerminalStatus
     preservation_packet_path = $preservationPacketPath
     context_capsule_update_path = $contextUpdatePath
     blocked_reasons = @($blockedReasons)

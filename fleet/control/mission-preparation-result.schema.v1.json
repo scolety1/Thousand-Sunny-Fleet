@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/mission-preparation-result.schema.v1.json",
+  "title": "TSF Canonical Mission Preparation Result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "status", "mission_id", "mission_revision", "run_id", "result_path", "queue_record_created", "queue_record_path", "queue_document_sha256", "policy_fingerprint", "repository", "branch", "worktree", "helpers_verified", "recovery_from_mission_id", "recovery_marker_path", "blocked_reasons"],
+  "properties": {
+    "schema_version": { "const": "tsf_mission_preparation_result_v1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["PREPARED", "BLOCKED_HELPER_IMPORT", "BLOCKED_COLLISION", "BLOCKED_RECOVERY_EVIDENCE", "INTERNAL_ERROR"] },
+    "mission_id": { "type": "string", "minLength": 1 },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "result_path": { "type": "string", "minLength": 1 },
+    "queue_record_created": { "type": "boolean" },
+    "queue_record_path": { "type": "string" },
+    "queue_document_sha256": { "type": "string", "pattern": "^$|^[a-f0-9]{64}$" },
+    "policy_fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "repository": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string" },
+    "worktree": { "type": "string", "minLength": 1 },
+    "helpers_verified": { "type": "boolean" },
+    "recovery_from_mission_id": { "type": "string" },
+    "recovery_marker_path": { "type": "string" },
+    "blocked_reasons": { "type": "array", "items": { "type": "string" } }
+  }
+}
