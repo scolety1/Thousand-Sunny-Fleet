@@ -1,0 +1,13 @@
+test_id,command,status,assertions_or_scope,network,worker_invocations,script_sha256
+OLA,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-optional-lifecycle-argument-tests.ps1",PASS,23,DISABLED,0,549944b250c0facaadfe5dd8d6a821703d599a475c7b4cb3e7918344d88ab1ad
+CANONICAL_RUNTIME_STATIC,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-canonical-runtime-app-server-tests.ps1",PASS,149,DISABLED,0,16e816ef26f8875596c6169c4dc8823a9d17d5ee134ca17a65b0b8b9e56b5d28
+DURABLE,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-durable-contract-tests.ps1",PASS,33,DISABLED,0,b048b9879869b13989a8a3cca691f15a4e776083212e0281b36df2baedfec667
+MINIMUM_KERNEL,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-minimum-viable-kernel-tests.ps1",PASS,all-script-assertions,DISABLED,0,1bdb9dac0f14c0e23721311dcfa028db9d3b90e4028b868c1a55116fdbf66a37
+KERNEL_V2,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-kernel-v2-tests.ps1",PASS,all-script-assertions,DISABLED,0,f65e25764f5225069ff607c3c0fafd4883e4d4d955e1663a603021a954af4b38
+MISSION_QUEUE,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-mission-queue-tests.ps1",PASS,all-script-assertions,DISABLED,0,f2ce3e49db44cb9ee2823a1d154b290e4256d1c2cc30096af9a7d2e47e3fcc77
+ROLE_LIFECYCLE,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-role-aware-lifecycle-integration-tests.ps1",PASS,all-script-assertions,DISABLED,0,7c751dc286b1292be6138d60b571bf663579b4c0069f2e6bdfe244033aed2561
+PROJECT_MAIN_BOT,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-project-main-bot-role-foundation-tests.ps1",PASS,all-script-assertions,DISABLED,0,932190d0709662f3ef759b56b38363d18dfc3cdfa6097599f18d45b2c701b904
+PUBLICATION_EVIDENCE,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-publication-evidence-tests.ps1",PASS,187,DISABLED,0,eaf5b47e69f243c8fff11df052c47d41189ab963baa6b401c16835db50148f25
+FINAL_STATIC,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-final-static-integrity-tests.ps1",PASS,22-final-run,DISABLED,0,6b85c11d5b1a27f6cd3b6560125fe2b88754caa5e540ef7a7c64256252edfb91
+FINAL_THREE_AUTHORITY,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-final-three-authority-tests.ps1",PASS,34,DISABLED,0,a4b95329ea4adac4587670e9bfadb9f2e70a86a3463bf842416a0df28ce8bdce
+SELF_HOSTED_LIFECYCLE_RESULT,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-self-hosted-lifecycle-recovery-tests.ps1",PASS,17,DISABLED,0,a8e02ef9f833ce39818b5b7ed89b91617ac85c17a7cdd73e7171b121093692e0

@@ -19,7 +19,10 @@ param(
     [switch]$UnsupportedDevelopmentMode,
     [switch]$TestOnlyAllowAlternateQueueRoot,
     [object]$TestOnlyPolicyCapability = $null,
-    [int]$WorkerTimeoutSeconds = 180
+    [int]$WorkerTimeoutSeconds = 180,
+    [ValidateSet('NONE','PARAMETER_BINDING')]
+    [string]$TestOnlyLifecycleInvocationFault = 'NONE',
+    [switch]$TestOnlyNoWorkerLifecycle
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,6 +31,7 @@ $fleetRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $fleetRoot "tools\codex-fleet-enforcement-kernel.ps1")
 . (Join-Path $fleetRoot "tools\codex-fleet-runtime.ps1")
 Import-Module (Join-Path $fleetRoot "tools\TsfDurableContract.psm1") -Force
+$script:QueueExecutorInvocationInfo = $MyInvocation
 
 function Read-QueueExecutorJson {
     param([string]$Path)
@@ -203,7 +207,67 @@ function Test-QueueExecutorFixtureMission {
     return @($reasons)
 }
 
+function Write-QueueExecutorLifecycleInvocationFailure {
+    param(
+        [Parameter(Mandatory)][object]$Mission,
+        [Parameter(Mandatory)][int]$MissionRevision,
+        [Parameter(Mandatory)][string]$RunId,
+        [Parameter(Mandatory)][object]$RuntimePlan,
+        [Parameter(Mandatory)][string]$QueueDocumentSha256,
+        [Parameter(Mandatory)][string]$PolicyFingerprint,
+        [Parameter(Mandatory)][string[]]$ArgumentNamesIncluded,
+        [Parameter(Mandatory)][string[]]$OptionalArgumentsOmitted,
+        [Parameter(Mandatory)][ValidateSet('NO_APPROVAL_REQUIRED','APPROVAL_REQUIRED')][string]$ApprovalSemantics,
+        [Parameter(Mandatory)][bool]$ApprovalLedgerConsumed,
+        [Parameter(Mandatory)][string]$InvocationError,
+        [Parameter(Mandatory)][string]$QueueState
+    )
+    $repository = Get-TsfKernelFullPath ([string]$Mission.repo_path)
+    $gitState = Get-TsfKernelGitState $repository
+    $failurePath = [string]$RuntimePlan.queue_plan.artifacts.executor_invocation_failure
+    $registryPath = [string]$RuntimePlan.lifecycle_plan.artifacts.producer_registry
+    $capability = New-TsfQueueExecutorProducerCapability -InvocationInfo $script:QueueExecutorInvocationInfo -MissionId ([string]$Mission.mission_id) -MissionRevision $MissionRevision -RunId $RunId -PolicyFingerprint $PolicyFingerprint -QueueDocumentSha256 $QueueDocumentSha256 -Repository $repository -Branch $(if($gitState.can_capture){[string]$gitState.branch}else{''}) -Worktree $repository
+    $registry = New-TsfProducerEvidenceRegistry -RegistryPath $registryPath -Capability $capability
+    $sanitizedError = ($InvocationError -replace '(?i)(token|secret|password|credential|api[_ -]?key)\s*[:=]\s*\S+', '$1=[REDACTED]').Trim()
+    if ([string]::IsNullOrWhiteSpace($sanitizedError)) { $sanitizedError = 'Lifecycle invocation failed before the lifecycle body started.' }
+    if ($sanitizedError.Length -gt 4000) { $sanitizedError = $sanitizedError.Substring(0, 4000) }
+    $failure = [pscustomobject][ordered]@{
+        schema_version = 'tsf_executor_invocation_failure_result_v1'
+        generated_at = [datetimeoffset]::UtcNow.ToString('o')
+        terminal_status = 'BLOCKED_LIFECYCLE_INVOCATION'
+        mission_id = [string]$Mission.mission_id
+        mission_revision = $MissionRevision
+        queue_document_sha256 = $QueueDocumentSha256
+        policy_fingerprint = $PolicyFingerprint
+        repository = $repository
+        branch = if($gitState.can_capture){[string]$gitState.branch}else{''}
+        worktree = $repository
+        intended_lifecycle_entry_point = Get-TsfKernelFullPath (Join-Path $fleetRoot 'tools\Invoke-TsfMissionLifecycle.ps1')
+        argument_names_included = @($ArgumentNamesIncluded | Sort-Object -Unique)
+        optional_arguments_omitted = @($OptionalArgumentsOmitted | Sort-Object -Unique)
+        approval_semantics = $ApprovalSemantics
+        approval_ledger_consumed = $ApprovalLedgerConsumed
+        invocation_error = $sanitizedError
+        worker_started = $false
+        lifecycle_started = $false
+        app_server_started = $false
+        queue_state = $QueueState
+        result_path = $failurePath
+        producer_registry_path = $registryPath
+        producer_binding_identity_sha256 = [string]$registry.binding_identity_sha256
+        orchestrator_invocation_identity = [string]$registry.binding.orchestrator_invocation_identity
+    }
+    $schema = Test-TsfJsonContract $failure (Join-Path $fleetRoot 'fleet\control\executor-invocation-failure-result.schema.v1.json')
+    if (!$schema.valid) { throw "EXECUTOR_INVOCATION_FAILURE_SCHEMA_MISMATCH: $($schema.errors -join '; ')" }
+    Write-QueueExecutorJson -Value $failure -Path $failurePath
+    Register-TsfProducerEvidence -RegistryPath $registryPath -LogicalType executor_invocation_failure -ArtifactPath $failurePath -Capability $capability | Out-Null
+    return $failure
+}
+
 $queueAuthority=Resolve-TsfQueueAuthority -QueueRoot $QueueRoot -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+if (($TestOnlyLifecycleInvocationFault -ne 'NONE' -or $TestOnlyNoWorkerLifecycle) -and (!$TestOnlyAllowAlternateQueueRoot -or [string]$queueAuthority.kind -ne 'TEST_ONLY')) {
+    throw 'TEST_ONLY_LIFECYCLE_INVOCATION_CONTROLS_REQUIRE_ISOLATED_QUEUE'
+}
 $transitionPolicyAuthority=Resolve-TsfTransitionPolicyAuthority -QueueAuthority $queueAuthority -StatePolicyPath $StatePolicyPath -ExecutorPolicyPath $PolicyPath -TestOnlyPolicyCapability $TestOnlyPolicyCapability
 $policy = Read-QueueExecutorJson -Path ([string]$transitionPolicyAuthority.executor_policy_path)
 $statePolicy = Read-QueueExecutorJson -Path ([string]$transitionPolicyAuthority.state_policy_path)
@@ -213,7 +277,7 @@ if (!(Test-Path -LiteralPath $missionFull)) { throw "Mission file not found: $mi
 
 $missionInput = Read-QueueExecutorJson -Path $missionFull
 $canonicalQueueCheck = $null
-if ($RunCanonicalAppServerWorker) {
+if ($RunCanonicalAppServerWorker -or $TestOnlyNoWorkerLifecycle -or $TestOnlyLifecycleInvocationFault -ne 'NONE') {
     if ([string]$missionInput.schema_version -ne 'tsf_canonical_queue_document_v1') { throw 'Canonical app-server mode requires a canonical queue document.' }
     $canonicalQueueCheck = Test-TsfCanonicalQueueDocument -QueueDocument $missionInput
     if (![bool]$canonicalQueueCheck.valid) { throw "Canonical queue binding failed: $($canonicalQueueCheck.errors -join '; ')" }
@@ -282,6 +346,14 @@ $workerStatus = "NOT_RUN"
 $lifecyclePath = [string]$lifecycleStoragePlan.artifacts.lifecycle_result
 $lifecycleExit = $null
 $lifecycleTerminalStatus = ''
+$lifecycleStarted = $false
+$appServerStarted = $false
+$lifecycleArgumentNamesIncluded = @()
+$lifecycleOptionalArgumentsOmitted = @()
+$approvalSemantics = 'NO_APPROVAL_REQUIRED'
+$approvalLedgerConsumed = $false
+$executorTerminalStatus = ''
+$executorInvocationFailurePath = ''
 $workerResultPath = [string]$queueStoragePlan.artifacts.worker_result
 $verifierPath = [string]$queueStoragePlan.artifacts.verifier_result
 $preflightPath = [string]$queueStoragePlan.artifacts.preflight
@@ -318,23 +390,40 @@ try {
     $currentMissionPath = [string]$transition.destination_path
     $currentState = "preflight_pending"
 
-    if ($RunCanonicalAppServerWorker) {
+    if ($RunCanonicalAppServerWorker -or $TestOnlyNoWorkerLifecycle -or $TestOnlyLifecycleInvocationFault -ne 'NONE') {
         $lifecycleDirectory = [string]$lifecycleStoragePlan.directory
         New-Item -ItemType Directory -Force -Path $lifecycleDirectory | Out-Null
-        $lifecycleArgs = @(
-            '-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $fleetRoot 'tools\Invoke-TsfMissionLifecycle.ps1'),
-            '-MissionPath',$currentMissionPath,'-ApprovalLedgerPath',$ApprovalLedgerPath,
-            '-OutDirectory',$lifecycleDirectory,'-OutFile',$lifecyclePath,
-            '-StateRoot',(Join-Path $lifecycleDirectory 's'),'-RunCanonicalAppServerWorker',
-            '-ManageQueueTransitions','-QueueMissionPath',$currentMissionPath,'-QueueRoot',$queueRootForTransitions,
-            '-CanonicalQueueDocumentEvidencePath',$canonicalQueueEvidencePath,
-            '-WorkerTimeoutSeconds',[string]$WorkerTimeoutSeconds
-        )
-        if($TestOnlyAllowAlternateQueueRoot){$lifecycleArgs+='-TestOnlyAllowAlternateQueueRoot'}
-        & powershell @lifecycleArgs | Out-Null
-        $lifecycleExit = $LASTEXITCODE
+        $canonicalLedgerPath = [string]$queueStoragePlan.artifacts.approval_ledger
+        $approvalRequirements = @(Get-TsfKernelApprovalRequirements -Mission $mission)
+        $approvalSemantics = if ($approvalRequirements.Count -gt 0) { 'APPROVAL_REQUIRED' } else { 'NO_APPROVAL_REQUIRED' }
+        $approvalLedgerConsumed = $false
+        $lifecycleArgumentNamesIncluded = @('MissionPath','OutDirectory','OutFile','StateRoot','QueueMissionPath','QueueRoot','CanonicalQueueDocumentEvidencePath','WorkerTimeoutSeconds','ManageQueueTransitions')
+        if ($RunCanonicalAppServerWorker) { $lifecycleArgumentNamesIncluded += 'RunCanonicalAppServerWorker' }
+        if ($TestOnlyAllowAlternateQueueRoot) { $lifecycleArgumentNamesIncluded += 'TestOnlyAllowAlternateQueueRoot' }
+        $lifecycleOptionalArgumentsOmitted = @('ApprovalLedgerPath')
+        $approvalPlan = Test-TsfApprovalLedgerInvocationBinding -Mission $mission -ApprovalLedgerPath $ApprovalLedgerPath -CanonicalLedgerPath $canonicalLedgerPath
+        $approvalSemantics = [string]$approvalPlan.approval_semantics
+        $approvalLedgerConsumed = [bool]$approvalPlan.approval_ledger_consumed
+        $argumentPlan = New-TsfLifecycleInvocationArgumentPlan -PowerShellPath 'powershell' -LifecycleEntryPoint (Join-Path $fleetRoot 'tools\Invoke-TsfMissionLifecycle.ps1') -MissionPath $currentMissionPath -OutDirectory $lifecycleDirectory -OutFile $lifecyclePath -StateRoot (Join-Path $lifecycleDirectory 's') -QueueMissionPath $currentMissionPath -QueueRoot $queueRootForTransitions -CanonicalQueueDocumentEvidencePath $canonicalQueueEvidencePath -WorkerTimeoutSeconds $WorkerTimeoutSeconds -ApprovalPlan $approvalPlan -RunCanonicalAppServerWorker:$RunCanonicalAppServerWorker -ManageQueueTransitions -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+        $lifecycleArgumentNamesIncluded = @($argumentPlan.argument_names_included)
+        $lifecycleOptionalArgumentsOmitted = @($argumentPlan.optional_arguments_omitted)
+        $lifecycleArgs = @($argumentPlan.arguments)
+        $lifecycleOutput = @()
+        if ($TestOnlyLifecycleInvocationFault -eq 'PARAMETER_BINDING') {
+            $lifecycleOutput = @('Simulated PowerShell parameter-binding failure before lifecycle body start.')
+            $lifecycleExit = 1
+        } else {
+            $lifecycleOutput = @(& powershell @lifecycleArgs 2>&1)
+            $lifecycleExit = $LASTEXITCODE
+        }
+        $lifecycleStarted = Test-Path -LiteralPath $lifecyclePath -PathType Leaf
+        $appServerStarted = Test-Path -LiteralPath ([string]$completeRuntimePlan.adapter_plan.artifacts.adapter_result) -PathType Leaf
         if (!(Test-Path -LiteralPath $lifecyclePath -PathType Leaf)) {
             Add-QueueExecutorEvent -Events $events -Step 'lifecycle_result_collection' -Status 'FAIL' -Message 'Canonical lifecycle did not write its terminal result.' -Evidence $lifecyclePath
+            $invocationError = (($lifecycleOutput | ForEach-Object { [string]$_ }) -join "`n")
+            $failure = Write-QueueExecutorLifecycleInvocationFailure -Mission $mission -MissionRevision $missionRevision -RunId $runId -RuntimePlan $completeRuntimePlan -QueueDocumentSha256 ([string]$canonicalQueueCheck.queue_document_sha256) -PolicyFingerprint ([string]$missionInput.source_binding.policy_fingerprint) -ArgumentNamesIncluded $lifecycleArgumentNamesIncluded -OptionalArgumentsOmitted $lifecycleOptionalArgumentsOmitted -ApprovalSemantics $approvalSemantics -ApprovalLedgerConsumed $approvalLedgerConsumed -InvocationError $invocationError -QueueState $currentState
+            $executorTerminalStatus = [string]$failure.terminal_status
+            $executorInvocationFailurePath = [string]$failure.result_path
             throw "LIFECYCLE_TERMINAL_RESULT_MISSING: exit=$lifecycleExit expected=$lifecyclePath"
         }
         $lifecycle = Read-QueueExecutorJson -Path $lifecyclePath
@@ -348,10 +437,6 @@ try {
         $registry = Split-Path -Parent $durableMissionPath
         New-Item -ItemType Directory -Force -Path $registry | Out-Null
         Write-QueueExecutorJson -Value $missionInput.durable_mission -Path $durableMissionPath
-        if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) {
-            $ApprovalLedgerPath = Join-Path $OutDirectory $artifactCatalog.approval_ledger
-            Write-QueueExecutorJson -Value ([pscustomobject]@{schema_version=1;ledger_id='canonical-empty-ledger';approvals=@()}) -Path $ApprovalLedgerPath
-        }
         $policyPathFull = Get-QueueExecutorFullPath -Path $ActivePolicyManifestPath
         $packetDescriptor=Get-TsfPreservationPacketDescriptor -PacketPath ([string]$lifecycle.preservation_packet_file) -ExpectedMissionId $missionId -ExpectedMissionRevision $missionRevision
         $boundQueue=Get-TsfManifestBoundArtifact $packetDescriptor 'queue_document' $artifactCatalog.queue_document 'canonical_queue_executor' @('KERNEL_OBSERVED')
@@ -381,12 +466,27 @@ try {
         $durableResult = ConvertTo-TsfDurableResultEnvelope -Mission $missionInput.durable_mission -RuntimeEvidence $runtimeEvidence
         $durableStorage = Add-TsfRuntimeDurableResult -Value $durableResult -PreservationPacketPath ([string]$lifecycle.preservation_packet_file)
         $durableResultPath = [string]$durableStorage.path
-        $admission = Get-TsfAdmissionDecision -ResultPath $durableResultPath -MissionRegistryPath $registry -ActivePolicyManifestPath $policyPathFull -ApprovalLedgerPath $ApprovalLedgerPath -QueueMissionPath $currentMissionPath -QueueRootPath $queueRootForTransitions -UnsupportedDevelopmentMode:$UnsupportedDevelopmentMode -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
+        $admissionParameters = @{
+            ResultPath = $durableResultPath
+            MissionRegistryPath = $registry
+            ActivePolicyManifestPath = $policyPathFull
+            QueueMissionPath = $currentMissionPath
+            QueueRootPath = $queueRootForTransitions
+            UnsupportedDevelopmentMode = [bool]$UnsupportedDevelopmentMode
+            TestOnlyAllowAlternateQueueRoot = [bool]$TestOnlyAllowAlternateQueueRoot
+        }
+        if ([bool]$approvalPlan.include_approval_ledger) { $admissionParameters.ApprovalLedgerPath = [string]$approvalPlan.approval_ledger_path }
+        $admission = Get-TsfAdmissionDecision @admissionParameters
         $result = [pscustomobject][ordered]@{
             schema_version='tsf_canonical_queue_app_server_vertical_slice_result_v1'
             mission_id=$missionId
             queue_document_sha256=[string]$canonicalQueueCheck.queue_document_sha256
             lifecycle_result_path=$lifecyclePath
+            lifecycle_started=$true
+            lifecycle_argument_names_included=@($lifecycleArgumentNamesIncluded)
+            lifecycle_optional_arguments_omitted=@($lifecycleOptionalArgumentsOmitted)
+            approval_semantics=$approvalSemantics
+            approval_ledger_consumed=$approvalLedgerConsumed
             durable_result_path=$durableResultPath
             preservation_manifest_path=[string]$lifecycle.preservation_manifest_path
             maximum_runtime_path_length=[int]$lifecycle.runtime_path_maximum
@@ -620,9 +720,20 @@ Return a concise status after the file is written.
         & (Join-Path $fleetRoot "tools\Update-TsfProjectContextCapsule.ps1") -CapsulePath $ContextCapsulePath -MissionId $missionId -MissionResult $finalDecision -WorkerRole ([string]$mission.role_extension.worker_role) -CurrentLane "MASTER_TSF_CONTROL_PLANE" -ArtifactsCreated @($workerResultPath, $verifierPath, $preservationPacketPath) -NextRecommendedAction "Review queue executor result and continue only through an approved TSF gate." -OutFile $contextUpdatePath | Out-Null
     }
 } catch {
-    $blockedReasons.Add($_.Exception.Message) | Out-Null
-    Add-QueueExecutorEvent -Events $events -Step "exception" -Status "FAIL" -Message $_.Exception.Message
-    $finalDecision = "RED_QUEUE_EXECUTOR_BLOCKED"
+    $exceptionMessage = $_.Exception.Message
+    $blockedReasons.Add($exceptionMessage) | Out-Null
+    Add-QueueExecutorEvent -Events $events -Step "exception" -Status "FAIL" -Message $exceptionMessage
+    $canonicalLifecycleRequested = [bool]($RunCanonicalAppServerWorker -or $TestOnlyNoWorkerLifecycle -or $TestOnlyLifecycleInvocationFault -ne 'NONE')
+    if ($canonicalLifecycleRequested -and !$lifecycleStarted -and [string]::IsNullOrWhiteSpace($executorTerminalStatus)) {
+        try {
+            $failure = Write-QueueExecutorLifecycleInvocationFailure -Mission $mission -MissionRevision $missionRevision -RunId $runId -RuntimePlan $completeRuntimePlan -QueueDocumentSha256 ([string]$canonicalQueueCheck.queue_document_sha256) -PolicyFingerprint ([string]$missionInput.source_binding.policy_fingerprint) -ArgumentNamesIncluded $lifecycleArgumentNamesIncluded -OptionalArgumentsOmitted $lifecycleOptionalArgumentsOmitted -ApprovalSemantics $approvalSemantics -ApprovalLedgerConsumed $approvalLedgerConsumed -InvocationError $exceptionMessage -QueueState $currentState
+            $executorTerminalStatus = [string]$failure.terminal_status
+            $executorInvocationFailurePath = [string]$failure.result_path
+        } catch {
+            $blockedReasons.Add("EXECUTOR_INVOCATION_FAILURE_EVIDENCE_WRITE_FAILED: $($_.Exception.Message)") | Out-Null
+        }
+    }
+    $finalDecision = if ($exceptionMessage -match '^TIM_REQUIRED') { 'TIM_REQUIRED_LIFECYCLE_INVOCATION_BLOCKED' } elseif (![string]::IsNullOrWhiteSpace($executorTerminalStatus)) { 'RED_QUEUE_LIFECYCLE_INVOCATION_BLOCKED' } else { 'RED_QUEUE_EXECUTOR_BLOCKED' }
 }
 
 $result = [pscustomobject]@{
@@ -653,6 +764,14 @@ $result = [pscustomobject]@{
     lifecycle_result_path = $lifecyclePath
     lifecycle_exit_code = $lifecycleExit
     lifecycle_terminal_status = $lifecycleTerminalStatus
+    lifecycle_started = $lifecycleStarted
+    app_server_started = $appServerStarted
+    lifecycle_argument_names_included = @($lifecycleArgumentNamesIncluded)
+    lifecycle_optional_arguments_omitted = @($lifecycleOptionalArgumentsOmitted)
+    approval_semantics = $approvalSemantics
+    approval_ledger_consumed = $approvalLedgerConsumed
+    executor_terminal_status = $executorTerminalStatus
+    executor_invocation_failure_path = $executorInvocationFailurePath
     preservation_packet_path = $preservationPacketPath
     context_capsule_update_path = $contextUpdatePath
     blocked_reasons = @($blockedReasons)

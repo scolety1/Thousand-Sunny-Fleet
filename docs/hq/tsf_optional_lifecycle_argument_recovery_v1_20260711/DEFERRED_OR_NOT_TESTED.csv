@@ -1,0 +1,5 @@
+item,status,reason,next_action
+live_self_hosted_audit,PENDING_POST_COMMIT,"Must target the exact repair commit; only one fresh mission is authorized.","Create one new Auditor mission after commit and run it once."
+git_github_publication,GATED,"Push and PR are authorized only after an admitted GREEN audit.","Fetch/push/create ready PR only after GREEN admission."
+legacy_main_bot_self_continuation_bounded_fixture,NON_GATING_EXISTING_FIXTURE_FAILURE,"Extra out-of-scope test uses an approval that expired 2026-07-10 and a legacy incomplete approval record; required Project Main Bot role-foundation and lifecycle suites passed.","Do not weaken or regenerate approval; repair separately under new authority."
+plugin_mcp_work_hq_dispatch,NOT_TESTED_NOT_AUTHORIZED,"Explicitly outside this recovery scope.","No action in this task."

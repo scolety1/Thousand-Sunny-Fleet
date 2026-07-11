@@ -1,0 +1,21 @@
+{
+  "schema_version": "tsf_optional_lifecycle_argument_recovery_validation_v1",
+  "generated_at": "2026-07-11T20:20:00Z",
+  "starting_head": "2d98222b0f5447eb76fd03112a967dd383182941",
+  "expected_branch": "work/windows-safe-runtime-artifact-addressing-v1-20260711",
+  "working_tree_policy_fingerprint_before_commit": "101526aa8cb603ad42e611d47d2345463b8de3b3ac95d84a2293cd51f95d89d7",
+  "governing_file_count": 46,
+  "required_regression_suites_green": true,
+  "focused_optional_argument_assertions": 23,
+  "live_worker_used_during_local_tests": false,
+  "network_used_during_local_tests": false,
+  "first_failed_attempt_stop_sha256": "f1829aeb1f9109b1b579a3449c5b7b4861561e6df70e67174c328a26638770ac",
+  "first_failed_attempt_queue_sha256": "b448d6ace79b44b0b2ac93074b7547c334888617233da690d213600be35c5eb8",
+  "second_failed_attempt_queue_sha256": "75724fe7d76ec7ab99cb96dde02a3895e97994a65bd30471eaab8aad79ef0ab5",
+  "second_failed_attempt_executor_sha256": "14bede8d37746f0b5e546ef1babdfa8945831d46ece480162162f475032e465e",
+  "repair_commit": "TO_BE_CREATED_ONCE_AFTER_FINAL_LOCAL_VALIDATION",
+  "committed_blob_policy_fingerprint": "TO_BE_COMPUTED_AFTER_REPAIR_COMMIT",
+  "final_self_hosted_audit": "PENDING_EXACT_REPAIR_COMMIT",
+  "push_or_merge_attempted": false,
+  "plugin_work_attempted": false
+}

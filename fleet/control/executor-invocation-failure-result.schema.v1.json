@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/executor-invocation-failure-result.schema.v1.json",
+  "title": "TSF Queue Executor Lifecycle Invocation Failure V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "generated_at", "terminal_status", "mission_id", "mission_revision",
+    "queue_document_sha256", "policy_fingerprint", "repository", "branch", "worktree",
+    "intended_lifecycle_entry_point", "argument_names_included", "optional_arguments_omitted",
+    "approval_semantics", "approval_ledger_consumed", "invocation_error", "worker_started",
+    "lifecycle_started", "app_server_started", "queue_state", "result_path",
+    "producer_registry_path", "producer_binding_identity_sha256", "orchestrator_invocation_identity"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_executor_invocation_failure_result_v1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "terminal_status": { "const": "BLOCKED_LIFECYCLE_INVOCATION" },
+    "mission_id": { "type": "string", "minLength": 1 },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "queue_document_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "policy_fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "repository": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string" },
+    "worktree": { "type": "string", "minLength": 1 },
+    "intended_lifecycle_entry_point": { "type": "string", "minLength": 1 },
+    "argument_names_included": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$" }, "uniqueItems": true },
+    "optional_arguments_omitted": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$" }, "uniqueItems": true },
+    "approval_semantics": { "enum": ["NO_APPROVAL_REQUIRED", "APPROVAL_REQUIRED"] },
+    "approval_ledger_consumed": { "type": "boolean" },
+    "invocation_error": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "worker_started": { "const": false },
+    "lifecycle_started": { "const": false },
+    "app_server_started": { "const": false },
+    "queue_state": { "type": "string", "minLength": 1 },
+    "result_path": { "type": "string", "minLength": 1 },
+    "producer_registry_path": { "type": "string", "minLength": 1 },
+    "producer_binding_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "orchestrator_invocation_identity": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

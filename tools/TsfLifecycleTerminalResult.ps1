@@ -34,6 +34,8 @@ function New-TsfLifecycleTerminalResult {
         [AllowEmptyString()][string]$QueueState = '',
         [AllowEmptyString()][string]$PreflightVerdict = '',
         [bool]$PreflightApproved = $false,
+        [ValidateSet('NO_APPROVAL_REQUIRED', 'APPROVAL_REQUIRED')][string]$ApprovalSemantics = 'NO_APPROVAL_REQUIRED',
+        [bool]$ApprovalLedgerConsumed = $false,
         [AllowEmptyString()][string]$RolePreflightVerdict = '',
         [bool]$RolePreflightRequired = $false,
         [bool]$RolePreflightApproved = $false,
@@ -85,6 +87,8 @@ function New-TsfLifecycleTerminalResult {
         queue_state = $QueueState
         preflight_verdict = $PreflightVerdict
         preflight_approved = $PreflightApproved
+        approval_semantics = $ApprovalSemantics
+        approval_ledger_consumed = $ApprovalLedgerConsumed
         role_preflight_verdict = $RolePreflightVerdict
         role_preflight_required = $RolePreflightRequired
         role_preflight_approved = $RolePreflightApproved

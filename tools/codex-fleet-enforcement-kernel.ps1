@@ -2,6 +2,7 @@ $script:TsfKernelRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $script:TsfKernelRoot "tools\TsfJsonContract.ps1")
 . (Join-Path $script:TsfKernelRoot "tools\TsfRuntimeArtifactAddressing.ps1")
 . (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleTerminalResult.ps1")
+. (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleInvocationArguments.ps1")
 
 $script:TsfKernelRestrictedActions = @(
     "push",
@@ -380,13 +381,9 @@ function Get-TsfKernelApprovalRequirements {
 function Get-TsfKernelApprovalLedger {
     param([string]$ApprovalLedgerPath)
 
-    if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath) -or !(Test-Path -LiteralPath $ApprovalLedgerPath)) {
-        return [pscustomobject]@{
-            schema_version = 1
-            ledger_id = "empty-local-ledger"
-            approvals = @()
-        }
-    }
+    if ([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)) { return $null }
+    if (!(Test-Path -LiteralPath $ApprovalLedgerPath -PathType Leaf)) { throw 'APPROVAL_LEDGER_REQUIRED_BUT_MISSING' }
+    if ((Get-Item -LiteralPath $ApprovalLedgerPath).Length -eq 0) { throw 'APPROVAL_LEDGER_EMPTY' }
 
     $ledger = Read-TsfKernelJson -Path $ApprovalLedgerPath
     $schemaPath = Join-Path (Get-TsfKernelRoot) 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\approval_ledger_schema_v1.json'
@@ -826,6 +823,8 @@ function Invoke-TsfKernelPreflight {
     $gitState = $null
     $projectRegistration = $null
     $approvalMatches = @()
+    $approvalSemantics = 'NO_APPROVAL_REQUIRED'
+    $approvalLedgerConsumed = $false
 
     if ($null -ne $mission -and $blockedReasons.Count -eq 0) {
         $repoPath = Get-TsfKernelFullPath -Path ([string]$mission.repo_path)
@@ -880,15 +879,28 @@ function Invoke-TsfKernelPreflight {
             $blockedReasons.Add("Project is not registered and is not TSF control-plane internal.") | Out-Null
         }
 
-        $ledger = Get-TsfKernelApprovalLedger -ApprovalLedgerPath $ApprovalLedgerPath
-        $approvalMatches = @(Find-TsfKernelApprovalMatches -Mission $mission -Ledger $ledger -LedgerPath $ApprovalLedgerPath)
-        foreach ($match in $approvalMatches) {
-            if ($match.satisfied) {
-                $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "PASS" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
-            } else {
-                $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "TIM_REQUIRED" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
-                $timRequiredReasons.Add("Missing active approval for exact action: $($match.exact_action)") | Out-Null
+        $approvalRequirements = @(Get-TsfKernelApprovalRequirements -Mission $mission)
+        if($approvalRequirements.Count -gt 0){
+            $approvalSemantics = 'APPROVAL_REQUIRED'
+            try{
+                $ledger = Get-TsfKernelApprovalLedger -ApprovalLedgerPath $ApprovalLedgerPath
+                if($null-eq$ledger){throw 'APPROVAL_LEDGER_REQUIRED_BUT_MISSING'}
+                $approvalLedgerConsumed = $true
+                $approvalMatches = @(Find-TsfKernelApprovalMatches -Mission $mission -Ledger $ledger -LedgerPath $ApprovalLedgerPath)
+                foreach ($match in $approvalMatches) {
+                    if ($match.satisfied) {
+                        $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "PASS" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
+                    } else {
+                        $checks.Add((New-TsfKernelCheck -Name "approval.$($match.exact_action)" -Status "TIM_REQUIRED" -Message ([string]$match.match_status) -Evidence ([string]$match.approval_id))) | Out-Null
+                        $timRequiredReasons.Add("Missing active approval for exact action: $($match.exact_action)") | Out-Null
+                    }
+                }
+            }catch{
+                $checks.Add((New-TsfKernelCheck -Name 'approval.ledger' -Status 'TIM_REQUIRED' -Message $_.Exception.Message))|Out-Null
+                $timRequiredReasons.Add($_.Exception.Message)|Out-Null
             }
+        }else{
+            $checks.Add((New-TsfKernelCheck -Name 'approval.none_required' -Status 'PASS' -Message 'NO_APPROVAL_REQUIRED; no approval ledger was consumed.'))|Out-Null
         }
     }
 
@@ -921,6 +933,8 @@ function Invoke-TsfKernelPreflight {
         tim_required_reasons = @($timRequiredReasons)
         warnings = @($warnings)
         approval_matches = @($approvalMatches)
+        approval_semantics = $approvalSemantics
+        approval_ledger_consumed = $approvalLedgerConsumed
         git_state = $gitState
         project_registration = $projectRegistration
         background_runner_started = $false

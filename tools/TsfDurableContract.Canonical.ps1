@@ -18,13 +18,13 @@ function Get-TsfPolicyFingerprint {
     $manifestFull=Get-TsfKernelFullPath $ManifestPath $root; if(!(Test-TsfKernelPathInside $manifestFull $root)){throw 'Policy manifest escapes repository.'}
     $manifest=Read-TsfKernelJson $manifestFull; if([string]$manifest.schema_version -ne $script:PolicyManifestVersion){throw 'Unsupported policy manifest version.'}
     $required=@(
-        'tools/TsfJsonContract.ps1','tools/TsfRuntimeArtifactAddressing.ps1','tools/TsfLifecycleTerminalResult.ps1','tools/TsfDurableContract.psm1','tools/TsfDurableContract.Canonical.ps1',
+        'tools/TsfJsonContract.ps1','tools/TsfRuntimeArtifactAddressing.ps1','tools/TsfLifecycleTerminalResult.ps1','tools/TsfLifecycleInvocationArguments.ps1','tools/TsfDurableContract.psm1','tools/TsfDurableContract.Canonical.ps1',
         'tools/codex-fleet-enforcement-kernel.ps1','tools/Move-TsfMissionState.ps1',
         'tools/Invoke-TsfMissionQueueForegroundExecutor.ps1','tools/Invoke-TsfMissionLifecycle.ps1',
         'tools/codex-fleet-runtime.ps1','tools/Test-TsfWorkerRolePermission.ps1','tools/Invoke-TsfCodexAppServerForeground.ps1',
         'tools/tsf-codex-app-server-adapter.mjs','tools/Get-TsfAdmissionDecision.ps1','tools/Repair-TsfSyntheticAdmissionFixture.ps1','tools/New-TsfCanonicalQueueMission.ps1',
         'projects.json','fleet/control/mission-envelope.schema.v1.json','fleet/control/canonical-queue-document.schema.v1.json',
-        'fleet/control/result-envelope.schema.v1.json','fleet/control/lifecycle-terminal-result.schema.v1.json','fleet/control/mission-preparation-result.schema.v1.json','fleet/control/self-hosted-audit-recovery-policy.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/canonical-recovery-envelope.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
+        'fleet/control/result-envelope.schema.v1.json','fleet/control/lifecycle-terminal-result.schema.v1.json','fleet/control/executor-invocation-failure-result.schema.v1.json','fleet/control/mission-preparation-result.schema.v1.json','fleet/control/self-hosted-audit-recovery-policy.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/canonical-recovery-envelope.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
         'fleet/control/model-routing-alias-policy.v1.json','fleet/control/worker-role-registry.v1.json',
         'fleet/control/worker-permission-profiles.v1.json','fleet/control/mission-queue-state-policy.v1.json',
         'fleet/control/mission-queue-foreground-executor-policy.v1.json','fleet/control/role-aware-mission-extension.v1.json',
@@ -522,7 +522,7 @@ function Get-TsfAdmissionDecision {
         [Parameter(Mandatory)][string]$ResultPath,
         [Parameter(Mandatory)][string]$MissionRegistryPath,
         [Parameter(Mandatory)][string]$ActivePolicyManifestPath,
-        [Parameter(Mandatory)][string]$ApprovalLedgerPath,
+        [string]$ApprovalLedgerPath='',
         [Parameter(Mandatory)][string]$QueueMissionPath,
         [Parameter(Mandatory)][string]$QueueRootPath,
         [datetimeoffset]$CurrentTime=[datetimeoffset]::UtcNow,
