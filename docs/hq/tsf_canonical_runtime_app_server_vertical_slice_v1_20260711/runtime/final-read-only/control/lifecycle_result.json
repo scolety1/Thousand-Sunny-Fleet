@@ -1,0 +1,101 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-10T22:00:31.1106412-06:00",
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "mission_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\queue\\preflight_pending\\synthetic-tsf-readonly-appserver-0001.json",
+    "effective_mission_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\mission_packet.effective.json",
+    "approval_ledger_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\approval-ledger.json",
+    "out_directory":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle",
+    "final_decision":  "GREEN",
+    "preflight_verdict":  "YELLOW",
+    "preflight_approved":  true,
+    "role_preflight_required":  true,
+    "role_preflight_verdict":  "GREEN",
+    "role_preflight_approved":  true,
+    "role_preflight_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\role_permission_preflight.json",
+    "worker_status":  "CODEX_APP_SERVER_WORKER_GREEN",
+    "codex_cli_detected":  false,
+    "codex_cli_invoked":  false,
+    "codex_exit_code":  null,
+    "worker_result_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\worker_result.json",
+    "verifier_verdict":  "GREEN",
+    "preservation_packet_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n",
+    "preservation_packet_file":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\pp.json",
+    "preservation_manifest_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\manifest.json",
+    "runtime_storage_run_id":  "canonical-result-synthetic-tsf-readonly-appserver-0001-1",
+    "runtime_path_maximum":  219,
+    "runtime_path_target_met":  true,
+    "adapter_result_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\a\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\ar.json",
+    "app_server_event_journal_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\a\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\ej.jsonl",
+    "queue_mission_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\queue\\postrun_pending\\synthetic-tsf-readonly-appserver-0001.json",
+    "events":  [
+                   {
+                       "step":  "mission_normalize",
+                       "status":  "PASS",
+                       "message":  "Project Main Bot draft normalized to mission packet for kernel lifecycle.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\mission_packet.effective.json"
+                   },
+                   {
+                       "step":  "preflight",
+                       "status":  "YELLOW",
+                       "message":  "Preflight completed.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\preflight_result.json"
+                   },
+                   {
+                       "step":  "worker_role_permission",
+                       "status":  "GREEN",
+                       "message":  "Role-aware permission preflight completed.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\role_permission_preflight.json"
+                   },
+                   {
+                       "step":  "queue_transition",
+                       "status":  "PASS",
+                       "message":  "preflight_pending -\u003e approved_for_worker",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\transition_preflight_pending_to_approved_for_worker.json"
+                   },
+                   {
+                       "step":  "worker_instruction",
+                       "status":  "STUB_READY_CODEX_CLI_BLOCKED",
+                       "message":  "Worker instruction generated.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\worker_instruction.json"
+                   },
+                   {
+                       "step":  "queue_transition",
+                       "status":  "PASS",
+                       "message":  "approved_for_worker -\u003e worker_running",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\transition_approved_for_worker_to_worker_running.json"
+                   },
+                   {
+                       "step":  "app_server_worker",
+                       "status":  "CODEX_APP_SERVER_WORKER_GREEN",
+                       "message":  "Bound foreground app-server child completed.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\a\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\ar.json"
+                   },
+                   {
+                       "step":  "queue_transition",
+                       "status":  "PASS",
+                       "message":  "worker_running -\u003e postrun_pending",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\transition_worker_running_to_postrun_pending.json"
+                   },
+                   {
+                       "step":  "postrun_verify",
+                       "status":  "GREEN",
+                       "message":  "Post-run verifier completed.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\verifier_result.json"
+                   },
+                   {
+                       "step":  "preserve",
+                       "status":  "GREEN",
+                       "message":  "Preservation packet written.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n"
+                   }
+               ],
+    "blocked_reasons":  [
+
+                        ],
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}

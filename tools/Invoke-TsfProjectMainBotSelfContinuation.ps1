@@ -385,7 +385,7 @@ Return a concise status after the file is written.
                 }
             }
 
-            $preservation = Write-TsfKernelPreservationPacket -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory (Join-Path $OutDirectory "preservation") -ExactNextAction "Preserve bounded Project Main Bot self-continuation evidence; next milestone requires a new Tim-approved gate."
+            $preservation = Write-TsfKernelPreservationPacket -MissionPath $effectiveMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory (Join-Path $fleetRoot '.codex-local\rt') -ExactNextAction "Preserve bounded Project Main Bot self-continuation evidence; next milestone requires a new Tim-approved gate."
             $preservationPacketPath = [string]$preservation.packet_directory
 
             $loopCasePath = Join-Path $OutDirectory "loop_prevention_case.json"

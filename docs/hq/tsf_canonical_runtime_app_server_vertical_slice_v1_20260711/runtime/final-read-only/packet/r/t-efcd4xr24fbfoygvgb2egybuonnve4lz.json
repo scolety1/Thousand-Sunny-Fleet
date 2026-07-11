@@ -1,0 +1,36 @@
+﻿{
+    "schema_version":  "tsf_admission_transaction_v1",
+    "transaction_id":  "transaction-efcd4xr24fbfoygvgb2egybu",
+    "receipt_identity_sha256":  "21443e5e3ae1425760d53074436034735b527179d6f239a3c3f875863f37d81b",
+    "state":  "COMMITTED",
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "mission_revision":  1,
+    "result_id":  "canonical-result-synthetic-tsf-readonly-appserver-0001-1",
+    "result_sha256":  "e8b2815162ab41dfd764411ac5e81d217154a3f8d9ca24fcd4b6bc43f5717895",
+    "policy_fingerprint":  "2fcffeb0bdba3c01aacd2e88483eb561792c8e12cc856fd0f2618bf6ce67b87a",
+    "preservation_packet_sha256":  "a1c2dad35d4d886db332dd7ea472fcf18a49567b3e66f332104e05813fda1fa0",
+    "admission_receipt_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\r\\a-efcd4xr24fbfoygvgb2egybuonnve4lz.json",
+    "admission_receipt_sha256":  "a775fb7806902e19c1e544543d74f5cd78f95e50ad99f763d0b697db6adf4269",
+    "queue_state_from":  "postrun_pending",
+    "queue_state_to":  "complete_ready_for_gate",
+    "source_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\queue\\postrun_pending\\synthetic-tsf-readonly-appserver-0001.json",
+    "destination_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\queue\\complete_ready_for_gate\\synthetic-tsf-readonly-appserver-0001.json",
+    "history":  [
+                    {
+                        "state":  "PREPARED",
+                        "at":  "2026-07-11T04:00:32.4244743+00:00",
+                        "detail":  "Receipt staged and queue transition preflight passed."
+                    },
+                    {
+                        "state":  "QUEUE_MOVED",
+                        "at":  "2026-07-11T04:00:33.6174937+00:00",
+                        "detail":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\queue\\complete_ready_for_gate\\synthetic-tsf-readonly-appserver-0001.json"
+                    },
+                    {
+                        "state":  "COMMITTED",
+                        "at":  "2026-07-11T04:00:33.6174937+00:00",
+                        "detail":  "Admission and queue state verified."
+                    }
+                ],
+    "updated_at":  "2026-07-11T04:00:33.6174937+00:00"
+}

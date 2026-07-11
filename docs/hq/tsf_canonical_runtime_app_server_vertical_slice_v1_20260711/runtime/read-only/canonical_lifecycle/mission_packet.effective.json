@@ -1,0 +1,221 @@
+﻿{
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "project_id":  "TSF_CONTROL_PLANE",
+    "repo_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-durable-contract-v1-20260710",
+    "lane":  "MASTER_TSF_CONTROL_PLANE",
+    "mission_type":  "tsf_infrastructure",
+    "required_branch":  "work/durable-mission-result-admission-contract-v1-20260710",
+    "required_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-durable-contract-v1-20260710",
+    "control_plane_service_network_policy":  "CODEX_SERVICE_ONLY",
+    "worker_tool_network_policy":  "DISABLED",
+    "allowed_reads":  [
+                          "fleet/control/policy-manifest.v1.json"
+                      ],
+    "allowed_writes":  [
+
+                       ],
+    "forbidden_reads":  [
+                            "NORMAL_NWR_PACKETS",
+                            "SECRETS",
+                            "CREDENTIALS",
+                            "PRIVATELENS",
+                            "PRODUCT_REPOS"
+                        ],
+    "forbidden_writes":  [
+
+                         ],
+    "forbidden_actions":  [
+                              "all_fleet",
+                              "api_bridge",
+                              "app_wiring",
+                              "background_runner",
+                              "canonical_nwr_inspection",
+                              "canonical_nwr_mutation",
+                              "credential_change",
+                              "deploy",
+                              "hidden_sort",
+                              "install_packages",
+                              "merge",
+                              "migration",
+                              "normal_nwr_packet_read",
+                              "open_network_port",
+                              "persistent_runner",
+                              "privatelens",
+                              "product_repo_inspection",
+                              "product_repo_mutation",
+                              "proof_run",
+                              "push",
+                              "ranking_formula_source_truth_promotion",
+                              "recommendation_behavior",
+                              "secrets"
+                          ],
+    "expected_artifacts":  [
+                               "fleet/control/policy-manifest.v1.json"
+                           ],
+    "required_preflight_checks":  [
+                                      "schema",
+                                      "repo_exists",
+                                      "path_scope",
+                                      "restricted_action_coverage",
+                                      "git_status_capture",
+                                      "approval_ledger",
+                                      "worker_role_permission",
+                                      "durable_source_binding"
+                                  ],
+    "required_postrun_checks":  [
+                                    "mission_id_match",
+                                    "expected_artifacts_exist",
+                                    "restricted_actions_absent",
+                                    "forbidden_outputs_absent",
+                                    "test:app-server-automatic-round-trip"
+                                ],
+    "stop_conditions":  [
+                            {
+                                "id":  "durable-stop-001",
+                                "check_type":  "manual",
+                                "description":  "Unexpected file touch."
+                            },
+                            {
+                                "id":  "durable-stop-002",
+                                "check_type":  "manual",
+                                "description":  "Worker tool network request."
+                            },
+                            {
+                                "id":  "durable-stop-003",
+                                "check_type":  "manual",
+                                "description":  "Native identity mismatch."
+                            },
+                            {
+                                "id":  "durable-stop-004",
+                                "check_type":  "manual",
+                                "description":  "Timeout."
+                            },
+                            {
+                                "id":  "durable-stop-005",
+                                "check_type":  "manual",
+                                "description":  "Verifier failure."
+                            }
+                        ],
+    "approval_requirements":  [
+
+                              ],
+    "hq_escalation_policy":  {
+                                 "default":  "local_only_no_api",
+                                 "escalate_on":  [
+                                                     "RED",
+                                                     "TIM_REQUIRED",
+                                                     "approval_gap",
+                                                     "scope_conflict"
+                                                 ],
+                                 "notes":  "Generated from canonical durable mission."
+                             },
+    "created_by":  "TSF_DURABLE_TRANSLATOR",
+    "created_at":  "2026-07-11T01:24:00.5418421+00:00",
+    "role_extension":  {
+                           "requested_by":  "TSF_DURABLE_MISSION",
+                           "project_main_bot_id":  "TSF_CONTROL_PLANE",
+                           "worker_role":  "auditor_worker",
+                           "translator_used":  true,
+                           "parent_mission_id":  "",
+                           "role_permission_profile_id":  "auditor_worker",
+                           "role_output_contract":  "Findings-first audit with merge/readiness recommendation and caveats.",
+                           "verifier_role":  "verifier_worker",
+                           "escalation_policy_id":  "canonical_durable_v1"
+                       },
+    "durable_source_binding":  {
+                                   "durable_mission_id":  "synthetic-tsf-readonly-appserver-0001",
+                                   "durable_mission_revision":  1,
+                                   "policy_fingerprint":  "0aa2842bdc5707af97ef2283ded0eb85ca402265021f111b95d6abb433913126",
+                                   "durable_mission_content_hash":  "184ba23e0497bd3c565ee9033b0a8069a374bdac5653f5bd1c44eec4c7c81ad7",
+                                   "translator_version":  "tsf_durable_to_operational_v1",
+                                   "generated_at":  "2026-07-11T01:24:00.5418421+00:00",
+                                   "mission_packet_sha256":  "a927608ce001f5dd053acbc95db3397e2d44125cf1cb410c331f04cefaa40be9",
+                                   "role_extension_sha256":  "0eefca8f18e432b2b005109d4d417252d4f0a0213e0d2da0afb31e0957829e82",
+                                   "worker_instruction_sha256":  "b7c417af51a246a27e63c798b71602f47dbabbe5875d505dae6d670dcdbf87eb",
+                                   "expected_repository":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-durable-contract-v1-20260710",
+                                   "expected_branch":  "work/durable-mission-result-admission-contract-v1-20260710",
+                                   "expected_worktree":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-durable-contract-v1-20260710",
+                                   "expected_role":  "auditor_worker"
+                               },
+    "model_resolution":  {
+                             "requested_alias":  "FAST",
+                             "stable_alias":  "FAST",
+                             "legacy_compatibility_input":  false,
+                             "resolved_model":  "gpt-5.6-luna",
+                             "reasoning_effort":  "LIGHT",
+                             "assurance":  "RECOMMENDED_ONLY"
+                         },
+    "worker_instruction_contract":  {
+                                        "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+                                        "worker_role":  "auditor_worker",
+                                        "allowed_reads":  [
+                                                              "fleet/control/policy-manifest.v1.json"
+                                                          ],
+                                        "allowed_writes":  [
+
+                                                           ],
+                                        "forbidden_actions":  [
+                                                                  "all_fleet",
+                                                                  "api_bridge",
+                                                                  "app_wiring",
+                                                                  "background_runner",
+                                                                  "canonical_nwr_inspection",
+                                                                  "canonical_nwr_mutation",
+                                                                  "credential_change",
+                                                                  "deploy",
+                                                                  "hidden_sort",
+                                                                  "install_packages",
+                                                                  "merge",
+                                                                  "migration",
+                                                                  "normal_nwr_packet_read",
+                                                                  "open_network_port",
+                                                                  "persistent_runner",
+                                                                  "privatelens",
+                                                                  "product_repo_inspection",
+                                                                  "product_repo_mutation",
+                                                                  "proof_run",
+                                                                  "push",
+                                                                  "ranking_formula_source_truth_promotion",
+                                                                  "recommendation_behavior",
+                                                                  "secrets"
+                                                              ],
+                                        "exact_task":  "Return exactly TSF_READ_ONLY_ROUND_TRIP_GREEN. Do not use tools.",
+                                        "expected_artifacts":  [
+                                                                   "fleet/control/policy-manifest.v1.json"
+                                                               ],
+                                        "stop_conditions":  [
+                                                                {
+                                                                    "id":  "durable-stop-001",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Unexpected file touch."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-002",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Worker tool network request."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-003",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Native identity mismatch."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-004",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Timeout."
+                                                                },
+                                                                {
+                                                                    "id":  "durable-stop-005",
+                                                                    "check_type":  "manual",
+                                                                    "description":  "Verifier failure."
+                                                                }
+                                                            ],
+                                        "verifier_contract":  "SEPARATE_ROLE",
+                                        "escalation_triggers":  [
+                                                                    "approval_gap",
+                                                                    "scope_conflict",
+                                                                    "validation_failure"
+                                                                ],
+                                        "do_not_exceed_role_authority":  true
+                                    }
+}

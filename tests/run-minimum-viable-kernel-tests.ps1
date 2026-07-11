@@ -105,9 +105,8 @@ Assert-Equal -Actual $fixturePreflight.verdict -Expected "TIM_REQUIRED" -Message
 $fixtureMatchCount = @($fixturePreflight.approval_matches | Where-Object { $_.match_status -eq "FIXTURE_MATCH_NOT_AUTHORITY" }).Count
 Assert-True -Condition ($fixtureMatchCount -eq 1) -Message "Fixture approval match status is explicit"
 
-$fixtureAllowedPreflight = Invoke-TsfKernelPreflight -MissionPath $approvalMissionPath -ApprovalLedgerPath $ledgerPath -OutFile $fixtureAllowedPreflightPath -StateRoot $stateRoot -AllowFixtureApprovalsForTests
-Assert-True -Condition ([bool]$fixtureAllowedPreflight.preflight_approved) -Message "Fixture approval can satisfy only under test flag"
-Assert-Equal -Actual $fixtureAllowedPreflight.approval_matches[0].match_status -Expected "MATCHED_FIXTURE_FOR_TEST" -Message "Fixture-mode match is labeled as a test fixture"
+Assert-True -Condition (!(Get-Command Invoke-TsfKernelPreflight).Parameters.ContainsKey('AllowFixtureApprovalsForTests')) -Message "Runtime preflight exposes no fixture-approval authority switch"
+Assert-True -Condition (!(Get-Command (Join-Path $fleetRoot 'tsf-kernel-preflight.ps1')).Parameters.ContainsKey('AllowFixtureApprovalsForTests')) -Message "Runtime wrapper exposes no fixture-approval authority switch"
 
 $invalidPreflight = Invoke-TsfKernelPreflight -MissionPath $invalidMissionPath -StateRoot $stateRoot
 Assert-Equal -Actual $invalidPreflight.verdict -Expected "RED" -Message "Invalid mission schema fails closed"
@@ -155,11 +154,11 @@ Assert-Equal -Actual $greenVerifier.verdict -Expected "GREEN" -Message "Verifier
 Assert-True -Condition ([bool]$greenVerifier.verified) -Message "Green verifier marks result verified"
 Assert-Equal -Actual $greenVerifier.final_state -Expected "complete_green" -Message "Verifier writes deterministic final state"
 
-$preserveOut = Join-Path $testRoot "preservation"
+$preserveOut = Join-Path $fleetRoot '.codex-local\rt-kernel-test'
 $preservation = Write-TsfKernelPreservationPacket -MissionPath $validMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $validWorkerResultPath -VerifierResultPath $greenVerifierPath -OutputDirectory $preserveOut -ExactNextAction "Fixture preservation complete."
 Write-TsfKernelJson -Value $preservation -Path $preservationSummaryPath
-Assert-True -Condition (Test-Path -LiteralPath (Join-Path $preservation.packet_directory "preservation_packet.json")) -Message "Preservation packet is written"
-Assert-True -Condition (Test-Path -LiteralPath (Join-Path $preservation.packet_directory "manifest.csv")) -Message "Preservation manifest is written"
+Assert-True -Condition (Test-Path -LiteralPath $preservation.packet_file) -Message "Compact preservation packet is written"
+Assert-True -Condition (Test-Path -LiteralPath $preservation.manifest_path) -Message "Runtime artifact manifest is written"
 
 $cliPreflightPath = Join-Path $testRoot "preflight.cli.json"
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fleetRoot "tsf-kernel-preflight.ps1") -MissionPath $validMissionPath -OutFile $cliPreflightPath -StateRoot $stateRoot | Out-Null

@@ -1,0 +1,38 @@
+﻿{
+    "schema_version":  1,
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "worker_role":  "auditor_worker",
+    "role_output_contract_satisfied":  true,
+    "worker_status":  "CODEX_APP_SERVER_WORKER_GREEN",
+    "codex_cli_detected":  false,
+    "codex_cli_invoked":  false,
+    "codex_exit_code":  null,
+    "files_touched":  [
+
+                      ],
+    "files_created":  [
+
+                      ],
+    "unexpected_touched_files":  [
+
+                                 ],
+    "restricted_actions_attempted":  [
+
+                                     ],
+    "blocked_reasons":  [
+
+                        ],
+    "adapter_result_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\a\\4gttrgnlxmwtlhmgrrcsqathtelatf43\\xfy5kclefaq7lnlsqovfkpefxm4dsn4n\\ar.json",
+    "adapter_result_sha256":  "e40d4f6470146a6f44dbe4e4219f16c9e920fcc43677768bf6435c11f53b066f",
+    "thread_id":  "019f4f55-4f06-7873-b688-53cafb7f0e32",
+    "turn_id":  "019f4f55-63e4-7621-ab77-1692572d4814",
+    "tests":  {
+                  "test_id":  "app-server-automatic-round-trip",
+                  "status":  "PASS",
+                  "observed":  "Bound app-server automatic round trip",
+                  "evidence":  "8c601fc2a0411f4a59bd3f7cd3953631b14d9fe8c0e5438e205e92410f14b51b"
+              },
+    "approval_use":  [
+
+                     ]
+}

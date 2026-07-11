@@ -7,16 +7,14 @@ param(
 
     [string]$OutFile = "",
 
-    [string]$StateRoot = "",
-
-    [switch]$AllowFixtureApprovalsForTests
+    [string]$StateRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "tools\codex-fleet-enforcement-kernel.ps1")
 
-$result = Invoke-TsfKernelPreflight -MissionPath $MissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $OutFile -StateRoot $StateRoot -AllowFixtureApprovalsForTests:$AllowFixtureApprovalsForTests
+$result = Invoke-TsfKernelPreflight -MissionPath $MissionPath -ApprovalLedgerPath $ApprovalLedgerPath -OutFile $OutFile -StateRoot $StateRoot
 if ([string]::IsNullOrWhiteSpace($OutFile)) {
     $result | ConvertTo-Json -Depth 30
 }

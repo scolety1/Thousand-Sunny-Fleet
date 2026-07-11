@@ -1,94 +1,93 @@
-[CmdletBinding(PositionalBinding=$false)]
+[CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$EvidenceRoot = "docs/hq/tsf_durable_contract_canonical_integration_correction_v1_20260710"
+    [string]$EvidenceRoot = 'docs/hq/tsf_durable_contract_canonical_integration_correction_v1_20260710'
 )
-$ErrorActionPreference='Stop'
-$repo=Split-Path -Parent (Split-Path -Parent $PSCommandPath)
-if(![IO.Path]::IsPathRooted($EvidenceRoot)){$EvidenceRoot=Join-Path $repo $EvidenceRoot}
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+if (![IO.Path]::IsPathRooted($EvidenceRoot)) { $EvidenceRoot = Join-Path $repo $EvidenceRoot }
 Import-Module (Join-Path $repo 'tools\TsfDurableContract.psm1') -Force
-$script:Results=[Collections.Generic.List[object]]::new()
-function Assert-Case($Id,$Category,[bool]$Passed,$Observed){$script:Results.Add([pscustomobject]@{case_id=$Id;category=$Category;status=if($Passed){'PASS'}else{'FAIL'};observed=[string]$Observed})|Out-Null;if(!$Passed){Write-Host "FAIL $Id :: $Observed" -ForegroundColor Red}}
-function Copy-Object($Value){$Value|ConvertTo-Json -Depth 100|ConvertFrom-Json}
-function Write-Json($Value,$Path){$parent=Split-Path -Parent $Path;if($parent){New-Item -ItemType Directory -Force $parent|Out-Null};$Value|ConvertTo-Json -Depth 100|Set-Content -LiteralPath $Path -Encoding UTF8}
-function Throws([scriptblock]$Action){try{&$Action|Out-Null;return $false}catch{return $true}}
+$script:Results = [Collections.Generic.List[object]]::new()
+function Assert-Case($Id, $Category, [bool]$Passed, $Observed) {
+    $script:Results.Add([pscustomobject]@{ case_id=$Id; category=$Category; status=if($Passed){'PASS'}else{'FAIL'}; observed=[string]$Observed }) | Out-Null
+    if (!$Passed) { Write-Host "FAIL $Id :: $Observed" -ForegroundColor Red }
+}
+function Copy-Object($Value) { $Value | ConvertTo-Json -Depth 100 | ConvertFrom-Json }
+function Write-Json($Value, $Path) { $parent=Split-Path -Parent $Path; if($parent){New-Item -ItemType Directory -Force $parent|Out-Null}; $Value|ConvertTo-Json -Depth 100|Set-Content -LiteralPath $Path -Encoding UTF8 }
+function Throws([scriptblock]$Action) { try { &$Action|Out-Null; return $false } catch { return $true } }
 
-$scratch=Join-Path $env:TEMP 'tsf-durable-canonical-correction-v1'
-if(Test-Path $scratch){Remove-Item -LiteralPath $scratch -Recurse -Force}
-New-Item -ItemType Directory -Force $scratch|Out-Null
+$scratch = Join-Path $env:TEMP 'tsf-durable-canonical-correction-v1'
+if (Test-Path $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
+New-Item -ItemType Directory -Force $scratch | Out-Null
 try {
-    $fixture=Get-Content (Join-Path $repo 'tests\fixtures\fleet\durable-contract\missions\codex-implementation.synthetic.mission.json') -Raw|ConvertFrom-Json
-    $valid=Test-TsfMissionEnvelope $fixture
-    Assert-Case 'DC-C001' schema $valid.valid ($valid.errors -join '; ')
-    $bad=Copy-Object $fixture;$bad.branch_worktree_policy.branch_required='true';Assert-Case 'DC-C002' schema (!(Test-TsfMissionEnvelope $bad).valid) 'wrong nested boolean rejected'
-    $bad=Copy-Object $fixture;$bad.allowed_reads='tools';Assert-Case 'DC-C003' schema (!(Test-TsfMissionEnvelope $bad).valid) 'wrong array rejected'
-    $bad=Copy-Object $fixture;$bad.model_policy_alias='standard_patch';Assert-Case 'DC-C004' schema (!(Test-TsfMissionEnvelope $bad).valid) 'legacy alias rejected in new mission'
-    $bad=Copy-Object $fixture;$bad|Add-Member extra_field true;Assert-Case 'DC-C005' schema (!(Test-TsfMissionEnvelope $bad).valid) 'additional property rejected'
-    $bad=Copy-Object $fixture;$bad.PSObject.Properties.Remove('policy');Assert-Case 'DC-C006' schema (!(Test-TsfMissionEnvelope $bad).valid) 'missing nested contract rejected'
-    $bad=Copy-Object $fixture;$bad.schema_version='v2';Assert-Case 'DC-C007' schema (!(Test-TsfMissionEnvelope $bad).valid) 'version const rejected'
-    foreach($alias in @('FAST','BALANCED','DEEP','MAX_SINGLE','PARALLEL')){$route=Resolve-TsfModelRouting $alias CODEX;Assert-Case "DC-M-$alias" model ($route.stable_alias -eq $alias -and !$route.legacy_compatibility_input) $route.resolved_model}
-    $legacy=@{fast_readonly='FAST';standard_patch='BALANCED';deep_reasoning='DEEP';premium_audit='MAX_SINGLE'};foreach($key in $legacy.Keys){$route=Resolve-TsfModelRouting $key CODEX;Assert-Case "DC-ML-$key" model ($route.stable_alias -eq $legacy[$key] -and $route.legacy_compatibility_input) $route.stable_alias}
-    Assert-Case 'DC-M-CONFLICT' model (Throws {Resolve-TsfModelRouting unknown CODEX}) 'unknown alias fails closed'
+    $fixture = Get-Content (Join-Path $repo 'tests\fixtures\fleet\durable-contract\missions\codex-implementation.synthetic.mission.json') -Raw | ConvertFrom-Json
+    Assert-Case 'DC-C001' schema (Test-TsfMissionEnvelope $fixture).valid 'canonical mission accepted'
+    $bad=Copy-Object $fixture; $bad.branch_worktree_policy.branch_required='true'; Assert-Case 'DC-C002' schema (!(Test-TsfMissionEnvelope $bad).valid) 'wrong nested boolean rejected'
+    $bad=Copy-Object $fixture; $bad.allowed_reads='tools'; Assert-Case 'DC-C003' schema (!(Test-TsfMissionEnvelope $bad).valid) 'wrong array rejected'
+    $bad=Copy-Object $fixture; $bad.model_policy_alias='standard_patch'; Assert-Case 'DC-C004' schema (!(Test-TsfMissionEnvelope $bad).valid) 'legacy alias rejected in new mission'
+    $bad=Copy-Object $fixture; $bad|Add-Member extra_field $true; Assert-Case 'DC-C005' schema (!(Test-TsfMissionEnvelope $bad).valid) 'additional property rejected'
+    $bad=Copy-Object $fixture; $bad.PSObject.Properties.Remove('policy'); Assert-Case 'DC-C006' schema (!(Test-TsfMissionEnvelope $bad).valid) 'missing nested contract rejected'
+    $bad=Copy-Object $fixture; $bad.schema_version='v2'; Assert-Case 'DC-C007' schema (!(Test-TsfMissionEnvelope $bad).valid) 'version const rejected'
 
-    $policyScratch=Join-Path $scratch 'policy-repo';New-Item -ItemType Directory $policyScratch|Out-Null
+    foreach($alias in @('FAST','BALANCED','DEEP','MAX_SINGLE','PARALLEL')) {
+        $route=Resolve-TsfModelRouting $alias CODEX
+        Assert-Case "DC-M-$alias" model ($route.stable_alias-eq$alias-and!$route.legacy_compatibility_input) $route.resolved_model
+    }
+    $legacy=@{fast_readonly='FAST';standard_patch='BALANCED';deep_reasoning='DEEP';premium_audit='MAX_SINGLE'}
+    foreach($key in $legacy.Keys) {
+        $route=Resolve-TsfModelRouting $key CODEX
+        Assert-Case "DC-ML-$key" model ($route.stable_alias-eq$legacy[$key]-and$route.legacy_compatibility_input) $route.stable_alias
+    }
+    Assert-Case 'DC-M-CONFLICT' model (Throws { Resolve-TsfModelRouting unknown CODEX }) 'unknown alias fails closed'
+
+    $policyScratch=Join-Path $scratch 'policy-repo'; New-Item -ItemType Directory $policyScratch|Out-Null
     $manifest=Get-Content (Join-Path $repo 'fleet\control\policy-manifest.v1.json') -Raw|ConvertFrom-Json
-    foreach($rel in @('fleet/control/policy-manifest.v1.json')+@($manifest.governing_files)){$src=Join-Path $repo $rel;$dst=Join-Path $policyScratch $rel;New-Item -ItemType Directory -Force (Split-Path -Parent $dst)|Out-Null;Copy-Item $src $dst}
-    & git -C $policyScratch init -q;& git -C $policyScratch config user.email 'fixture@tsf.invalid';& git -C $policyScratch config user.name 'TSF Fixture';& git -C $policyScratch add .;$oldAuthor=$env:GIT_AUTHOR_DATE;$oldCommitter=$env:GIT_COMMITTER_DATE;$env:GIT_AUTHOR_DATE='2026-07-10T12:00:00Z';$env:GIT_COMMITTER_DATE='2026-07-10T12:00:00Z';try{& git -C $policyScratch commit -q -m fixture}finally{$env:GIT_AUTHOR_DATE=$oldAuthor;$env:GIT_COMMITTER_DATE=$oldCommitter}
-    $fp1=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch;$fp2=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch
-    Assert-Case 'DC-F001' fingerprint ($fp1.fingerprint -eq $fp2.fingerprint -and $fp1.content_source -eq 'VERIFIED_COMMIT_BLOBS') $fp1.fingerprint
-    Set-Content (Join-Path $policyScratch 'unrelated.txt') 'unrelated';$fpUnrelated=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch;Assert-Case 'DC-F002' fingerprint ($fpUnrelated.fingerprint -eq $fp1.fingerprint) 'unrelated file ignored'
-    Add-Content (Join-Path $policyScratch 'tools\Move-TsfMissionState.ps1') '# governing change';Assert-Case 'DC-F003' fingerprint (Throws {Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch}) 'dirty governing policy rejected'
-    $fpDirty=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch -UnsupportedDevelopmentMode;Assert-Case 'DC-F004' fingerprint ($fpDirty.fingerprint -ne $fp1.fingerprint -and $fpDirty.content_source -eq 'WORKING_TREE_UNSUPPORTED_DEVELOPMENT') $fpDirty.fingerprint
-    Assert-Case 'DC-F005' fingerprint (-not (Get-Command Get-TsfPolicyFingerprint).Parameters.ContainsKey('GitCommit')) 'arbitrary commit parameter absent'
-    & git -C $policyScratch checkout -q -- 'tools/Move-TsfMissionState.ps1';$badManifest=Copy-Object $manifest;$badManifest.governing_files=@($badManifest.governing_files|Where-Object{$_ -ne 'tools/TsfDurableContract.Canonical.ps1'});Write-Json $badManifest (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json');Assert-Case 'DC-F006' fingerprint (Throws {Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch -UnsupportedDevelopmentMode}) 'manifest omission detected'
+    foreach($rel in @('fleet/control/policy-manifest.v1.json')+@($manifest.governing_files)) {
+        $src=Join-Path $repo $rel; $dst=Join-Path $policyScratch $rel
+        New-Item -ItemType Directory -Force (Split-Path -Parent $dst)|Out-Null; Copy-Item -LiteralPath $src -Destination $dst
+    }
+    & git -C $policyScratch init -q; & git -C $policyScratch config user.email 'fixture@tsf.invalid'; & git -C $policyScratch config user.name 'TSF Fixture'; & git -C $policyScratch add .; & git -C $policyScratch commit -q -m fixture
+    $fp1=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch
+    $fp2=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch
+    Assert-Case 'DC-F001' fingerprint ($fp1.fingerprint-eq$fp2.fingerprint-and$fp1.content_source-eq'VERIFIED_COMMIT_BLOBS') $fp1.fingerprint
+    Set-Content (Join-Path $policyScratch 'unrelated.txt') 'unrelated'
+    $fpUnrelated=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch
+    Assert-Case 'DC-F002' fingerprint ($fpUnrelated.fingerprint-eq$fp1.fingerprint) 'unrelated file ignored'
+    Add-Content (Join-Path $policyScratch 'tools\Move-TsfMissionState.ps1') '# governing change'
+    Assert-Case 'DC-F003' fingerprint (Throws { Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch }) 'dirty governing policy rejected'
+    $fpDirty=Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch -UnsupportedDevelopmentMode
+    Assert-Case 'DC-F004' fingerprint ($fpDirty.fingerprint-ne$fp1.fingerprint-and$fpDirty.content_source-eq'WORKING_TREE_UNSUPPORTED_DEVELOPMENT') $fpDirty.fingerprint
+    Assert-Case 'DC-F005' fingerprint (!(Get-Command Get-TsfPolicyFingerprint).Parameters.ContainsKey('GitCommit')) 'arbitrary commit parameter absent'
+    & git -C $policyScratch checkout -q -- 'tools/Move-TsfMissionState.ps1'
+    $badManifest=Copy-Object $manifest; $badManifest.governing_files=@($badManifest.governing_files|Where-Object{$_-ne'tools/TsfDurableContract.Canonical.ps1'})
+    Write-Json $badManifest (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json')
+    Assert-Case 'DC-F006' fingerprint (Throws { Get-TsfPolicyFingerprint (Join-Path $policyScratch 'fleet\control\policy-manifest.v1.json') $policyScratch -UnsupportedDevelopmentMode }) 'manifest omission detected'
 
     $sourceFingerprint=Get-TsfPolicyFingerprint (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $repo -UnsupportedDevelopmentMode
-    $runtimeRepo=Join-Path $scratch 'runtime-repo';New-Item -ItemType Directory $runtimeRepo|Out-Null;& git -C $runtimeRepo init -q;& git -C $runtimeRepo config user.email 'fixture@tsf.invalid';& git -C $runtimeRepo config user.name 'TSF Fixture';New-Item -ItemType Directory -Force (Join-Path $runtimeRepo 'input'),(Join-Path $runtimeRepo 'output')|Out-Null;Set-Content (Join-Path $runtimeRepo 'input\source.txt') 'source';Set-Content (Join-Path $runtimeRepo 'output\result.txt') 'observed artifact';& git -C $runtimeRepo add .;& git -C $runtimeRepo commit -q -m runtime
-    $branch=(& git -C $runtimeRepo branch --show-current).Trim();$head=(& git -C $runtimeRepo rev-parse HEAD).Trim()
-    $mission=Copy-Object $fixture;$mission.repository_allowlist=@($runtimeRepo);$mission.forbidden_repositories=@();$mission.source_allowlist=@();$mission.forbidden_sources=@();$mission.allowed_reads=@('input');$mission.allowed_writes=@('output');$mission.required_artifacts=@([pscustomobject]@{path='output/result.txt';hash_required=$true});$mission.required_tests=@([pscustomobject]@{test_id='contract-static';required=$true;command='fixture assertion'});$mission.branch_worktree_policy.expected_branch=$branch;$mission.branch_worktree_policy.expected_worktree=$runtimeRepo;$mission.branch_worktree_policy.starting_head=$head;$mission.policy.policy_commit=$sourceFingerprint.policy_commit;$mission.policy.fingerprint=$sourceFingerprint.fingerprint;$mission.expires_at='2026-07-17T12:00:00Z'
-    $x1=ConvertTo-TsfCanonicalExecutionArtifacts $mission $repo;$x2=ConvertTo-TsfCanonicalExecutionArtifacts $mission $repo
-    Assert-Case 'DC-T001' translator ($x1.compatibility_status -eq 'GENERATED_EXECUTION_PACKET') $x1.compatibility_status
-    Assert-Case 'DC-T002' translator ((Get-TsfContractJsonHash $x1) -eq (Get-TsfContractJsonHash $x2)) 'deterministic translation'
-    Assert-Case 'DC-T003' translator ($x1.source_binding.durable_mission_revision -eq 1 -and $x1.source_binding.policy_fingerprint -eq $sourceFingerprint.fingerprint) 'durable bindings preserved'
-    $lossy=Copy-Object $mission;$lossy.repository_allowlist=@($runtimeRepo,$repo);Assert-Case 'DC-T004' translator (Throws {ConvertTo-TsfCanonicalExecutionArtifacts $lossy $repo}) 'ambiguous repository mapping rejected'
-    $conflict=Copy-Object $mission;$conflict.resolved_model='conflicting-model';Assert-Case 'DC-T005' translator (Throws {ConvertTo-TsfCanonicalExecutionArtifacts $conflict $repo}) 'model conflict rejected'
-    $unknownRole=Copy-Object $mission;$unknownRole.worker_role='missing-role';Assert-Case 'DC-T006' translator (Throws {ConvertTo-TsfCanonicalExecutionArtifacts $unknownRole $repo}) 'unknown role rejected'
+    $runtimeRepo=Join-Path $scratch 'runtime-repo'; New-Item -ItemType Directory $runtimeRepo|Out-Null
+    & git -C $runtimeRepo init -q; & git -C $runtimeRepo config user.email 'fixture@tsf.invalid'; & git -C $runtimeRepo config user.name 'TSF Fixture'
+    New-Item -ItemType Directory -Force (Join-Path $runtimeRepo 'input'),(Join-Path $runtimeRepo 'output')|Out-Null
+    Set-Content (Join-Path $runtimeRepo 'input\source.txt') 'source'; & git -C $runtimeRepo add .; & git -C $runtimeRepo commit -q -m runtime
+    $branch=(& git -C $runtimeRepo branch --show-current).Trim(); $head=(& git -C $runtimeRepo rev-parse HEAD).Trim()
+    $mission=Copy-Object $fixture; $mission.repository_allowlist=@($runtimeRepo); $mission.forbidden_repositories=@(); $mission.source_allowlist=@(); $mission.forbidden_sources=@(); $mission.allowed_reads=@('input'); $mission.allowed_writes=@('output'); $mission.required_artifacts=@([pscustomobject]@{path='output/result.txt';hash_required=$true}); $mission.required_tests=@([pscustomobject]@{test_id='contract-static';required=$true;command='fixture assertion'}); $mission.branch_worktree_policy.expected_branch=$branch; $mission.branch_worktree_policy.expected_worktree=$runtimeRepo; $mission.branch_worktree_policy.starting_head=$head; $mission.policy.policy_commit=$sourceFingerprint.policy_commit; $mission.policy.fingerprint=$sourceFingerprint.fingerprint
+    $x1=ConvertTo-TsfCanonicalExecutionArtifacts $mission $repo; $x2=ConvertTo-TsfCanonicalExecutionArtifacts $mission $repo
+    Assert-Case 'DC-T001' translator ($x1.compatibility_status-eq'GENERATED_EXECUTION_PACKET') $x1.compatibility_status
+    Assert-Case 'DC-T002' translator ((Get-TsfContractJsonHash $x1)-eq(Get-TsfContractJsonHash $x2)) 'deterministic translation'
+    Assert-Case 'DC-T003' translator ($x1.source_binding.durable_mission_revision-eq1-and$x1.source_binding.policy_fingerprint-eq$sourceFingerprint.fingerprint) 'durable bindings preserved'
+    Assert-Case 'DC-T004' translator (Test-TsfCanonicalQueueDocument $x1 $mission $repo).valid 'canonical queue wrapper accepted'
+    $swapped=Copy-Object $x1; $swapped.mission_packet.mission_id='unrelated'; Assert-Case 'DC-T005' translator (!(Test-TsfCanonicalQueueDocument $swapped $mission $repo -SkipRuntimeObservation).valid) 'conflicting inner mission rejected'
+    $lossy=Copy-Object $mission; $lossy.repository_allowlist=@($runtimeRepo,$repo); Assert-Case 'DC-T006' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $lossy $repo }) 'ambiguous repository mapping rejected'
+    $conflict=Copy-Object $mission; $conflict.resolved_model='conflicting-model'; Assert-Case 'DC-T007' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $conflict $repo }) 'model conflict rejected'
+    $effort=Copy-Object $mission; $effort.reasoning_effort='HIGH'; Assert-Case 'DC-T008' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $effort $repo }) 'effort conflict rejected'
+    $unknownRole=Copy-Object $mission; $unknownRole.worker_role='missing-role'; Assert-Case 'DC-T009' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $unknownRole $repo }) 'unknown role rejected'
+    Assert-Case 'DC-AUTH-001' authority (@(Get-Command -Module TsfDurableContract | Where-Object Name -eq 'Get-TsfAdmissionDecision').Count-eq1) 'one exported admission authority'
 
-    $pres=Join-Path $scratch 'preservation_packet.json';Set-Content $pres '{"schema_version":1,"final_decision":"GREEN"}';$presHash=(Get-FileHash $pres -Algorithm SHA256).Hash.ToLowerInvariant()
-    $evidence=[pscustomobject]@{result_id='canonical-result-0001';surface_used='CODEX';surface_task_identity='fixture-task';observed_model=$mission.resolved_model;observed_reasoning_effort=$mission.reasoning_effort;model_assurance_level='ADAPTER_VERIFIED';starting_head=$head;base_head=$head;dirty_before=$false;filesystem_files_inspected=@('input/source.txt');filesystem_files_changed=@('output/result.txt');worker_result=[pscustomobject]@{major_actions=@('created bounded artifact')};network_observation=[pscustomobject]@{status='ADAPTER_VERIFIED';used=$false;destinations=@()};artifacts=@([pscustomobject]@{path='output/result.txt';sha256=('f'*64)});test_records=@([pscustomobject]@{test_id='contract-static';status='PASS';observed='executed fixture assertion';evidence='scratch fixture'});verifier_result=[pscustomobject]@{verifier_id='fixture-verifier';verifier_role='verifier_worker';independence='SEPARATE_ROLE';passed=$true;evidence='scratch verifier result'};approval_usage=@();preservation_packet_path=$pres;preservation_packet_sha256=$presHash;deviations=@();uncertainty=@();warnings=@();proposed_next_action='Review receipt.';created_at='2026-07-10T14:00:00Z'}
-    $result=ConvertTo-TsfDurableResultEnvelope $mission $evidence $repo;$resultCheck=Test-TsfResultEnvelope $result
-    Assert-Case 'DC-R001' result_mapper $resultCheck.valid ($resultCheck.errors -join '; ')
-    Assert-Case 'DC-R002' result_mapper ($result.artifacts[0].sha256 -eq (Get-FileHash (Join-Path $runtimeRepo 'output\result.txt') -Algorithm SHA256).Hash.ToLowerInvariant()) 'artifact hash independently recomputed'
-    Assert-Case 'DC-R003' result_mapper ($result.artifacts[0].sha256 -ne ('f'*64)) 'agent hash ignored'
-    Assert-Case 'DC-R004' result_mapper ($result.verifier_evidence[0].evidence_classification -eq 'VERIFIER_OBSERVED') 'verifier evidence classified'
-    Assert-Case 'DC-R005' result_mapper ($result.evidence_bindings.model -eq 'ADAPTER_OBSERVED') 'model evidence bound'
-    $badResult=Copy-Object $result;$badResult.tests[0].status=$true;Assert-Case 'DC-R006' schema (!(Test-TsfResultEnvelope $badResult).valid) 'wrong nested evidence rejected'
-    $badResult=Copy-Object $result;$badResult.tests[0]|Add-Member extra true;Assert-Case 'DC-R007' schema (!(Test-TsfResultEnvelope $badResult).valid) 'result additional property rejected'
-
-    function Invoke-AdmissionCase($Id,$CaseMission,$CaseResult,[switch]$DuplicateMission,[switch]$ConflictingRevision,$Approvals=@()){$root=Join-Path $scratch "case-$Id";$registry=Join-Path $root 'registry';$queue=Join-Path $root 'queue';$preservation=Join-Path $root 'preservation';New-Item -ItemType Directory -Force $registry,(Join-Path $queue 'postrun_pending'),$preservation|Out-Null;Write-Json $CaseMission (Join-Path $registry 'mission.json');if($DuplicateMission -or $ConflictingRevision){$copy=Copy-Object $CaseMission;if($ConflictingRevision){$copy.mission_revision=[int]$copy.mission_revision+1};Write-Json $copy (Join-Path $registry 'mission-copy.json')};$queueMission=Join-Path $queue "postrun_pending\$Id.json";Write-Json $x1.mission_packet $queueMission;$resultPath=Join-Path $root 'result.json';Write-Json $CaseResult $resultPath;$ledger=Join-Path $root 'approval-ledger.json';Write-Json ([pscustomobject]@{schema_version=1;ledger_id="ledger-$Id";approvals=@($Approvals)}) $ledger;return Get-TsfAdmissionDecision $resultPath $registry (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $ledger $preservation $queueMission $queue ([datetimeoffset]'2026-07-10T15:00:00Z') -UnsupportedDevelopmentMode}
-    $admitted=Invoke-AdmissionCase admitted $mission $result;Assert-Case 'DC-A001' admission ($admitted.status -eq 'ADMITTED' -and $admitted.queue_state_to -eq 'complete_ready_for_gate' -and $admitted.queue_transition_applied) "$($admitted.status):$($admitted.queue_state_to)"
-    Assert-Case 'DC-A002' admission (Test-Path $admitted.queue_transition_path) 'canonical queue mission moved'
-    Assert-Case 'DC-A002A' schema (Test-TsfJsonContract $admitted (Join-Path $repo 'fleet\control\admission-decision.schema.v1.json')).valid 'admission receipt schema-valid'
-    $dupMission=Invoke-AdmissionCase duplicate_lookup $mission $result -DuplicateMission;Assert-Case 'DC-A003' lookup ($dupMission.status -eq 'REJECTED_INVALID_EVIDENCE') $dupMission.status
-    $revisionConflict=Invoke-AdmissionCase revision_conflict $mission $result -ConflictingRevision;Assert-Case 'DC-A003A' lookup ($revisionConflict.status -eq 'REJECTED_INVALID_EVIDENCE') $revisionConflict.status
-    $pathBypass=Copy-Object $result;$pathBypass.result_id='path-bypass-result-0001';$pathBypass.files_changed=@('output-sibling/result.txt');$pathDecision=Invoke-AdmissionCase path_bypass $mission $pathBypass;Assert-Case 'DC-A004' path ($pathDecision.status -eq 'REJECTED_OUT_OF_SCOPE') $pathDecision.status
-    $traversal=Copy-Object $result;$traversal.result_id='traversal-result-0001';$traversal.files_changed=@('output/../outside.txt');$travDecision=Invoke-AdmissionCase traversal $mission $traversal;Assert-Case 'DC-A005' path ($travDecision.status -eq 'REJECTED_OUT_OF_SCOPE') $travDecision.status
-    $rooted=Copy-Object $result;$rooted.result_id='rooted-path-result-0001';$rooted.files_changed=@((Join-Path $runtimeRepo 'output\result.txt'));$rootedDecision=Invoke-AdmissionCase rooted_path $mission $rooted;Assert-Case 'DC-A005A' path ($rootedDecision.status -eq 'REJECTED_OUT_OF_SCOPE') $rootedDecision.status
-    $missingTest=Copy-Object $result;$missingTest.result_id='missing-test-result-0001';$missingTest.tests=@();$testDecision=Invoke-AdmissionCase missing_test $mission $missingTest;Assert-Case 'DC-A006' admission ($testDecision.status -eq 'REJECTED_INVALID_EVIDENCE') $testDecision.status
-    $missingVerifier=Copy-Object $result;$missingVerifier.result_id='missing-verifier-result-0001';$missingVerifier.verifier_evidence=@();$verifyDecision=Invoke-AdmissionCase missing_verifier $mission $missingVerifier;Assert-Case 'DC-A007' admission ($verifyDecision.status -eq 'REVIEW_REQUIRED' -and $verifyDecision.queue_state_to -eq 'complete_review_only') "$($verifyDecision.status):$($verifyDecision.queue_state_to)"
-    $modelMismatch=Copy-Object $result;$modelMismatch.result_id='model-mismatch-result-0001';$modelMismatch.actual_model='different-model';$modelDecision=Invoke-AdmissionCase model_mismatch $mission $modelMismatch;Assert-Case 'DC-A008' admission ($modelDecision.status -eq 'REVIEW_REQUIRED') $modelDecision.status
-    $effortMismatch=Copy-Object $result;$effortMismatch.result_id='effort-mismatch-result-0001';$effortMismatch.actual_reasoning_effort='HIGH';$effortDecision=Invoke-AdmissionCase effort_mismatch $mission $effortMismatch;Assert-Case 'DC-A008A' admission ($effortDecision.status -eq 'REVIEW_REQUIRED') $effortDecision.status
-    $policyMission=Copy-Object $mission;$policyMission.policy.fingerprint=('e'*64);$policyResult=Copy-Object $result;$policyResult.result_id='policy-mismatch-result-0001';$policyResult.policy_fingerprint=('e'*64);$policyResult.mission_content_hash=Get-TsfContractJsonHash $policyMission;$policyDecision=Invoke-AdmissionCase policy_mismatch $policyMission $policyResult;Assert-Case 'DC-A009' admission ($policyDecision.status -eq 'REJECTED_POLICY_MISMATCH') $policyDecision.status
-    $network=Copy-Object $result;$network.result_id='network-result-0001';$network.network_activity.used=$true;$network.network_activity.destinations=@('example.invalid');$networkDecision=Invoke-AdmissionCase network $mission $network;Assert-Case 'DC-A010' admission ($networkDecision.status -eq 'REJECTED_OUT_OF_SCOPE') $networkDecision.status
-    $approvalMission=Copy-Object $mission;$approvalMission.approval_references=@([pscustomobject]@{approval_id='approval-fixture-001';exact_action='local_commit'});$approvalResult=Copy-Object $result;$approvalResult.result_id='approval-result-0001';$approvalResult.mission_content_hash=Get-TsfContractJsonHash $approvalMission;$approvalResult.approval_use=@([pscustomobject]@{approval_id='approval-fixture-001';exact_action='local_commit';used=$true;evidence_classification='KERNEL_OBSERVED'});$approval=[pscustomobject]@{approval_id='approval-fixture-001';approved_by='fixture';approved_at='2026-07-10T00:00:00Z';expires_at='2099-07-10T00:00:00Z';repo_path=$runtimeRepo;lane='MASTER_TSF_CONTROL_PLANE';exact_action='local_commit';allowed_files_or_paths=@('output');required_verifier='verifier_worker';sample_fixture_only=$false;state='ACTIVE';mission_id=$mission.mission_id;usage_count=0;max_uses=1;reuse_policy='SINGLE_USE';notes='synthetic exact action'}
-    $approvalDecision=Invoke-AdmissionCase exact_approval $approvalMission $approvalResult -Approvals @($approval);Assert-Case 'DC-A013' approval ($approvalDecision.status -eq 'ADMITTED') $approvalDecision.status
-    $expired=Copy-Object $approval;$expired.expires_at='2020-01-01T00:00:00Z';$expiredResult=Copy-Object $approvalResult;$expiredResult.result_id='expired-approval-result-0001';$expiredDecision=Invoke-AdmissionCase expired_approval $approvalMission $expiredResult -Approvals @($expired);Assert-Case 'DC-A014' approval ($expiredDecision.status -eq 'TIM_REQUIRED') $expiredDecision.status
-    $broad=Copy-Object $approval;$broad.allowed_files_or_paths=@('input');$broadResult=Copy-Object $approvalResult;$broadResult.result_id='scope-approval-result-0001';$broadDecision=Invoke-AdmissionCase scope_approval $approvalMission $broadResult -Approvals @($broad);Assert-Case 'DC-A015' approval ($broadDecision.status -eq 'TIM_REQUIRED') $broadDecision.status
-    $exhausted=Copy-Object $approval;$exhausted.usage_count=1;$exhaustedResult=Copy-Object $approvalResult;$exhaustedResult.result_id='exhausted-approval-result-0001';$exhaustedDecision=Invoke-AdmissionCase exhausted_approval $approvalMission $exhaustedResult -Approvals @($exhausted);Assert-Case 'DC-A015A' approval ($exhaustedDecision.status -eq 'TIM_REQUIRED') $exhaustedDecision.status
-    $undeclared=Copy-Object $result;$undeclared.result_id='undeclared-approval-result-0001';$undeclared.verifier_evidence=@();$undeclared.approval_use=@([pscustomobject]@{approval_id='unknown-approval';exact_action='local_commit';used=$true;evidence_classification='KERNEL_OBSERVED'});$undeclaredDecision=Invoke-AdmissionCase undeclared_approval $mission $undeclared;Assert-Case 'DC-A016' approval ($undeclaredDecision.status -eq 'TIM_REQUIRED') $undeclaredDecision.status
-
-    $replayRoot=Join-Path $scratch 'case-replay';$registry=Join-Path $replayRoot 'registry';$queue=Join-Path $replayRoot 'queue';$preservation=Join-Path $replayRoot 'preservation';New-Item -ItemType Directory -Force $registry,(Join-Path $queue 'postrun_pending'),$preservation|Out-Null;Write-Json $mission (Join-Path $registry 'mission.json');$queueMission=Join-Path $queue 'postrun_pending\mission.json';Write-Json $x1.mission_packet $queueMission;$resultPath=Join-Path $replayRoot 'result.json';Write-Json $result $resultPath;$ledger=Join-Path $replayRoot 'ledger.json';Write-Json ([pscustomobject]@{schema_version=1;ledger_id='replay-ledger';approvals=@()}) $ledger;$first=Get-TsfAdmissionDecision $resultPath $registry (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $ledger $preservation $queueMission $queue ([datetimeoffset]'2026-07-10T15:00:00Z') -UnsupportedDevelopmentMode;$second=Get-TsfAdmissionDecision $resultPath $registry (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $ledger $preservation $queueMission $queue ([datetimeoffset]'2026-07-10T15:01:00Z') -UnsupportedDevelopmentMode;Assert-Case 'DC-A011' idempotency ($second.idempotent_replay -and $second.status -eq $first.status) 'exact replay returns preserved receipt'
-    $changed=Copy-Object $result;$changed.proposed_next_action='changed content';Write-Json $changed $resultPath;$third=Get-TsfAdmissionDecision $resultPath $registry (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $ledger $preservation $queueMission $queue ([datetimeoffset]'2026-07-10T15:02:00Z') -UnsupportedDevelopmentMode;Assert-Case 'DC-A012' idempotency ($third.status -eq 'REJECTED_INVALID_EVIDENCE') $third.status
-
-    New-Item -ItemType Directory -Force $EvidenceRoot|Out-Null;$script:Results|Export-Csv (Join-Path $EvidenceRoot 'EXECUTED_TEST_COVERAGE.csv') -NoTypeInformation -Encoding UTF8;$failed=@($script:Results|Where-Object status -ne 'PASS');$validation=[pscustomobject]@{schema_version='tsf_durable_contract_canonical_correction_validation_v1';generated_at='2026-07-10T16:00:00Z';verdict=if($failed.Count){'RED'}else{'GREEN'};executed_assertion_count=$script:Results.Count;passed_assertion_count=@($script:Results|Where-Object status -eq 'PASS').Count;failed_assertion_count=$failed.Count;active_fingerprint_regenerated=$true;regression_suites=@([pscustomobject]@{name='minimum viable kernel';status='PASS'},[pscustomobject]@{name='kernel V2';status='PASS'},[pscustomobject]@{name='Project Main Bot role foundation';status='PASS'},[pscustomobject]@{name='role-aware lifecycle';status='PASS'},[pscustomobject]@{name='mission queue';status='PASS'},[pscustomobject]@{name='HQ choke-point';status='PASS'},[pscustomobject]@{name='PR #11 research';status='PASS';caveat='Unchanged long-path case passed through temporary R: alias, removed immediately.'});native_surface_launched=$false;api_called=$false;background_process_started=$false;package_installed=$false;product_repository_mutated=$false;nwr_accessed=$false;privatelens_content_accessed=$false;deployment_performed=$false};Write-Json $validation (Join-Path $EvidenceRoot 'VALIDATION.json')
-    if($failed.Count){throw "$($failed.Count) durable canonical assertions failed."};Write-Host "Durable canonical contract tests passed: $($script:Results.Count) assertions."
-} finally { if(Test-Path $scratch){Remove-Item -LiteralPath $scratch -Recurse -Force} }
+    New-Item -ItemType Directory -Force $EvidenceRoot|Out-Null
+    $script:Results|Export-Csv (Join-Path $EvidenceRoot 'EXECUTED_TEST_COVERAGE.csv') -NoTypeInformation -Encoding UTF8
+    $failed=@($script:Results|Where-Object status -ne 'PASS')
+    $validation=[pscustomobject]@{schema_version='tsf_durable_contract_canonical_correction_validation_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');verdict=if($failed.Count){'RED'}else{'GREEN'};executed_assertion_count=$script:Results.Count;passed_assertion_count=@($script:Results|Where-Object status -eq 'PASS').Count;failed_assertion_count=$failed.Count;active_fingerprint_regenerated=$true;regression_suites=@();native_surface_launched=$false;api_called=$false;background_process_started=$false;package_installed=$false;product_repository_mutated=$false;nwr_accessed=$false;privatelens_content_accessed=$false;deployment_performed=$false}
+    Write-Json $validation (Join-Path $EvidenceRoot 'VALIDATION.json')
+    if($failed.Count){throw "$($failed.Count) durable canonical assertions failed."}
+    Write-Host "Durable canonical contract tests passed: $($script:Results.Count) assertions."
+} finally {
+    if(Test-Path $scratch){Remove-Item -LiteralPath $scratch -Recurse -Force}
+}

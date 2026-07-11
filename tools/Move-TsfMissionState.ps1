@@ -11,27 +11,27 @@ param(
     [string]$QueueRoot = "fleet/missions",
     [string]$PolicyPath = "fleet/control/mission-queue-state-policy.v1.json",
     [string]$OutFile = "",
+    [string]$RecoveryTransactionPath = "",
     [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
 
 $fleetRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $fleetRoot "tools\codex-fleet-enforcement-kernel.ps1")
 
 function Get-QueueFullPath {
     param([string]$Path)
     if ([System.IO.Path]::IsPathRooted($Path)) {
-        return [System.IO.Path]::GetFullPath($Path)
+        return Get-TsfKernelFullPath -Path $Path
     }
-    return [System.IO.Path]::GetFullPath((Join-Path $fleetRoot $Path))
+    return Get-TsfKernelFullPath -Path $Path -BasePath $fleetRoot
 }
 
 function Test-QueuePathInside {
     param([string]$ChildPath, [string]$ParentPath)
-    $child = [System.IO.Path]::GetFullPath($ChildPath).TrimEnd('\', '/')
-    $parent = [System.IO.Path]::GetFullPath($ParentPath).TrimEnd('\', '/')
-    return [string]::Equals($child, $parent, [System.StringComparison]::OrdinalIgnoreCase) -or
-        $child.StartsWith($parent + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+    return (Test-TsfKernelPathInside -ChildPath $ChildPath -ParentPath $ParentPath) -and
+        (Test-TsfKernelReparseContained -ChildPath $ChildPath -RepositoryRoot $ParentPath)
 }
 
 function Read-QueueJson {
@@ -56,7 +56,33 @@ if (!(Test-Path -LiteralPath $missionFull)) {
     $blocked.Add("Mission file not found: $missionFull") | Out-Null
 }
 
-$allowed = @($policy.allowed_transitions | Where-Object { [string]$_.from -eq $from -and [string]$_.to -eq $to }).Count -gt 0
+$recovery = $null
+$isRecovery = ![string]::IsNullOrWhiteSpace($RecoveryTransactionPath)
+if ($isRecovery) {
+    $recoveryPath = Get-QueueFullPath -Path $RecoveryTransactionPath
+    if (!(Test-Path -LiteralPath $recoveryPath -PathType Leaf)) {
+        $blocked.Add("Recovery transaction marker not found.") | Out-Null
+    } else {
+        $recovery = Read-QueueJson -Path $recoveryPath
+        if ([string]$recovery.schema_version -ne 'tsf_admission_transaction_v1' -or [string]$recovery.state -notin @('PREPARED','RECOVERY_REQUIRED')) {
+            $blocked.Add("Recovery transaction marker is not in a recoverable state.") | Out-Null
+        }
+        if ([string]$recovery.queue_state_to -ne $from -or [string]$recovery.queue_state_from -ne $to) {
+            $blocked.Add("Recovery transition does not reverse the bound admission transition.") | Out-Null
+        }
+        if (![string]::Equals((Get-TsfKernelFullPath ([string]$recovery.destination_path)), $missionFull, [StringComparison]::OrdinalIgnoreCase)) {
+            $blocked.Add("Recovery mission path does not match the bound transaction destination.") | Out-Null
+        }
+        if (Test-Path -LiteralPath $missionFull -PathType Leaf) {
+            $missionDocument = Read-QueueJson -Path $missionFull
+            if ([string]$missionDocument.source_binding.durable_mission_id -ne [string]$recovery.mission_id -or [int]$missionDocument.source_binding.durable_mission_revision -ne [int]$recovery.mission_revision) {
+                $blocked.Add("Recovery mission identity does not match the transaction marker.") | Out-Null
+            }
+        }
+    }
+}
+
+$allowed = if ($isRecovery) { $blocked.Count -eq 0 } else { @($policy.allowed_transitions | Where-Object { [string]$_.from -eq $from -and [string]$_.to -eq $to }).Count -gt 0 }
 if (!$allowed) {
     $blocked.Add("Transition is not allowed: $from -> $to") | Out-Null
 }
@@ -68,6 +94,9 @@ if (!(Test-QueuePathInside -ChildPath $missionFull -ParentPath $expectedFromRoot
 
 $destinationDir = Join-Path $queueRootFull $to
 $destinationPath = Join-Path $destinationDir ([System.IO.Path]::GetFileName($missionFull))
+if ($isRecovery -and $null -ne $recovery -and ![string]::Equals((Get-TsfKernelFullPath ([string]$recovery.source_path)), $destinationPath, [StringComparison]::OrdinalIgnoreCase)) {
+    $blocked.Add("Recovery destination does not match the original transaction source.") | Out-Null
+}
 if (Test-Path -LiteralPath $destinationPath) {
     $blocked.Add("Destination mission already exists: $destinationPath") | Out-Null
 }
@@ -87,6 +116,7 @@ $result = [pscustomobject]@{
     destination_path = $destinationPath
     dry_run = [bool]$DryRun
     moved = ($verdict -eq "GREEN" -and !$DryRun)
+    recovery = $isRecovery
     blocked_reasons = @($blocked)
     background_runner_started = $false
     push_performed = $false

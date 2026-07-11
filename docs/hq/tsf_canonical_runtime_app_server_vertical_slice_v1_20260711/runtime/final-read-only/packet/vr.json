@@ -1,0 +1,70 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-10T22:00:30.7760881-06:00",
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "verdict":  "GREEN",
+    "final_state":  "complete_green",
+    "verified":  true,
+    "checks":  [
+                   {
+                       "name":  "postrun.mission_id",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result mission_id matches mission packet.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.artifact.exists",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Expected artifact exists.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\fleet\\control\\policy-manifest.v1.json"
+                   },
+                   {
+                       "name":  "postrun.readonly_artifact_observed",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Read-only expected artifact is observed, not worker-created.",
+                       "evidence":  "fleet/control/policy-manifest.v1.json"
+                   },
+                   {
+                       "name":  "postrun.restricted_actions",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "No restricted actions attempted in worker result evidence.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.files_touched",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Read-only mission touched no files.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "postrun.worker_role",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result role matches mission role.",
+                       "evidence":  "auditor_worker"
+                   },
+                   {
+                       "name":  "postrun.role_output_contract",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Worker result claims role output contract was satisfied.",
+                       "evidence":  "Findings-first audit with merge/readiness recommendation and caveats."
+                   }
+               ],
+    "blocked_reasons":  [
+
+                        ],
+    "warnings":  [
+
+                 ],
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}

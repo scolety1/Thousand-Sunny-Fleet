@@ -1,41 +1,13 @@
 ﻿{
     "schema_version":  "tsf_durable_contract_canonical_correction_validation_v1",
-    "generated_at":  "2026-07-10T16:00:00Z",
+    "generated_at":  "2026-07-11T03:18:44.1105890+00:00",
     "verdict":  "GREEN",
-    "executed_assertion_count":  57,
-    "passed_assertion_count":  57,
+    "executed_assertion_count":  33,
+    "passed_assertion_count":  33,
     "failed_assertion_count":  0,
     "active_fingerprint_regenerated":  true,
     "regression_suites":  [
-                              {
-                                  "name":  "minimum viable kernel",
-                                  "status":  "PASS"
-                              },
-                              {
-                                  "name":  "kernel V2",
-                                  "status":  "PASS"
-                              },
-                              {
-                                  "name":  "Project Main Bot role foundation",
-                                  "status":  "PASS"
-                              },
-                              {
-                                  "name":  "role-aware lifecycle",
-                                  "status":  "PASS"
-                              },
-                              {
-                                  "name":  "mission queue",
-                                  "status":  "PASS"
-                              },
-                              {
-                                  "name":  "HQ choke-point",
-                                  "status":  "PASS"
-                              },
-                              {
-                                  "name":  "PR #11 research",
-                                  "status":  "PASS",
-                                  "caveat":  "Unchanged long-path case passed through temporary R: alias, removed immediately."
-                              }
+
                           ],
     "native_surface_launched":  false,
     "api_called":  false,

@@ -1,0 +1,16 @@
+﻿{
+    "schema_version":  "tsf_authenticated_runtime_evidence_v1",
+    "result_id":  "canonical-result-synthetic-tsf-workspace-appserver-0001-1",
+    "queue_document_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write\\queue\\postrun_pending\\synthetic-tsf-workspace-appserver-0001.json",
+    "adapter_result_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\a\\kz7bble64goja5eh4cs3td4acdcmq6z4\\6zwiemfzu52gtqq6uv7ju7wteibspjx4\\ar.json",
+    "preflight_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write\\evidence\\canonical_lifecycle\\preflight_result.json",
+    "role_preflight_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write\\evidence\\canonical_lifecycle\\role_permission_preflight.json",
+    "worker_result_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write\\evidence\\canonical_lifecycle\\worker_result.json",
+    "verifier_result_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\workspace-write\\evidence\\canonical_lifecycle\\verifier_result.json",
+    "preservation_packet_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\rt\\p\\kz7bble64goja5eh4cs3td4acdcmq6z4\\6zwiemfzu52gtqq6uv7ju7wteibspjx4\\pp.json",
+    "starting_head":  "9771a1f8e9c3ee0346324ea90a24576c04ad82a5",
+    "base_head":  "9771a1f8e9c3ee0346324ea90a24576c04ad82a5",
+    "dirty_before":  null,
+    "proposed_next_action":  "Review canonical admission receipt.",
+    "created_at":  "2026-07-11T04:01:04.8446333+00:00"
+}

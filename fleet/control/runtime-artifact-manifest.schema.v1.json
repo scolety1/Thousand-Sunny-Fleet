@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/runtime-artifact-manifest.schema.v1.json",
+  "title": "TSF Runtime Artifact Manifest V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "created_at", "mission_id", "mission_revision", "run_id", "mission_content_hash", "policy_fingerprint", "repository", "branch", "worktree", "translator_version", "adapter_version", "mission_identity_sha256", "mission_key", "run_identity_sha256", "run_key", "artifacts"],
+  "properties": {
+    "schema_version": { "const": "tsf_runtime_artifact_manifest_v1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "mission_id": { "type": "string", "minLength": 1 },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "mission_content_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "policy_fingerprint": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "repository": { "type": ["string", "null"] },
+    "branch": { "type": ["string", "null"] },
+    "worktree": { "type": ["string", "null"] },
+    "translator_version": { "type": ["string", "null"] },
+    "adapter_version": { "type": ["string", "null"] },
+    "mission_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "mission_key": { "type": "string", "pattern": "^[a-z2-7]{32}$" },
+    "run_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_key": { "type": "string", "pattern": "^[a-z2-7]{32}$" },
+    "artifacts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["logical_type", "path", "sha256", "size", "evidence_classification", "producer", "created_at"],
+        "properties": {
+          "logical_type": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "size": { "type": "integer", "minimum": 0 },
+          "evidence_classification": { "enum": ["NATIVE_OBSERVED", "ADAPTER_OBSERVED", "KERNEL_OBSERVED", "FILESYSTEM_OBSERVED", "VERIFIER_OBSERVED", "UNVERIFIED"] },
+          "producer": { "type": "string", "minLength": 1 },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

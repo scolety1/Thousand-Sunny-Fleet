@@ -135,6 +135,7 @@ function New-QueueExecutorApprovalLedger {
                 required_verifier = "Invoke-TsfKernelPostRunVerify"
                 scope_limit = "Queue executor test fixture only."
                 sample_fixture_only = $false
+                notes = "Synthetic queue executor regression approval."
             }
         )
     }

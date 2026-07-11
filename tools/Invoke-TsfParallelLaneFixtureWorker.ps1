@@ -300,7 +300,7 @@ Create exactly the allowed fixture file with exactly the required content. Do no
     Write-ParallelLaneJson -Value $workerResult -Path $workerResultPath
 
     $verifier = Invoke-TsfKernelPostRunVerify -MissionPath $missionPath -WorkerResultPath $workerResultPath -OutFile $verifierPath -StateRoot (Join-Path $OutDirectory "kernel_states")
-    $preservation = Write-TsfKernelPreservationPacket -MissionPath $missionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory $preservationRoot -ExactNextAction "Collect parallel lane result in coordinator branch; do not merge lane branch."
+    $preservation = Write-TsfKernelPreservationPacket -MissionPath $missionPath -PreflightResultPath $preflightPath -WorkerResultPath $workerResultPath -VerifierResultPath $verifierPath -OutputDirectory (Join-Path $fleetRoot '.codex-local\rt') -ExactNextAction "Collect parallel lane result in coordinator branch; do not merge lane branch."
 
     $finalDecision = if ($workerStatus -eq "CODEX_CLI_PARALLEL_LANE_FIXTURE_GREEN" -and [string]$verifier.verdict -eq "GREEN") {
         "GREEN_PARALLEL_LANE_WORKER_VERIFIED"

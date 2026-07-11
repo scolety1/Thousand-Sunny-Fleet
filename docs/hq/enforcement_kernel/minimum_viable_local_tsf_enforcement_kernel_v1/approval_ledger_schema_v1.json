@@ -69,6 +69,10 @@
             "minLength": 1,
             "maxLength": 120
           },
+          "worktree_path": {
+            "type": "string",
+            "minLength": 1
+          },
           "exact_action": {
             "type": "string",
             "minLength": 1,

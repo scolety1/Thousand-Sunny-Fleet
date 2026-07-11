@@ -1,0 +1,556 @@
+﻿{
+    "schema_version":  1,
+    "generated_at":  "2026-07-10T22:00:17.0897129-06:00",
+    "mission_path":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\.codex-local\\fixtures\\tsf-app-v1\\read-only\\evidence\\canonical_lifecycle\\mission_packet.effective.json",
+    "mission_id":  "synthetic-tsf-readonly-appserver-0001",
+    "verdict":  "YELLOW",
+    "preflight_approved":  true,
+    "checks":  [
+                   {
+                       "name":  "schema.mission_id",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.project_id",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.repo_path",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.lane",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.mission_type",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.allowed_reads",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.allowed_writes",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.forbidden_reads",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.forbidden_writes",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.forbidden_actions",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.expected_artifacts",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.required_preflight_checks",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.required_postrun_checks",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.stop_conditions",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.approval_requirements",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.hq_escalation_policy",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.created_by",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.created_at",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Required field exists.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.allowed_reads.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.allowed_writes.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.forbidden_reads.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.forbidden_writes.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.forbidden_actions.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.expected_artifacts.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.required_preflight_checks.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.required_postrun_checks.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.stop_conditions.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.approval_requirements.array",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Field is a JSON array.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "schema.created_at.parse",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "created_at parses as a timestamp.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "repo.exists",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Mission repo_path exists.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711"
+                   },
+                   {
+                       "name":  "scope.allowed_reads.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Path stays inside mission repo_path.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\fleet\\control\\policy-manifest.v1.json"
+                   },
+                   {
+                       "name":  "scope.forbidden_reads.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Forbidden path token is explicit and machine-checkable.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\NORMAL_NWR_PACKETS"
+                   },
+                   {
+                       "name":  "scope.forbidden_reads.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Forbidden path token is explicit and machine-checkable.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\SECRETS"
+                   },
+                   {
+                       "name":  "scope.forbidden_reads.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Forbidden path token is explicit and machine-checkable.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\CREDENTIALS"
+                   },
+                   {
+                       "name":  "scope.forbidden_reads.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Forbidden path token is explicit and machine-checkable.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\PRIVATELENS"
+                   },
+                   {
+                       "name":  "scope.forbidden_reads.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Forbidden path token is explicit and machine-checkable.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\PRODUCT_REPOS"
+                   },
+                   {
+                       "name":  "scope.expected_artifacts.safe_scope",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Path stays inside mission repo_path.",
+                       "evidence":  "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-windows-safe-runtime-v1-20260711\\fleet\\control\\policy-manifest.v1.json"
+                   },
+                   {
+                       "name":  "actions.push.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.merge.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.deploy.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.install_packages.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.migration.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.secrets.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.privatelens.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.proof_run.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.all_fleet.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.background_runner.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.persistent_runner.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.canonical_nwr_inspection.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.canonical_nwr_mutation.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.normal_nwr_packet_read.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.product_repo_inspection.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.product_repo_mutation.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.api_bridge.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.open_network_port.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.credential_change.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.app_wiring.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.ranking_formula_source_truth_promotion.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.hidden_sort.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "actions.recommendation_behavior.covered",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Restricted action is explicitly forbidden or approval-gated.",
+                       "evidence":  ""
+                   },
+                   {
+                       "name":  "stop_conditions.machine_checkable",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Stop condition has an allowed check_type.",
+                       "evidence":  "durable-stop-001"
+                   },
+                   {
+                       "name":  "stop_conditions.machine_checkable",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Stop condition has an allowed check_type.",
+                       "evidence":  "durable-stop-002"
+                   },
+                   {
+                       "name":  "stop_conditions.machine_checkable",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Stop condition has an allowed check_type.",
+                       "evidence":  "durable-stop-003"
+                   },
+                   {
+                       "name":  "stop_conditions.machine_checkable",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Stop condition has an allowed check_type.",
+                       "evidence":  "durable-stop-004"
+                   },
+                   {
+                       "name":  "stop_conditions.machine_checkable",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Stop condition has an allowed check_type.",
+                       "evidence":  "durable-stop-005"
+                   },
+                   {
+                       "name":  "git.status.capture",
+                       "status":  "WARN",
+                       "passed":  true,
+                       "message":  "Git status captured; worktree is dirty and must be considered by worker.",
+                       "evidence":  "work/windows-safe-runtime-artifact-addressing-v1-20260711"
+                   },
+                   {
+                       "name":  "git.branch.required",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "Mission required_branch matches current branch.",
+                       "evidence":  "work/windows-safe-runtime-artifact-addressing-v1-20260711"
+                   },
+                   {
+                       "name":  "project.registration",
+                       "status":  "PASS",
+                       "passed":  true,
+                       "message":  "TSF_CONTROL_PLANE_INTERNAL",
+                       "evidence":  "Mission is a TSF-local infrastructure mission inside the TSF repo."
+                   }
+               ],
+    "blocked_reasons":  [
+
+                        ],
+    "tim_required_reasons":  [
+
+                             ],
+    "warnings":  [
+                     "Mission repo worktree is dirty."
+                 ],
+    "approval_matches":  [
+
+                         ],
+    "git_state":  {
+                      "can_capture":  true,
+                      "git_available":  true,
+                      "branch":  "work/windows-safe-runtime-artifact-addressing-v1-20260711",
+                      "head":  "393ac14b8191d505f684d1f1536f951908465ef3",
+                      "status_short":  [
+                                           " M docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/approval_ledger_schema_v1.json",
+                                           " M docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/mission_schema_v1.json",
+                                           " M docs/hq/tsf_durable_contract_canonical_integration_correction_v1_20260710/EXECUTED_TEST_COVERAGE.csv",
+                                           " M docs/hq/tsf_durable_contract_canonical_integration_correction_v1_20260710/VALIDATION.json",
+                                           " M fleet/control/admission-decision.schema.v1.json",
+                                           " M fleet/control/mission-envelope.schema.v1.json",
+                                           " M fleet/control/mission-queue-foreground-executor-policy.v1.json",
+                                           " M fleet/control/policy-manifest.v1.json",
+                                           " M fleet/control/result-envelope.schema.v1.json",
+                                           " M tests/fixtures/fleet/durable-contract/missions/codex-implementation.synthetic.mission.json",
+                                           " M tests/fixtures/fleet/durable-contract/missions/work-research.synthetic.mission.json",
+                                           " M tests/fixtures/fleet/durable-contract/results/codex-implementation.synthetic.result.json",
+                                           " M tests/fixtures/fleet/durable-contract/results/ungoverned-direct-codex.synthetic.result.json",
+                                           " M tests/fixtures/fleet/durable-contract/results/work-research.synthetic.result.json",
+                                           " M tests/run-minimum-viable-kernel-tests.ps1",
+                                           " M tests/run-tsf-durable-contract-tests.ps1",
+                                           " M tests/run-tsf-mission-queue-tests.ps1",
+                                           " M tools/Get-TsfAdmissionDecision.ps1",
+                                           " M tools/Invoke-TsfMissionLifecycle.ps1",
+                                           " M tools/Invoke-TsfMissionQueueForegroundExecutor.ps1",
+                                           " M tools/Invoke-TsfParallelLaneFixtureWorker.ps1",
+                                           " M tools/Invoke-TsfProjectMainBotSelfContinuation.ps1",
+                                           " M tools/Move-TsfMissionState.ps1",
+                                           " M tools/Test-TsfWorkerRolePermission.ps1",
+                                           " M tools/TsfDurableContract.Canonical.ps1",
+                                           " M tools/TsfDurableContract.psm1",
+                                           " M tools/codex-fleet-enforcement-kernel.ps1",
+                                           " M tsf-kernel-preflight.ps1",
+                                           "?? docs/hq/tsf_canonical_runtime_app_server_vertical_slice_v1_20260711/",
+                                           "?? fleet/control/canonical-queue-document.schema.v1.json",
+                                           "?? fleet/control/runtime-artifact-manifest.schema.v1.json",
+                                           "?? tests/fixtures/fleet/durable-contract/fake-codex-app-server.mjs",
+                                           "?? tests/run-tsf-canonical-runtime-app-server-tests.ps1",
+                                           "?? tools/Invoke-TsfCodexAppServerForeground.ps1",
+                                           "?? tools/Repair-TsfSyntheticAdmissionFixture.ps1",
+                                           "?? tools/TsfJsonContract.ps1",
+                                           "?? tools/TsfRuntimeArtifactAddressing.ps1",
+                                           "?? tools/tsf-codex-app-server-adapter.mjs"
+                                       ],
+                      "dirty":  true,
+                      "error":  ""
+                  },
+    "project_registration":  {
+                                 "registered":  true,
+                                 "status":  "TSF_CONTROL_PLANE_INTERNAL",
+                                 "evidence":  "Mission is a TSF-local infrastructure mission inside the TSF repo."
+                             },
+    "background_runner_started":  false,
+    "all_fleet_started":  false,
+    "product_repos_mutated":  false,
+    "canonical_nwr_mutated":  false,
+    "push_merge_deploy_attempted":  false
+}
