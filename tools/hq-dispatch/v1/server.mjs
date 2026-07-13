@@ -1,0 +1,613 @@
+import { createHash } from "node:crypto";
+import { readFileSync, mkdirSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const LOOPBACK_HOST = "127.0.0.1";
+const PRODUCTION_PORT = 4317;
+const MAX_REQUEST_BYTES = 8192;
+const MAX_WRAPPER_OUTPUT_BYTES = 1024 * 1024;
+const WRAPPER_TIMEOUT_MS = 15000;
+const POWERSHELL_EXE = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("../../../", import.meta.url)));
+const PUBLIC_ROOT = path.join(REPOSITORY_ROOT, "tools", "hq-dispatch", "v1", "public");
+const PREVIEW_ROOT = path.join(REPOSITORY_ROOT, ".codex-local", "hq-dispatch", "preview");
+const ROUTE_PREVIEW_WRAPPER = path.join(
+  REPOSITORY_ROOT,
+  "tools",
+  "hq-dispatch",
+  "v1",
+  "Invoke-TsfHqDispatchRoutePreview.ps1",
+);
+
+const FIXED_FILES = Object.freeze({
+  workerRoles: "fleet/control/worker-role-registry.v1.json",
+  modelPolicy: "fleet/control/model-routing-alias-policy.v1.json",
+  skillRegistry: "fleet/control/hq-dispatch/hq-dispatch-skill-registry.v1.json",
+  actionRegistry: "fleet/control/hq-dispatch/hq-dispatch-setup-action-registry.v1.json",
+  pluginCatalog: "fleet/reference/plugin-catalog-risk-v1/plugin-catalog.v1.json",
+  pluginPacks: "fleet/reference/plugin-catalog-risk-v1/plugin-packs-reference.v1.json",
+  pluginPriority: "fleet/reference/plugin-catalog-risk-v1/plugin-review-priority.v1.json",
+  pluginRisk: "fleet/reference/plugin-catalog-risk-v1/plugin-risk-policy.v1.json",
+});
+
+const PROJECTABLE_SOURCE_PATHS = new Set([
+  "docs/codex/FLEET_SKILL_MAP.md",
+  "skills/code-review-and-quality.md",
+  "skills/frontend-ui-engineering.md",
+  "skills/incremental-implementation.md",
+  "skills/planning-and-task-breakdown.md",
+  "skills/shipping-and-launch.md",
+  "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+  "docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md",
+  "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+]);
+
+const STATIC_FILES = new Map([
+  ["/", ["index.html", "text/html; charset=utf-8"]],
+  ["/index.html", ["index.html", "text/html; charset=utf-8"]],
+  ["/styles.css", ["styles.css", "text/css; charset=utf-8"]],
+  ["/app.js", ["app.js", "text/javascript; charset=utf-8"]],
+]);
+
+const COMMON_HEADERS = Object.freeze({
+  "Cache-Control": "no-store",
+  "Content-Security-Policy":
+    "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+});
+
+function fixedPath(relativePath) {
+  const known = Object.values(FIXED_FILES).includes(relativePath) ||
+    PROJECTABLE_SOURCE_PATHS.has(relativePath);
+  if (!known) {
+    throw new Error("UNRECOGNIZED_FIXED_SOURCE");
+  }
+  const resolved = path.resolve(REPOSITORY_ROOT, ...relativePath.split("/"));
+  const prefix = REPOSITORY_ROOT.endsWith(path.sep)
+    ? REPOSITORY_ROOT
+    : `${REPOSITORY_ROOT}${path.sep}`;
+  if (!resolved.startsWith(prefix)) {
+    throw new Error("FIXED_SOURCE_ESCAPES_REPOSITORY");
+  }
+  return resolved;
+}
+
+function parseFixedJson(relativePath) {
+  const text = readFileSync(fixedPath(relativePath), "utf8").replace(/^\uFEFF/, "");
+  return JSON.parse(text);
+}
+
+function sha256File(relativePath) {
+  return createHash("sha256")
+    .update(readFileSync(fixedPath(relativePath)))
+    .digest("hex");
+}
+
+function observeSource(relativePath, expectedSha256 = null) {
+  const fullPath = fixedPath(relativePath);
+  const observedSha256 = sha256File(relativePath);
+  const stat = statSync(fullPath);
+  return {
+    path: relativePath,
+    expected_sha256: expectedSha256,
+    observed_sha256: observedSha256,
+    freshness:
+      expectedSha256 === null
+        ? "DIRECT_READ_AT_REQUEST_TIME"
+        : observedSha256 === expectedSha256
+          ? "SOURCE_HASH_MATCH"
+          : "SOURCE_HASH_MISMATCH",
+    modified_at: stat.mtime.toISOString(),
+  };
+}
+
+function buildRegistryProjection() {
+  const workerRoles = parseFixedJson(FIXED_FILES.workerRoles);
+  const modelPolicy = parseFixedJson(FIXED_FILES.modelPolicy);
+  const skillRegistry = parseFixedJson(FIXED_FILES.skillRegistry);
+  const actionRegistry = parseFixedJson(FIXED_FILES.actionRegistry);
+  const pluginCatalog = parseFixedJson(FIXED_FILES.pluginCatalog);
+  const pluginPacks = parseFixedJson(FIXED_FILES.pluginPacks);
+  const pluginPriority = parseFixedJson(FIXED_FILES.pluginPriority);
+  const pluginRisk = parseFixedJson(FIXED_FILES.pluginRisk);
+
+  if (
+    pluginCatalog.baseline_state !==
+      "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED" ||
+    pluginCatalog.runtime_observation_count !== 0 ||
+    pluginRisk.runtime_enforced !== false ||
+    pluginPacks.runtime_resolver_input !== false
+  ) {
+    throw new Error("STATIC_PLUGIN_REFERENCE_BOUNDARY_CHANGED");
+  }
+
+  const observed = new Map();
+  const addObservation = (relativePath, expectedSha256 = null) => {
+    const key = `${relativePath}:${expectedSha256 ?? "direct"}`;
+    if (!observed.has(key)) {
+      observed.set(key, observeSource(relativePath, expectedSha256));
+    }
+  };
+
+  for (const relativePath of Object.values(FIXED_FILES)) {
+    addObservation(relativePath);
+  }
+  for (const source of skillRegistry.sources) {
+    if (!PROJECTABLE_SOURCE_PATHS.has(source.path)) {
+      throw new Error("SKILL_REGISTRY_SOURCE_NOT_ALLOWLISTED");
+    }
+    addObservation(source.path, source.sha256);
+  }
+  for (const source of actionRegistry.sources) {
+    if (!PROJECTABLE_SOURCE_PATHS.has(source.path)) {
+      throw new Error("ACTION_REGISTRY_SOURCE_NOT_ALLOWLISTED");
+    }
+    addObservation(source.path, source.sha256);
+  }
+
+  return {
+    schema_version: "tsf_hq_dispatch_registry_projection_response_v1",
+    generated_at: new Date().toISOString(),
+    banner: "PREVIEW_ONLY_NOT_AUTHORITY",
+    registry_sources: [...observed.values()],
+    worker_roles: {
+      source_path: FIXED_FILES.workerRoles,
+      registry: workerRoles,
+    },
+    model_routing_policy: {
+      source_path: FIXED_FILES.modelPolicy,
+      policy: modelPolicy,
+    },
+    skills: {
+      source_path: FIXED_FILES.skillRegistry,
+      registry: skillRegistry,
+    },
+    setup_actions: {
+      source_path: FIXED_FILES.actionRegistry,
+      registry: actionRegistry,
+    },
+    plugins: {
+      display_state: "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED",
+      runtime_inspection_performed: false,
+      plugin_code_loaded: false,
+      capability_observation_performed: false,
+      catalog: pluginCatalog,
+      pack_reference: pluginPacks,
+      review_priority: pluginPriority,
+      risk_policy: pluginRisk,
+    },
+  };
+}
+
+function errorPayload(code, message) {
+  return {
+    schema_version: "tsf_hq_dispatch_error_v1",
+    banner: "PREVIEW_ONLY_NOT_AUTHORITY",
+    error: { code, message },
+  };
+}
+
+function send(res, statusCode, body, contentType, extraHeaders = {}) {
+  const payload = Buffer.isBuffer(body) ? body : Buffer.from(body, "utf8");
+  res.writeHead(statusCode, {
+    ...COMMON_HEADERS,
+    "Content-Length": payload.byteLength,
+    "Content-Type": contentType,
+    ...extraHeaders,
+  });
+  res.end(payload);
+}
+
+function sendJson(res, statusCode, body, extraHeaders = {}) {
+  send(
+    res,
+    statusCode,
+    JSON.stringify(body),
+    "application/json; charset=utf-8",
+    extraHeaders,
+  );
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalBytes = 0;
+    let rejected = false;
+
+    req.on("data", (chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buffer.byteLength;
+      if (totalBytes > MAX_REQUEST_BYTES) {
+        rejected = true;
+      } else {
+        chunks.push(buffer);
+      }
+    });
+    req.on("end", () => {
+      if (rejected) {
+        reject(new Error("REQUEST_TOO_LARGE"));
+        return;
+      }
+      resolve(Buffer.concat(chunks));
+    });
+    req.on("aborted", () => reject(new Error("REQUEST_ABORTED")));
+    req.on("error", reject);
+  });
+}
+
+function parseRoutePreviewInput(body) {
+  let value;
+  try {
+    value = JSON.parse(body.toString("utf8"));
+  } catch {
+    return { error: errorPayload("MALFORMED_JSON", "Request body must be valid JSON.") };
+  }
+
+  if (value === null || Array.isArray(value) || typeof value !== "object") {
+    return {
+      error: errorPayload(
+        "INVALID_REQUEST_SHAPE",
+        "Request body must be a JSON object.",
+      ),
+    };
+  }
+
+  const keys = Object.keys(value);
+  const unknown = keys.filter((key) => key !== "natural_request");
+  if (unknown.length > 0) {
+    return {
+      error: errorPayload(
+        "UNKNOWN_FIELD",
+        "Only natural_request is accepted by route preview.",
+      ),
+    };
+  }
+  if (keys.length !== 1 || typeof value.natural_request !== "string") {
+    return {
+      error: errorPayload(
+        "INVALID_NATURAL_REQUEST",
+        "natural_request is required and must be a string.",
+      ),
+    };
+  }
+
+  const naturalRequest = value.natural_request.trim();
+  if (
+    naturalRequest.length === 0 ||
+    naturalRequest.length > 4000 ||
+    naturalRequest.includes("\u0000")
+  ) {
+    return {
+      error: errorPayload(
+        "INVALID_NATURAL_REQUEST",
+        "natural_request must contain 1 to 4000 non-null characters.",
+      ),
+    };
+  }
+
+  return { value: { natural_request: naturalRequest } };
+}
+
+function invokeRoutePreview(requestBody) {
+  mkdirSync(PREVIEW_ROOT, { recursive: true });
+  const fixedEnvironment = Object.freeze({
+    SystemRoot: "C:\\Windows",
+    WINDIR: "C:\\Windows",
+    ComSpec: "C:\\Windows\\System32\\cmd.exe",
+    PATH:
+      "C:\\Windows\\System32;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+    TEMP: PREVIEW_ROOT,
+    TMP: PREVIEW_ROOT,
+    TSF_HQ_DISPATCH_MODE: "PREVIEW_ONLY",
+  });
+  const fixedArguments = Object.freeze([
+    "-NoLogo",
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    ROUTE_PREVIEW_WRAPPER,
+  ]);
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(POWERSHELL_EXE, fixedArguments, {
+      cwd: REPOSITORY_ROOT,
+      detached: false,
+      env: fixedEnvironment,
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    const stdout = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let settled = false;
+
+    const rejectOnce = (code) => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(code));
+    };
+    const timer = setTimeout(() => {
+      child.kill();
+      rejectOnce("ROUTE_PREVIEW_TIMEOUT");
+    }, WRAPPER_TIMEOUT_MS);
+
+    child.stdout.on("data", (chunk) => {
+      stdoutBytes += chunk.byteLength;
+      if (stdoutBytes > MAX_WRAPPER_OUTPUT_BYTES) {
+        child.kill();
+        rejectOnce("ROUTE_PREVIEW_OUTPUT_LIMIT");
+        return;
+      }
+      stdout.push(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderrBytes += chunk.byteLength;
+      if (stderrBytes > MAX_WRAPPER_OUTPUT_BYTES) {
+        child.kill();
+        rejectOnce("ROUTE_PREVIEW_ERROR_LIMIT");
+      }
+    });
+    child.on("error", () => {
+      clearTimeout(timer);
+      rejectOnce("ROUTE_PREVIEW_WRAPPER_UNAVAILABLE");
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (settled) return;
+      if (code !== 0) {
+        rejectOnce("ROUTE_PREVIEW_WRAPPER_REJECTED");
+        return;
+      }
+      try {
+        const response = JSON.parse(Buffer.concat(stdout).toString("utf8"));
+        if (
+          response.schema_version !==
+            "tsf_hq_dispatch_route_preview_response_v1" ||
+          response.banner !== "PREVIEW_ONLY_NOT_AUTHORITY" ||
+          response.authority?.preview_only !== true ||
+          response.authority?.mission_execution_enabled !== false
+        ) {
+          rejectOnce("ROUTE_PREVIEW_RESPONSE_BOUNDARY_INVALID");
+          return;
+        }
+        settled = true;
+        resolve(response);
+      } catch {
+        rejectOnce("ROUTE_PREVIEW_RESPONSE_INVALID");
+      }
+    });
+    child.stdin.on("error", () => rejectOnce("ROUTE_PREVIEW_INPUT_REJECTED"));
+    child.stdin.end(JSON.stringify(requestBody), "utf8");
+  });
+}
+
+async function handleRequest(req, res) {
+  let url;
+  try {
+    url = new URL(req.url ?? "/", "http://127.0.0.1");
+  } catch {
+    sendJson(res, 400, errorPayload("INVALID_URL", "Request URL is invalid."));
+    return;
+  }
+
+  if (url.search.length > 0) {
+    await readBody(req);
+    sendJson(
+      res,
+      400,
+      errorPayload("QUERY_NOT_ALLOWED", "Query parameters are not accepted."),
+    );
+    return;
+  }
+
+  if (req.method === "GET" && STATIC_FILES.has(url.pathname)) {
+    const body = await readBody(req);
+    if (body.byteLength !== 0) {
+      sendJson(
+        res,
+        400,
+        errorPayload("BODY_NOT_ALLOWED", "GET requests must not include a body."),
+      );
+      return;
+    }
+    const [fileName, contentType] = STATIC_FILES.get(url.pathname);
+    send(res, 200, readFileSync(path.join(PUBLIC_ROOT, fileName)), contentType);
+    return;
+  }
+
+  if (url.pathname === "/health") {
+    if (req.method !== "GET") {
+      await readBody(req);
+      sendJson(
+        res,
+        405,
+        errorPayload("METHOD_NOT_ALLOWED", "Only GET is allowed for /health."),
+        { Allow: "GET" },
+      );
+      return;
+    }
+    const body = await readBody(req);
+    if (body.byteLength !== 0) {
+      sendJson(
+        res,
+        400,
+        errorPayload("BODY_NOT_ALLOWED", "GET requests must not include a body."),
+      );
+      return;
+    }
+    sendJson(res, 200, {
+      schema_version: "tsf_hq_dispatch_health_v1",
+      status: "ok",
+      banner: "PREVIEW_ONLY_NOT_AUTHORITY",
+      listener: { host: LOOPBACK_HOST, port: PRODUCTION_PORT, loopback_only: true },
+      operations: [
+        "GET /health",
+        "GET /api/v1/registries",
+        "POST /api/v1/route-preview",
+      ],
+      mission_execution_enabled: false,
+      queue_mutation_enabled: false,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/registries") {
+    if (req.method !== "GET") {
+      await readBody(req);
+      sendJson(
+        res,
+        405,
+        errorPayload(
+          "METHOD_NOT_ALLOWED",
+          "Only GET is allowed for /api/v1/registries.",
+        ),
+        { Allow: "GET" },
+      );
+      return;
+    }
+    const body = await readBody(req);
+    if (body.byteLength !== 0) {
+      sendJson(
+        res,
+        400,
+        errorPayload("BODY_NOT_ALLOWED", "GET requests must not include a body."),
+      );
+      return;
+    }
+    sendJson(res, 200, buildRegistryProjection());
+    return;
+  }
+
+  if (url.pathname === "/api/v1/route-preview") {
+    if (req.method !== "POST") {
+      await readBody(req);
+      sendJson(
+        res,
+        405,
+        errorPayload(
+          "METHOD_NOT_ALLOWED",
+          "Only POST is allowed for /api/v1/route-preview.",
+        ),
+        { Allow: "POST" },
+      );
+      return;
+    }
+    const mediaType = String(req.headers["content-type"] ?? "")
+      .split(";", 1)[0]
+      .trim()
+      .toLowerCase();
+    if (mediaType !== "application/json") {
+      await readBody(req);
+      sendJson(
+        res,
+        415,
+        errorPayload(
+          "UNSUPPORTED_MEDIA_TYPE",
+          "Content-Type must be application/json.",
+        ),
+      );
+      return;
+    }
+    const body = await readBody(req);
+    const parsed = parseRoutePreviewInput(body);
+    if (parsed.error) {
+      sendJson(res, 400, parsed.error);
+      return;
+    }
+    try {
+      const preview = await invokeRoutePreview(parsed.value);
+      sendJson(res, 200, preview);
+    } catch {
+      sendJson(
+        res,
+        422,
+        errorPayload(
+          "ROUTE_PREVIEW_REJECTED",
+          "Canonical route preview rejected the request or failed closed.",
+        ),
+      );
+    }
+    return;
+  }
+
+  await readBody(req);
+  sendJson(
+    res,
+    404,
+    errorPayload("NOT_FOUND", "The requested operation does not exist."),
+  );
+}
+
+function createHqDispatchServer() {
+  return createServer((req, res) => {
+    handleRequest(req, res).catch((error) => {
+      const code =
+        error instanceof Error && error.message === "REQUEST_TOO_LARGE"
+          ? "REQUEST_TOO_LARGE"
+          : "INTERNAL_PREVIEW_FAILURE";
+      const statusCode = code === "REQUEST_TOO_LARGE" ? 413 : 500;
+      if (!res.headersSent) {
+        sendJson(
+          res,
+          statusCode,
+          errorPayload(
+            code,
+            code === "REQUEST_TOO_LARGE"
+              ? "Request body exceeds the fixed 8192-byte limit."
+              : "HQ Dispatch failed closed.",
+          ),
+        );
+      } else {
+        res.destroy();
+      }
+    });
+  });
+}
+
+function listen(server, port) {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, LOOPBACK_HOST, () => {
+      server.removeListener("error", reject);
+      resolve(server);
+    });
+  });
+}
+
+export async function startHqDispatchServerForTest() {
+  return listen(createHqDispatchServer(), 0);
+}
+
+async function main() {
+  if (process.argv.length !== 2) {
+    process.stderr.write(
+      "HQ Dispatch accepts no runtime arguments or environment overrides.\n",
+    );
+    process.exitCode = 64;
+    return;
+  }
+  const server = await listen(createHqDispatchServer(), PRODUCTION_PORT);
+  process.stdout.write(
+    `TSF HQ Dispatch V1 listening at http://${LOOPBACK_HOST}:${PRODUCTION_PORT} PREVIEW_ONLY_NOT_AUTHORITY\n`,
+  );
+  const close = () => server.close(() => process.exit(0));
+  process.once("SIGINT", close);
+  process.once("SIGTERM", close);
+}
+
+const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
+if (invokedPath === import.meta.url) {
+  main().catch(() => {
+    process.stderr.write("HQ Dispatch failed closed during foreground startup.\n");
+    process.exitCode = 1;
+  });
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": "tsf_hq_dispatch_route_preview_validation_v1",
+  "validated_on": "2026-07-13",
+  "repository_basis": {
+    "required_commit": "7fe9c176177d5d2c613238d375fdb45e6fe783dc",
+    "fetched_origin_main": "7fe9c176177d5d2c613238d375fdb45e6fe783dc",
+    "branch": "work/tsf-hq-dispatch-route-preview-v1-20260713",
+    "canonical_worktree_clean_at_start": true,
+    "conflicting_hq_dispatch_implementation_found": false
+  },
+  "verdict": "GREEN_TSF_HQ_DISPATCH_ROUTE_PREVIEW_V1_READY_FOR_INDEPENDENT_AUDIT",
+  "authority_banner": "PREVIEW_ONLY_NOT_AUTHORITY",
+  "foreground_server": {
+    "host": "127.0.0.1",
+    "port": 4317,
+    "runtime_arguments_allowed": false,
+    "environment_overrides_allowed": false,
+    "background_process_started": false
+  },
+  "operations": [
+    "GET /health",
+    "GET /api/v1/registries",
+    "POST /api/v1/route-preview"
+  ],
+  "assertion_results": {
+    "focused_powershell_harness": {
+      "status": "PASS",
+      "assertions": 216
+    },
+    "node_endpoint_injection_suite": {
+      "status": "PASS",
+      "assertions": 92
+    },
+    "project_main_bot_role_foundation_regression": {
+      "status": "PASS"
+    },
+    "focused_static_plugin_reference_regression": {
+      "status": "PASS",
+      "catalog_records": 36,
+      "runtime_observations": 0,
+      "protected_git_blobs_unchanged": 4
+    },
+    "node_syntax": "PASS",
+    "powershell_parser": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "registries": {
+    "documented_skills": 18,
+    "locally_present_skill_definitions": 5,
+    "setup_and_action_records": 71,
+    "execution_enabled_actions": [
+      "route-preview"
+    ],
+    "source_hash_mismatches": 0
+  },
+  "negative_proof": {
+    "mission_records_created": 0,
+    "queue_records_created": 0,
+    "canonical_state_records_mutated": 0,
+    "writes_outside_preview_root": 0,
+    "lifecycle_operations": 0,
+    "admission_operations": 0,
+    "worker_operations": 0,
+    "app_server_operations": 0,
+    "plugin_runtime_operations": 0,
+    "approval_mutations": 0,
+    "credential_or_auth_operations": 0,
+    "external_connections": 0
+  },
+  "intended_file_count": 20,
+  "pre_existing_files_modified": 0,
+  "known_limitations_and_deferrals": "KNOWN_LIMITATIONS_AND_MILESTONE_2_DEFERRALS.md"
+}

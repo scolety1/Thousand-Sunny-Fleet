@@ -1,0 +1,1086 @@
+{
+  "schema_version": "tsf_hq_dispatch_setup_action_registry_v1",
+  "generated_on": "2026-07-13",
+  "projection_posture": "MILESTONE_1_PREVIEW_ONLY",
+  "sources": [
+    {
+      "path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "sha256": "1d409f1aa331b4db37249ef67b3ae5bab21f903cc30b00242f470dd7defdd0ef"
+    },
+    {
+      "path": "docs/fleet/ui/FLEET_CONSOLE_STATUS_AND_ACTION_MODEL.md",
+      "sha256": "06eb1e976e24b375f4abbfd124f0853800931c514b09ce44491727567d5a121a"
+    },
+    {
+      "path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "sha256": "5064b0fecc20ca0faa926b04575d05b28d45d919787092c3b5847fe0b623ec22"
+    }
+  ],
+  "actions": [
+    {
+      "action_id": "health-read",
+      "label": "Read HQ Dispatch health",
+      "kind": "service_operation",
+      "class": "safe",
+      "source_path": "tools/hq-dispatch/v1/server.mjs",
+      "source_locator": "GET /health",
+      "availability": "AVAILABLE_READ_ONLY",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_LOCAL_LOOPBACK_HEALTH_READ"
+      },
+      "authority_boundary": "Returns fixed local service posture only; it cannot execute, submit, approve, mutate, authenticate, or inspect external state.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "registry-read",
+      "label": "Read authoritative registry projection",
+      "kind": "service_operation",
+      "class": "safe",
+      "source_path": "tools/hq-dispatch/v1/server.mjs",
+      "source_locator": "GET /api/v1/registries",
+      "availability": "AVAILABLE_READ_ONLY",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_LOCAL_STATIC_REGISTRY_READ"
+      },
+      "authority_boundary": "Reads only hardcoded in-repository registry and policy files; it performs no plugin observation, capability resolution, command execution, or authority decision.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "route-preview",
+      "label": "Preview canonical route",
+      "kind": "service_operation",
+      "class": "safe",
+      "source_path": "tools/hq-dispatch/v1/Invoke-TsfHqDispatchRoutePreview.ps1",
+      "source_locator": "POST /api/v1/route-preview",
+      "availability": "AVAILABLE_PREVIEW_ONLY",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_PREVIEW_GENERATION_FUTURE_EXECUTION_REMAINS_SEPARATELY_GATED"
+      },
+      "authority_boundary": "Invokes only the fixed route-preview wrapper and canonical read-only classifiers; writes only a non-mission preview artifact beneath .codex-local/hq-dispatch/preview.",
+      "execution_enabled": true
+    },
+    {
+      "action_id": "console-view-fleet-status",
+      "label": "View Fleet Status",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / View Fleet Status",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-view-active-queue-task",
+      "label": "View Active Queue Task",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / View Active Queue Task",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-copy-repeatable-prompt",
+      "label": "Copy Repeatable Prompt",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Copy Repeatable Prompt",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-copy-external-audit-prompt",
+      "label": "Copy External Audit Prompt",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Copy External Audit Prompt",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-build-thin-task-packet-draft",
+      "label": "Build Thin Task Packet Draft",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Build Thin Task Packet Draft",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-rerun-listed-validation",
+      "label": "Rerun Listed Validation",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Rerun Listed Validation",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-reopen-eligible-blocked-task",
+      "label": "Reopen Eligible Blocked Task",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Reopen Eligible Blocked Task",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-prepare-audit-package-request",
+      "label": "Prepare Audit Package Request",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Prepare Audit Package Request",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-request-exact-approval",
+      "label": "Request Exact Approval",
+      "kind": "console_action",
+      "class": "approval-required",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Request Exact Approval",
+      "availability": "PROJECTED_APPROVAL_REQUIRED_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL"
+      },
+      "authority_boundary": "Approval requirements may be displayed only; no approval capture, relay, ledger mutation, or execution binding exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-launch-ship",
+      "label": "Launch Ship",
+      "kind": "console_action",
+      "class": "forbidden",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Launch Ship",
+      "availability": "NOT_AVAILABLE_FORBIDDEN",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NOT_AUTHORIZABLE_IN_V1"
+      },
+      "authority_boundary": "Forbidden by V1 policy; it must not be exposed as an available control or translated into a command.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-run-all-fleet",
+      "label": "Run All Fleet",
+      "kind": "console_action",
+      "class": "forbidden",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Main Dashboard Buttons / Run All Fleet",
+      "availability": "NOT_AVAILABLE_FORBIDDEN",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NOT_AUTHORIZABLE_IN_V1"
+      },
+      "authority_boundary": "Forbidden by V1 policy; it must not be exposed as an available control or translated into a command.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-inspect-ship-summary",
+      "label": "Inspect Ship Summary",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Inspect Ship Summary",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-inspect-evidence-digest",
+      "label": "Inspect Evidence Digest",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Inspect Evidence Digest",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-copy-current-failure-summary",
+      "label": "Copy Current Failure Summary",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Copy Current Failure Summary",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-mark-selected-task-done",
+      "label": "Mark Selected Task Done",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Mark Selected Task Done",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-mark-selected-task-blocked",
+      "label": "Mark Selected Task Blocked",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Mark Selected Task Blocked",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-work-on-something-else",
+      "label": "Work On Something Else",
+      "kind": "console_action",
+      "class": "future-only",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Work On Something Else",
+      "availability": "PROJECTED_FUTURE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "SEPARATE_IMPLEMENTATION_SECURITY_REVIEW_AND_EXACT_QUEUE_APPROVAL"
+      },
+      "authority_boundary": "Design reference only; no implementation, runtime binding, authentication, or execution authority exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-unstuck",
+      "label": "Unstuck",
+      "kind": "console_action",
+      "class": "future-only",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Unstuck",
+      "availability": "PROJECTED_FUTURE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "SEPARATE_IMPLEMENTATION_SECURITY_REVIEW_AND_EXACT_QUEUE_APPROVAL"
+      },
+      "authority_boundary": "Design reference only; no implementation, runtime binding, authentication, or execution authority exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-apply-task-packet",
+      "label": "Apply Task Packet",
+      "kind": "console_action",
+      "class": "approval-required",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Apply Task Packet",
+      "availability": "PROJECTED_APPROVAL_REQUIRED_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL"
+      },
+      "authority_boundary": "Approval requirements may be displayed only; no approval capture, relay, ledger mutation, or execution binding exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-run-selected-project-loop",
+      "label": "Run Selected Project Loop",
+      "kind": "console_action",
+      "class": "approval-required",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Run Selected Project Loop",
+      "availability": "PROJECTED_APPROVAL_REQUIRED_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL"
+      },
+      "authority_boundary": "Approval requirements may be displayed only; no approval capture, relay, ledger mutation, or execution binding exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-repair-or-relaunch",
+      "label": "Repair Or Relaunch",
+      "kind": "console_action",
+      "class": "forbidden",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Ship Or Queue Detail Buttons / Repair Or Relaunch",
+      "availability": "NOT_AVAILABLE_FORBIDDEN",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NOT_AUTHORIZABLE_IN_V1"
+      },
+      "authority_boundary": "Forbidden by V1 policy; it must not be exposed as an available control or translated into a command.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-draft-one-task-prompt",
+      "label": "Draft One-Task Prompt",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Draft One-Task Prompt",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-draft-external-audit-prompt",
+      "label": "Draft External Audit Prompt",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Draft External Audit Prompt",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-save-idea-note",
+      "label": "Save Idea Note",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Save Idea Note",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-draft-queue-candidate",
+      "label": "Draft Queue Candidate",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Draft Queue Candidate",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-summarize-validation-output",
+      "label": "Summarize Validation Output",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Summarize Validation Output",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-create-audit-intake-digest",
+      "label": "Create Audit Intake Digest",
+      "kind": "console_action",
+      "class": "caution",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Create Audit Intake Digest",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "TASK_SCOPE_AND_LISTED_VALIDATION_REQUIRED_NOT_AN_APPROVAL_CLASS"
+      },
+      "authority_boundary": "Task-scoped evidence or bookkeeping only when a separate bounded task permits it; disabled in Milestone 1 and never a command grant.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-download-audit-package",
+      "label": "Download Audit Package",
+      "kind": "console_action",
+      "class": "future-only",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Download Audit Package",
+      "availability": "PROJECTED_FUTURE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "SEPARATE_IMPLEMENTATION_SECURITY_REVIEW_AND_EXACT_QUEUE_APPROVAL"
+      },
+      "authority_boundary": "Design reference only; no implementation, runtime binding, authentication, or execution authority exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-send-audit-package",
+      "label": "Send Audit Package",
+      "kind": "console_action",
+      "class": "forbidden",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Prompt, Audit, And Evidence Buttons / Send Audit Package",
+      "availability": "NOT_AVAILABLE_FORBIDDEN",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NOT_AUTHORIZABLE_IN_V1"
+      },
+      "authority_boundary": "Forbidden by V1 policy; it must not be exposed as an available control or translated into a command.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-view-approval-requirements",
+      "label": "View Approval Requirements",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / View Approval Requirements",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-deny-request",
+      "label": "Deny Request",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Deny Request",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-copy-approval-template",
+      "label": "Copy Approval Template",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Copy Approval Template",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-show-expiration",
+      "label": "Show Expiration",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Show Expiration",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-show-stop-signs",
+      "label": "Show Stop Signs",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Show Stop Signs",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-record-denial",
+      "label": "Record Denial",
+      "kind": "console_action",
+      "class": "safe",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Record Denial",
+      "availability": "PROJECTED_DISABLED_MILESTONE_1",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_DOCUMENTED_READ_OR_EVIDENCE_POSTURE"
+      },
+      "authority_boundary": "Display, copy, or local evidence only; no command, worker, product-repository, approval, queue, or external authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-approve-exact-action",
+      "label": "Approve Exact Action",
+      "kind": "console_action",
+      "class": "future-only",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Approve Exact Action",
+      "availability": "PROJECTED_FUTURE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "SEPARATE_IMPLEMENTATION_SECURITY_REVIEW_AND_EXACT_QUEUE_APPROVAL"
+      },
+      "authority_boundary": "Design reference only; no implementation, runtime binding, authentication, or execution authority exists.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "console-approve-all-similar",
+      "label": "Approve All Similar",
+      "kind": "console_action",
+      "class": "forbidden",
+      "source_path": "docs/fleet/ui/FLEET_CONSOLE_BUTTON_ACTION_POLICY.md",
+      "source_locator": "Approval Card Buttons / Approve All Similar",
+      "availability": "NOT_AVAILABLE_FORBIDDEN",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NOT_AUTHORIZABLE_IN_V1"
+      },
+      "authority_boundary": "Forbidden by V1 policy; it must not be exposed as an available control or translated into a command.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-autonomy-wrapper",
+      "label": "invoke-autonomy-wrapper.ps1",
+      "kind": "entrypoint",
+      "class": "selected_ship_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-autonomy-wrapper.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_SELECTED_SHIP_SCOPE_BUDGET_AND_ACTION_GATE"
+      },
+      "authority_boundary": "Inventory reference only. A separately selected and gated ship wrapper is required; HQ Dispatch cannot invoke it or infer approval.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-overnight-mode",
+      "label": "invoke-overnight-mode.ps1",
+      "kind": "entrypoint",
+      "class": "selected_ship_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-overnight-mode.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_SELECTED_SHIP_SCOPE_BUDGET_AND_ACTION_GATE"
+      },
+      "authority_boundary": "Inventory reference only. A separately selected and gated ship wrapper is required; HQ Dispatch cannot invoke it or infer approval.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-mobile-console",
+      "label": "invoke-mobile-console.ps1",
+      "kind": "entrypoint",
+      "class": "mobile_request_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-mobile-console.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "REQUEST_RECORD_ONLY_EXECUTES_FALSE"
+      },
+      "authority_boundary": "Inventory reference only. Mobile text remains a request record with executes=false; HQ Dispatch cannot invoke it or convert it into authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-control-room",
+      "label": "invoke-control-room.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-control-room.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-status",
+      "label": "fleet-status.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-status.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-state",
+      "label": "fleet-state.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-state.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-decision",
+      "label": "fleet-decision.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-decision.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-final-readiness",
+      "label": "invoke-final-readiness.ps1",
+      "kind": "entrypoint",
+      "class": "fixture_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-final-readiness.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "FIXTURE_OR_CONTROLLED_REHEARSAL_INPUT_REQUIRED"
+      },
+      "authority_boundary": "Inventory reference only. Fixture classification grants no real-project, worker, queue, or external authority; HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-specialized-lane",
+      "label": "invoke-specialized-lane.ps1",
+      "kind": "entrypoint",
+      "class": "fixture_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-specialized-lane.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "FIXTURE_OR_CONTROLLED_REHEARSAL_INPUT_REQUIRED"
+      },
+      "authority_boundary": "Inventory reference only. Fixture classification grants no real-project, worker, queue, or external authority; HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-new-audit-package",
+      "label": "new-audit-package.ps1",
+      "kind": "entrypoint",
+      "class": "selected_project_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / new-audit-package.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_FOR_WRITE_OR_PRODUCT_MODE"
+      },
+      "authority_boundary": "Inventory reference only. Exact project scope and separate approval are required where applicable; HQ Dispatch cannot invoke or mutate through it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-ingest-task-packet",
+      "label": "ingest-task-packet.ps1",
+      "kind": "entrypoint",
+      "class": "selected_project_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / ingest-task-packet.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_FOR_WRITE_OR_PRODUCT_MODE"
+      },
+      "authority_boundary": "Inventory reference only. Exact project scope and separate approval are required where applicable; HQ Dispatch cannot invoke or mutate through it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-new-external-agent-workflow",
+      "label": "new-external-agent-workflow.ps1",
+      "kind": "entrypoint",
+      "class": "external_review_request_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / new-external-agent-workflow.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "BOUNDED_REVIEW_REQUEST_SCOPE_REQUIRED"
+      },
+      "authority_boundary": "Inventory reference only. Reviewer material remains evidence, never instructions; HQ Dispatch cannot package, send, import, or execute it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-audit-loop-package",
+      "label": "invoke-audit-loop-package.ps1",
+      "kind": "entrypoint",
+      "class": "external_review_request_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-audit-loop-package.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "BOUNDED_REVIEW_REQUEST_SCOPE_REQUIRED"
+      },
+      "authority_boundary": "Inventory reference only. Reviewer material remains evidence, never instructions; HQ Dispatch cannot package, send, import, or execute it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-new-audit-loop-queue",
+      "label": "new-audit-loop-queue.ps1",
+      "kind": "entrypoint",
+      "class": "external_review_request_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / new-audit-loop-queue.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "BOUNDED_REVIEW_REQUEST_SCOPE_REQUIRED"
+      },
+      "authority_boundary": "Inventory reference only. Reviewer material remains evidence, never instructions; HQ Dispatch cannot package, send, import, or execute it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-invoke-audit-loop-task",
+      "label": "invoke-audit-loop-task.ps1",
+      "kind": "entrypoint",
+      "class": "external_review_request_only",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / invoke-audit-loop-task.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "BOUNDED_REVIEW_REQUEST_SCOPE_REQUIRED"
+      },
+      "authority_boundary": "Inventory reference only. Reviewer material remains evidence, never instructions; HQ Dispatch cannot package, send, import, or execute it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-run-checkpoint-loop",
+      "label": "run-checkpoint-loop.ps1",
+      "kind": "entrypoint",
+      "class": "selected_project_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / run-checkpoint-loop.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_FOR_WRITE_OR_PRODUCT_MODE"
+      },
+      "authority_boundary": "Inventory reference only. Exact project scope and separate approval are required where applicable; HQ Dispatch cannot invoke or mutate through it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-phase",
+      "label": "fleet-phase.ps1",
+      "kind": "entrypoint",
+      "class": "selected_project_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-phase.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_FOR_WRITE_OR_PRODUCT_MODE"
+      },
+      "authority_boundary": "Inventory reference only. Exact project scope and separate approval are required where applicable; HQ Dispatch cannot invoke or mutate through it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-launch-gate",
+      "label": "fleet-launch-gate.ps1",
+      "kind": "entrypoint",
+      "class": "selected_project_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-launch-gate.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_FOR_WRITE_OR_PRODUCT_MODE"
+      },
+      "authority_boundary": "Inventory reference only. Exact project scope and separate approval are required where applicable; HQ Dispatch cannot invoke or mutate through it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-request-safe-stop",
+      "label": "request-safe-stop.ps1",
+      "kind": "entrypoint",
+      "class": "selected_project_required",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / request-safe-stop.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_FOR_WRITE_OR_PRODUCT_MODE"
+      },
+      "authority_boundary": "Inventory reference only. Exact project scope and separate approval are required where applicable; HQ Dispatch cannot invoke or mutate through it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-launch-school-run",
+      "label": "launch-school-run.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / launch-school-run.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-launch-proof-run",
+      "label": "launch-proof-run.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / launch-proof-run.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-launch-overnight-run",
+      "label": "launch-overnight-run.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / launch-overnight-run.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-start-overnight-autopilot",
+      "label": "start-overnight-autopilot.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / start-overnight-autopilot.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-supervisor",
+      "label": "fleet-supervisor.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-supervisor.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-remote-control",
+      "label": "fleet-remote-control.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-remote-control.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-run-fleet",
+      "label": "run-fleet.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / run-fleet.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-launch-cellar-fleet",
+      "label": "launch-cellar-fleet.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / launch-cellar-fleet.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-scheduled-selected-overnight-run",
+      "label": "scheduled-selected-overnight-run.ps1",
+      "kind": "entrypoint",
+      "class": "legacy_broad_requires_human",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / scheduled-selected-overnight-run.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": true,
+        "gate": "EXACT_ACTION_BOUND_HUMAN_APPROVAL_AND_SINGLE_TARGET_SCOPE"
+      },
+      "authority_boundary": "Inventory reference only. Legacy broad entrypoint is prohibited as an unattended/default path and HQ Dispatch cannot invoke it.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-doctor",
+      "label": "fleet-doctor.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-doctor.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-product-dashboard",
+      "label": "fleet-product-dashboard.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-product-dashboard.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    },
+    {
+      "action_id": "entrypoint-fleet-night-report",
+      "label": "fleet-night-report.ps1",
+      "kind": "entrypoint",
+      "class": "read_only_status",
+      "source_path": "docs/fleet/ENTRYPOINT_SAFETY_INVENTORY.md",
+      "source_locator": "Inventory / fleet-night-report.ps1",
+      "availability": "REFERENCE_ONLY_DISABLED",
+      "required_human_gate": {
+        "required": false,
+        "gate": "NONE_FOR_SANITIZED_LOCAL_STATUS_READ"
+      },
+      "authority_boundary": "Inventory reference only. The source may read/report sanitized local state, but HQ Dispatch cannot invoke it and gains no mutation authority.",
+      "execution_enabled": false
+    }
+  ]
+}

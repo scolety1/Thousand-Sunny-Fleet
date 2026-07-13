@@ -1,0 +1,322 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tsf_hq_dispatch_route_preview_response_schema_v1",
+  "title": "TSF HQ Dispatch route preview response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "banner",
+    "record_kind",
+    "preview_id",
+    "natural_request",
+    "proposed_project",
+    "proposed_worker_role",
+    "model_routing",
+    "classification",
+    "required_approvals",
+    "clarifications",
+    "allowed_reads",
+    "allowed_writes",
+    "forbidden_actions",
+    "stop_conditions",
+    "registry_sources",
+    "authority",
+    "artifact"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "tsf_hq_dispatch_route_preview_response_v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "banner": {
+      "const": "PREVIEW_ONLY_NOT_AUTHORITY"
+    },
+    "record_kind": {
+      "const": "hq_dispatch_route_preview"
+    },
+    "preview_id": {
+      "type": "string",
+      "pattern": "^hq-preview-[a-f0-9]{32}$"
+    },
+    "natural_request": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "proposed_project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "lane"
+      ],
+      "properties": {
+        "project_id": {
+          "const": "thousand-sunny-fleet"
+        },
+        "lane": {
+          "const": "MASTER_TSF_CONTROL_PLANE"
+        }
+      }
+    },
+    "proposed_worker_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_id",
+        "role_name",
+        "purpose",
+        "source_path"
+      ],
+      "properties": {
+        "role_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_path": {
+          "const": "fleet/control/worker-role-registry.v1.json"
+        }
+      }
+    },
+    "model_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_alias",
+        "stable_alias",
+        "resolved_model",
+        "reasoning_effort",
+        "assurance",
+        "surface",
+        "source_path"
+      ],
+      "properties": {
+        "requested_alias": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stable_alias": {
+          "enum": [
+            "FAST",
+            "BALANCED",
+            "DEEP",
+            "MAX_SINGLE",
+            "PARALLEL"
+          ]
+        },
+        "resolved_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reasoning_effort": {
+          "enum": [
+            "LIGHT",
+            "MEDIUM",
+            "HIGH",
+            "MAX",
+            "ULTRA"
+          ]
+        },
+        "assurance": {
+          "const": "RECOMMENDED_ONLY"
+        },
+        "surface": {
+          "const": "CODEX"
+        },
+        "source_path": {
+          "const": "fleet/control/model-routing-alias-policy.v1.json"
+        }
+      }
+    },
+    "classification": {
+      "enum": [
+        "SAFE_LOCAL_MISSION",
+        "NEEDS_TIM_APPROVAL",
+        "NEEDS_CHATGPT_HQ",
+        "BLOCKED_UNSAFE",
+        "NEEDS_MAIN_BOT_REVIEW"
+      ]
+    },
+    "required_approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gate",
+          "status",
+          "source"
+        ],
+        "properties": {
+          "gate": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "const": "REQUIRED_BEFORE_ANY_FUTURE_EXECUTION"
+          },
+          "source": {
+            "const": "tools/New-TsfProjectMainBotMissionDraft.ps1"
+          }
+        }
+      }
+    },
+    "clarifications": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "allowed_reads": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "allowed_writes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "stop_conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "check_type",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "check_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "registry_sources": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "freshness"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "freshness": {
+            "const": "READ_AT_PREVIEW_TIME"
+          }
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_only",
+        "route_preview_enabled",
+        "mission_execution_enabled",
+        "mission_submission_enabled",
+        "queue_mutation_enabled",
+        "approval_mutation_enabled",
+        "authority_statement"
+      ],
+      "properties": {
+        "preview_only": {
+          "const": true
+        },
+        "route_preview_enabled": {
+          "const": true
+        },
+        "mission_execution_enabled": {
+          "const": false
+        },
+        "mission_submission_enabled": {
+          "const": false
+        },
+        "queue_mutation_enabled": {
+          "const": false
+        },
+        "approval_mutation_enabled": {
+          "const": false
+        },
+        "authority_statement": {
+          "const": "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, plugin, app-server, merge, or deployment authority."
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_path",
+        "record_kind",
+        "mission_record",
+        "queue_record"
+      ],
+      "properties": {
+        "relative_path": {
+          "type": "string",
+          "pattern": "^\\.codex-local/hq-dispatch/preview/hq-preview-[a-f0-9]{32}\\.route-preview\\.json$"
+        },
+        "record_kind": {
+          "const": "preview_artifact"
+        },
+        "mission_record": {
+          "const": false
+        },
+        "queue_record": {
+          "const": false
+        }
+      }
+    }
+  }
+}

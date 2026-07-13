@@ -1,0 +1,180 @@
+const form = document.querySelector("#preview-form");
+const requestInput = document.querySelector("#natural-request");
+const requestCount = document.querySelector("#request-count");
+const previewButton = document.querySelector("#preview-button");
+const requestStatus = document.querySelector("#request-status");
+const previewResult = document.querySelector("#preview-result");
+
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
+function replaceList(selector, values, formatter = (value) => value) {
+  const list = document.querySelector(selector);
+  const fragment = document.createDocumentFragment();
+  for (const value of values) {
+    const item = document.createElement("li");
+    item.textContent = formatter(value);
+    fragment.append(item);
+  }
+  list.replaceChildren(fragment);
+}
+
+function renderStops(stops) {
+  const list = document.querySelector("#stop-list");
+  const fragment = document.createDocumentFragment();
+  for (const stop of stops) {
+    const item = document.createElement("li");
+    const id = document.createElement("strong");
+    const description = document.createElement("span");
+    id.textContent = `${stop.id} · ${stop.check_type}`;
+    description.textContent = stop.description;
+    item.append(id, description);
+    fragment.append(item);
+  }
+  list.replaceChildren(fragment);
+}
+
+function renderPreview(preview) {
+  setText("#classification", preview.classification);
+  const classification = document.querySelector("#classification");
+  classification.classList.toggle(
+    "is-gated",
+    preview.classification !== "SAFE_LOCAL_MISSION",
+  );
+  setText("#project-id", preview.proposed_project.project_id);
+  setText("#lane-id", preview.proposed_project.lane);
+  setText("#worker-role", preview.proposed_worker_role.role_name);
+  setText("#worker-purpose", preview.proposed_worker_role.purpose);
+  setText("#model-alias", preview.model_routing.stable_alias);
+  setText(
+    "#model-effort",
+    `${preview.model_routing.reasoning_effort} · ${preview.model_routing.resolved_model} · ${preview.model_routing.assurance}`,
+  );
+
+  const approvals =
+    preview.required_approvals.length > 0
+      ? preview.required_approvals.map(
+          (approval) => `${approval.gate}: ${approval.status}`,
+        )
+      : [
+          "No exact approval is identified by this preview. Future mission execution remains disabled and separately gated.",
+        ];
+  replaceList("#approval-list", approvals);
+  replaceList("#clarification-list", preview.clarifications);
+  replaceList("#read-list", preview.allowed_reads);
+  replaceList("#write-list", preview.allowed_writes);
+  replaceList("#forbidden-list", preview.forbidden_actions);
+  renderStops(preview.stop_conditions);
+  setText("#artifact-path", preview.artifact.relative_path);
+
+  previewResult.hidden = false;
+  previewResult.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderRegistryProjection(projection) {
+  const sources = projection.registry_sources;
+  const staleSources = sources.filter(
+    (source) => source.freshness === "SOURCE_HASH_MISMATCH",
+  );
+  setText("#source-count", `${sources.length} fixed sources`);
+  setText(
+    "#registry-status",
+    staleSources.length === 0 ? "Sources current" : "Source mismatch",
+  );
+  document
+    .querySelector("#registry-status")
+    .classList.toggle("is-gated", staleSources.length > 0);
+
+  const sourceList = document.querySelector("#source-list");
+  const fragment = document.createDocumentFragment();
+  for (const source of sources) {
+    const item = document.createElement("li");
+    const path = document.createElement("code");
+    const freshness = document.createElement("span");
+    path.textContent = source.path;
+    freshness.textContent = source.freshness.replaceAll("_", " ");
+    freshness.classList.toggle(
+      "is-stale",
+      source.freshness === "SOURCE_HASH_MISMATCH",
+    );
+    item.append(path, freshness);
+    fragment.append(item);
+  }
+  sourceList.replaceChildren(fragment);
+
+  const skills = projection.skills.registry.skills;
+  const localSkills = skills.filter(
+    (skill) => skill.locally_present_definition,
+  );
+  setText("#skill-count", String(skills.length));
+  setText(
+    "#skill-detail",
+    `${skills.length} documented · ${localSkills.length} locally present definitions`,
+  );
+
+  const actions = projection.setup_actions.registry.actions;
+  const enabledActions = actions.filter((action) => action.execution_enabled);
+  setText("#action-count", String(actions.length));
+  setText(
+    "#action-detail",
+    `${enabledActions.length} enabled: ${enabledActions.map((action) => action.label).join(", ")}`,
+  );
+
+  setText("#plugin-state", projection.plugins.display_state);
+  setText(
+    "#plugin-detail",
+    `${projection.plugins.catalog.expected_counts.total} static references · runtime observations ${projection.plugins.catalog.runtime_observation_count}`,
+  );
+}
+
+async function loadRegistries() {
+  try {
+    const response = await fetch("/api/v1/registries", {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("registry request failed");
+    renderRegistryProjection(await response.json());
+  } catch {
+    setText("#registry-status", "Registry read failed closed");
+    document.querySelector("#registry-status").classList.add("is-gated");
+  }
+}
+
+requestInput.addEventListener("input", () => {
+  requestCount.textContent = String(requestInput.value.length);
+});
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  requestStatus.classList.remove("is-error");
+  requestStatus.textContent = "Reading canonical route sources…";
+  previewButton.disabled = true;
+
+  try {
+    const response = await fetch("/api/v1/route-preview", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ natural_request: requestInput.value }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error?.message ?? "Route preview failed closed.");
+    }
+    renderPreview(payload);
+    requestStatus.textContent =
+      "Preview created. No mission, queue, approval, or worker action occurred.";
+  } catch (error) {
+    requestStatus.classList.add("is-error");
+    requestStatus.textContent =
+      error instanceof Error ? error.message : "Route preview failed closed.";
+  } finally {
+    previewButton.disabled = false;
+  }
+});
+
+loadRegistries();
