@@ -1,0 +1,46 @@
+{
+  "policy_version": "tsf_plugin_risk_policy_v1",
+  "baseline_state": "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED",
+  "policy_mode": "DESCRIPTIVE_FAIL_CLOSED_HUMAN_REVIEW_ONLY",
+  "fail_closed_rule": "UNKNOWN_RISK_OR_PERMISSION_REQUIRES_REVIEW",
+  "runtime_enforced": false,
+  "approval_granted": false,
+  "classifications": [
+    { "id": "TSF_CORE_REQUIRED_CANDIDATE", "meaning": "Potential core value requiring metadata review; not proven required or operational." },
+    { "id": "TSF_CORE_OPTIONAL_CANDIDATE", "meaning": "Potential optional core value requiring metadata review; not proven available." },
+    { "id": "PROJECT_SPECIFIC_CANDIDATE", "meaning": "Potential relevance depends on a named project and bounded human review." },
+    { "id": "RESEARCH_ONLY", "meaning": "Reference classification for investigation without operational use." },
+    { "id": "REVIEW_ONLY", "meaning": "Reference classification for manual review only." },
+    { "id": "ARTIFACT_CAPABILITY", "meaning": "Potential artifact-oriented capability; availability and permission remain unverified." },
+    { "id": "SENSITIVE_CONNECTOR_MISSION_ONLY", "meaning": "Potential connected-account or sensitive-data access requires an exact future mission and separate approval process." },
+    { "id": "HIGH_RISK_LAST_RESORT", "meaning": "Potential broad control surface should be considered only after narrower structured alternatives." },
+    { "id": "EXPERIMENTAL", "meaning": "Unproven material suitable only for isolated future research." },
+    { "id": "REDUNDANT_OR_OVERLAPPING", "meaning": "Potential overlap requires manual comparison before any future choice." },
+    { "id": "OPAQUE_QUARANTINED", "meaning": "Identity or permission facts are too opaque for consideration." },
+    { "id": "UNSAFE_OR_REJECTED", "meaning": "Material is excluded from use unless a future, independently authorized review changes disposition." }
+  ],
+  "risk_considerations": [
+    { "area": "LOCAL_REPOSITORY_READ", "unknown_consequence": "Repository contents may be exposed beyond the intended review boundary.", "review_expectation": "Confirm exact repository and read scope." },
+    { "area": "LOCAL_REPOSITORY_WRITE", "unknown_consequence": "Files, branches, or metadata may be mutated.", "review_expectation": "Require exact write paths, rollback, and human authorization." },
+    { "area": "AUTHENTICATED_BROWSER_ACCESS", "unknown_consequence": "Existing signed-in sessions may expose private account state.", "review_expectation": "Require an exact mission and bounded session purpose." },
+    { "area": "CONNECTED_EMAIL_CALENDAR_STORAGE", "unknown_consequence": "Private communications, schedules, and stored files may be accessed or changed.", "review_expectation": "Require exact account, data, action, and duration boundaries." },
+    { "area": "NETWORK_ACCESS", "unknown_consequence": "Data may leave the local host or external systems may be contacted.", "review_expectation": "Document destinations, data classes, and allowed actions." },
+    { "area": "EXTERNAL_ACCOUNT_DATA", "unknown_consequence": "Third-party account data may be read, correlated, or changed.", "review_expectation": "Apply least privilege and exact mission review." },
+    { "area": "UI_OR_COMPUTER_CONTROL", "unknown_consequence": "Broad interaction may act outside a structured tool boundary.", "review_expectation": "Prefer narrower structured surfaces; treat broad control as last resort." },
+    { "area": "PLUGIN_INSTALLATION_OR_ENABLEMENT", "unknown_consequence": "Host configuration and future capability surface may change.", "review_expectation": "This baseline grants no installation or enablement authority." },
+    { "area": "INVOCATION_AND_ACTION", "unknown_consequence": "A plugin may perform externally visible or destructive actions.", "review_expectation": "Separate invocation from action approval; this baseline grants neither." },
+    { "area": "SECRETS_AND_CREDENTIALS", "unknown_consequence": "Credentials may be exposed, persisted, or misused.", "review_expectation": "Do not supply secrets under this baseline; require a separate authorized control design." }
+  ],
+  "authority_denials": [
+    "NO_AUTOMATIC_SELECTION",
+    "NO_OPERATIONAL_AVAILABILITY_CLAIM",
+    "NO_APPROVAL_GRANT",
+    "NO_MISSION_REQUIREMENT",
+    "NO_ADMISSION_CHANGE",
+    "NO_MAIN_BOT_ROUTING",
+    "NO_HOST_CAPABILITY_PROOF",
+    "NO_RUNTIME_OBSERVATION",
+    "NO_PLUGIN_OPERATION",
+    "NO_POLICY_OR_PERMISSION_AUTHORITY"
+  ]
+}

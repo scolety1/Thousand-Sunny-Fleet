@@ -1,0 +1,9 @@
+suite_id,command,status,assertion_or_check_count,output_summary,scope
+STATIC-001,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-plugin-catalog-risk-v1-static-validation.ps1",PASS,606,"STATIC_VALIDATION_PASS assertions=606 catalog=36 available_not_installed=8 discovered_unknown=28 quarantined=6 runtime_observations=0 changed_files=17","Isolated static schema, catalog, risk, packs, review matrix, quarantine, trace, scope, executable, and diff assertions"
+SCHEMA-001,"bundled python -c Draft202012Validator.check_schema and validate",PASS,2,"JSON_SCHEMA_VALIDATION_PASS draft=2020-12 records=36","Standards-based JSON Schema self-check and catalog instance validation"
+REGRESSION-001,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-final-static-integrity-tests.ps1",PASS,14,"PASS assertions=14","Existing repository static integrity"
+REGRESSION-002,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-durable-contract-tests.ps1",PASS,33,"Durable canonical contract tests passed: 33 assertions.","Existing canonical durable contract regression; refreshed historical outputs were restored"
+REGRESSION-003,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-project-main-bot-role-foundation-tests.ps1",PASS,391,"Project Main Bot role foundation tests passed.","Existing Main Bot foundation regression; PASS output lines counted; temporary fixtures removed"
+REGRESSION-004,"powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tsf-mission-queue-tests.ps1",PASS,8,"Mission queue tests passed.","Existing queue regression"
+GIT-001,"git diff --check origin/main --",PASS,1,"No output; exit 0","Whitespace and patch integrity"
+HASH-001,"PowerShell Get-FileHash SHA256 compared with VALIDATION.json artifact_sha256",PASS,16,"HASH_VALIDATION_PASS files=16","Created-file integrity excluding self-referential VALIDATION.json"

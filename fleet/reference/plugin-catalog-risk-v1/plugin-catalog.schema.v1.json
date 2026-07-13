@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/reference/plugin-catalog-risk-v1/plugin-catalog.schema.v1.json",
+  "title": "TSF Plugin Catalog and Risk Baseline V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "catalog_version",
+    "baseline_state",
+    "authority_boundary",
+    "source_notice",
+    "runtime_observation_count",
+    "expected_counts",
+    "plugins"
+  ],
+  "properties": {
+    "catalog_version": { "const": "tsf_plugin_catalog_risk_v1" },
+    "baseline_state": { "const": "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED" },
+    "authority_boundary": { "const": "STATIC_NON_OPERATIONAL_NON_AUTHORITATIVE_HUMAN_DECISION_SUPPORT_ONLY" },
+    "source_notice": { "type": "string", "minLength": 1 },
+    "runtime_observation_count": { "const": 0 },
+    "expected_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "reported_available_not_installed", "reported_discovered_installation_unknown", "opaque_quarantined"],
+      "properties": {
+        "total": { "const": 36 },
+        "reported_available_not_installed": { "const": 8 },
+        "reported_discovered_installation_unknown": { "const": 28 },
+        "opaque_quarantined": { "const": 6 }
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "minItems": 36,
+      "maxItems": 36,
+      "items": { "$ref": "#/$defs/plugin" }
+    }
+  },
+  "$defs": {
+    "nullableStringArray": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "classification": {
+      "enum": [
+        "TSF_CORE_REQUIRED_CANDIDATE",
+        "TSF_CORE_OPTIONAL_CANDIDATE",
+        "PROJECT_SPECIFIC_CANDIDATE",
+        "RESEARCH_ONLY",
+        "REVIEW_ONLY",
+        "ARTIFACT_CAPABILITY",
+        "SENSITIVE_CONNECTOR_MISSION_ONLY",
+        "HIGH_RISK_LAST_RESORT",
+        "EXPERIMENTAL",
+        "REDUNDANT_OR_OVERLAPPING",
+        "OPAQUE_QUARANTINED",
+        "UNSAFE_OR_REJECTED"
+      ]
+    },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalog_version", "plugin_id", "display_name", "source", "source_quality", "source_confidence",
+        "reported_discovery_state", "reported_installation_state", "classification", "sensitivity", "risk_tier",
+        "likely_capability_categories", "likely_surfaces", "project_relevance", "overlap_groups", "quarantine_state",
+        "quarantine_reason", "approval_expectation", "operational_verification_state", "publisher", "version",
+        "manifest_sha256", "permission_scopes", "authentication_requirements", "connection_state", "network_requirements",
+        "host_availability", "current_enablement", "capability_probe_status", "authority_granted", "runtime_observations",
+        "notes", "last_reviewed_at"
+      ],
+      "properties": {
+        "catalog_version": { "const": "tsf_plugin_catalog_risk_v1" },
+        "plugin_id": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9._:-]+$" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "source": { "const": "USER_SUPPLIED_SEED_AND_PARKED_STATIC_TRACE" },
+        "source_quality": { "const": "USER_SUPPLIED_UNVERIFIED" },
+        "source_confidence": { "const": "USER_SUPPLIED_UNVERIFIED" },
+        "reported_discovery_state": { "enum": ["DISCOVERED", "AVAILABLE"] },
+        "reported_installation_state": { "enum": ["UNKNOWN", "NOT_INSTALLED"] },
+        "classification": { "$ref": "#/$defs/classification" },
+        "sensitivity": { "type": "string", "minLength": 1 },
+        "risk_tier": { "const": "UNKNOWN" },
+        "likely_capability_categories": { "$ref": "#/$defs/nullableStringArray" },
+        "likely_surfaces": { "$ref": "#/$defs/nullableStringArray" },
+        "project_relevance": { "type": "string", "minLength": 1 },
+        "overlap_groups": { "$ref": "#/$defs/nullableStringArray" },
+        "quarantine_state": { "enum": ["NOT_QUARANTINED_BY_STATIC_BASELINE", "QUARANTINED_PENDING_IDENTITY"] },
+        "quarantine_reason": { "type": ["string", "null"] },
+        "approval_expectation": { "type": "string", "minLength": 1 },
+        "operational_verification_state": { "const": "UNVERIFIED_NO_RUNTIME_OBSERVATION" },
+        "publisher": { "type": "null" },
+        "version": { "type": "null" },
+        "manifest_sha256": { "type": "null" },
+        "permission_scopes": { "type": "null" },
+        "authentication_requirements": { "type": "null" },
+        "connection_state": { "const": "UNKNOWN" },
+        "network_requirements": { "type": "null" },
+        "host_availability": { "const": "UNKNOWN" },
+        "current_enablement": { "const": "UNKNOWN" },
+        "capability_probe_status": { "const": "UNKNOWN" },
+        "authority_granted": { "const": false },
+        "runtime_observations": { "type": "array", "maxItems": 0 },
+        "notes": { "type": "string", "minLength": 1 },
+        "last_reviewed_at": { "const": "2026-07-13" }
+      }
+    }
+  }
+}
