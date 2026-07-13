@@ -9,7 +9,7 @@
 - The model request uses the existing legacy alias `standard_patch`, which the canonical resolver projects to stable `BALANCED`, current CODEX resolution, and current effort. Adaptive model selection is not invented here.
 - Preview artifacts accumulate beneath the ignored preview directory. The server provides no cleanup control, history view, or record-management endpoint.
 - Skill and setup/action registries are versioned static projections. A source edit produces a visible hash mismatch; automatic regeneration is not performed.
-- Plugin information is static repository metadata only. Installation state, enablement, connection state, host availability, and capabilities remain unobserved.
+- Plugin registries and runtime state are entirely out of scope. The UI displays only a fixed disabled capability posture and reads no plugin source.
 - The browser shell displays the current preview response only. It has no durable result history.
 - Loopback binding is the network boundary for this milestone. Authentication is intentionally absent because no remote listener or operational authority is provided.
 

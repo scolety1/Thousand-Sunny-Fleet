@@ -26,7 +26,9 @@ The route-preview endpoint accepts exactly one JSON field:
 }
 ```
 
-Node performs protocol and closed-field validation, then invokes exactly one fixed PowerShell wrapper through an absolute executable path with `shell: false`. The wrapper receives JSON through standard input, accepts no runtime arguments, and calls the existing canonical sources for classification, default worker role, and model resolution.
+Node performs protocol and closed-field validation, then invokes exactly one fixed PowerShell wrapper through an absolute executable path with `shell: false`. The wrapper receives JSON through standard input, accepts no runtime arguments, and calls the existing canonical sources for classification, default worker role, and model resolution. The returned preview explains the classification, role, model/effort recommendation, access scope, restrictions, stop conditions, and non-authority boundary.
+
+The response explains the classification, proposed worker role, model/effort resolution, and authority boundary. The registry endpoint projects only TSF role, model-routing, skill, and setup/action sources. Plugin registries are not read or projected; the response exposes only the fixed deny states `plugin_access_enabled: false` and `plugin_registry_projected: false`.
 
 Preview artifacts are non-mission records written only beneath:
 
@@ -34,7 +36,7 @@ Preview artifacts are non-mission records written only beneath:
 .codex-local/hq-dispatch/preview/
 ```
 
-The directory is already covered by the repository’s `.codex-local/` ignore rule. The implementation does not submit or execute a mission, create a queue record, invoke lifecycle or admission, mutate an approval ledger, call Codex, start the Codex app-server, inspect host plugin state, access credentials, authenticate, connect externally, or start a background process.
+The directory is already covered by the repository’s `.codex-local/` ignore rule. Natural request text is used in memory for canonical classification but is not echoed in the response or persisted in the preview artifact. The implementation does not submit or execute a mission, create a queue record, invoke lifecycle or admission, mutate an approval ledger, call Codex, start the Codex app-server, read a plugin registry, inspect plugin state, load plugin code, access credentials, authenticate, connect externally, inspect another repository, or start a background process.
 
 See:
 

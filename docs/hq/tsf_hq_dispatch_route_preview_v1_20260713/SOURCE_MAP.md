@@ -36,16 +36,9 @@ The API compares each stored source hash with the current hardcoded in-repositor
 
 The registry also declares the three service operations. Health and registry reads are available but `execution_enabled: false`; route preview is the sole `execution_enabled: true` action. Every action records class, source path/locator, availability, human gate, authority boundary, and execution state.
 
-## Static plugin-reference sources
+## Milestone restriction projection
 
-| Source | SHA-256 | Boundary |
-| --- | --- | --- |
-| `fleet/reference/plugin-catalog-risk-v1/plugin-catalog.v1.json` | `53068162e312a33f63303ecbae590a5e1d1e3417ba38a314ca2cf4040a190632` | Existing 36-record static catalog, projected unchanged. |
-| `fleet/reference/plugin-catalog-risk-v1/plugin-packs-reference.v1.json` | `b254b1e4e63ac4cc0dcbb91708d4158828e5f39991fe908adf336285871b0a7a` | Existing reference packs; `runtime_resolver_input: false`. |
-| `fleet/reference/plugin-catalog-risk-v1/plugin-review-priority.v1.json` | `e2c9080bf242f8e995940d51b5d0062ad4719a372a8b9b42c4ad89582206509b` | Existing non-authorizing review order. |
-| `fleet/reference/plugin-catalog-risk-v1/plugin-risk-policy.v1.json` | `69c049451001cefc35991e2f9744f4064e62f75f7a9902596b8533fa0e81a4fe` | Existing `runtime_enforced: false` policy. |
-
-The UI displays `REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED`. The server reads these four fixed repository files only. It does not load plugin code, inspect installed or enabled plugins, connect or authenticate, probe capabilities, resolve a plugin, or use the reference packs as runtime input.
+The registry endpoint returns fixed false-valued capability fields for plugin access, plugin-registry projection, credential access, environment enumeration, live AI service access, external-repository access, mission submission, and mission execution. These values are implementation constants, not projections from plugin or external-service registries. No plugin catalog, pack, priority, risk, installation, host, capability, credential, or external-repository source is read.
 
 ## Node / PowerShell division
 

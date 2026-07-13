@@ -67,6 +67,12 @@ function renderPreview(preview) {
   replaceList("#write-list", preview.allowed_writes);
   replaceList("#forbidden-list", preview.forbidden_actions);
   renderStops(preview.stop_conditions);
+  replaceList("#route-explanation-list", [
+    `Classification: ${preview.route_explanation.classification_reason}`,
+    `Role: ${preview.route_explanation.role_reason}`,
+    `Model and effort: ${preview.route_explanation.model_reason}`,
+    `Authority: ${preview.route_explanation.authority_boundary}`,
+  ]);
   setText("#artifact-path", preview.artifact.relative_path);
 
   previewResult.hidden = false;
@@ -122,10 +128,11 @@ function renderRegistryProjection(projection) {
     `${enabledActions.length} enabled: ${enabledActions.map((action) => action.label).join(", ")}`,
   );
 
-  setText("#plugin-state", projection.plugins.display_state);
+  const restrictions = projection.milestone_restrictions;
+  setText("#boundary-state", restrictions.posture);
   setText(
-    "#plugin-detail",
-    `${projection.plugins.catalog.expected_counts.total} static references · runtime observations ${projection.plugins.catalog.runtime_observation_count}`,
+    "#boundary-detail",
+    "Plugins, credentials, environment enumeration, live AI services, external repositories, mission submission, and mission execution are unavailable.",
   );
 }
 

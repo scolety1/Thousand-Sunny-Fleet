@@ -9,6 +9,14 @@ import { startHqDispatchServerForTest } from "../tools/hq-dispatch/v1/server.mjs
 
 const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SERVER_PATH = path.join(REPOSITORY_ROOT, "tools", "hq-dispatch", "v1", "server.mjs");
+const APP_PATH = path.join(
+  REPOSITORY_ROOT,
+  "tools",
+  "hq-dispatch",
+  "v1",
+  "public",
+  "app.js",
+);
 const WRAPPER_PATH = path.join(
   REPOSITORY_ROOT,
   "tools",
@@ -127,9 +135,28 @@ const protectedBefore = {
 };
 
 const serverSource = readFileSync(SERVER_PATH, "utf8");
+const appSource = readFileSync(APP_PATH, "utf8");
 const wrapperSource = readFileSync(WRAPPER_PATH, "utf8");
 check(!serverSource.includes("0.0.0.0"), "server source excludes wildcard IPv4 binding");
 check(!serverSource.includes("process.env"), "server source excludes caller environment overrides");
+check(
+  !serverSource.includes("plugin-catalog-risk-v1") &&
+    serverSource.includes("plugin_registry_projected: false"),
+  "server reads and projects no plugin registry",
+);
+check(
+  !appSource.includes("innerHTML") &&
+    !appSource.includes("insertAdjacentHTML") &&
+    !appSource.includes("document.write"),
+  "browser renderer uses no HTML injection sink for request-derived preview data",
+);
+check(
+  appSource.includes('fetch("/api/v1/registries"') &&
+    appSource.includes('fetch("/api/v1/route-preview"') &&
+    !appSource.includes("http://") &&
+    !appSource.includes("https://"),
+  "browser requests remain fixed to same-origin Milestone 1 endpoints",
+);
 check(
   !serverSource.includes("tsf-codex-app-server-adapter") &&
     !serverSource.includes("Invoke-TsfMissionLifecycle") &&
@@ -204,6 +231,27 @@ try {
     false,
     "health denies mission execution",
   );
+  equal(health.json.plugin_access_enabled, false, "health denies plugin access");
+  equal(
+    health.json.credential_access_enabled,
+    false,
+    "health denies credential access",
+  );
+  equal(
+    health.json.live_ai_service_access_enabled,
+    false,
+    "health denies live AI service access",
+  );
+  equal(
+    health.json.external_repository_access_enabled,
+    false,
+    "health denies external repository access",
+  );
+  equal(
+    health.json.request_text_persisted,
+    false,
+    "health declares that request text is not persisted",
+  );
   equal(
     health.headers["access-control-allow-origin"],
     undefined,
@@ -213,29 +261,50 @@ try {
   const registries = await request(port, { pathname: "/api/v1/registries" });
   equal(registries.status, 200, "GET /api/v1/registries succeeds");
   equal(
-    registries.json.plugins.display_state,
-    "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED",
-    "plugin display state is exact",
+    registries.json.milestone_restrictions.posture,
+    "MILESTONE_1_LOCAL_PREVIEW_ONLY",
+    "registry projection preserves the exact Milestone 1 posture",
   );
   equal(
-    registries.json.plugins.catalog.runtime_observation_count,
-    0,
-    "plugin runtime observation count stays zero",
-  );
-  equal(
-    registries.json.plugins.runtime_inspection_performed,
+    registries.json.milestone_restrictions.plugin_access_enabled,
     false,
-    "registry endpoint performs no plugin runtime inspection",
+    "registry projection denies plugin access",
   );
   equal(
-    registries.json.plugins.plugin_code_loaded,
+    registries.json.milestone_restrictions.plugin_registry_projected,
     false,
-    "registry endpoint loads no plugin code",
+    "registry projection excludes every plugin registry",
   );
   equal(
-    registries.json.plugins.capability_observation_performed,
+    registries.json.milestone_restrictions.credential_access_enabled,
     false,
-    "registry endpoint performs no capability observation",
+    "registry projection denies credential access",
+  );
+  equal(
+    registries.json.milestone_restrictions.live_ai_service_access_enabled,
+    false,
+    "registry projection denies live AI service access",
+  );
+  equal(
+    registries.json.milestone_restrictions.external_repository_access_enabled,
+    false,
+    "registry projection denies external repository access",
+  );
+  equal(
+    registries.json.milestone_restrictions.mission_submission_enabled,
+    false,
+    "registry projection denies mission submission",
+  );
+  equal(
+    registries.json.milestone_restrictions.mission_execution_enabled,
+    false,
+    "registry projection denies mission execution",
+  );
+  check(
+    registries.json.registry_sources.every(
+      (source) => !source.path.includes("plugin-catalog-risk-v1/"),
+    ) && !Object.hasOwn(registries.json, "plugins"),
+    "registry response contains no plugin source or plugin projection",
   );
   check(
     registries.json.registry_sources.every(
@@ -281,6 +350,20 @@ try {
   check(
     index.text.includes("PREVIEW_ONLY_NOT_AUTHORITY"),
     "browser UI displays the exact authority banner",
+  );
+  check(
+    index.text.includes("Milestone boundary") &&
+      index.text.includes("NO EXTERNAL INTEGRATIONS"),
+    "browser UI displays the Milestone 1 external-integration boundary",
+  );
+  check(
+    index.text.includes("Do not enter credentials or secrets"),
+    "browser UI warns operators not to place credentials in request text",
+  );
+  check(
+    !index.text.includes("Static plugin reference") &&
+      !index.text.includes("plugin-state"),
+    "browser UI exposes no plugin-reference projection",
   );
   const buttonText = [...index.text.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/gi)]
     .map((match) => match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
@@ -453,6 +536,43 @@ try {
     safePreview.json.authority.queue_mutation_enabled,
     false,
     "route preview cannot mutate a queue",
+  );
+  equal(
+    safePreview.json.authority.plugin_access_enabled,
+    false,
+    "route preview cannot access plugins",
+  );
+  equal(
+    safePreview.json.authority.credential_access_enabled,
+    false,
+    "route preview cannot access credentials",
+  );
+  equal(
+    safePreview.json.authority.live_ai_service_access_enabled,
+    false,
+    "route preview cannot contact live AI services",
+  );
+  equal(
+    safePreview.json.authority.external_repository_access_enabled,
+    false,
+    "route preview cannot access external repositories",
+  );
+  equal(
+    safePreview.json.authority.request_text_persisted,
+    false,
+    "route preview declares that request text is not persisted",
+  );
+  equal(
+    Object.hasOwn(safePreview.json, "natural_request"),
+    false,
+    "route response and artifact do not echo or persist natural request text",
+  );
+  check(
+    safePreview.json.route_explanation.classification_reason.length > 0 &&
+      safePreview.json.route_explanation.role_reason.length > 0 &&
+      safePreview.json.route_explanation.model_reason.length > 0 &&
+      safePreview.json.route_explanation.authority_boundary.length > 0,
+    "route preview explains classification, role, model/effort, and authority",
   );
   check(
     safePreview.json.artifact.relative_path.startsWith(

@@ -3,13 +3,15 @@
   "validated_on": "2026-07-13",
   "repository_basis": {
     "required_commit": "7fe9c176177d5d2c613238d375fdb45e6fe783dc",
-    "fetched_origin_main": "7fe9c176177d5d2c613238d375fdb45e6fe783dc",
+    "observed_origin_main": "7fe9c176177d5d2c613238d375fdb45e6fe783dc",
+    "verification_method": "read-only git ls-remote plus local origin/main identity",
     "branch": "work/tsf-hq-dispatch-route-preview-v1-20260713",
     "canonical_worktree_clean_at_start": true,
     "conflicting_hq_dispatch_implementation_found": false
   },
   "verdict": "GREEN_TSF_HQ_DISPATCH_ROUTE_PREVIEW_V1_READY_FOR_INDEPENDENT_AUDIT",
   "authority_banner": "PREVIEW_ONLY_NOT_AUTHORITY",
+  "checksum_mode": "SHA256_CANONICAL_LF_NORMALIZED_UTF8",
   "foreground_server": {
     "host": "127.0.0.1",
     "port": 4317,
@@ -25,20 +27,26 @@
   "assertion_results": {
     "focused_powershell_harness": {
       "status": "PASS",
-      "assertions": 216
+      "assertions": 226
     },
     "node_endpoint_injection_suite": {
       "status": "PASS",
-      "assertions": 92
+      "assertions": 114
     },
     "project_main_bot_role_foundation_regression": {
       "status": "PASS"
     },
-    "focused_static_plugin_reference_regression": {
+    "minimum_viable_kernel_regression": {
+      "status": "PASS"
+    },
+    "durable_canonical_contract_regression": {
       "status": "PASS",
-      "catalog_records": 36,
-      "runtime_observations": 0,
-      "protected_git_blobs_unchanged": 4
+      "assertions": 33
+    },
+    "plugin_free_boundary": {
+      "status": "PASS",
+      "plugin_registry_projected": false,
+      "plugin_source_files_read_by_runtime": 0
     },
     "node_syntax": "PASS",
     "powershell_parser": "PASS",
@@ -51,7 +59,8 @@
     "execution_enabled_actions": [
       "route-preview"
     ],
-    "source_hash_mismatches": 0
+    "source_hash_mismatches": 0,
+    "plugin_registry_projected": false
   },
   "negative_proof": {
     "mission_records_created": 0,
@@ -62,10 +71,14 @@
     "admission_operations": 0,
     "worker_operations": 0,
     "app_server_operations": 0,
+    "plugin_runtime_state_reads": 0,
     "plugin_runtime_operations": 0,
     "approval_mutations": 0,
     "credential_or_auth_operations": 0,
-    "external_connections": 0
+    "live_ai_service_operations": 0,
+    "external_repository_operations": 0,
+    "external_connections": 0,
+    "natural_request_text_persisted": 0
   },
   "intended_file_count": 20,
   "pre_existing_files_modified": 0,

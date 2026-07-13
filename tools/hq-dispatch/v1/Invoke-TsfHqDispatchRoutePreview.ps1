@@ -96,6 +96,24 @@ if ($knownClassifications -notcontains $classification) {
     throw "Canonical mission-draft classification was not recognized."
 }
 
+$classificationReason = switch ($classification) {
+    "SAFE_LOCAL_MISSION" {
+        "The canonical mission-draft classifier found no restricted, unsafe, strategic-escalation, or ambiguity signal in the bounded request."
+    }
+    "NEEDS_TIM_APPROVAL" {
+        "The canonical mission-draft classifier found a restricted-action signal that requires exact human approval before any future execution."
+    }
+    "NEEDS_CHATGPT_HQ" {
+        "The canonical mission-draft classifier found a strategic or source-authority question that requires a separate bounded HQ decision packet."
+    }
+    "BLOCKED_UNSAFE" {
+        "The canonical mission-draft classifier found an explicit guardrail-bypass or safety-removal signal, so the request is blocked."
+    }
+    "NEEDS_MAIN_BOT_REVIEW" {
+        "The canonical mission-draft classifier found an ambiguous or open-ended request that requires Project Main Bot clarification."
+    }
+}
+
 $roleId = [string]$draft.normalized_intent.proposed_worker_role
 $roleRegistry = Read-TsfKernelJson -Path $roleRegistryPath
 $matchingRoles = @($roleRegistry.roles | Where-Object { [string]$_.role_id -ceq $roleId })
@@ -163,7 +181,6 @@ $response = [pscustomobject]@{
     banner = "PREVIEW_ONLY_NOT_AUTHORITY"
     record_kind = "hq_dispatch_route_preview"
     preview_id = $previewId
-    natural_request = $naturalRequest
     proposed_project = [pscustomobject]@{
         project_id = [string]$draft.mission_packet.project_id
         lane = [string]$draft.mission_packet.lane
@@ -184,6 +201,12 @@ $response = [pscustomobject]@{
         source_path = "fleet/control/model-routing-alias-policy.v1.json"
     }
     classification = $classification
+    route_explanation = [pscustomobject]@{
+        classification_reason = $classificationReason
+        role_reason = "The proposed worker role is the canonical mission-draft helper's registered default for this TSF-local preview; the preview does not assign or start that worker."
+        model_reason = "The canonical standard_patch alias resolves through the CODEX model-routing policy with RECOMMENDED_ONLY assurance; the preview does not call the model."
+        authority_boundary = "The route is a display-only projection. It cannot submit a mission, mutate a queue, grant approval, start a worker, read credentials, access plugins, contact live AI services, or inspect external repositories."
+    }
     required_approvals = @($requiredApprovals)
     clarifications = @($clarifications)
     allowed_reads = @($draft.mission_packet.allowed_reads)
@@ -198,7 +221,12 @@ $response = [pscustomobject]@{
         mission_submission_enabled = $false
         queue_mutation_enabled = $false
         approval_mutation_enabled = $false
-        authority_statement = "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, plugin, app-server, merge, or deployment authority."
+        credential_access_enabled = $false
+        live_ai_service_access_enabled = $false
+        plugin_access_enabled = $false
+        external_repository_access_enabled = $false
+        request_text_persisted = $false
+        authority_statement = "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, credential, live-service, plugin, external-repository, app-server, merge, or deployment authority."
     }
     artifact = [pscustomobject]@{
         relative_path = $artifactRelativePath

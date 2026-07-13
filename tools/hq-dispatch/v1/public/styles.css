@@ -570,11 +570,11 @@ button:disabled {
   letter-spacing: -0.04em;
 }
 
-.plugin-card {
+.boundary-card {
   grid-column: 2 / -1;
 }
 
-.plugin-card > strong {
+.boundary-card > strong {
   max-width: 34rem;
   color: var(--sun-soft);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -708,7 +708,7 @@ footer {
   }
 
   .wide-card,
-  .plugin-card,
+  .boundary-card,
   .registry-sources-card {
     grid-column: auto;
   }

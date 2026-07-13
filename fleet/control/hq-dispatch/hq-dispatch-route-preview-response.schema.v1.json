@@ -10,11 +10,11 @@
     "banner",
     "record_kind",
     "preview_id",
-    "natural_request",
     "proposed_project",
     "proposed_worker_role",
     "model_routing",
     "classification",
+    "route_explanation",
     "required_approvals",
     "clarifications",
     "allowed_reads",
@@ -42,11 +42,6 @@
     "preview_id": {
       "type": "string",
       "pattern": "^hq-preview-[a-f0-9]{32}$"
-    },
-    "natural_request": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 4000
     },
     "proposed_project": {
       "type": "object",
@@ -149,6 +144,34 @@
         "BLOCKED_UNSAFE",
         "NEEDS_MAIN_BOT_REVIEW"
       ]
+    },
+    "route_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification_reason",
+        "role_reason",
+        "model_reason",
+        "authority_boundary"
+      ],
+      "properties": {
+        "classification_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authority_boundary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "required_approvals": {
       "type": "array",
@@ -267,6 +290,11 @@
         "mission_submission_enabled",
         "queue_mutation_enabled",
         "approval_mutation_enabled",
+        "credential_access_enabled",
+        "live_ai_service_access_enabled",
+        "plugin_access_enabled",
+        "external_repository_access_enabled",
+        "request_text_persisted",
         "authority_statement"
       ],
       "properties": {
@@ -288,8 +316,23 @@
         "approval_mutation_enabled": {
           "const": false
         },
+        "credential_access_enabled": {
+          "const": false
+        },
+        "live_ai_service_access_enabled": {
+          "const": false
+        },
+        "plugin_access_enabled": {
+          "const": false
+        },
+        "external_repository_access_enabled": {
+          "const": false
+        },
+        "request_text_persisted": {
+          "const": false
+        },
         "authority_statement": {
-          "const": "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, plugin, app-server, merge, or deployment authority."
+          "const": "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, credential, live-service, plugin, external-repository, app-server, merge, or deployment authority."
         }
       }
     },

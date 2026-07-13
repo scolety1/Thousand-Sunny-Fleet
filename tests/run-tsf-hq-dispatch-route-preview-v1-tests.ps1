@@ -46,6 +46,23 @@ function Test-TsfHqSourceHashes {
     }
 }
 
+function Get-TsfHqCanonicalTextSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
+    $normalizedUtf8 = [System.Text.UTF8Encoding]::new($false)
+    $text = $strictUtf8.GetString([System.IO.File]::ReadAllBytes($Path))
+    $normalizedText = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString(
+            $sha256.ComputeHash($normalizedUtf8.GetBytes($normalizedText))
+        )).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
 . ".\tools\TsfJsonContract.ps1"
 
 $controlRoot = "fleet/control/hq-dispatch"
@@ -75,6 +92,25 @@ $skillSchema = Read-TsfHqJson $skillSchemaPath
 $skillRegistry = Read-TsfHqJson $skillRegistryPath
 $actionSchema = Read-TsfHqJson $actionSchemaPath
 $actionRegistry = Read-TsfHqJson $actionRegistryPath
+
+$checksumManifestPath = "docs/hq/tsf_hq_dispatch_route_preview_v1_20260713/SHA256SUMS.txt"
+$checksumLines = @(Get-Content -LiteralPath $checksumManifestPath | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+Assert-TsfHq ($checksumLines.Count -eq 19) "CHECKSUM-001" "Checksum manifest covers the other 19 intended files."
+foreach ($line in $checksumLines) {
+    $matchesChecksum = $line -match "^([a-f0-9]{64})  (.+)$"
+    if (!$matchesChecksum) {
+        Assert-TsfHq $false "CHECKSUM-002" "Checksum manifest entry has the required format."
+        continue
+    }
+    $expectedHash = $Matches[1]
+    $relativePath = $Matches[2]
+    $fullPath = Join-Path $repoRoot $relativePath
+    $hashMatches =
+        $relativePath -cne $checksumManifestPath -and
+        (Test-Path -LiteralPath $fullPath -PathType Leaf) -and
+        ((Get-TsfHqCanonicalTextSha256 -Path $fullPath) -ceq $expectedHash)
+    Assert-TsfHq $hashMatches "CHECKSUM-002" "Checksum is current: $relativePath"
+}
 
 $validRequest = [pscustomobject]@{ natural_request = "Review a bounded local TSF change." }
 $unknownRequest = [pscustomobject]@{
@@ -116,19 +152,6 @@ foreach ($action in $actions) {
 }
 Test-TsfHqSourceHashes -Sources @($actionRegistry.sources) -Prefix "REGISTRY-ACTION"
 
-$pluginRoot = "fleet/reference/plugin-catalog-risk-v1"
-$pluginCatalog = Read-TsfHqJson "$pluginRoot/plugin-catalog.v1.json"
-$pluginPacks = Read-TsfHqJson "$pluginRoot/plugin-packs-reference.v1.json"
-$pluginPriority = Read-TsfHqJson "$pluginRoot/plugin-review-priority.v1.json"
-$pluginRisk = Read-TsfHqJson "$pluginRoot/plugin-risk-policy.v1.json"
-Assert-TsfHq ($pluginCatalog.baseline_state -ceq "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED") "PLUGIN-001" "Static plugin catalog preserves exact review-only display state."
-Assert-TsfHq ($pluginCatalog.runtime_observation_count -eq 0) "PLUGIN-002" "Static plugin catalog still has zero runtime observations."
-Assert-TsfHq (@($pluginCatalog.plugins).Count -eq 36) "PLUGIN-003" "Static plugin catalog still contains 36 references."
-Assert-TsfHq (@($pluginCatalog.plugins | Where-Object authority_granted).Count -eq 0) "PLUGIN-004" "No static plugin reference grants authority."
-Assert-TsfHq ($pluginPacks.runtime_resolver_input -eq $false) "PLUGIN-005" "Static plugin packs are not resolver input."
-Assert-TsfHq ($pluginPriority.prioritization_is_authorization -eq $false) "PLUGIN-006" "Plugin review priority is not authorization."
-Assert-TsfHq ($pluginRisk.runtime_enforced -eq $false) "PLUGIN-007" "Plugin risk policy remains non-runtime-enforced."
-
 $protectedFiles = @(
     "tools/New-TsfProjectMainBotMissionDraft.ps1",
     "tools/TsfDurableContract.Canonical.ps1",
@@ -138,11 +161,7 @@ $protectedFiles = @(
     "tools/Get-TsfAdmissionDecision.ps1",
     "tools/codex-fleet-enforcement-kernel.ps1",
     "fleet/control/worker-role-registry.v1.json",
-    "fleet/control/model-routing-alias-policy.v1.json",
-    "fleet/reference/plugin-catalog-risk-v1/plugin-catalog.v1.json",
-    "fleet/reference/plugin-catalog-risk-v1/plugin-packs-reference.v1.json",
-    "fleet/reference/plugin-catalog-risk-v1/plugin-review-priority.v1.json",
-    "fleet/reference/plugin-catalog-risk-v1/plugin-risk-policy.v1.json"
+    "fleet/control/model-routing-alias-policy.v1.json"
 )
 foreach ($path in $protectedFiles) {
     $workingBlob = (& git hash-object -- $path).Trim()
@@ -199,11 +218,14 @@ Assert-TsfHq ($serverSource -match "ROUTE_PREVIEW_WRAPPER") "BOUNDARY-002" "Serv
 Assert-TsfHq ($serverSource -notmatch "process\.env|0\.0\.0\.0") "BOUNDARY-003" "Server exposes no environment override or wildcard listener."
 Assert-TsfHq ($wrapperSource -match [regex]::Escape(".codex-local\hq-dispatch\preview")) "BOUNDARY-004" "Wrapper hardcodes the only artifact root."
 Assert-TsfHq ($wrapperSource -notmatch "approval-ledger|Invoke-TsfMissionLifecycle|Invoke-TsfMissionQueueForegroundExecutor|Get-TsfAdmissionDecision|tsf-codex-app-server-adapter") "BOUNDARY-005" "Wrapper exposes no approval, lifecycle, queue, admission, or app-server operation."
+Assert-TsfHq ($serverSource -notmatch "plugin-catalog-risk-v1" -and $serverSource -match "plugin_registry_projected: false") "BOUNDARY-006" "Server reads and projects no plugin registry."
 
+$previewPathsBefore = @(Get-ChildItem -LiteralPath ".codex-local/hq-dispatch/preview" -Filter "*.route-preview.json" -File -ErrorAction SilentlyContinue | ForEach-Object FullName)
 & node $nodeTestPath
 Assert-TsfHq ($LASTEXITCODE -eq 0) "INTEGRATION-001" "Foreground Node endpoint and injection integration suite passes."
 
 $latestPreview = Get-ChildItem -LiteralPath ".codex-local/hq-dispatch/preview" -Filter "*.route-preview.json" -File |
+    Where-Object { $_.FullName -notin $previewPathsBefore } |
     Sort-Object LastWriteTimeUtc -Descending |
     Select-Object -First 1
 Assert-TsfHq ($null -ne $latestPreview) "ARTIFACT-001" "At least one preview artifact was produced."
@@ -230,8 +252,12 @@ $forbiddenChangedPattern = [regex]"(?i)(mission-envelope|result-envelope|admissi
 $forbiddenChanged = @($changed | Where-Object { $forbiddenChangedPattern.IsMatch($_) })
 Assert-TsfHq ($forbiddenChanged.Count -eq 0) "SCOPE-002" "No canonical mission, result, admission, lifecycle, recovery, producer, queue, approval, plugin, routing, or kernel file changed."
 
-$diffCheckOutput = @(& git diff --check origin/main -- 2>&1)
-Assert-TsfHq ($LASTEXITCODE -eq 0) "GIT-001" "git diff --check passes for tracked changes."
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$diffCheckOutput = @(& git -c core.autocrlf=false diff --check origin/main -- 2>&1)
+$diffCheckExitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+Assert-TsfHq ($diffCheckExitCode -eq 0) "GIT-001" "git diff --check passes for tracked changes."
 if ($diffCheckOutput.Count -gt 0) {
     Write-Host ($diffCheckOutput -join [Environment]::NewLine)
 }
@@ -242,5 +268,5 @@ if ($script:Failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host "TSF_HQ_DISPATCH_VALIDATION_PASS assertions=$script:AssertionCount actions=$($actions.Count) enabled_actions=$($enabledActions.Count) plugin_runtime_observations=$($pluginCatalog.runtime_observation_count)" -ForegroundColor Green
+Write-Host "TSF_HQ_DISPATCH_VALIDATION_PASS assertions=$script:AssertionCount actions=$($actions.Count) enabled_actions=$($enabledActions.Count) external_integrations=disabled" -ForegroundColor Green
 exit 0

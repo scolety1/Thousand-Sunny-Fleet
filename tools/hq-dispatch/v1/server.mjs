@@ -27,10 +27,6 @@ const FIXED_FILES = Object.freeze({
   modelPolicy: "fleet/control/model-routing-alias-policy.v1.json",
   skillRegistry: "fleet/control/hq-dispatch/hq-dispatch-skill-registry.v1.json",
   actionRegistry: "fleet/control/hq-dispatch/hq-dispatch-setup-action-registry.v1.json",
-  pluginCatalog: "fleet/reference/plugin-catalog-risk-v1/plugin-catalog.v1.json",
-  pluginPacks: "fleet/reference/plugin-catalog-risk-v1/plugin-packs-reference.v1.json",
-  pluginPriority: "fleet/reference/plugin-catalog-risk-v1/plugin-review-priority.v1.json",
-  pluginRisk: "fleet/reference/plugin-catalog-risk-v1/plugin-risk-policy.v1.json",
 });
 
 const PROJECTABLE_SOURCE_PATHS = new Set([
@@ -112,20 +108,6 @@ function buildRegistryProjection() {
   const modelPolicy = parseFixedJson(FIXED_FILES.modelPolicy);
   const skillRegistry = parseFixedJson(FIXED_FILES.skillRegistry);
   const actionRegistry = parseFixedJson(FIXED_FILES.actionRegistry);
-  const pluginCatalog = parseFixedJson(FIXED_FILES.pluginCatalog);
-  const pluginPacks = parseFixedJson(FIXED_FILES.pluginPacks);
-  const pluginPriority = parseFixedJson(FIXED_FILES.pluginPriority);
-  const pluginRisk = parseFixedJson(FIXED_FILES.pluginRisk);
-
-  if (
-    pluginCatalog.baseline_state !==
-      "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED" ||
-    pluginCatalog.runtime_observation_count !== 0 ||
-    pluginRisk.runtime_enforced !== false ||
-    pluginPacks.runtime_resolver_input !== false
-  ) {
-    throw new Error("STATIC_PLUGIN_REFERENCE_BOUNDARY_CHANGED");
-  }
 
   const observed = new Map();
   const addObservation = (relativePath, expectedSha256 = null) => {
@@ -172,15 +154,16 @@ function buildRegistryProjection() {
       source_path: FIXED_FILES.actionRegistry,
       registry: actionRegistry,
     },
-    plugins: {
-      display_state: "REVIEW_ONLY_REFERENCE_NOT_RUNTIME_ENFORCED",
-      runtime_inspection_performed: false,
-      plugin_code_loaded: false,
-      capability_observation_performed: false,
-      catalog: pluginCatalog,
-      pack_reference: pluginPacks,
-      review_priority: pluginPriority,
-      risk_policy: pluginRisk,
+    milestone_restrictions: {
+      posture: "MILESTONE_1_LOCAL_PREVIEW_ONLY",
+      plugin_access_enabled: false,
+      plugin_registry_projected: false,
+      credential_access_enabled: false,
+      environment_enumeration_enabled: false,
+      live_ai_service_access_enabled: false,
+      external_repository_access_enabled: false,
+      mission_submission_enabled: false,
+      mission_execution_enabled: false,
     },
   };
 }
@@ -374,7 +357,15 @@ function invokeRoutePreview(requestBody) {
             "tsf_hq_dispatch_route_preview_response_v1" ||
           response.banner !== "PREVIEW_ONLY_NOT_AUTHORITY" ||
           response.authority?.preview_only !== true ||
-          response.authority?.mission_execution_enabled !== false
+          response.authority?.mission_execution_enabled !== false ||
+          response.authority?.mission_submission_enabled !== false ||
+          response.authority?.queue_mutation_enabled !== false ||
+          response.authority?.approval_mutation_enabled !== false ||
+          response.authority?.credential_access_enabled !== false ||
+          response.authority?.live_ai_service_access_enabled !== false ||
+          response.authority?.plugin_access_enabled !== false ||
+          response.authority?.external_repository_access_enabled !== false ||
+          response.authority?.request_text_persisted !== false
         ) {
           rejectOnce("ROUTE_PREVIEW_RESPONSE_BOUNDARY_INVALID");
           return;
@@ -456,6 +447,11 @@ async function handleRequest(req, res) {
       ],
       mission_execution_enabled: false,
       queue_mutation_enabled: false,
+      credential_access_enabled: false,
+      live_ai_service_access_enabled: false,
+      plugin_access_enabled: false,
+      external_repository_access_enabled: false,
+      request_text_persisted: false,
     });
     return;
   }

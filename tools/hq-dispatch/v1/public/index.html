@@ -63,7 +63,7 @@
           ></textarea>
           <div class="request-meta">
             <span><span id="request-count">0</span> / 4000</span>
-            <span>Sent only to the fixed preview wrapper</span>
+            <span>Do not enter credentials or secrets</span>
           </div>
           <button id="preview-button" type="submit">
             <span>Preview route</span>
@@ -143,6 +143,14 @@
             </div>
             <ol id="stop-list" class="stop-list"></ol>
           </article>
+
+          <article class="detail-card wide-card">
+            <div class="card-heading">
+              <span class="card-number">06</span>
+              <h3>Why this route</h3>
+            </div>
+            <ul id="route-explanation-list" class="signal-list explanation-list"></ul>
+          </article>
         </div>
 
         <div class="artifact-line">
@@ -182,10 +190,10 @@
             <span id="action-detail">Only route preview is enabled</span>
           </article>
 
-          <article class="registry-card plugin-card">
-            <p class="registry-label">Static plugin reference</p>
-            <strong id="plugin-state">—</strong>
-            <span id="plugin-detail">No host or capability observation</span>
+          <article class="registry-card boundary-card">
+            <p class="registry-label">Milestone boundary</p>
+            <strong id="boundary-state">NO EXTERNAL INTEGRATIONS</strong>
+            <span id="boundary-detail">Plugins, credentials, live AI services, and external repositories are unavailable.</span>
           </article>
         </div>
       </section>
