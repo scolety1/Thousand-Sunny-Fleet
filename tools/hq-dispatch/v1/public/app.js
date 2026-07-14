@@ -36,6 +36,56 @@ function renderStops(stops) {
   list.replaceChildren(fragment);
 }
 
+function renderExplanations(explanation) {
+  const sections = [
+    ["Project and lane", explanation.project_lane],
+    ["Classification", explanation.classification],
+    ["Worker role and fit", explanation.worker_role],
+    ["Model and effort", explanation.model_routing],
+    ["Access proposal", explanation.access_proposal],
+    ["Allowed reads", explanation.allowed_reads],
+    ["Allowed writes", explanation.allowed_writes],
+    ["Forbidden operations", explanation.forbidden_operations],
+    ["Approvals required", explanation.approvals_required],
+    ["Clarifications required", explanation.clarifications_required],
+    ["Stop conditions", explanation.stop_conditions],
+    ["Authority not granted", explanation.authority_not_granted],
+  ];
+  const list = document.querySelector("#route-explanation-list");
+  const fragment = document.createDocumentFragment();
+
+  for (const [label, detail] of sections) {
+    const item = document.createElement("li");
+    const heading = document.createElement("div");
+    const title = document.createElement("strong");
+    const reason = document.createElement("code");
+    const summary = document.createElement("p");
+    const bindings = document.createElement("ul");
+
+    heading.className = "explanation-heading";
+    title.textContent = label;
+    reason.textContent = detail.reason_code;
+    heading.append(title, reason);
+    summary.className = "explanation-summary";
+    summary.textContent = detail.summary;
+    bindings.className = "binding-list";
+
+    for (const binding of detail.canonical_source_bindings) {
+      const bindingItem = document.createElement("li");
+      const source = document.createElement("code");
+      const observed =
+        binding.observed_value ?? `sha256:${binding.observed_value_sha256}`;
+      source.textContent = `${binding.source_path} | ${binding.source_field} | ${observed} | ${binding.assurance}`;
+      bindingItem.append(source);
+      bindings.append(bindingItem);
+    }
+
+    item.append(heading, summary, bindings);
+    fragment.append(item);
+  }
+  list.replaceChildren(fragment);
+}
+
 function renderPreview(preview) {
   setText("#classification", preview.classification);
   const classification = document.querySelector("#classification");
@@ -53,6 +103,13 @@ function renderPreview(preview) {
     `${preview.model_routing.reasoning_effort} · ${preview.model_routing.resolved_model} · ${preview.model_routing.assurance}`,
   );
 
+  setText("#access-level", preview.access_proposal.access_level);
+  setText(
+    "#access-scope",
+    `${preview.access_proposal.network_scope} | ${preview.access_proposal.execution_scope}`,
+  );
+  setText("#access-rationale", preview.access_proposal.rationale);
+
   const approvals =
     preview.required_approvals.length > 0
       ? preview.required_approvals.map(
@@ -62,17 +119,17 @@ function renderPreview(preview) {
           "No exact approval is identified by this preview. Future mission execution remains disabled and separately gated.",
         ];
   replaceList("#approval-list", approvals);
-  replaceList("#clarification-list", preview.clarifications);
+  replaceList(
+    "#clarification-list",
+    preview.clarifications.length > 0
+      ? preview.clarifications
+      : ["No clarification is identified by this preview."],
+  );
   replaceList("#read-list", preview.allowed_reads);
   replaceList("#write-list", preview.allowed_writes);
   replaceList("#forbidden-list", preview.forbidden_actions);
   renderStops(preview.stop_conditions);
-  replaceList("#route-explanation-list", [
-    `Classification: ${preview.route_explanation.classification_reason}`,
-    `Role: ${preview.route_explanation.role_reason}`,
-    `Model and effort: ${preview.route_explanation.model_reason}`,
-    `Authority: ${preview.route_explanation.authority_boundary}`,
-  ]);
+  renderExplanations(preview.route_explanation);
   setText("#artifact-path", preview.artifact.relative_path);
 
   previewResult.hidden = false;

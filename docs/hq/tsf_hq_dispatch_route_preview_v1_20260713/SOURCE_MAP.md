@@ -13,6 +13,52 @@ All paths and hashes below were read from the verified `origin/main` worktree ba
 
 The wrapper hashes all four sources at preview time and emits them with `freshness: READ_AT_PREVIEW_TIME`.
 
+## Source-bound explanation contract
+
+The response's `tsf_hq_dispatch_route_explanation_v1` contract contains 12
+closed explanation sections. Each section binds its formatted summary to one
+or more of these observed facts:
+
+| Explanation | Binding | Assurance |
+| --- | --- | --- |
+| Project and lane | `draft.mission_packet.project_id`, `draft.mission_packet.lane` | `CANONICAL_POLICY_OUTPUT` |
+| Classification | `draft.classification` | `CANONICAL_POLICY_OUTPUT` |
+| Worker role and fit | `draft.normalized_intent.proposed_worker_role`, registered role name and purpose | `CANONICAL_POLICY_OUTPUT`, `CANONICAL_REGISTRY_OUTPUT` |
+| Model and effort | `Resolve-TsfModelRouting` alias, stable alias, resolution, effort, and assurance | `CANONICAL_POLICY_OUTPUT`, `UNKNOWN_OR_RECOMMENDATION_ONLY` |
+| Access, reads, and writes | canonical draft scope hashes plus fixed network/execution scopes | `CANONICAL_POLICY_OUTPUT`, `FIXED_MILESTONE_BOUNDARY` |
+| Prohibitions and stops | canonical draft forbidden-action and stop-condition hashes | `CANONICAL_POLICY_OUTPUT` |
+| Approvals and clarifications | observed classification plus fixed display-only Milestone 1 mapping | `CANONICAL_POLICY_OUTPUT`, `FIXED_MILESTONE_BOUNDARY` |
+| Authority exclusions | fixed preview-only false-valued capability fields | `FIXED_MILESTONE_BOUNDARY` |
+
+Array/object values use SHA-256 of canonical compressed JSON. Scalar values
+are included directly. No source binding contains `natural_request`. The
+wrapper formats summaries but does not claim the canonical router emitted the
+prose and does not create a second selection algorithm.
+
+## Access proposal
+
+The top-level access proposal copies canonical draft read/write scopes and
+adds fixed Milestone 1 restrictions:
+
+- `access_level: TSF_LOCAL_SCOPED_PREVIEW_RECOMMENDATION`
+- `network_scope: NO_NETWORK`
+- `execution_scope: ROUTE_PREVIEW_ONLY_NO_EXECUTION`
+
+The proposal is recommendation-only and grants no filesystem, mission, queue,
+approval, worker, model, network, or execution authority.
+
+## Artifact creation and hygiene
+
+The wrapper generates GUID-based artifact names inside the fixed preview root
+and opens them with `FileMode.CreateNew`. Collisions cannot replace bytes; the
+wrapper retries a new generated ID at most eight times, then fails closed.
+Natural request text is omitted.
+
+Nine ignored legacy artifacts containing a top-level `natural_request` field
+were deleted by direct-child-only cleanup. Their filenames and pre-cleanup
+hashes are recorded in `VALIDATION.md` and `VALIDATION.json`; request values
+were not displayed or copied.
+
 ## Skill projection sources
 
 | Source | SHA-256 | Projection |
@@ -42,4 +88,4 @@ The registry endpoint returns fixed false-valued capability fields for plugin ac
 
 ## Node / PowerShell division
 
-Node owns only fixed HTTP routing, static-file delivery, closed request-envelope checks, hardcoded source loading, hash comparison, and one `spawn` call to the fixed wrapper. PowerShell owns canonical classification and model resolution by calling the existing sources above. No role-classification, model-routing, approval, admission, or mission-schema logic is reproduced in JavaScript.
+Node owns only fixed HTTP routing, static-file delivery, closed request-envelope checks, hardcoded source loading, hash comparison, and one `spawn` call to the fixed wrapper. PowerShell owns canonical classification and model resolution by calling the existing sources above, formats source-bound explanations, and performs exclusive preview-artifact creation. No role-classification, model-routing, approval, admission, or mission-schema logic is reproduced in JavaScript.

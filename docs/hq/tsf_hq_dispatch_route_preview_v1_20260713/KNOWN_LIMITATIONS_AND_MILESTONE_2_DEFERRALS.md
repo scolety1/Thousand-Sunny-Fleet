@@ -7,7 +7,9 @@
 - The proposed project and lane are fixed to `thousand-sunny-fleet` and `MASTER_TSF_CONTROL_PLANE`.
 - The proposed role is the existing default of `New-TsfProjectMainBotMissionDraft.ps1`: `researcher_source_tracer_worker`. Adaptive role selection is not invented here.
 - The model request uses the existing legacy alias `standard_patch`, which the canonical resolver projects to stable `BALANCED`, current CODEX resolution, and current effort. Adaptive model selection is not invented here.
-- Preview artifacts accumulate beneath the ignored preview directory. The server provides no cleanup control, history view, or record-management endpoint.
+- Preview artifacts accumulate beneath the ignored preview directory. The server provides no cleanup control, history view, or record-management endpoint. Bounded local cleanup remains an operator action.
+- Source-bound summaries are wrapper-formatted explanations of observed values; the canonical router does not emit prose. Fixed default role and model choices are labeled recommendation-only rather than adaptive fit.
+- Artifact names use server-generated GUIDs and exclusive create-new semantics. A collision retries a new ID at most eight times and then fails closed; callers cannot select an ID or path.
 - Skill and setup/action registries are versioned static projections. A source edit produces a visible hash mismatch; automatic regeneration is not performed.
 - Plugin registries and runtime state are entirely out of scope. The UI displays only a fixed disabled capability posture and reads no plugin source.
 - The browser shell displays the current preview response only. It has no durable result history.

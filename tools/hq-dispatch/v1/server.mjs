@@ -356,6 +356,13 @@ function invokeRoutePreview(requestBody) {
           response.schema_version !==
             "tsf_hq_dispatch_route_preview_response_v1" ||
           response.banner !== "PREVIEW_ONLY_NOT_AUTHORITY" ||
+          response.route_explanation?.schema_version !==
+            "tsf_hq_dispatch_route_explanation_v1" ||
+          response.access_proposal?.access_level !==
+            "TSF_LOCAL_SCOPED_PREVIEW_RECOMMENDATION" ||
+          response.access_proposal?.network_scope !== "NO_NETWORK" ||
+          response.access_proposal?.execution_scope !==
+            "ROUTE_PREVIEW_ONLY_NO_EXECUTION" ||
           response.authority?.preview_only !== true ||
           response.authority?.mission_execution_enabled !== false ||
           response.authority?.mission_submission_enabled !== false ||

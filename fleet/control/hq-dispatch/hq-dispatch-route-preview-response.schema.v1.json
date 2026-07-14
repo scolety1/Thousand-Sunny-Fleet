@@ -14,6 +14,7 @@
     "proposed_worker_role",
     "model_routing",
     "classification",
+    "access_proposal",
     "route_explanation",
     "required_approvals",
     "clarifications",
@@ -145,31 +146,117 @@
         "NEEDS_MAIN_BOT_REVIEW"
       ]
     },
+    "access_proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "access_level",
+        "read_scope",
+        "write_scope",
+        "network_scope",
+        "execution_scope",
+        "rationale",
+        "reason_code",
+        "canonical_source_bindings"
+      ],
+      "properties": {
+        "access_level": {
+          "const": "TSF_LOCAL_SCOPED_PREVIEW_RECOMMENDATION"
+        },
+        "read_scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "write_scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "network_scope": {
+          "const": "NO_NETWORK"
+        },
+        "execution_scope": {
+          "const": "ROUTE_PREVIEW_ONLY_NO_EXECUTION"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{2,63}$"
+        },
+        "canonical_source_bindings": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/definitions/source_binding"
+          }
+        }
+      }
+    },
     "route_explanation": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "classification_reason",
-        "role_reason",
-        "model_reason",
-        "authority_boundary"
+        "schema_version",
+        "project_lane",
+        "classification",
+        "worker_role",
+        "model_routing",
+        "access_proposal",
+        "allowed_reads",
+        "allowed_writes",
+        "forbidden_operations",
+        "approvals_required",
+        "clarifications_required",
+        "stop_conditions",
+        "authority_not_granted"
       ],
       "properties": {
-        "classification_reason": {
-          "type": "string",
-          "minLength": 1
+        "schema_version": {
+          "const": "tsf_hq_dispatch_route_explanation_v1"
         },
-        "role_reason": {
-          "type": "string",
-          "minLength": 1
+        "project_lane": {
+          "$ref": "#/definitions/explanation_element"
         },
-        "model_reason": {
-          "type": "string",
-          "minLength": 1
+        "classification": {
+          "$ref": "#/definitions/explanation_element"
         },
-        "authority_boundary": {
-          "type": "string",
-          "minLength": 1
+        "worker_role": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "model_routing": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "access_proposal": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "allowed_reads": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "allowed_writes": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "forbidden_operations": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "approvals_required": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "clarifications_required": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "stop_conditions": {
+          "$ref": "#/definitions/explanation_element"
+        },
+        "authority_not_granted": {
+          "$ref": "#/definitions/explanation_element"
         }
       }
     },
@@ -358,6 +445,83 @@
         },
         "queue_record": {
           "const": false
+        }
+      }
+    }
+  },
+  "definitions": {
+    "source_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_path",
+        "source_field",
+        "assurance"
+      ],
+      "properties": {
+        "source_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "observed_value_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "assurance": {
+          "enum": [
+            "CANONICAL_POLICY_OUTPUT",
+            "CANONICAL_REGISTRY_OUTPUT",
+            "FIXED_MILESTONE_BOUNDARY",
+            "UNKNOWN_OR_RECOMMENDATION_ONLY"
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "observed_value"
+          ]
+        },
+        {
+          "required": [
+            "observed_value_sha256"
+          ]
+        }
+      ]
+    },
+    "explanation_element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_code",
+        "summary",
+        "canonical_source_bindings"
+      ],
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{2,63}$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "canonical_source_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/source_binding"
+          }
         }
       }
     }

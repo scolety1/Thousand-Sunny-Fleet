@@ -100,6 +100,12 @@
             <strong id="model-alias">—</strong>
             <small id="model-effort">—</small>
           </article>
+          <div class="route-arrow" aria-hidden="true">&rarr;</div>
+          <article>
+            <span class="metric-label">Access proposal</span>
+            <strong id="access-level">Pending</strong>
+            <small id="access-scope">No authority granted</small>
+          </article>
         </div>
 
         <div class="detail-grid">
@@ -147,9 +153,10 @@
           <article class="detail-card wide-card">
             <div class="card-heading">
               <span class="card-number">06</span>
-              <h3>Why this route</h3>
+              <h3>Source-bound route explanation</h3>
             </div>
-            <ul id="route-explanation-list" class="signal-list explanation-list"></ul>
+            <p id="access-rationale" class="access-rationale"></p>
+            <ol id="route-explanation-list" class="explanation-list"></ol>
           </article>
         </div>
 
@@ -158,6 +165,10 @@
           <code id="artifact-path">—</code>
           <strong>Not a mission or queue record</strong>
         </div>
+        <p class="retention-note">
+          Raw request text is not persisted. Ignored local preview artifacts
+          accumulate until bounded operator cleanup and never become canonical evidence.
+        </p>
       </section>
 
       <section class="registry-section" aria-labelledby="registry-heading">

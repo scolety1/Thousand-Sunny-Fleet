@@ -63,6 +63,11 @@ function Get-TsfHqCanonicalTextSha256 {
     }
 }
 
+function Copy-TsfHqJsonValue {
+    param([Parameter(Mandatory = $true)][object]$Value)
+    $Value | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+}
+
 . ".\tools\TsfJsonContract.ps1"
 
 $controlRoot = "fleet/control/hq-dispatch"
@@ -219,6 +224,37 @@ Assert-TsfHq ($serverSource -notmatch "process\.env|0\.0\.0\.0") "BOUNDARY-003" 
 Assert-TsfHq ($wrapperSource -match [regex]::Escape(".codex-local\hq-dispatch\preview")) "BOUNDARY-004" "Wrapper hardcodes the only artifact root."
 Assert-TsfHq ($wrapperSource -notmatch "approval-ledger|Invoke-TsfMissionLifecycle|Invoke-TsfMissionQueueForegroundExecutor|Get-TsfAdmissionDecision|tsf-codex-app-server-adapter") "BOUNDARY-005" "Wrapper exposes no approval, lifecycle, queue, admission, or app-server operation."
 Assert-TsfHq ($serverSource -notmatch "plugin-catalog-risk-v1" -and $serverSource -match "plugin_registry_projected: false") "BOUNDARY-006" "Server reads and projects no plugin registry."
+Assert-TsfHq ($wrapperSource -match "FileMode\]::CreateNew" -and $wrapperSource -match "attempt -le 8") "ARTIFACT-COLLISION-001" "Wrapper uses bounded exclusive-create collision handling."
+
+$collisionResult = & {
+    # Keep the wrapper's strict-mode setting inside this child scope so it cannot
+    # alter the canonical JSON-contract validator used later in this harness.
+    . (Resolve-Path -LiteralPath $wrapperPath)
+    $collisionRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot ".codex-local\hq-dispatch\preview"))
+    New-Item -ItemType Directory -Force -Path $collisionRoot | Out-Null
+    $collisionPath = Join-Path $collisionRoot "hq-preview-00000000000000000000000000000000.route-preview.json"
+    if (Test-Path -LiteralPath $collisionPath -PathType Leaf) {
+        Remove-Item -LiteralPath $collisionPath -Force
+    }
+    $collisionMarker = "existing-preview-artifact-must-not-change"
+    [System.IO.File]::WriteAllText($collisionPath, $collisionMarker, [System.Text.UTF8Encoding]::new($false))
+    $collisionHashBefore = (Get-FileHash -LiteralPath $collisionPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $collisionRejected = $false
+    try {
+        Write-TsfHqPreviewArtifactExclusive -Path $collisionPath -Content "replacement-content-must-not-win"
+    } catch {
+        $collisionRejected = $_.Exception.Message -ceq "PREVIEW_ARTIFACT_COLLISION"
+    } finally {
+        $collisionHashAfter = (Get-FileHash -LiteralPath $collisionPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        Remove-Item -LiteralPath $collisionPath -Force
+    }
+    [pscustomobject]@{
+        rejected = $collisionRejected
+        unchanged = $collisionHashAfter -ceq $collisionHashBefore
+    }
+}
+Assert-TsfHq $collisionResult.rejected "ARTIFACT-COLLISION-002" "An existing artifact path fails as a deterministic collision."
+Assert-TsfHq $collisionResult.unchanged "ARTIFACT-COLLISION-003" "A collision cannot overwrite an existing artifact."
 
 $previewPathsBefore = @(Get-ChildItem -LiteralPath ".codex-local/hq-dispatch/preview" -Filter "*.route-preview.json" -File -ErrorAction SilentlyContinue | ForEach-Object FullName)
 & node $nodeTestPath
@@ -236,7 +272,80 @@ if ($null -ne $latestPreview) {
     Assert-TsfHq ($preview.record_kind -ceq "hq_dispatch_route_preview") "ARTIFACT-003" "Preview artifact is explicitly not a mission record."
     Assert-TsfHq ($preview.artifact.mission_record -eq $false -and $preview.artifact.queue_record -eq $false) "ARTIFACT-004" "Preview artifact denies mission and queue record identity."
     Assert-TsfHq ($preview.authority.mission_execution_enabled -eq $false) "ARTIFACT-005" "Preview artifact denies mission execution."
+
+    $explanationNames = @(
+        "project_lane", "classification", "worker_role", "model_routing",
+        "access_proposal", "allowed_reads", "allowed_writes",
+        "forbidden_operations", "approvals_required", "clarifications_required",
+        "stop_conditions", "authority_not_granted"
+    )
+    Assert-TsfHq ($preview.route_explanation.schema_version -ceq "tsf_hq_dispatch_route_explanation_v1") "EXPLANATION-001" "Complete versioned explanation is accepted."
+    foreach ($name in $explanationNames) {
+        $element = $preview.route_explanation.$name
+        $validElement =
+            ![string]::IsNullOrWhiteSpace([string]$element.reason_code) -and
+            ![string]::IsNullOrWhiteSpace([string]$element.summary) -and
+            @($element.canonical_source_bindings).Count -gt 0
+        Assert-TsfHq $validElement "EXPLANATION-002" "Explanation element is complete: $name"
+    }
+
+    $missingProjectLane = Copy-TsfHqJsonValue $preview
+    $missingProjectLane.route_explanation.PSObject.Properties.Remove("project_lane")
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $missingProjectLane -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-001" "Missing project/lane explanation is rejected."
+    $missingAccess = Copy-TsfHqJsonValue $preview
+    $missingAccess.PSObject.Properties.Remove("access_proposal")
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $missingAccess -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-002" "Missing access proposal is rejected."
+    $missingRole = Copy-TsfHqJsonValue $preview
+    $missingRole.route_explanation.PSObject.Properties.Remove("worker_role")
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $missingRole -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-003" "Missing role-fit explanation is rejected."
+    $missingModel = Copy-TsfHqJsonValue $preview
+    $missingModel.route_explanation.PSObject.Properties.Remove("model_routing")
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $missingModel -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-004" "Missing model/effort explanation is rejected."
+    $missingAuthority = Copy-TsfHqJsonValue $preview
+    $missingAuthority.route_explanation.PSObject.Properties.Remove("authority_not_granted")
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $missingAuthority -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-005" "Missing authority exclusions are rejected."
+    $missingBindings = Copy-TsfHqJsonValue $preview
+    $missingBindings.route_explanation.worker_role.PSObject.Properties.Remove("canonical_source_bindings")
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $missingBindings -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-006" "Missing source bindings are rejected."
+    $emptySummary = Copy-TsfHqJsonValue $preview
+    $emptySummary.route_explanation.model_routing.summary = ""
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $emptySummary -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-007" "Empty explanation summaries are rejected."
+    $unknownNested = Copy-TsfHqJsonValue $preview
+    $unknownNested.route_explanation.project_lane | Add-Member -NotePropertyName unexpected -NotePropertyValue "rejected"
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $unknownNested -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-008" "Unknown nested explanation fields are rejected."
+    $malformedReason = Copy-TsfHqJsonValue $preview
+    $malformedReason.route_explanation.classification.reason_code = "not-valid"
+    Assert-TsfHq (!(Test-TsfJsonContract -Value $malformedReason -SchemaPath $responseSchemaPath).valid) "EXPLANATION-NEG-009" "Malformed explanation reason codes are rejected."
+
+    $projectBindings = @($preview.route_explanation.project_lane.canonical_source_bindings)
+    Assert-TsfHq (@($projectBindings | Where-Object { $_.source_field -ceq "draft.mission_packet.project_id" -and $_.observed_value -ceq $preview.proposed_project.project_id }).Count -eq 1) "EXPLANATION-SEM-001" "Project rationale binds the fixed canonical project."
+    Assert-TsfHq (@($projectBindings | Where-Object { $_.source_field -ceq "draft.mission_packet.lane" -and $_.observed_value -ceq $preview.proposed_project.lane }).Count -eq 1) "EXPLANATION-SEM-002" "Lane rationale binds the fixed canonical lane."
+    $roleBindings = @($preview.route_explanation.worker_role.canonical_source_bindings)
+    Assert-TsfHq (@($roleBindings | Where-Object { $_.source_field -ceq "draft.normalized_intent.proposed_worker_role" -and $_.observed_value -ceq $preview.proposed_worker_role.role_id }).Count -eq 1) "EXPLANATION-SEM-003" "Role explanation binds the canonical role result."
+    $modelBindings = @($preview.route_explanation.model_routing.canonical_source_bindings)
+    $modelValues = @($modelBindings | ForEach-Object { [string]$_.observed_value })
+    Assert-TsfHq ($modelValues -contains [string]$preview.model_routing.stable_alias -and $modelValues -contains [string]$preview.model_routing.resolved_model -and $modelValues -contains [string]$preview.model_routing.reasoning_effort) "EXPLANATION-SEM-004" "Model explanation binds alias, model, and effort outputs."
+    Assert-TsfHq ($preview.access_proposal.access_level -ceq "TSF_LOCAL_SCOPED_PREVIEW_RECOMMENDATION" -and $preview.access_proposal.network_scope -ceq "NO_NETWORK" -and $preview.access_proposal.execution_scope -ceq "ROUTE_PREVIEW_ONLY_NO_EXECUTION") "EXPLANATION-SEM-005" "Access explanation remains recommendation-only with no network or execution scope."
+    Assert-TsfHq ((Get-TsfContractJsonHash -Value @($preview.access_proposal.read_scope)) -ceq (Get-TsfContractJsonHash -Value @($preview.allowed_reads)) -and (Get-TsfContractJsonHash -Value @($preview.access_proposal.write_scope)) -ceq (Get-TsfContractJsonHash -Value @($preview.allowed_writes))) "EXPLANATION-SEM-006" "Access scopes match the projected reads and writes."
+    Assert-TsfHq ($preview.authority.preview_only -and !$preview.authority.mission_execution_enabled -and !$preview.authority.mission_submission_enabled -and !$preview.authority.queue_mutation_enabled -and !$preview.authority.approval_mutation_enabled) "EXPLANATION-SEM-007" "No explanation or access proposal grants authority."
+    $allBindings = @($explanationNames | ForEach-Object { @($preview.route_explanation.$_.canonical_source_bindings) })
+    $allowedAssurances = @("CANONICAL_POLICY_OUTPUT", "CANONICAL_REGISTRY_OUTPUT", "FIXED_MILESTONE_BOUNDARY", "UNKNOWN_OR_RECOMMENDATION_ONLY")
+    Assert-TsfHq (@($allBindings | Where-Object { $allowedAssurances -notcontains [string]$_.assurance -or [string]::IsNullOrWhiteSpace([string]$_.source_path) -or [string]::IsNullOrWhiteSpace([string]$_.source_field) }).Count -eq 0) "EXPLANATION-SEM-008" "All explanation bindings retain bounded source and assurance data."
+    Assert-TsfHq (($preview.route_explanation | ConvertTo-Json -Depth 40) -notmatch [regex]::Escape("Review a bounded TSF-local documentation change.")) "EXPLANATION-SEM-009" "Explanation provenance does not retain the raw natural request."
 }
+
+$legacyRawArtifacts = @()
+foreach ($file in @(Get-ChildItem -LiteralPath ".codex-local/hq-dispatch/preview" -File -Filter "*.route-preview.json" -ErrorAction SilentlyContinue)) {
+    $value = Read-TsfHqJson $file.FullName
+    if ($null -ne $value -and $value.PSObject.Properties.Name -contains "natural_request") {
+        $legacyRawArtifacts += $file.Name
+    }
+}
+Assert-TsfHq ($legacyRawArtifacts.Count -eq 0) "ARTIFACT-HYGIENE-001" "Legacy cleanup leaves zero preview artifacts with raw natural_request fields."
+
+$pluginBaselineChanges = @(& git diff --name-only origin/main -- ":(glob)**/*plugin*" ":(glob)**/plugins/**")
+$pluginBaselineChanges = @($pluginBaselineChanges | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+Assert-TsfHq ($pluginBaselineChanges.Count -eq 0) "PLUGIN-BASELINE-001" "Static plugin baseline has no feature-branch mutation."
 
 $changed = @(
     & git diff --name-only origin/main --

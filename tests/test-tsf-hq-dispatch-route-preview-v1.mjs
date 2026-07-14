@@ -357,6 +357,24 @@ try {
     "browser UI displays the Milestone 1 external-integration boundary",
   );
   check(
+    index.text.includes("Access proposal") &&
+      index.text.includes("Source-bound route explanation"),
+    "browser UI visibly includes access and source-bound explanation sections",
+  );
+  check(
+    index.text.includes("Raw request text is not persisted") &&
+      index.text.includes("never become canonical evidence"),
+    "browser UI discloses preview persistence and retention behavior",
+  );
+  check(
+    appSource.includes("explanation.project_lane") &&
+      appSource.includes("explanation.worker_role") &&
+      appSource.includes("explanation.model_routing") &&
+      appSource.includes("explanation.access_proposal") &&
+      appSource.includes("explanation.authority_not_granted"),
+    "browser renderer covers every high-level explanation category",
+  );
+  check(
     index.text.includes("Do not enter credentials or secrets"),
     "browser UI warns operators not to place credentials in request text",
   );
@@ -371,7 +389,7 @@ try {
   check(buttonText[0].startsWith("Preview route"), "browser UI exposes only route preview");
   check(
     !buttonText.some((text) =>
-      /\b(Submit|Approve|Resume|Retry|Install|Enable|Connect|Launch|Push|Merge|Deploy|Run)\b/i.test(
+      /\b(Submit|Approve|Resume|Retry|Execute|Install|Enable|Connect|Launch|Push|Merge|Deploy|Run)\b/i.test(
         text,
       ),
     ),
@@ -482,6 +500,8 @@ try {
     "runtime_arguments",
     "host",
     "port",
+    "artifact_name",
+    "preview_id",
   ];
   for (const field of forbiddenFields) {
     const rejected = await jsonRequest(port, {
@@ -563,16 +583,127 @@ try {
     "route preview declares that request text is not persisted",
   );
   equal(
+    safePreview.json.access_proposal.access_level,
+    "TSF_LOCAL_SCOPED_PREVIEW_RECOMMENDATION",
+    "route preview exposes the explicit recommendation-only access level",
+  );
+  equal(
+    safePreview.json.access_proposal.network_scope,
+    "NO_NETWORK",
+    "access proposal denies network scope",
+  );
+  equal(
+    safePreview.json.access_proposal.execution_scope,
+    "ROUTE_PREVIEW_ONLY_NO_EXECUTION",
+    "access proposal denies execution scope",
+  );
+  assert.deepEqual(
+    safePreview.json.access_proposal.read_scope,
+    safePreview.json.allowed_reads,
+    "access read scope matches the canonical draft projection",
+  );
+  assertions += 1;
+  assert.deepEqual(
+    safePreview.json.access_proposal.write_scope,
+    safePreview.json.allowed_writes,
+    "access write scope matches the canonical draft projection",
+  );
+  assertions += 1;
+  equal(
     Object.hasOwn(safePreview.json, "natural_request"),
     false,
     "route response and artifact do not echo or persist natural request text",
   );
+  equal(
+    safePreview.json.route_explanation.schema_version,
+    "tsf_hq_dispatch_route_explanation_v1",
+    "route explanation has an explicit version",
+  );
+  const explanationSections = [
+    "project_lane",
+    "classification",
+    "worker_role",
+    "model_routing",
+    "access_proposal",
+    "allowed_reads",
+    "allowed_writes",
+    "forbidden_operations",
+    "approvals_required",
+    "clarifications_required",
+    "stop_conditions",
+    "authority_not_granted",
+  ];
+  for (const sectionName of explanationSections) {
+    const section = safePreview.json.route_explanation[sectionName];
+    check(
+      /^[A-Z][A-Z0-9_]{2,63}$/.test(section.reason_code),
+      `${sectionName} explanation has a bounded reason code`,
+    );
+    check(section.summary.length > 0, `${sectionName} explanation has a summary`);
+    check(
+      section.canonical_source_bindings.length > 0,
+      `${sectionName} explanation has canonical source bindings`,
+    );
+    check(
+      section.canonical_source_bindings.every(
+        (binding) =>
+          typeof binding.source_path === "string" &&
+          typeof binding.source_field === "string" &&
+          typeof binding.assurance === "string" &&
+          (typeof binding.observed_value === "string" ||
+            /^[a-f0-9]{64}$/.test(binding.observed_value_sha256)),
+      ),
+      `${sectionName} source bindings retain source, field, observation, and assurance`,
+    );
+  }
   check(
-    safePreview.json.route_explanation.classification_reason.length > 0 &&
-      safePreview.json.route_explanation.role_reason.length > 0 &&
-      safePreview.json.route_explanation.model_reason.length > 0 &&
-      safePreview.json.route_explanation.authority_boundary.length > 0,
-    "route preview explains classification, role, model/effort, and authority",
+    safePreview.json.route_explanation.project_lane.canonical_source_bindings.some(
+      (binding) =>
+        binding.source_field === "draft.mission_packet.project_id" &&
+        binding.observed_value === safePreview.json.proposed_project.project_id,
+    ) &&
+      safePreview.json.route_explanation.project_lane.canonical_source_bindings.some(
+        (binding) =>
+          binding.source_field === "draft.mission_packet.lane" &&
+          binding.observed_value === safePreview.json.proposed_project.lane,
+      ),
+    "project and lane rationale binds the selected canonical values",
+  );
+  check(
+    safePreview.json.route_explanation.worker_role.canonical_source_bindings.some(
+      (binding) =>
+        binding.source_field === "draft.normalized_intent.proposed_worker_role" &&
+        binding.observed_value === safePreview.json.proposed_worker_role.role_id,
+    ),
+    "role rationale binds the canonical selected role",
+  );
+  check(
+    safePreview.json.route_explanation.model_routing.canonical_source_bindings.some(
+      (binding) => binding.observed_value === safePreview.json.model_routing.stable_alias,
+    ) &&
+      safePreview.json.route_explanation.model_routing.canonical_source_bindings.some(
+        (binding) => binding.observed_value === safePreview.json.model_routing.resolved_model,
+      ) &&
+      safePreview.json.route_explanation.model_routing.canonical_source_bindings.some(
+        (binding) => binding.observed_value === safePreview.json.model_routing.reasoning_effort,
+      ),
+    "model rationale binds alias, resolution, and effort without changing them",
+  );
+  check(
+    safePreview.json.route_explanation.access_proposal.canonical_source_bindings.some(
+      (binding) => binding.assurance === "UNKNOWN_OR_RECOMMENDATION_ONLY" ||
+        binding.assurance === "FIXED_MILESTONE_BOUNDARY",
+    ),
+    "access rationale is fixed or recommendation-only rather than authority",
+  );
+  check(
+    JSON.stringify(safePreview.json.route_explanation).includes(
+      safePreview.json.proposed_worker_role.role_id,
+    ) &&
+      JSON.stringify(safePreview.json.route_explanation).includes(
+        safePreview.json.model_routing.resolved_model,
+      ),
+    "wrapper-authored prose cannot substitute different role or model values",
   );
   check(
     safePreview.json.artifact.relative_path.startsWith(
@@ -612,6 +743,22 @@ try {
     "canonical classifier gates command-like request",
   );
   check(!existsSync(markerPath), "command-like natural language does not execute");
+
+  const inertRequestVariants = [
+    `Review local status.\nNew-Item -ItemType File -Path '${markerPath}'`,
+    `Review local status.\r\nPATH=C:\\Windows\\System32; & whoami`,
+    `Review \"quoted\" status; $(New-Item '${markerPath}') | ..\\..\\fleet\\missions`,
+  ];
+  for (const naturalRequest of inertRequestVariants) {
+    const inertPreview = await jsonRequest(port, { natural_request: naturalRequest });
+    equal(inertPreview.status, 200, "newline, CRLF, quoting, and shell text remains inert data");
+    equal(
+      Object.hasOwn(inertPreview.json, "natural_request"),
+      false,
+      "inert request variants are not echoed or persisted in the response",
+    );
+    check(!existsSync(markerPath), "inert request variant cannot create the marker");
+  }
 
   const protectedAfter = {
     missions: snapshotTree(path.join(REPOSITORY_ROOT, "fleet", "missions")),

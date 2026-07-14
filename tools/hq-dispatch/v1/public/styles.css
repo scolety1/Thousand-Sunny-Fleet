@@ -348,7 +348,7 @@ button:disabled {
 
 .route-strip {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
   gap: 1.15rem;
   align-items: stretch;
   padding: 1.5rem;
@@ -510,6 +510,67 @@ button:disabled {
   font-size: 0.72rem;
 }
 
+.access-rationale,
+.retention-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.explanation-list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.explanation-list > li {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 2%);
+}
+
+.explanation-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: baseline;
+}
+
+.explanation-heading strong {
+  color: var(--ink);
+}
+
+.explanation-heading code,
+.binding-list code {
+  color: var(--sun-soft);
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.explanation-summary {
+  margin: 0.55rem 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.binding-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.binding-list li {
+  color: var(--dim);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
 .artifact-line {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -532,6 +593,10 @@ button:disabled {
 
 .artifact-line strong {
   color: var(--mint);
+}
+
+.retention-note {
+  margin: 0.7rem 0 0;
 }
 
 .registry-grid {
