@@ -1,0 +1,297 @@
+{
+  "schema_version": "tsf_hq_dispatch_skill_registry_v1",
+  "generated_on": "2026-07-13",
+  "projection_posture": "STATIC_REGISTRY_PROJECTION_NOT_EXECUTION_AUTHORITY",
+  "sources": [
+    {
+      "path": "docs/codex/FLEET_SKILL_MAP.md",
+      "sha256": "aaec924be7dfac72e56e674f3901b3604f3d906cbe7e387123fa6e0bbdf552f6",
+      "source_kind": "documented_skill_map"
+    },
+    {
+      "path": "skills/code-review-and-quality.md",
+      "sha256": "136dd2d0c38095ced7ff6733ac273a6f0b235f9e023c335c2999f33505a8122d",
+      "source_kind": "local_skill_definition"
+    },
+    {
+      "path": "skills/frontend-ui-engineering.md",
+      "sha256": "52f94514b8eb2faae36033f35c96e045bb44cce347c2d7f0d9e2c32c53219200",
+      "source_kind": "local_skill_definition"
+    },
+    {
+      "path": "skills/incremental-implementation.md",
+      "sha256": "75b13510495b4407fac1e99293b20a0cbd2f86ef8c840e9d38f12d89edc86729",
+      "source_kind": "local_skill_definition"
+    },
+    {
+      "path": "skills/planning-and-task-breakdown.md",
+      "sha256": "0fe3232d331afb364ff080c86eba7c85217a85632625de2b9834ee7541aa9406",
+      "source_kind": "local_skill_definition"
+    },
+    {
+      "path": "skills/shipping-and-launch.md",
+      "sha256": "4da8a9b324501a397b4a8d741697b6b5498359cfb9f1e3abfcf239813f0c28b2",
+      "source_kind": "local_skill_definition"
+    }
+  ],
+  "skills": [
+    {
+      "skill_id": "accessibility-checklist",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "polish",
+        "dashboard"
+      ]
+    },
+    {
+      "skill_id": "api-and-interface-design",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "data-contract",
+        "scenario-tools",
+        "default:backend",
+        "default:integration"
+      ]
+    },
+    {
+      "skill_id": "browser-testing-with-devtools",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "polish",
+        "proof"
+      ]
+    },
+    {
+      "skill_id": "code-review-and-quality",
+      "presence": "DOCUMENTED_AND_LOCAL_DEFINITION",
+      "documented_in_skill_map": true,
+      "locally_present_definition": true,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md",
+        "skills/code-review-and-quality.md"
+      ],
+      "phase_mappings": [
+        "shape",
+        "simplicity",
+        "proof",
+        "parked",
+        "analysis-proof",
+        "default:copy"
+      ]
+    },
+    {
+      "skill_id": "code-simplification",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "simplicity"
+      ]
+    },
+    {
+      "skill_id": "context-engineering",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "foundation"
+      ]
+    },
+    {
+      "skill_id": "debugging-and-error-recovery",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "proof",
+        "repair",
+        "fixture-tests",
+        "default:bugfix"
+      ]
+    },
+    {
+      "skill_id": "deprecation-and-migration",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "default:migration"
+      ]
+    },
+    {
+      "skill_id": "documentation-and-adrs",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "brief",
+        "foundation",
+        "parked",
+        "calibration",
+        "analysis-proof",
+        "default:docs"
+      ]
+    },
+    {
+      "skill_id": "frontend-ui-engineering",
+      "presence": "DOCUMENTED_AND_LOCAL_DEFINITION",
+      "documented_in_skill_map": true,
+      "locally_present_definition": true,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md",
+        "skills/frontend-ui-engineering.md"
+      ],
+      "phase_mappings": [
+        "shape",
+        "simplicity",
+        "polish",
+        "dashboard",
+        "default:design",
+        "default:visible/showpiece"
+      ]
+    },
+    {
+      "skill_id": "idea-refine",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "brief"
+      ]
+    },
+    {
+      "skill_id": "incremental-implementation",
+      "presence": "DOCUMENTED_AND_LOCAL_DEFINITION",
+      "documented_in_skill_map": true,
+      "locally_present_definition": true,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md",
+        "skills/incremental-implementation.md"
+      ],
+      "phase_mappings": [
+        "shape",
+        "repair",
+        "engine-build",
+        "scenario-tools",
+        "default:otherwise"
+      ]
+    },
+    {
+      "skill_id": "performance-optimization",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "engine-build",
+        "calibration",
+        "dashboard"
+      ]
+    },
+    {
+      "skill_id": "planning-and-task-breakdown",
+      "presence": "DOCUMENTED_AND_LOCAL_DEFINITION",
+      "documented_in_skill_map": true,
+      "locally_present_definition": true,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md",
+        "skills/planning-and-task-breakdown.md"
+      ],
+      "phase_mappings": [
+        "foundation"
+      ]
+    },
+    {
+      "skill_id": "shipping-and-launch",
+      "presence": "DOCUMENTED_AND_LOCAL_DEFINITION",
+      "documented_in_skill_map": true,
+      "locally_present_definition": true,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md",
+        "skills/shipping-and-launch.md"
+      ],
+      "phase_mappings": [
+        "parked"
+      ]
+    },
+    {
+      "skill_id": "source-driven-development",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "formula-spec",
+        "analysis-proof"
+      ]
+    },
+    {
+      "skill_id": "spec-driven-development",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "brief",
+        "problem-brief"
+      ]
+    },
+    {
+      "skill_id": "test-driven-development",
+      "presence": "DOCUMENTED_ONLY",
+      "documented_in_skill_map": true,
+      "locally_present_definition": false,
+      "source_paths": [
+        "docs/codex/FLEET_SKILL_MAP.md"
+      ],
+      "phase_mappings": [
+        "data-contract",
+        "formula-spec",
+        "fixture-tests",
+        "engine-build",
+        "calibration",
+        "scenario-tools",
+        "default:test"
+      ]
+    }
+  ]
+}

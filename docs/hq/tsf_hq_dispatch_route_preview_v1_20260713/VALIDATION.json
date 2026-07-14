@@ -1,0 +1,141 @@
+{
+  "schema_version": "tsf_hq_dispatch_route_preview_correction_validation_v1",
+  "validated_on": "2026-07-14",
+  "repository_basis": {
+    "feature_base": "7fe9c176177d5d2c613238d375fdb45e6fe783dc",
+    "starting_commit": "e2f9d916c0f83f79e1cab5d3975440d921a96d9f",
+    "starting_tree": "4cc7a1066cf58cd1f31d00732c11bad524a091d1",
+    "validated_staged_implementation_tree": "958fd13589de1ea46d4e19c6220d138814e53127",
+    "branch": "work/tsf-hq-dispatch-route-preview-v1-20260713",
+    "network_used": false,
+    "remote_feature_ref_observed": false
+  },
+  "verdict": "GREEN_TSF_HQ_DISPATCH_ROUTE_PREVIEW_CORRECTION_READY_FOR_REAUDIT",
+  "authority_banner": "PREVIEW_ONLY_NOT_AUTHORITY",
+  "explanation_contract": {
+    "schema_version": "tsf_hq_dispatch_route_explanation_v1",
+    "source_bound_sections": 12,
+    "access_level": "TSF_LOCAL_SCOPED_PREVIEW_RECOMMENDATION",
+    "network_scope": "NO_NETWORK",
+    "execution_scope": "ROUTE_PREVIEW_ONLY_NO_EXECUTION",
+    "canonical_router_prose_claimed": false,
+    "authority_granted": false
+  },
+  "artifact_cleanup": {
+    "cleanup_root": ".codex-local/hq-dispatch/preview/",
+    "classification": "LEGACY_RAW_REQUEST_ARTIFACT",
+    "disposition": "DELETED",
+    "cleanup_count": 9,
+    "remaining_natural_request_fields": 0,
+    "records": [
+      {
+        "filename": "hq-preview-1a0d13ebbe8c4e09853406a650372f71.route-preview.json",
+        "pre_cleanup_sha256": "f8350c5b0f11ac6b887b93d399426c1bfdb45fda9943d90945dbeeb54a3f6107"
+      },
+      {
+        "filename": "hq-preview-55ee8e848dac43139d68290e34e0cd9c.route-preview.json",
+        "pre_cleanup_sha256": "0a1bcaf9e2aacf6be9240678a6e81276652b84986eb40fedf6310a61c9b42f2d"
+      },
+      {
+        "filename": "hq-preview-56a43facbe184b32b39b9730b4395abc.route-preview.json",
+        "pre_cleanup_sha256": "4310081a013807922f8e1aa0ac44f944fc56a31b05f54e8f473c756abfb18d55"
+      },
+      {
+        "filename": "hq-preview-ad5934d1feeb498b86fb53dc7735d74a.route-preview.json",
+        "pre_cleanup_sha256": "44e5c5941991e0b727fa9764a609c1374544e35aed008ac97ec805a8bf13e1b1"
+      },
+      {
+        "filename": "hq-preview-af3c2258df704df79d7c7a0e10d2ca6b.route-preview.json",
+        "pre_cleanup_sha256": "5173aa9df45ed088987c3478f4c7e575983e9ac65c3eef465f1690a44486773e"
+      },
+      {
+        "filename": "hq-preview-b6c50373a2a84dcdafe1b5a583b3affb.route-preview.json",
+        "pre_cleanup_sha256": "a92f19e284e1e7bae848ffc339f0ffe932d0ce8e70a6da3331c984cd864ea688"
+      },
+      {
+        "filename": "hq-preview-c30b0f0de84b40f2b9d20f8c73bc4680.route-preview.json",
+        "pre_cleanup_sha256": "2416389c0df95d378b1a2a069d17854d2de0eecc659949573fdd733b804495ec"
+      },
+      {
+        "filename": "hq-preview-d835595d3e4b44609b89b262da00a5d9.route-preview.json",
+        "pre_cleanup_sha256": "7d830534f267be3f4a503b85cb34419c3bb3033001952c5dd5d819f98e6c5583"
+      },
+      {
+        "filename": "hq-preview-e5eea7fc201b43beb0ab74c848d224a9.route-preview.json",
+        "pre_cleanup_sha256": "bdc5428d0409a2524b9095691d7a0b893b255599eae7ca5584b1e8f899575002"
+      }
+    ]
+  },
+  "suite_results": [
+    {
+      "suite": "node_endpoint_browser_contract_injection",
+      "command": "node .\\tests\\test-tsf-hq-dispatch-route-preview-v1.mjs",
+      "utc_start": "2026-07-14T05:38:32.2141709+00:00",
+      "utc_end": "2026-07-14T05:38:35.9739449+00:00",
+      "exit_code": 0,
+      "assertion_count": 188,
+      "result_artifact": "NODE_INTEGRATION_PASS assertions=188",
+      "result_sha256": "50f59c41941c39b578da04e213c26b2c4aa54b971ffdbb6d95e62c6c123c11a7",
+      "raw_output_sha256": "8d98912967ef7b6bf38251ec0d5d1112eef51459b22e570169652d13ae0bb9df",
+      "target_tree": "deb6ac471eb9972f6be86852f0e27a78be0fec90"
+    },
+    {
+      "suite": "project_main_bot_role_foundation_regression",
+      "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\tests\\run-project-main-bot-role-foundation-tests.ps1",
+      "utc_start": "2026-07-14T05:37:38.4808153+00:00",
+      "utc_end": "2026-07-14T05:37:39.8120197+00:00",
+      "exit_code": 0,
+      "assertion_count": 391,
+      "result_artifact": "Project Main Bot role foundation tests passed.",
+      "result_sha256": "f90c312ae989ac51094321129cec5273890488fab90a8316bfd42c9d998df5a9",
+      "raw_output_sha256": "19e27ed679ee2e6c86bf6095de2ce3472245f90f818c6c96264e3bee012ae1a3",
+      "target_tree": "deb6ac471eb9972f6be86852f0e27a78be0fec90"
+    },
+    {
+      "suite": "durable_contract_regression",
+      "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\tests\\run-tsf-durable-contract-tests.ps1 -EvidenceRoot .codex-local\\hq-dispatch\\correction\\durable-contract",
+      "utc_start": "2026-07-14T05:38:03.0565476+00:00",
+      "utc_end": "2026-07-14T05:38:12.1123821+00:00",
+      "exit_code": 0,
+      "assertion_count": 33,
+      "result_artifact": "Durable canonical contract tests passed: 33 assertions.",
+      "result_sha256": "6872445374d9bb0db229f20fcbcf3edb1366d45388a662491f018f62c6a0e4ef",
+      "raw_output_sha256": "6a47f173c4de9e7ac764428568c848f8f99dd05702a38b05ff5111ea40e6dce8",
+      "target_tree": "deb6ac471eb9972f6be86852f0e27a78be0fec90"
+    },
+    {
+      "suite": "focused_powershell_harness",
+      "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\tests\\run-tsf-hq-dispatch-route-preview-v1-tests.ps1",
+      "utc_start": "2026-07-14T05:49:09.5921486+00:00",
+      "utc_end": "2026-07-14T05:49:16.4592335+00:00",
+      "exit_code": 0,
+      "assertion_count": 262,
+      "result_artifact": "TSF_HQ_DISPATCH_VALIDATION_PASS assertions=262 actions=71 enabled_actions=1 external_integrations=disabled",
+      "result_sha256": "fc620602b9f81ca4b30badf06703e0e3344cf96b264d710c34f79f193ef7fd43",
+      "raw_output_sha256": "e813af5214b6567b36b89c174a2f0249934a5fa46e2c47f917e1c445f07f775e",
+      "target_tree": "958fd13589de1ea46d4e19c6220d138814e53127"
+    }
+  ],
+  "negative_proof": {
+    "mission_records_created": 0,
+    "queue_records_created": 0,
+    "canonical_state_records_mutated": 0,
+    "writes_outside_preview_root_by_hq_dispatch": 0,
+    "lifecycle_operations": 0,
+    "admission_operations": 0,
+    "worker_operations": 0,
+    "app_server_operations": 0,
+    "plugin_runtime_state_reads": 0,
+    "plugin_runtime_operations": 0,
+    "approval_mutations": 0,
+    "credential_or_auth_operations": 0,
+    "live_ai_service_operations": 0,
+    "external_repository_operations": 0,
+    "external_connections": 0,
+    "natural_request_fields_remaining": 0,
+    "artifact_overwrites": 0
+  },
+  "intended_file_count": 20,
+  "pre_existing_runtime_authority_files_modified": 0,
+  "known_limitations_and_deferrals": "KNOWN_LIMITATIONS_AND_MILESTONE_2_DEFERRALS.md"
+}

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Local-only TSF HQ Dispatch registry projection and canonical route preview."
+    >
+    <title>TSF HQ Dispatch · Route Preview</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="authority-banner" role="status">
+      <span class="authority-dot" aria-hidden="true"></span>
+      PREVIEW_ONLY_NOT_AUTHORITY
+    </div>
+
+    <header class="site-header">
+      <div class="brand-lockup">
+        <div class="sun-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <div>
+          <p class="eyebrow">Thousand Sunny Fleet · Local operator surface</p>
+          <h1>HQ Dispatch</h1>
+        </div>
+      </div>
+      <div class="header-posture">
+        <span>V1 / Milestone 1</span>
+        <strong>Loopback only</strong>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero-grid" aria-labelledby="route-heading">
+        <div class="hero-copy">
+          <p class="section-kicker">Canonical route preview</p>
+          <h2 id="route-heading">See the proposed lane before authority begins.</h2>
+          <p class="lede">
+            Describe a bounded request. HQ Dispatch projects TSF’s existing role,
+            model, classification, scope, and stop-condition sources without
+            creating or executing a mission.
+          </p>
+          <div class="boundary-note">
+            <strong>No operational bridge.</strong>
+            <span>
+              Mission, queue, approval, lifecycle, worker, plugin, credential,
+              and app-server operations are unavailable.
+            </span>
+          </div>
+        </div>
+
+        <form id="preview-form" class="request-card">
+          <label for="natural-request">Natural-language request</label>
+          <textarea
+            id="natural-request"
+            name="natural_request"
+            maxlength="4000"
+            rows="7"
+            required
+            placeholder="Example: Review the TSF-local documentation for a bounded safety gap."
+          ></textarea>
+          <div class="request-meta">
+            <span><span id="request-count">0</span> / 4000</span>
+            <span>Do not enter credentials or secrets</span>
+          </div>
+          <button id="preview-button" type="submit">
+            <span>Preview route</span>
+            <span aria-hidden="true">→</span>
+          </button>
+          <p id="request-status" class="request-status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="preview-result" class="result-shell" aria-labelledby="result-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Proposed dispatch</p>
+            <h2 id="result-heading">Canonical route projection</h2>
+          </div>
+          <span id="classification" class="classification-pill">Waiting</span>
+        </div>
+
+        <div class="route-strip" aria-label="Proposed route summary">
+          <article>
+            <span class="metric-label">Project / lane</span>
+            <strong id="project-id">—</strong>
+            <small id="lane-id">—</small>
+          </article>
+          <div class="route-arrow" aria-hidden="true">→</div>
+          <article>
+            <span class="metric-label">Worker role</span>
+            <strong id="worker-role">—</strong>
+            <small id="worker-purpose">—</small>
+          </article>
+          <div class="route-arrow" aria-hidden="true">→</div>
+          <article>
+            <span class="metric-label">Model route</span>
+            <strong id="model-alias">—</strong>
+            <small id="model-effort">—</small>
+          </article>
+          <div class="route-arrow" aria-hidden="true">&rarr;</div>
+          <article>
+            <span class="metric-label">Access proposal</span>
+            <strong id="access-level">Pending</strong>
+            <small id="access-scope">No authority granted</small>
+          </article>
+        </div>
+
+        <div class="detail-grid">
+          <article class="detail-card emphasis-card">
+            <div class="card-heading">
+              <span class="card-number">01</span>
+              <h3>Approvals &amp; clarifications</h3>
+            </div>
+            <ul id="approval-list" class="signal-list"></ul>
+            <ul id="clarification-list" class="signal-list muted-list"></ul>
+          </article>
+
+          <article class="detail-card">
+            <div class="card-heading">
+              <span class="card-number">02</span>
+              <h3>Allowed reads</h3>
+            </div>
+            <ul id="read-list" class="token-list"></ul>
+          </article>
+
+          <article class="detail-card">
+            <div class="card-heading">
+              <span class="card-number">03</span>
+              <h3>Allowed writes</h3>
+            </div>
+            <ul id="write-list" class="token-list"></ul>
+          </article>
+
+          <article class="detail-card danger-card">
+            <div class="card-heading">
+              <span class="card-number">04</span>
+              <h3>Forbidden actions</h3>
+            </div>
+            <ul id="forbidden-list" class="token-list danger-tokens"></ul>
+          </article>
+
+          <article class="detail-card wide-card">
+            <div class="card-heading">
+              <span class="card-number">05</span>
+              <h3>Stop conditions</h3>
+            </div>
+            <ol id="stop-list" class="stop-list"></ol>
+          </article>
+
+          <article class="detail-card wide-card">
+            <div class="card-heading">
+              <span class="card-number">06</span>
+              <h3>Source-bound route explanation</h3>
+            </div>
+            <p id="access-rationale" class="access-rationale"></p>
+            <ol id="route-explanation-list" class="explanation-list"></ol>
+          </article>
+        </div>
+
+        <div class="artifact-line">
+          <span>Preview artifact</span>
+          <code id="artifact-path">—</code>
+          <strong>Not a mission or queue record</strong>
+        </div>
+        <p class="retention-note">
+          Raw request text is not persisted. Ignored local preview artifacts
+          accumulate until bounded operator cleanup and never become canonical evidence.
+        </p>
+      </section>
+
+      <section class="registry-section" aria-labelledby="registry-heading">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Authoritative static projection</p>
+            <h2 id="registry-heading">Registry source &amp; freshness</h2>
+          </div>
+          <span id="registry-status" class="freshness-pill">Loading sources</span>
+        </div>
+
+        <div class="registry-grid">
+          <article class="registry-card registry-sources-card">
+            <div class="registry-card-heading">
+              <h3>Source ledger</h3>
+              <span id="source-count">—</span>
+            </div>
+            <ul id="source-list" class="source-list"></ul>
+          </article>
+
+          <article class="registry-card">
+            <p class="registry-label">Skill projection</p>
+            <strong id="skill-count">—</strong>
+            <span id="skill-detail">Documented vs locally present</span>
+          </article>
+
+          <article class="registry-card">
+            <p class="registry-label">Setup / actions</p>
+            <strong id="action-count">—</strong>
+            <span id="action-detail">Only route preview is enabled</span>
+          </article>
+
+          <article class="registry-card boundary-card">
+            <p class="registry-label">Milestone boundary</p>
+            <strong id="boundary-state">NO EXTERNAL INTEGRATIONS</strong>
+            <span id="boundary-detail">Plugins, credentials, live AI services, and external repositories are unavailable.</span>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>TSF HQ Dispatch V1</span>
+      <span>Foreground · local · evidence-only projection</span>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

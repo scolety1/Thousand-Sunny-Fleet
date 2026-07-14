@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tsf_hq_dispatch_route_preview_request_schema_v1",
+  "title": "TSF HQ Dispatch route preview request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "natural_request"
+  ],
+  "properties": {
+    "natural_request": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    }
+  }
+}
