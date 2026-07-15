@@ -1,0 +1,25 @@
+{
+  "schema_version": "tsf_hq_dispatch_request_result_relay_validation_v1",
+  "generated_at": "2026-07-14T09:40:00Z",
+  "verdict": "YELLOW_TSF_HQ_DISPATCH_REQUEST_RESULT_RELAY_V1_PARTIAL_WITH_BLOCKERS",
+  "verified_base": "08f3bb30f5077658c034617c6caf8adf9a76fbdd",
+  "branch": "work/tsf-hq-dispatch-request-result-relay-v1-20260714",
+  "worktree": "C:\\Users\\codex-agent\\Documents\\Vacation\\Thousand-Sunny-Fleet-hq-dispatch-request-result-relay-v1-20260714",
+  "starting_head": "08f3bb30f5077658c034617c6caf8adf9a76fbdd",
+  "final_head": "08f3bb30f5077658c034617c6caf8adf9a76fbdd",
+  "commit": null,
+  "synthetic_http_assertions": 34,
+  "synthetic_http_exit": 0,
+  "real_vertical_slice_exit": 1,
+  "real_mission_id": "hq2-mrkgmi5v-be8032",
+  "real_run_id": "canonical-result-hq2-mrkgmi5v-be8032-1",
+  "real_thread_id": null,
+  "real_turn_id": null,
+  "real_receipt_id": null,
+  "blockers": [
+    "Mandated worktree produces canonical runtime maximum path length 234 above the mandatory 225 target before queue movement.",
+    "No existing canonical approval/denial writer exists; production approval relay fails closed instead of fabricating authority."
+  ],
+  "prohibited_actions_observed": false,
+  "commit_gate_met": false
+}

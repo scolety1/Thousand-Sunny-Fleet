@@ -1,9 +1,9 @@
 ﻿{
     "schema_version":  "tsf_app_server_event_summary_v1",
-    "read_only_thread_id":  "019f4f55-4f06-7873-b688-53cafb7f0e32",
-    "read_only_turn_id":  "019f4f55-63e4-7621-ab77-1692572d4814",
-    "workspace_thread_id":  "019f4f55-a0c7-7411-b08a-f3395e336958",
-    "workspace_turn_id":  "019f4f55-b5d2-7c13-99a8-c1a43f88ccc3",
-    "all_children_exited":  true,
-    "no_orphan_process":  true
+    "read_only_thread_id":  "",
+    "read_only_turn_id":  "",
+    "workspace_thread_id":  "",
+    "workspace_turn_id":  "",
+    "all_children_exited":  false,
+    "no_orphan_process":  false
 }

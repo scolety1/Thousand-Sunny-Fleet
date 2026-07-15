@@ -287,7 +287,9 @@ $queueControlPlan=New-TsfRuntimeStoragePlan $compactRoot $longStorageMission 99 
 Assert-Case 'VS-CONTROL-001' storage ($queueControlPlan.directory-match'[\\/]q[\\/][a-z2-7]{32}[\\/][a-z2-7]{32}$'-and$queueControlPlan.directory-notmatch[regex]::Escape($longStorageMission)) 'queue executor control plan is compact and identifier-independent'
 Assert-Case 'VS-CONTROL-002' storage ($lifecycleControlPlan.directory-match'[\\/]l[\\/][a-z2-7]{32}[\\/][a-z2-7]{32}$'-and$lifecycleControlPlan.directory-notmatch[regex]::Escape($longStorageMission)) 'lifecycle control plan is compact and identifier-independent'
 
-$sourceWorktree=Join-Path (Split-Path -Parent $repo) 'Thousand-Sunny-Fleet-durable-contract-v1-20260710'
+$sourceWorktreeName='Thousand-Sunny-Fleet-durable-contract-v1-20260710'
+$registeredWorktrees=@(& git -C $repo worktree list --porcelain | ForEach-Object { if($_.StartsWith('worktree ')){ $_.Substring(9) } })
+$sourceWorktree=@($registeredWorktrees | Where-Object { (Split-Path -Leaf $_) -eq $sourceWorktreeName } | Select-Object -First 1)[0]
 $recoveryRecord=Join-Path $sourceWorktree '.codex-local\preservation\transactional-admission-resume-v1-20260711\synthetic-recovery.json'
 Assert-Case 'VS-RECOVERY-001' recovery ((Test-Path -LiteralPath $recoveryRecord)-and((Get-Content -LiteralPath $recoveryRecord -Raw|ConvertFrom-Json).recovery_action-eq'RECREATE_EXACT_SYNTHETIC_FIXTURE_ROOT')) 'previous failed scratch transaction preserved and deterministically recreated'
 

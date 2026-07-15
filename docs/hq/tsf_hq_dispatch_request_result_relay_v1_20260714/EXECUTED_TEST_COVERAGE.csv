@@ -1,0 +1,12 @@
+command,category,exit,assertions_or_result,raw_output_sha256
+"node tests/test-tsf-hq-dispatch-request-result-relay-v1.mjs","M2 HTTP/session/submission/TIM synthetic",0,"34 PASS","687121af6667e6f1f9d04886741b003f3463428b8ebc2f811d1f925a9632638b"
+"New-TsfHqDispatchGovernedMission.ps1 isolated fixture invocation","canonical preparation",0,"valid mission and one queue record","NOT_CAPTURED"
+"node tests/run-tsf-hq-dispatch-real-readonly-v1.mjs","real read-only vertical slice",1,"blocked path target 234 > 225","26fc65858b8b224e8b9425daa69476e1e24c59d38351534752974c1313003aa9"
+"tests/run-project-main-bot-role-foundation-tests.ps1","Project Main Bot regression",0,"suite PASS","NOT_CAPTURED"
+"tests/run-tsf-final-static-integrity-tests.ps1","final authority static regression",0,"7 PASS","NOT_CAPTURED"
+"tests/run-tsf-mission-queue-tests.ps1","mission queue regression",1,"path plan rejected in mandated worktree","NOT_CAPTURED"
+"tests/run-tsf-optional-lifecycle-argument-tests.ps1","optional lifecycle regression",1,"required prior local STOP_RECORD absent in new worktree","NOT_CAPTURED"
+"tests/run-tsf-final-three-authority-tests.ps1","final-three authority regression",1,"runtime producer record absent after path gate","NOT_CAPTURED"
+"tests/run-tsf-canonical-runtime-app-server-tests.ps1","canonical runtime synthetic regression",1,"compact preservation target rejected in mandated worktree","NOT_CAPTURED"
+"tests/run-tsf-hq-dispatch-route-preview-v1-tests.ps1","immutable Milestone 1 packet",1,"6 expected checksum/scope failures for Milestone 2 edits; functional Node subtest reported 189 PASS during run","NOT_CAPTURED"
+"node --check server/relay/app/tests and git diff --check","syntax/diff",0,"PASS","NOT_CAPTURED"

@@ -17,6 +17,12 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 const required = ["codex-executable", "mission-id", "mission-revision", "policy-fingerprint", "queue-document-sha256", "cwd", "model", "mission-requested-effort", "canonical-resolved-effort", "required-effort-assurance", "effort", "sandbox", "prompt-file", "output-dir", "result-file", "event-file", "stderr-file", "timeout-seconds", "expires-at"];
 for (const key of required) if (!args[key]) throw new Error(`Missing --${key}`);
+const expectedResponseSha256 = args["expected-response-sha256"] ?? "";
+if (expectedResponseSha256 && !/^[a-f0-9]{64}$/.test(expectedResponseSha256)) throw new Error("Invalid --expected-response-sha256");
+const canonicalResultId = `canonical-result-${args["mission-id"]}-${Number(args["mission-revision"])}`;
+const runId = args["run-id"] ?? canonicalResultId;
+const resultId = args["result-id"] ?? canonicalResultId;
+if (runId !== canonicalResultId || resultId !== canonicalResultId) throw new Error("Noncanonical app-server result identity");
 
 const outputDir = resolve(args["output-dir"]);
 mkdirSync(outputDir, { recursive: true });
@@ -44,6 +50,7 @@ let turnRequestAcknowledged = false;
 let turnStartResponseSequence = null;
 let capabilityHash = "";
 let finalResponse = "";
+let finalResponseObserved = false;
 let completedTurn = null;
 let initialized = false;
 let turnStarted = false;
@@ -159,7 +166,10 @@ function handleNotification(message) {
   }
   if (method === "model/rerouted") recordNativeEffortEvent(method, params);
   if (method === "thread/tokenUsage/updated") recordNativeUsageEvent(params);
-  if (method === "item/completed" && params.item?.type === "agentMessage") finalResponse = extractText(params.item);
+  if (method === "item/completed" && params.item?.type === "agentMessage") {
+    finalResponse = extractText(params.item);
+    finalResponseObserved = true;
+  }
   if (method === "turn/completed") completedTurn = params.turn;
 }
 
@@ -269,7 +279,7 @@ try {
   while (!completedTurn && !protocolError && !timedOut) await new Promise((resolveWait) => setTimeout(resolveWait, 25));
   if (protocolError) throw new Error(protocolError);
   if (!completedTurn || completedTurn.status !== "completed") throw new Error(`Turn did not complete: ${completedTurn?.status ?? "missing"}`);
-  if (!finalResponse.trim()) throw new Error("Final response was not observed");
+  if (!expectedResponseSha256 && !finalResponse.trim()) throw new Error("Final response was not observed");
 } catch (error) {
   failure = error.message;
 } finally {
@@ -323,12 +333,20 @@ const effortConflicts = [];
 if (normalizedThreadDefault !== "UNKNOWN" && normalizedThreadDefault !== normalizedTurnRequested) effortConflicts.push("THREAD_DEFAULT_DIFFERS_FROM_TURN_REQUEST");
 if (normalizedEffectiveEffort !== "UNKNOWN" && normalizedEffectiveEffort !== normalizeEffort(args["canonical-resolved-effort"])) effortConflicts.push("EFFECTIVE_EFFORT_DIFFERS_FROM_CANONICAL_RESOLUTION");
 if (nativeRerouteOrOverrideEvents.some((event) => event.method === "model/rerouted")) effortConflicts.push("NATIVE_MODEL_REROUTE_OBSERVED");
+const observedResponseSha256 = finalResponseObserved ? hashText(finalResponse) : null;
+const responseExactMatch = Boolean(expectedResponseSha256)
+  && finalResponseObserved
+  && observedResponseSha256 === expectedResponseSha256;
+const transportSuccess = !failure && childExited && malformedProtocolCount === 0;
+const semanticResponseSuccess = expectedResponseSha256 ? responseExactMatch : transportSuccess;
 const result = {
   schema_version: "tsf_codex_app_server_adapter_result_v1",
   mission_id: args["mission-id"],
   mission_revision: Number(args["mission-revision"]),
   policy_fingerprint: args["policy-fingerprint"],
   queue_document_sha256: args["queue-document-sha256"],
+  run_id: runId,
+  result_id: resultId,
   child_process_instance_id: childInstanceId,
   child_process_id: child.pid,
   cwd: resolve(args.cwd),
@@ -358,9 +376,18 @@ const result = {
   control_plane_service_network_policy: "CODEX_SERVICE_ONLY",
   worker_tool_network_policy: "DISABLED",
   codex_service_connection_used: Boolean(turnId),
-  direct_openai_api_called_by_tsf: false,
-  external_api_called: false,
-  worker_network_used: false,
+  direct_openai_api_called_by_tsf: null,
+  external_api_called: null,
+  worker_network_used: null,
+  observation_claims: {
+    product_repository_access: { classification: "NOT_OBSERVED", value: null, source: "app-server protocol exposes no filesystem-read audit", run_id: runId },
+    plugin_use: { classification: "NOT_OBSERVED", value: null, source: "app-server protocol exposes no plugin-use audit", run_id: runId },
+    credential_access: { classification: "NOT_OBSERVED", value: null, source: "app-server protocol exposes no credential-read audit", run_id: runId },
+    worker_tool_network: { classification: "CONFIGURED_DISABLED", value: false, source: "thread and turn sandbox networkAccess=false", run_id: runId },
+    external_network_access: { classification: "NOT_OBSERVED", value: null, source: "sandbox is configured disabled but no runtime network-use audit is exposed", run_id: runId },
+    filesystem_writes: { classification: "NOT_OBSERVED", value: null, source: "adapter delegates before/after filesystem observation to lifecycle", run_id: runId },
+    detached_or_unowned_child: { classification: childExited ? "OBSERVED_NOT_USED" : "UNKNOWN", value: childExited ? false : null, source: "adapter-owned foreground child exit observation", run_id: runId },
+  },
   native_approval_request_count: nativeApprovalRequests,
   native_question_request_count: nativeQuestionRequests,
   question_relay_status: "QUESTION_RELAY_DEFERRED_AFTER_AUTOMATIC_ROUND_TRIP",
@@ -368,6 +395,11 @@ const result = {
   event_journal_path: eventPath,
   event_journal_sha256: eventJournalSha256,
   final_response: finalResponse,
+  final_response_observed: finalResponseObserved,
+  expected_response_sha256: expectedResponseSha256 || null,
+  observed_response_sha256: observedResponseSha256,
+  response_exact_match: responseExactMatch,
+  semantic_response_success: semanticResponseSuccess,
   native_usage_events: nativeUsageEvents,
   turn_usage: turnUsage,
   timeout_seconds: Number(args["timeout-seconds"]),
@@ -377,11 +409,12 @@ const result = {
   child_exited: childExited,
   no_orphan_process: childExited,
   malformed_protocol_count: malformedProtocolCount,
-  success: !failure && childExited && malformedProtocolCount === 0,
+  transport_success: transportSuccess,
+  success: transportSuccess,
   failure,
   started_at: startedAt,
   completed_at: new Date().toISOString(),
 };
 writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
 process.stdout.write(`${JSON.stringify(result)}\n`);
-process.exit(result.success ? 0 : 1);
+process.exit(result.transport_success ? 0 : 1);

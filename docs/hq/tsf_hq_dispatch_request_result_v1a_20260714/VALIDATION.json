@@ -1,0 +1,137 @@
+{
+  "schema_version": "tsf_hq_dispatch_exact_result_evidence_correction_validation_v1",
+  "generated_at": "2026-07-15T19:06:21Z",
+  "verdict": "GREEN_TSF_HQ_DISPATCH_EXACT_RESULT_EVIDENCE_READY_FOR_INDEPENDENT_AUDIT",
+  "repository": "C:\\TSF_M2A",
+  "branch": "work/tsf-hq-dispatch-request-result-relay-v1-20260714",
+  "initial_head": "650783a1cdd2b0ac4c7c60035b903f8b21f3e3cb",
+  "initial_tree": "3c744cd6be6bc00ae9cccc05acb51b8ad8409f37",
+  "base_commit": "08f3bb30f5077658c034617c6caf8adf9a76fbdd",
+  "follow_up_commit_subject": "fix: bind HQ Dispatch result truth",
+  "follow_up_commit": null,
+  "commit_recording": "The commit identifier is reported after this self-containing packet is committed.",
+  "finding_classifications": {
+    "adapter_accepted_any_nonempty_response": "CONFIRMED",
+    "lifecycle_green_followed_transport_only": "CONFIRMED",
+    "verifier_and_admission_lacked_exact_recomputation": "CONFIRMED",
+    "real_runner_hardcoded_unobserved_non_use": "CONFIRMED",
+    "event_result_identity_and_cross_run_binding_incomplete": "CONFIRMED",
+    "browser_copy_described_stale_future_boundary": "CONFIRMED"
+  },
+  "expected_response_sha256": "106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba",
+  "proofs": {
+    "focused": {
+      "exit": 0,
+      "assertions": 148,
+      "adapter_matrix": 43,
+      "verifier_admission_matrix": 12,
+      "http_replay_projection_ui": 93,
+      "combined_output_sha256": "f72b4627d33a996098225854437416d8f459ff18f608a52dc656fe01905c3ded",
+      "raw_record": ".codex-local/hq-dispatch/m2a-validation/commands/tester-fix-focused"
+    },
+    "deterministic_canonical": {
+      "exit": 0,
+      "assertions": 59,
+      "outcome": "ADMITTED_WITH_CAVEATS",
+      "mission_id": "hq2-mrmgamxm-65000a",
+      "run_id": "canonical-result-hq2-mrmgamxm-65000a-1",
+      "result_id": "canonical-result-hq2-mrmgamxm-65000a-1",
+      "expected_response_sha256": "106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba",
+      "observed_response_sha256": "106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba",
+      "worker_exact_match": true,
+      "verifier_exact_match": true,
+      "verifier_independently_recomputed": true,
+      "combined_output_sha256": "e80f82049f2cd00cf425c3b9d09623a5484f4da7618cf372db40c9d0baf6c762",
+      "candidate_identity_unchanged": true,
+      "raw_record": ".codex-local/hq-dispatch/m2a-validation/commands/tester-fix-deterministic-accepted"
+    },
+    "deterministic_wrong_response": {
+      "exit": 0,
+      "assertions": 21,
+      "outcome": "REJECTED",
+      "mission_id": "hq2-mrmg9q7n-7c9ab3",
+      "run_id": "canonical-result-hq2-mrmg9q7n-7c9ab3-1",
+      "result_id": null,
+      "nested_result_id": null,
+      "worker_status": "APP_SERVER_RESPONSE_MISMATCH",
+      "transport_success": true,
+      "semantic_success": false,
+      "exact_match": false,
+      "verifier_verdict": "RED",
+      "admission": null,
+      "combined_output_sha256": "d96550aa7754ff0443d7146288559092dcc6e95ce81b71ef7f2bee3f2fb33c7b",
+      "candidate_identity_unchanged": true,
+      "raw_record": ".codex-local/hq-dispatch/m2a-validation/commands/tester-fix-deterministic-wrong-response"
+    },
+    "real_readonly_app_server": {
+      "exit": 0,
+      "http_status": 200,
+      "outcome": "ADMITTED_WITH_CAVEATS",
+      "submission_id": "hq-submission-b7bf111a-5c1a-4324-90e6-27d2eb8657b3",
+      "mission_id": "hq2-mrmf5exo-4ee60b",
+      "run_id": "canonical-result-hq2-mrmf5exo-4ee60b-1",
+      "result_id": "canonical-result-hq2-mrmf5exo-4ee60b-1",
+      "expected_response_sha256": "106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba",
+      "observed_response_sha256": "106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba",
+      "worker_exact_match": true,
+      "verifier_exact_match": true,
+      "verifier_independently_recomputed": true,
+      "child_exited": true,
+      "listener_remaining": false,
+      "combined_output_sha256": "d4b95289f7f700e7ccc2714317768c1358c9d76e2d504809a21a77a844e721be",
+      "candidate_identity_unchanged": true,
+      "raw_record": ".codex-local/hq-dispatch/m2a-validation/commands/correction-real-readonly"
+    },
+    "canonical_runtime_compatibility": {
+      "exit": 0,
+      "assertions": 149,
+      "recording": "INTERACTIVE_DIRECT_RERUN"
+    },
+    "final_static_integrity": {
+      "exit": 0,
+      "assertions": 18
+    },
+    "candidate_static_and_packet_integrity": {
+      "exit": 0,
+      "assertions": 17,
+      "protected_path_matches": 0,
+      "diff_check": "PASS",
+      "packet_checksum_rows": 13
+    }
+  },
+  "observation_truth": {
+    "product_repository_access": "NOT_OBSERVED",
+    "plugin_use": "NOT_OBSERVED",
+    "credential_access": "NOT_OBSERVED",
+    "external_network_access": "NOT_OBSERVED",
+    "worker_tool_network": "CONFIGURED_DISABLED",
+    "filesystem_writes": "OBSERVED_NOT_USED",
+    "detached_or_unowned_child": "OBSERVED_NOT_USED",
+    "listener_remaining": "OBSERVED_NOT_USED",
+    "all_claims_bound_to_run_id": true,
+    "not_observed_or_unknown_values_are_null": true
+  },
+  "validation_mirror": {
+    "path": "C:\\TSF_M2A_VERIFY",
+    "purpose": "Satisfy the clean governing-policy fingerprint without creating an extra target-branch commit.",
+    "remote_used": false,
+    "target_branch_commit_count_added_before_gate": 0,
+    "disposable": true
+  },
+  "legacy_m1_publication_wrapper": {
+    "classification": "NOT_APPLICABLE_TO_M2A_BRANCH",
+    "reason": "It asserts that Milestone 2 execution is disabled, that Milestone 1 files are byte-unchanged, and that the branch contains only Milestone 1 scope.",
+    "observed_failures": 12,
+    "observed_assertions": 227,
+    "active_replacement_coverage": "The 93-assertion HQ Dispatch HTTP/replay/event/UI suite covers the current route preview and projection contract."
+  },
+  "m2b_implemented": false,
+  "tim_response_writing_deferred": true,
+  "push_performed": false,
+  "pull_request_created": false,
+  "merge_performed": false,
+  "not_tested": [],
+  "not_recorded": [
+    "The final 149-assertion canonical compatibility rerun was observed directly rather than through the raw recorder."
+  ]
+}

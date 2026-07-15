@@ -4,6 +4,9 @@ param(
     [Parameter(Mandatory = $true)][int]$MissionRevision,
     [Parameter(Mandatory = $true)][string]$PolicyFingerprint,
     [Parameter(Mandatory = $true)][string]$QueueDocumentSha256,
+    [string]$RunId = '',
+    [string]$ResultId = '',
+    [string]$ExpectedResponseSha256 = '',
     [Parameter(Mandatory = $true)][string]$Cwd,
     [Parameter(Mandatory = $true)][string]$Model,
     [Parameter(Mandatory = $true)][string]$ReasoningEffort,
@@ -27,6 +30,11 @@ $codexExe = Join-Path $npmRoot 'node_modules\@openai\codex\node_modules\@openai\
 if (!(Test-Path -LiteralPath $codexExe -PathType Leaf)) { throw "Codex app-server executable not found: $codexExe" }
 $effortMap = @{ LIGHT='low'; MEDIUM='medium'; HIGH='high'; EXTRA_HIGH='xhigh'; MAX='max'; ULTRA='ultra' }
 if (!$effortMap.ContainsKey($ReasoningEffort)) { throw "Unsupported app-server effort: $ReasoningEffort" }
+$canonicalResultId = "canonical-result-$MissionId-$MissionRevision"
+if ([string]::IsNullOrWhiteSpace($RunId)) { $RunId = $canonicalResultId }
+if ([string]::IsNullOrWhiteSpace($ResultId)) { $ResultId = $canonicalResultId }
+if ($RunId -ne $canonicalResultId -or $ResultId -ne $canonicalResultId) { throw 'NONCANONICAL_APP_SERVER_RESULT_IDENTITY' }
+if (![string]::IsNullOrWhiteSpace($ExpectedResponseSha256) -and $ExpectedResponseSha256 -notmatch '^[a-f0-9]{64}$') { throw 'INVALID_EXPECTED_RESPONSE_SHA256' }
 $artifactCatalog=Get-TsfRuntimeArtifactCatalog
 $canonicalRoot=Get-TsfCanonicalRuntimeRoot
 $expectedPlan=New-TsfRuntimeStoragePlan -RuntimeRoot $canonicalRoot -MissionId $MissionId -MissionRevision $MissionRevision -RunId "canonical-result-$MissionId-$MissionRevision" -Layout adapter
@@ -47,6 +55,8 @@ $arguments = @(
     '--mission-revision', [string]$MissionRevision,
     '--policy-fingerprint', $PolicyFingerprint,
     '--queue-document-sha256', $QueueDocumentSha256,
+    '--run-id', $RunId,
+    '--result-id', $ResultId,
     '--cwd', $Cwd,
     '--model', $Model,
     '--mission-requested-effort', $ReasoningEffort,
@@ -62,9 +72,12 @@ $arguments = @(
     '--timeout-seconds', [string]$TimeoutSeconds,
     '--expires-at', $ExpiresAt.ToUniversalTime().ToString('o')
 )
+if (![string]::IsNullOrWhiteSpace($ExpectedResponseSha256)) {
+    $arguments += @('--expected-response-sha256', $ExpectedResponseSha256)
+}
 & $node @arguments
 $exitCode = $LASTEXITCODE
 if (!(Test-Path -LiteralPath $ResultPath -PathType Leaf)) { throw 'App-server adapter did not write its result.' }
 $result = Get-Content -LiteralPath $ResultPath -Raw | ConvertFrom-Json
-if ($exitCode -ne 0 -or ![bool]$result.success) { throw "App-server adapter failed: $($result.failure)" }
+if ($exitCode -ne 0 -or ![bool]$result.transport_success) { throw "App-server adapter transport failed: $($result.failure)" }
 $result

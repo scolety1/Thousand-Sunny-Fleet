@@ -517,6 +517,28 @@ button:disabled {
   line-height: 1.55;
 }
 
+.governed-submit {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.governed-submit label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.detail-card pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 0.78rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+#tim-required {
+  margin-top: 1rem;
+}
+
 .explanation-list {
   display: grid;
   gap: 0.8rem;

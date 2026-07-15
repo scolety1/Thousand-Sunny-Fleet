@@ -9,8 +9,8 @@
                            "thread/start",
                            "turn/start"
                        ],
-    "read_only_attempted":  true,
-    "read_only_green":  true,
-    "workspace_write_attempted":  true,
+    "read_only_attempted":  false,
+    "read_only_green":  false,
+    "workspace_write_attempted":  false,
     "question_relay_status":  "QUESTION_RELAY_DEFERRED_AFTER_AUTOMATIC_ROUND_TRIP"
 }

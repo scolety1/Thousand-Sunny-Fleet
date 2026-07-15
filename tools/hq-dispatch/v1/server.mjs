@@ -1,15 +1,20 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync, mkdirSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { HqMissionRelay } from "./mission-relay.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const PRODUCTION_PORT = 4317;
 const MAX_REQUEST_BYTES = 8192;
 const MAX_WRAPPER_OUTPUT_BYTES = 1024 * 1024;
 const WRAPPER_TIMEOUT_MS = 15000;
+const SESSION_TTL_MS = 30 * 60 * 1000;
+const SESSION_RATE_WINDOW_MS = 60 * 1000;
+const SESSION_RATE_LIMIT = 60;
+const SESSION_HEADER = "x-tsf-hq-session";
 const POWERSHELL_EXE = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const PUBLIC_ROOT = path.join(REPOSITORY_ROOT, "tools", "hq-dispatch", "v1", "public");
@@ -155,15 +160,18 @@ function buildRegistryProjection() {
       registry: actionRegistry,
     },
     milestone_restrictions: {
-      posture: "MILESTONE_1_LOCAL_PREVIEW_ONLY",
+      posture: "MILESTONE_2_BOUNDED_GOVERNED_OPERATOR_BRIDGE",
       plugin_access_enabled: false,
       plugin_registry_projected: false,
       credential_access_enabled: false,
       environment_enumeration_enabled: false,
       live_ai_service_access_enabled: false,
       external_repository_access_enabled: false,
-      mission_submission_enabled: false,
-      mission_execution_enabled: false,
+      mission_submission_enabled: true,
+      mission_execution_enabled: true,
+      arbitrary_repository_execution_enabled: false,
+      one_active_mission_per_process: true,
+      worker_tool_network_enabled: false,
     },
   };
 }
@@ -277,6 +285,93 @@ function parseRoutePreviewInput(body) {
   return { value: { natural_request: naturalRequest } };
 }
 
+function parseJsonObject(body) {
+  try {
+    const value = JSON.parse(body.toString("utf8"));
+    if (value === null || Array.isArray(value) || typeof value !== "object") {
+      return { error: errorPayload("INVALID_REQUEST_SHAPE", "Request body must be a JSON object.") };
+    }
+    return { value };
+  } catch {
+    return { error: errorPayload("MALFORMED_JSON", "Request body must be valid JSON.") };
+  }
+}
+
+function exactOrigin(req) {
+  const port = req.socket.localPort;
+  return `http://${LOOPBACK_HOST}:${port}`;
+}
+
+function validateOrigin(req) {
+  const expected = exactOrigin(req);
+  return req.headers.origin === expected && req.headers.host === `${LOOPBACK_HOST}:${req.socket.localPort}`;
+}
+
+function secureTokenEqual(left, right) {
+  if (typeof left !== "string" || typeof right !== "string") return false;
+  const a = Buffer.from(left, "utf8");
+  const b = Buffer.from(right, "utf8");
+  return a.byteLength === b.byteLength && timingSafeEqual(a, b);
+}
+
+function createSessionBoundary({
+  ttlMs = SESSION_TTL_MS,
+  rateWindowMs = SESSION_RATE_WINDOW_MS,
+  rateLimit = SESSION_RATE_LIMIT,
+  now = () => Date.now(),
+} = {}) {
+  const sessions = new Map();
+  let closed = false;
+  return {
+    issue() {
+      if (closed) throw new Error("SESSION_BOUNDARY_CLOSED");
+      const token = randomBytes(32).toString("base64url");
+      const sessionKey = randomBytes(16).toString("hex");
+      sessions.set(sessionKey, { token, expiresAt: now() + ttlMs, requests: [] });
+      return { token, sessionKey, expiresAt: sessions.get(sessionKey).expiresAt };
+    },
+    validate(req) {
+      if (closed) return { error: "SESSION_TOKEN_INVALID_OR_EXPIRED" };
+      if (!validateOrigin(req)) return { error: "ORIGIN_REJECTED" };
+      const supplied = req.headers[SESSION_HEADER];
+      if (typeof supplied !== "string" || supplied.length < 32 || supplied.length > 128) return { error: "SESSION_TOKEN_MISSING_OR_MALFORMED" };
+      let matchedKey = null;
+      let matched = null;
+      for (const [key, session] of sessions) {
+        if (secureTokenEqual(supplied, session.token)) {
+          matchedKey = key;
+          matched = session;
+          break;
+        }
+      }
+      if (!matched || matched.expiresAt <= now()) {
+        if (matchedKey) sessions.delete(matchedKey);
+        return { error: "SESSION_TOKEN_INVALID_OR_EXPIRED" };
+      }
+      const cutoff = now() - rateWindowMs;
+      matched.requests = matched.requests.filter((value) => value >= cutoff);
+      if (matched.requests.length >= rateLimit) return { error: "SESSION_RATE_LIMITED" };
+      matched.requests.push(now());
+      return { sessionKey: matchedKey };
+    },
+    invalidate() { closed = true; sessions.clear(); },
+  };
+}
+
+function requireJson(req, res) {
+  const mediaType = String(req.headers["content-type"] ?? "").split(";", 1)[0].trim().toLowerCase();
+  if (mediaType === "application/json") return true;
+  sendJson(res, 415, errorPayload("UNSUPPORTED_MEDIA_TYPE", "Content-Type must be application/json."));
+  return false;
+}
+
+function relayError(res, error) {
+  const code = error instanceof Error ? error.message.split(":", 1)[0] : "MISSION_RELAY_FAILED_CLOSED";
+  const conflict = ["ONE_ACTIVE_MISSION_LIMIT", "SUBMISSION_REPLAY_CONTENT_MISMATCH", "RESPONSE_REPLAY_CONTENT_MISMATCH"].includes(code);
+  const missing = code === "MISSION_NOT_FOUND";
+  sendJson(res, missing ? 404 : conflict ? 409 : 422, errorPayload(code, "HQ Dispatch rejected the operation through a closed governed contract."));
+}
+
 function invokeRoutePreview(requestBody) {
   mkdirSync(PREVIEW_ROOT, { recursive: true });
   const fixedEnvironment = Object.freeze({
@@ -388,7 +483,7 @@ function invokeRoutePreview(requestBody) {
   });
 }
 
-async function handleRequest(req, res) {
+async function handleRequest(req, res, context) {
   let url;
   try {
     url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -422,6 +517,42 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/v1/session") {
+    if (req.method !== "POST") {
+      await readBody(req);
+      sendJson(res, 405, errorPayload("METHOD_NOT_ALLOWED", "Only POST is allowed for session acquisition."), { Allow: "POST" });
+      return;
+    }
+    if (!validateOrigin(req)) {
+      await readBody(req);
+      sendJson(res, 403, errorPayload("ORIGIN_REJECTED", "Session acquisition requires the exact loopback origin."));
+      return;
+    }
+    if (!requireJson(req, res)) { await readBody(req); return; }
+    const body = await readBody(req);
+    const parsed = parseJsonObject(body);
+    if (parsed.error || Object.keys(parsed.value).length !== 0) {
+      sendJson(res, 400, parsed.error ?? errorPayload("UNKNOWN_FIELD", "Session acquisition accepts only an empty JSON object."));
+      return;
+    }
+    let issued;
+    try {
+      issued = context.sessions.issue();
+    } catch {
+      sendJson(res, 503, errorPayload("SESSION_BOUNDARY_CLOSED", "HQ Dispatch is shutting down and cannot issue a session."));
+      return;
+    }
+    sendJson(res, 200, {
+      schema_version: "tsf_hq_dispatch_operator_session_v1",
+      session_token: issued.token,
+      expires_at: new Date(issued.expiresAt).toISOString(),
+      origin: exactOrigin(req),
+      local_browser_session_only: true,
+      grants_tsf_authority: false,
+    });
+    return;
+  }
+
   if (url.pathname === "/health") {
     if (req.method !== "GET") {
       await readBody(req);
@@ -450,10 +581,14 @@ async function handleRequest(req, res) {
       operations: [
         "GET /health",
         "GET /api/v1/registries",
+        "POST /api/v1/session",
         "POST /api/v1/route-preview",
+        "POST /api/v1/missions",
+        "GET /api/v1/missions/:missionId",
+        "GET /api/v1/missions/:missionId/events",
       ],
-      mission_execution_enabled: false,
-      queue_mutation_enabled: false,
+      mission_execution_enabled: true,
+      queue_mutation_enabled: true,
       credential_access_enabled: false,
       live_ai_service_access_enabled: false,
       plugin_access_enabled: false,
@@ -504,22 +639,9 @@ async function handleRequest(req, res) {
       );
       return;
     }
-    const mediaType = String(req.headers["content-type"] ?? "")
-      .split(";", 1)[0]
-      .trim()
-      .toLowerCase();
-    if (mediaType !== "application/json") {
-      await readBody(req);
-      sendJson(
-        res,
-        415,
-        errorPayload(
-          "UNSUPPORTED_MEDIA_TYPE",
-          "Content-Type must be application/json.",
-        ),
-      );
-      return;
-    }
+    if (!requireJson(req, res)) { await readBody(req); return; }
+    const auth = context.sessions.validate(req);
+    if (auth.error) { await readBody(req); sendJson(res, 403, errorPayload(auth.error, "Exact local operator session validation failed.")); return; }
     const body = await readBody(req);
     const parsed = parseRoutePreviewInput(body);
     if (parsed.error) {
@@ -528,7 +650,7 @@ async function handleRequest(req, res) {
     }
     try {
       const preview = await invokeRoutePreview(parsed.value);
-      sendJson(res, 200, preview);
+      sendJson(res, 200, context.relay.decoratePreview(preview, parsed.value.natural_request, auth.sessionKey));
     } catch {
       sendJson(
         res,
@@ -542,6 +664,36 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/v1/missions") {
+    if (req.method !== "POST") {
+      await readBody(req);
+      sendJson(res, 405, errorPayload("METHOD_NOT_ALLOWED", "Only POST is allowed for mission submission."), { Allow: "POST" });
+      return;
+    }
+    if (!requireJson(req, res)) { await readBody(req); return; }
+    const auth = context.sessions.validate(req);
+    if (auth.error) { await readBody(req); sendJson(res, 403, errorPayload(auth.error, "Exact local operator session validation failed.")); return; }
+    const parsed = parseJsonObject(await readBody(req));
+    if (parsed.error) { sendJson(res, 400, parsed.error); return; }
+    try { sendJson(res, 200, await context.relay.submit(parsed.value, auth.sessionKey)); } catch (error) { relayError(res, error); }
+    return;
+  }
+
+  const missionMatch = url.pathname.match(/^\/api\/v1\/missions\/([A-Za-z0-9._:-]{8,160})(\/events)?$/);
+  if (missionMatch) {
+    const missionId = missionMatch[1];
+    const operation = missionMatch[2] ?? "";
+    if ((operation === "" || operation === "/events") && req.method === "GET") {
+      const body = await readBody(req);
+      if (body.byteLength) { sendJson(res, 400, errorPayload("BODY_NOT_ALLOWED", "GET requests must not include a body.")); return; }
+      try { sendJson(res, 200, operation === "/events" ? context.relay.getEvents(missionId) : context.relay.getMission(missionId)); } catch (error) { relayError(res, error); }
+      return;
+    }
+    await readBody(req);
+    sendJson(res, 405, errorPayload("METHOD_NOT_ALLOWED", "The mission operation does not allow this method."));
+    return;
+  }
+
   await readBody(req);
   sendJson(
     res,
@@ -550,9 +702,20 @@ async function handleRequest(req, res) {
   );
 }
 
-function createHqDispatchServer() {
-  return createServer((req, res) => {
-    handleRequest(req, res).catch((error) => {
+function createHqDispatchServer(options = {}) {
+  const sessions = createSessionBoundary(options.sessionOptions);
+  const relay = options.relay ?? new HqMissionRelay({
+    repositoryRoot: REPOSITORY_ROOT,
+    powershellExe: POWERSHELL_EXE,
+    invokePreview: invokeRoutePreview,
+    previewRoot: PREVIEW_ROOT,
+    testOnlyQueueRoot: options.testOnlyQueueRoot ?? "",
+    executionAdapter: options.executionAdapter ?? null,
+    workerTimeoutSeconds: options.workerTimeoutSeconds ?? 180,
+  });
+  const context = { sessions, relay };
+  const server = createServer((req, res) => {
+    handleRequest(req, res, context).catch((error) => {
       const code =
         error instanceof Error && error.message === "REQUEST_TOO_LARGE"
           ? "REQUEST_TOO_LARGE"
@@ -574,6 +737,17 @@ function createHqDispatchServer() {
       }
     });
   });
+  server.hqDispatchRelay = relay;
+  let shutdownPromise = null;
+  server.hqDispatchShutdown = () => {
+    if (!shutdownPromise) {
+      sessions.invalidate();
+      shutdownPromise = relay.shutdown();
+    }
+    return shutdownPromise;
+  };
+  server.once("close", () => { void server.hqDispatchShutdown(); });
+  return server;
 }
 
 function listen(server, port) {
@@ -586,8 +760,8 @@ function listen(server, port) {
   });
 }
 
-export async function startHqDispatchServerForTest() {
-  return listen(createHqDispatchServer(), 0);
+export async function startHqDispatchServerForTest(options = {}) {
+  return listen(createHqDispatchServer(options), 0);
 }
 
 async function main() {
@@ -602,7 +776,10 @@ async function main() {
   process.stdout.write(
     `TSF HQ Dispatch V1 listening at http://${LOOPBACK_HOST}:${PRODUCTION_PORT} PREVIEW_ONLY_NOT_AUTHORITY\n`,
   );
-  const close = () => server.close(() => process.exit(0));
+  const close = async () => {
+    await server.hqDispatchShutdown();
+    server.close(() => process.exit(0));
+  };
   process.once("SIGINT", close);
   process.once("SIGTERM", close);
 }

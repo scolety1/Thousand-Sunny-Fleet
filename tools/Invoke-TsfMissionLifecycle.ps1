@@ -199,6 +199,8 @@ $approvalSemantics = if ($approvalRequirements.Count -gt 0) { 'APPROVAL_REQUIRED
 $approvalLedgerConsumed = [bool]($approvalRequirements.Count -gt 0 -and ![string]::IsNullOrWhiteSpace($ApprovalLedgerPath))
 $missionRevision = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { [int]$inputDocument.source_binding.durable_mission_revision } elseif (Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission') { [int]$inputDocument.durable_mission.mission_revision } else { 1 }
 $runId = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { "canonical-result-$missionId-$missionRevision" } else { Get-TsfRuntimeSha256Text "$missionId|$missionRevision|$((Get-FileHash -LiteralPath $MissionPath -Algorithm SHA256).Hash.ToLowerInvariant())" }
+$responseContractMission = if (Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission') { $inputDocument.durable_mission } else { $mission }
+$expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission -TestId 'hq-dispatch-read-only-exact-response'
 $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
 if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) { $RuntimeRoot = $canonicalRuntimeRoot }
 $RuntimeRoot=Assert-TsfCanonicalRuntimeRoot $RuntimeRoot
@@ -372,7 +374,14 @@ Use only the explicitly allowed read/write paths in the bound mission.
 "@
             Set-Content -LiteralPath $promptPath -Value $prompt -Encoding UTF8
             Register-TsfProducerEvidence $producerRegistryPath prompt $promptPath $producerCapability | Out-Null
-            $adapterResult = & (Join-Path $fleetRoot 'tools\Invoke-TsfCodexAppServerForeground.ps1') -MissionId $missionId -MissionRevision $missionRevision -PolicyFingerprint ([string]$inputDocument.source_binding.policy_fingerprint) -QueueDocumentSha256 $queueDocumentHash -Cwd $repoPath -Model ([string]$inputDocument.model_resolution.resolved_model) -ReasoningEffort ([string]$inputDocument.model_resolution.reasoning_effort) -EffortAssurance ([string]$inputDocument.durable_mission.model_selection_assurance) -Sandbox $sandbox -PromptFile $promptPath -OutputDirectory ([string]$adapterStoragePlan.directory) -ResultPath $adapterResultPath -EventJournalPath $adapterEventPath -StderrPath $adapterStderrPath -ExpiresAt ([datetimeoffset]$inputDocument.durable_mission.expires_at) -TimeoutSeconds $WorkerTimeoutSeconds
+            $adapterParams = @{
+                MissionId=$missionId; MissionRevision=$missionRevision; PolicyFingerprint=[string]$inputDocument.source_binding.policy_fingerprint; QueueDocumentSha256=$queueDocumentHash
+                RunId=$runId; ResultId=$runId; Cwd=$repoPath; Model=[string]$inputDocument.model_resolution.resolved_model; ReasoningEffort=[string]$inputDocument.model_resolution.reasoning_effort
+                EffortAssurance=[string]$inputDocument.durable_mission.model_selection_assurance; Sandbox=$sandbox; PromptFile=$promptPath; OutputDirectory=[string]$adapterStoragePlan.directory
+                ResultPath=$adapterResultPath; EventJournalPath=$adapterEventPath; StderrPath=$adapterStderrPath; ExpiresAt=[datetimeoffset]$inputDocument.durable_mission.expires_at; TimeoutSeconds=$WorkerTimeoutSeconds
+            }
+            if (![string]::IsNullOrWhiteSpace($expectedResponseSha256)) { $adapterParams.ExpectedResponseSha256 = $expectedResponseSha256 }
+            $adapterResult = & (Join-Path $fleetRoot 'tools\Invoke-TsfCodexAppServerForeground.ps1') @adapterParams
             Register-TsfProducerEvidence $producerRegistryPath adapter_result $adapterResultPath $producerCapability | Out-Null
             Register-TsfProducerEvidence $producerRegistryPath event_journal $adapterEventPath $producerCapability | Out-Null
             Register-TsfProducerEvidence $producerRegistryPath stderr $adapterStderrPath $producerCapability | Out-Null
@@ -381,7 +390,10 @@ Use only the explicitly allowed read/write paths in the bound mission.
             $workerFilesTouched = @($statusAfter | Where-Object { $statusBefore -notcontains $_ })
             $workerFilesCreated = @($workerFilesTouched | Where-Object { Test-Path -LiteralPath (Get-TsfKernelFullPath -Path $_ -BasePath $repoPath) -PathType Leaf })
             $unexpectedTouched = @($workerFilesTouched | Where-Object { $allowed=$false;foreach($scope in @(ConvertTo-TsfKernelArray -Value $mission.allowed_writes)){if(Test-TsfKernelPathContained -RelativePath $_ -RepositoryRoot $repoPath -AllowedScopes @($scope)){$allowed=$true;break}};!$allowed })
-            if (![bool]$adapterResult.success) { $blockedReasons.Add("App-server adapter failed: $($adapterResult.failure)") | Out-Null; $workerStatus='APP_SERVER_FAILED' }
+            $transportSuccess = if ($adapterResult.PSObject.Properties.Name -contains 'transport_success') { [bool]$adapterResult.transport_success } else { [bool]$adapterResult.success }
+            $semanticSuccess = if ([string]::IsNullOrWhiteSpace($expectedResponseSha256)) { $transportSuccess } else { [bool]$adapterResult.semantic_response_success -and [bool]$adapterResult.response_exact_match }
+            if (!$transportSuccess) { $blockedReasons.Add("App-server adapter transport failed: $($adapterResult.failure)") | Out-Null; $workerStatus='APP_SERVER_FAILED' }
+            elseif (!$semanticSuccess) { $blockedReasons.Add('App-server transport succeeded but the mission-bound exact response did not match.') | Out-Null; $workerStatus='APP_SERVER_RESPONSE_MISMATCH' }
             elseif ($unexpectedTouched.Count -gt 0) { $blockedReasons.Add("App-server worker touched forbidden paths: $($unexpectedTouched -join ', ')") | Out-Null; $workerStatus='APP_SERVER_TOUCHED_FORBIDDEN_PATH' }
             else { $workerStatus='CODEX_APP_SERVER_WORKER_GREEN';$roleOutputContractSatisfied=$true }
             $events.Add((New-LifecycleEvent -Step 'app_server_worker' -Status $workerStatus -Message 'Bound foreground app-server child completed.' -Evidence $adapterResultPath)) | Out-Null
@@ -475,6 +487,16 @@ Return a concise status after the file is written.
     }
 }
 
+$workerObservationClaims = if ($null -ne $adapterResult -and $null -ne $adapterResult.observation_claims) { $adapterResult.observation_claims | ConvertTo-Json -Depth 30 | ConvertFrom-Json } else { [pscustomobject]@{} }
+if ($null -ne $adapterResult) {
+    $workerObservationClaims | Add-Member -NotePropertyName filesystem_writes -NotePropertyValue ([pscustomobject]@{classification=$(if($workerFilesTouched.Count -eq 0){'OBSERVED_NOT_USED'}else{'UNKNOWN'});value=$(if($workerFilesTouched.Count -eq 0){$false}else{$null});source='lifecycle Git status before/after worker';run_id=$runId}) -Force
+}
+$exactResponseEvidence = if ($null -ne $adapterResult -and ![string]::IsNullOrWhiteSpace($expectedResponseSha256)) { [pscustomobject][ordered]@{
+    mission_id=$missionId;mission_revision=$missionRevision;run_id=$runId;result_id=$runId;thread_id=[string]$adapterResult.thread_id;turn_id=[string]$adapterResult.turn_id
+    adapter_result_path=$adapterResultPath;adapter_result_sha256=(Get-FileHash $adapterResultPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    expected_response_sha256=$expectedResponseSha256;observed_response_sha256=[string]$adapterResult.observed_response_sha256
+    transport_success=[bool]$adapterResult.transport_success;exact_match=[bool]$adapterResult.response_exact_match;semantic_success=[bool]$adapterResult.semantic_response_success
+} } else { $null }
 $workerResult = [pscustomobject]@{
     schema_version = 1
     mission_id = $missionId
@@ -493,7 +515,9 @@ $workerResult = [pscustomobject]@{
     adapter_result_sha256 = if ($null -ne $adapterResult -and (Test-Path $adapterResultPath)) { (Get-FileHash $adapterResultPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { "" }
     thread_id = if ($null -ne $adapterResult) { [string]$adapterResult.thread_id } else { "" }
     turn_id = if ($null -ne $adapterResult) { [string]$adapterResult.turn_id } else { "" }
-    tests = if ($null -ne $adapterResult) { @($inputDocument.durable_mission.required_tests | ForEach-Object { [pscustomobject]@{test_id=[string]$_.test_id;status=if([bool]$adapterResult.success){'PASS'}else{'FAIL'};observed='Bound app-server automatic round trip';evidence=[string]$adapterResult.event_journal_sha256} }) } else { @() }
+    exact_response_evidence = $exactResponseEvidence
+    observation_claims = $workerObservationClaims
+    tests = if ($null -ne $adapterResult) { @($inputDocument.durable_mission.required_tests | ForEach-Object { $isExact=([string]$_.command -match '^exact-response-sha256:');$passed=if($isExact){[bool]$adapterResult.semantic_response_success-and[bool]$adapterResult.response_exact_match}else{$transportSuccess};[pscustomobject]@{test_id=[string]$_.test_id;status=if($passed){'PASS'}else{'FAIL'};observed=if($isExact){'Exact response hash comparison'}else{'Bound app-server automatic round trip'};evidence=if($isExact){[string]$adapterResult.observed_response_sha256}else{[string]$adapterResult.event_journal_sha256}} }) } else { @() }
     approval_use = @()
 }
 Write-TsfKernelJson -Value $workerResult -Path $workerResultPath
@@ -506,7 +530,11 @@ if ([bool]$preflight.preflight_approved -and ($RunApprovedFixtureWorker -or $Run
     if($TestOnlyFault-in@('GREEN','VERIFIER')){
         $verifier=[pscustomobject]@{schema_version=1;mission_id=$missionId;verdict=$(if($TestOnlyFault-eq'GREEN'){'GREEN'}else{'RED'});postrun_approved=($TestOnlyFault-eq'GREEN');blocked_reasons=$(if($TestOnlyFault-eq'GREEN'){@()}else{@('TEST_ONLY_VERIFIER_BLOCK')});tim_required_reasons=@()}
         Write-TsfKernelJson $verifier $verifierPath
-    }else{$verifier = Invoke-TsfKernelPostRunVerify -MissionPath $effectiveMissionPath -WorkerResultPath $workerResultPath -OutFile $verifierPath -StateRoot $StateRoot}
+    }else{
+        $verifierParams = @{ MissionPath=$effectiveMissionPath;WorkerResultPath=$workerResultPath;OutFile=$verifierPath;StateRoot=$StateRoot }
+        if ([string]$inputDocument.schema_version -eq 'tsf_canonical_queue_document_v1') { $verifierParams.CanonicalQueueDocumentPath = $CanonicalQueueDocumentEvidencePath }
+        $verifier = Invoke-TsfKernelPostRunVerify @verifierParams
+    }
     Register-TsfProducerEvidence $producerRegistryPath verifier_result $verifierPath $producerCapability | Out-Null
     $events.Add((New-LifecycleEvent -Step "postrun_verify" -Status ([string]$verifier.verdict) -Message "Post-run verifier completed." -Evidence $verifierPath)) | Out-Null
 }

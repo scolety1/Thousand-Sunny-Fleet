@@ -7,13 +7,13 @@
       name="description"
       content="Local-only TSF HQ Dispatch registry projection and canonical route preview."
     >
-    <title>TSF HQ Dispatch · Route Preview</title>
+    <title>TSF HQ Dispatch · Governed Request to Result</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <div class="authority-banner" role="status">
       <span class="authority-dot" aria-hidden="true"></span>
-      PREVIEW_ONLY_NOT_AUTHORITY
+      LOCAL_OPERATOR_SESSION_NOT_TSF_AUTHORITY · route previews remain PREVIEW_ONLY_NOT_AUTHORITY
     </div>
 
     <header class="site-header">
@@ -27,7 +27,7 @@
         </div>
       </div>
       <div class="header-posture">
-        <span>V1 / Milestone 1</span>
+        <span>V1 / Milestone 2</span>
         <strong>Loopback only</strong>
       </div>
     </header>
@@ -36,17 +36,17 @@
       <section class="hero-grid" aria-labelledby="route-heading">
         <div class="hero-copy">
           <p class="section-kicker">Canonical route preview</p>
-          <h2 id="route-heading">See the proposed lane before authority begins.</h2>
+          <h2 id="route-heading">Review the route, then create one bounded governed mission.</h2>
           <p class="lede">
             Describe a bounded request. HQ Dispatch projects TSF’s existing role,
             model, classification, scope, and stop-condition sources without
             creating or executing a mission.
           </p>
           <div class="boundary-note">
-            <strong>No operational bridge.</strong>
+            <strong>Governed operator bridge.</strong>
             <span>
-              Mission, queue, approval, lifecycle, worker, plugin, credential,
-              and app-server operations are unavailable.
+              Submission is not approval. Canonical queue, lifecycle, verifier,
+              preservation, and admission records remain authoritative.
             </span>
           </div>
         </div>
@@ -169,6 +169,37 @@
           Raw request text is not persisted. Ignored local preview artifacts
           accumulate until bounded operator cleanup and never become canonical evidence.
         </p>
+        <div class="boundary-note governed-submit">
+          <label>
+            <input id="intent-confirm" type="checkbox">
+            I explicitly intend CREATE_GOVERNED_MISSION for this reviewed preview.
+          </label>
+          <strong>Submission grants no approval, merge, push, deployment, or production authority.</strong>
+          <button id="mission-submit" type="button" disabled>Create governed mission</button>
+        </div>
+      </section>
+
+      <section id="mission-result" class="result-shell" aria-labelledby="mission-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Canonical mission projection</p>
+            <h2 id="mission-heading">Request-to-result status</h2>
+          </div>
+          <span id="mission-state" class="classification-pill">PREPARING</span>
+        </div>
+        <div class="detail-grid">
+          <article class="detail-card"><h3>Mission / run</h3><pre id="mission-identity"></pre></article>
+          <article class="detail-card"><h3>Route and access</h3><pre id="mission-route"></pre></article>
+          <article class="detail-card"><h3>Worker and verifier</h3><pre id="mission-worker"></pre></article>
+          <article class="detail-card"><h3>Preservation and admission</h3><pre id="mission-admission"></pre></article>
+          <article class="detail-card wide-card"><h3>Authority and exact next action</h3><pre id="mission-authority"></pre></article>
+        </div>
+        <section id="tim-required" class="detail-card danger-card" hidden>
+          <h3>TIM_REQUIRED · original run stopped</h3>
+          <pre id="tim-request"></pre>
+          <p>Typed approval, denial, and clarification responses are deferred. Resolve the canonical blocker outside this run; the original worker will not resume.</p>
+        </section>
+        <p id="mission-message" class="request-status" aria-live="polite"></p>
       </section>
 
       <section class="registry-section" aria-labelledby="registry-heading">
@@ -198,13 +229,13 @@
           <article class="registry-card">
             <p class="registry-label">Setup / actions</p>
             <strong id="action-count">—</strong>
-            <span id="action-detail">Only route preview is enabled</span>
+            <span id="action-detail">Reviewed preview and bounded governed mission actions are available</span>
           </article>
 
           <article class="registry-card boundary-card">
             <p class="registry-label">Milestone boundary</p>
-            <strong id="boundary-state">NO EXTERNAL INTEGRATIONS</strong>
-            <span id="boundary-detail">Plugins, credentials, live AI services, and external repositories are unavailable.</span>
+            <strong id="boundary-state">BOUNDED GOVERNED FIXTURE ONLY</strong>
+            <span id="boundary-detail">Reviewed previews can become bounded governed TSF-local read-only missions through canonical controls. Arbitrary repositories and general commands; plugins, credentials, deployment, push, merge, production access, and expanded authority remain unavailable. TIM_REQUIRED is display/preservation-only in Milestone 2A; approval, denial, and clarification responses remain deferred to Milestone 2B. Submission is not approval; worker completion is not admission; the canonical admission receipt is terminal truth.</span>
           </article>
         </div>
       </section>
@@ -212,7 +243,7 @@
 
     <footer>
       <span>TSF HQ Dispatch V1</span>
-      <span>Foreground · local · evidence-only projection</span>
+      <span>Foreground · local · canonical-record projection</span>
     </footer>
 
     <script src="/app.js"></script>
