@@ -1047,10 +1047,36 @@ function New-TsfKernelWorkerInstruction {
     return $result
 }
 
+function Get-TsfKernelRawTextSha256 {
+    param([AllowEmptyString()][string]$Text)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text))).Replace('-', '').ToLowerInvariant()) }
+    finally { $sha.Dispose() }
+}
+
+function Get-TsfExpectedResponseSha256 {
+    param(
+        [Parameter(Mandatory = $true)][object]$Mission,
+        [string]$TestId = ''
+    )
+
+    $hashMatches = @()
+    foreach ($test in @(ConvertTo-TsfKernelArray -Value $Mission.required_tests)) {
+        if (![string]::IsNullOrWhiteSpace($TestId) -and [string]$test.test_id -ne $TestId) { continue }
+        $command = [string]$test.command
+        if ($command -match '^exact-response-sha256:([a-f0-9]{64})$') {
+            $hashMatches += $Matches[1]
+        }
+    }
+    if ($hashMatches.Count -gt 1 -and @($hashMatches | Sort-Object -Unique).Count -ne 1) { throw 'CONFLICTING_EXPECTED_RESPONSE_HASHES' }
+    return $(if ($hashMatches.Count) { [string]$hashMatches[0] } else { '' })
+}
+
 function Invoke-TsfKernelPostRunVerify {
     param(
         [Parameter(Mandatory = $true)][string]$MissionPath,
         [Parameter(Mandatory = $true)][string]$WorkerResultPath,
+        [string]$CanonicalQueueDocumentPath = "",
         [string]$OutFile = "",
         [string]$StateRoot = ""
     )
@@ -1062,6 +1088,16 @@ function Invoke-TsfKernelPostRunVerify {
     $blockedReasons = [System.Collections.Generic.List[string]]::new()
     $warnings = [System.Collections.Generic.List[string]]::new()
     $expectedArtifacts = @(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts)
+    $responseContractMission = $mission
+    if (![string]::IsNullOrWhiteSpace($CanonicalQueueDocumentPath)) {
+        $queueDocument = Read-TsfKernelJson -Path $CanonicalQueueDocumentPath
+        $queueDocumentCheck = Test-TsfCanonicalQueueDocument -QueueDocument $queueDocument
+        if (![bool]$queueDocumentCheck.valid) { throw "Verifier canonical queue binding failed: $($queueDocumentCheck.errors -join '; ')" }
+        if ([string]$queueDocument.durable_mission.mission_id -ne [string]$mission.mission_id) { throw 'Verifier durable mission identity differs from effective mission.' }
+        $responseContractMission = $queueDocument.durable_mission
+    }
+    $expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission
+    $exactResponseVerification = $null
 
     if ([string]$worker.mission_id -eq [string]$mission.mission_id) {
         $checks.Add((New-TsfKernelCheck -Name "postrun.mission_id" -Status "PASS" -Message "Worker result mission_id matches mission packet.")) | Out-Null
@@ -1159,6 +1195,66 @@ function Invoke-TsfKernelPostRunVerify {
         $warnings.Add("Worker result did not include touched-file evidence.") | Out-Null
     }
 
+    if (![string]::IsNullOrWhiteSpace($expectedResponseSha256)) {
+        $exact = $worker.exact_response_evidence
+        $adapterPath = [string]$worker.adapter_result_path
+        $adapter = $null
+        $observedResponseSha256 = ''
+        $adapterFileSha256 = ''
+        $exactErrors = [System.Collections.Generic.List[string]]::new()
+        if ($null -eq $exact) { $exactErrors.Add('Worker exact-response evidence is missing.') | Out-Null }
+        if ([string]::IsNullOrWhiteSpace($adapterPath) -or !(Test-TsfKernelPathInside (Get-TsfKernelFullPath $adapterPath) $repoPath) -or !(Test-Path -LiteralPath $adapterPath -PathType Leaf)) {
+            $exactErrors.Add('Bound adapter response artifact is missing or outside the mission repository.') | Out-Null
+        } else {
+            $adapterFileSha256 = (Get-FileHash -LiteralPath $adapterPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($adapterFileSha256 -ne [string]$worker.adapter_result_sha256) { $exactErrors.Add('Adapter response artifact hash differs from worker binding.') | Out-Null }
+            try { $adapter = Read-TsfKernelJson $adapterPath } catch { $exactErrors.Add('Adapter response artifact is not valid JSON.') | Out-Null }
+        }
+        if ($null -ne $adapter) {
+            $canonicalResultId = "canonical-result-$([string]$responseContractMission.mission_id)-$([int]$responseContractMission.mission_revision)"
+            if ([string]$adapter.mission_id -ne [string]$responseContractMission.mission_id -or [int]$adapter.mission_revision -ne [int]$responseContractMission.mission_revision) { $exactErrors.Add('Adapter mission identity mismatch.') | Out-Null }
+            if ([string]$adapter.run_id -ne $canonicalResultId -or [string]$adapter.result_id -ne $canonicalResultId) { $exactErrors.Add('Adapter run or result identity mismatch.') | Out-Null }
+            if ([string]::IsNullOrWhiteSpace([string]$adapter.thread_id) -or [string]::IsNullOrWhiteSpace([string]$adapter.turn_id)) { $exactErrors.Add('Adapter thread or turn identity is missing.') | Out-Null }
+            if (![bool]$adapter.final_response_observed) { $exactErrors.Add('Final response was not observed.') | Out-Null }
+            else { $observedResponseSha256 = Get-TsfKernelRawTextSha256 ([string]$adapter.final_response) }
+            if ([string]$adapter.expected_response_sha256 -ne $expectedResponseSha256) { $exactErrors.Add('Adapter expected-response hash differs from mission binding.') | Out-Null }
+            if ([string]$adapter.observed_response_sha256 -ne $observedResponseSha256) { $exactErrors.Add('Adapter observed-response hash was not independently reproduced.') | Out-Null }
+            if (![bool]$adapter.transport_success) { $exactErrors.Add('Adapter transport did not succeed.') | Out-Null }
+            if (![bool]$adapter.semantic_response_success -or ![bool]$adapter.response_exact_match -or $observedResponseSha256 -ne $expectedResponseSha256) { $exactErrors.Add('Observed response does not exactly match the mission-bound response hash.') | Out-Null }
+            if ($null -ne $exact) {
+                foreach ($binding in @(
+                    [pscustomobject]@{name='mission_id';value=[string]$responseContractMission.mission_id}, [pscustomobject]@{name='mission_revision';value=[string][int]$responseContractMission.mission_revision},
+                    [pscustomobject]@{name='run_id';value=$canonicalResultId}, [pscustomobject]@{name='result_id';value=$canonicalResultId}, [pscustomobject]@{name='thread_id';value=[string]$adapter.thread_id},
+                    [pscustomobject]@{name='turn_id';value=[string]$adapter.turn_id}, [pscustomobject]@{name='expected_response_sha256';value=$expectedResponseSha256},
+                    [pscustomobject]@{name='observed_response_sha256';value=$observedResponseSha256}, [pscustomobject]@{name='adapter_result_sha256';value=$adapterFileSha256}
+                )) { if ([string]$exact.($binding.name) -ne [string]$binding.value) { $exactErrors.Add("Worker exact-response binding mismatch: $($binding.name).") | Out-Null } }
+                if (![bool]$exact.transport_success -or ![bool]$exact.exact_match -or ![bool]$exact.semantic_success) { $exactErrors.Add('Worker exact-response verdict is not successful.') | Out-Null }
+            }
+            $requiredTest = @($worker.tests | Where-Object { [string]$_.test_id -eq 'hq-dispatch-read-only-exact-response' })
+            if ($requiredTest.Count -ne 1 -or [string]$requiredTest[0].status -ne 'PASS' -or [string]$requiredTest[0].evidence -ne $observedResponseSha256) { $exactErrors.Add('Required exact-response test is not bound to the observed response hash.') | Out-Null }
+        }
+        $exactResponseVerification = [pscustomobject][ordered]@{
+            expected_response_sha256 = $expectedResponseSha256
+            observed_response_sha256 = $(if ($observedResponseSha256) { $observedResponseSha256 } else { $null })
+            exact_match = ($exactErrors.Count -eq 0)
+            independently_recomputed = $true
+            mission_id = [string]$responseContractMission.mission_id
+            mission_revision = [int]$responseContractMission.mission_revision
+            run_id = if ($null -ne $adapter) { [string]$adapter.run_id } else { $null }
+            result_id = if ($null -ne $adapter) { [string]$adapter.result_id } else { $null }
+            thread_id = if ($null -ne $adapter) { [string]$adapter.thread_id } else { $null }
+            turn_id = if ($null -ne $adapter) { [string]$adapter.turn_id } else { $null }
+            adapter_result_path = $adapterPath
+            adapter_result_sha256 = $(if ($adapterFileSha256) { $adapterFileSha256 } else { $null })
+        }
+        if ($exactErrors.Count -eq 0) {
+            $checks.Add((New-TsfKernelCheck -Name 'postrun.exact_response' -Status 'PASS' -Message 'Verifier independently recomputed the exact mission-bound response hash.' -Evidence $observedResponseSha256)) | Out-Null
+        } else {
+            $checks.Add((New-TsfKernelCheck -Name 'postrun.exact_response' -Status 'FAIL' -Message 'Exact mission-bound response verification failed.' -Evidence ($exactErrors -join '; '))) | Out-Null
+            foreach ($reason in $exactErrors) { $blockedReasons.Add($reason) | Out-Null }
+        }
+    }
+
     if ($mission.PSObject.Properties.Name -contains "role_extension" -and $null -ne $mission.role_extension) {
         $expectedRole = [string]$mission.role_extension.worker_role
         $actualRole = if ($worker.PSObject.Properties.Name -contains "worker_role") { [string]$worker.worker_role } else { "" }
@@ -1169,8 +1265,8 @@ function Invoke-TsfKernelPostRunVerify {
             $blockedReasons.Add("Worker role mismatch or missing.") | Out-Null
         }
 
-        if ($worker.PSObject.Properties.Name -contains "role_output_contract_satisfied" -and [bool]$worker.role_output_contract_satisfied) {
-            $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "PASS" -Message "Worker result claims role output contract was satisfied." -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
+        if ($worker.PSObject.Properties.Name -contains "role_output_contract_satisfied" -and [bool]$worker.role_output_contract_satisfied -and ([string]::IsNullOrWhiteSpace($expectedResponseSha256) -or [bool]$exactResponseVerification.exact_match)) {
+            $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "PASS" -Message $(if ([string]::IsNullOrWhiteSpace($expectedResponseSha256)) { 'Worker result claims role output contract was satisfied.' } else { 'Independent exact-response verification satisfies the role output contract.' }) -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
         } else {
             $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "FAIL" -Message "Worker result does not satisfy the role output contract." -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
             $blockedReasons.Add("Role output contract was not satisfied.") | Out-Null
@@ -1207,6 +1303,10 @@ function Invoke-TsfKernelPostRunVerify {
         schema_version = 1
         generated_at = (Get-Date).ToString("o")
         mission_id = [string]$mission.mission_id
+        mission_revision = [int]$mission.mission_revision
+        run_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.run_id } else { $null }
+        result_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.result_id } else { $null }
+        exact_response_evidence = $exactResponseVerification
         verdict = $verdict
         final_state = $finalState
         verified = $verified

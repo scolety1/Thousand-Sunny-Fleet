@@ -330,6 +330,7 @@ export class HqMissionRelay {
 
   #applyOutcome(record, outcome) {
     const { preparation, processResult = {}, queueResult, lifecycle, adapter, verifier, workerResult, durableResult } = outcome;
+    this.#assertOutcomeIdentity(record, outcome);
     record.preparation = preparation;
     record.outcome = outcome;
     if (verifier) {
@@ -563,9 +564,48 @@ export class HqMissionRelay {
       mission_id: status.mission_id,
       mission_revision: status.mission_revision,
       run_id: status.run_id,
+      result_id: status.result_id,
       assurance: status.assurance,
       explanation: status.explanation,
     });
+  }
+
+  #assertOutcomeIdentity(record, outcome) {
+    const { preparation, queueResult, lifecycle, adapter, verifier, workerResult, durableResult } = outcome;
+    if (!preparation || preparation.mission_id !== record.missionId || Number(preparation.mission_revision) !== record.revision) {
+      throw new Error("CANONICAL_MISSION_IDENTITY_MISMATCH");
+    }
+    const expectedResultId = preparation.run_id;
+    if (expectedResultId !== `canonical-result-${record.missionId}-${record.revision}`) {
+      throw new Error("CANONICAL_RUN_IDENTITY_MISMATCH");
+    }
+    const identities = [
+      ["queue admission", queueResult?.admission_receipt?.result_id],
+      ["lifecycle run", lifecycle?.run_id],
+      ["adapter run", adapter?.run_id],
+      ["adapter result", adapter?.result_id],
+      ["worker run", workerResult?.exact_response_evidence?.run_id],
+      ["worker result", workerResult?.exact_response_evidence?.result_id],
+      ["verifier run", verifier?.exact_response_evidence?.run_id],
+      ["verifier result", verifier?.exact_response_evidence?.result_id],
+      ["durable result", durableResult?.result_id],
+    ];
+    for (const [source, identity] of identities) {
+      if (identity !== undefined && identity !== null && identity !== "" && identity !== expectedResultId) {
+        throw new Error(`CANONICAL_RESULT_IDENTITY_MISMATCH:${source}`);
+      }
+    }
+    for (const source of [adapter, workerResult?.exact_response_evidence, verifier?.exact_response_evidence, durableResult]) {
+      if (!source) continue;
+      if (source.mission_id !== undefined && source.mission_id !== record.missionId) throw new Error("CANONICAL_MISSION_IDENTITY_MISMATCH");
+      if (source.mission_revision !== undefined && Number(source.mission_revision) !== record.revision) throw new Error("CANONICAL_REVISION_IDENTITY_MISMATCH");
+    }
+    for (const claims of [adapter?.observation_claims, workerResult?.observation_claims, durableResult?.observation_claims]) {
+      if (!claims) continue;
+      for (const claim of Object.values(claims)) {
+        if (claim?.run_id !== expectedResultId) throw new Error("CROSS_RUN_OBSERVATION_CLAIM_REJECTED");
+      }
+    }
   }
 
   #status(state, missionId, revision, fields = {}) {
@@ -610,11 +650,13 @@ export class HqMissionRelay {
       changed_paths: durableResult?.files_changed ?? workerResult?.files_touched ?? [],
       created_paths: workerResult?.files_created ?? [],
       tests: durableResult?.tests ?? workerResult?.tests ?? [],
+      exact_response: workerResult?.exact_response_evidence ?? null,
+      observation_claims: durableResult?.observation_claims ?? workerResult?.observation_claims ?? adapter?.observation_claims ?? null,
     };
   }
 
   #verifierProjection(verifier, lifecycle, verifierPath) {
-    return { identity: "canonical-kernel-postrun", verdict: verifier?.verdict ?? lifecycle?.verifier_verdict ?? "NOT_OBSERVED", verified: verifier?.verified ?? false, result_path: verifierPath ?? null, result_sha256: this.#safeFileHash(verifierPath) };
+    return { identity: "canonical-kernel-postrun", verdict: verifier?.verdict ?? lifecycle?.verifier_verdict ?? "NOT_OBSERVED", verified: verifier?.verified ?? false, exact_response: verifier?.exact_response_evidence ?? null, result_path: verifierPath ?? null, result_sha256: this.#safeFileHash(verifierPath) };
   }
 
   #preservationProjection(lifecycle) {
@@ -641,11 +683,13 @@ export class HqMissionRelay {
 
   #resultProjection(preparation, queueResult, durableResult) {
     return {
+      result_id: durableResult?.result_id ?? queueResult?.admission_receipt?.result_id ?? null,
       mission_sha256: preparation?.mission_sha256 ?? null,
       queue_document_sha256: preparation?.queue_document_sha256 ?? null,
       durable_result_path: queueResult?.durable_result_path ?? null,
       durable_result_sha256: this.#safeFileHash(queueResult?.durable_result_path),
       tests: durableResult?.tests ?? [],
+      observation_claims: durableResult?.observation_claims ?? null,
     };
   }
 

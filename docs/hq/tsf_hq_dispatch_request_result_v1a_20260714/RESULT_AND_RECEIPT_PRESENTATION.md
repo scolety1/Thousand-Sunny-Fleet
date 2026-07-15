@@ -1,7 +1,15 @@
 # Result and Receipt Presentation
 
-The UI/API show mission/revision/run/result, route/model/effort/assurance, access/network, queue state, thread/turn when observed, worker verdict and touched/created paths, tests, mission/queue/durable/verifier/preservation hashes, verifier identity/verdict, preservation paths/status, admission verdict/reasons/caveats/receipt, replay facts, authority denials, and exact next action.
+The API/UI present mission, revision, run and result identity; route/model/effort; access and network policy; queue state; thread/turn; worker and verifier verdicts; exact expected and observed response hashes; independent-recomputation status; required tests; durable, verifier, preservation and receipt hashes; replay facts; authority denials; observation claims; caveats; and the exact next action.
 
-File hashes are calculated only for existing files contained by the TSF worktree. Arbitrary file contents, session tokens, stderr, prompts, credentials, and secret-like data are not rendered.
+Result identity is present in a result-bearing terminal status, terminal event, durable result, admission receipt, and replay. The browser projection retains `result_id` rather than dropping it. Rejected runs without a durable result or admission receipt keep both status and nested result identity null; `run_id` is never promoted into a result identity.
 
-The 79-assertion HTTP/security/replay suite proves an admitted synthetic contract projection, canonical receipt-path and byte-hash projection, and separately proves that a worker-green result without an admission receipt remains `REJECTED`. The deterministic receipt identity is `b354a2a52164192d22988201bd0e0a400cf18e025d9138586321fe6bdb38d9a7`; the real receipt identity is `087259de6fc7205e171c78cfb87ca2a560ec73520c1417fd028d454a2a241beb`.
+Observation claims distinguish:
+
+- `POLICY_PROHIBITED` and `CONFIGURED_DISABLED`, which describe authority or configuration;
+- `OBSERVED_NOT_USED`, which requires an authoritative run-bound observation;
+- `NOT_OBSERVED` and `UNKNOWN`, which must carry `null` rather than an invented `false`.
+
+In the real proof, product-repository access, plugin use, credential access, and external-network access are `NOT_OBSERVED`; worker-tool network is `CONFIGURED_DISABLED`; filesystem writes, detached/unowned child, and listener remaining are `OBSERVED_NOT_USED`. Every claim is bound to the canonical run ID.
+
+File hashes are calculated only for existing files contained by the TSF worktree. Arbitrary file contents, session tokens, stderr, prompts, credentials, and secret-like data are not rendered. Submission is not approval, worker completion is not admission, and the canonical admission receipt remains terminal truth.

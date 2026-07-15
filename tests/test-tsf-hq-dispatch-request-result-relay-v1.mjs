@@ -123,6 +123,28 @@ async function syntheticOutcome({ missionId, missionRevision }) {
   return { preparation: prep, processResult: { code: 0, child_exited: true, no_orphan_process: true }, queueResult: { final_queue_state: "completed", final_decision: "WORKER_GREEN_WITHOUT_ADMISSION" }, lifecycle, adapter: { child_exited: true, no_orphan_process: true }, verifier: null };
 }
 
+async function mismatchedIdentityOutcome({ missionId, missionRevision }, { crossRunClaim = false } = {}) {
+  const dir = path.join(fixtureRoot, `mismatch-${missionId}-r${missionRevision}`);
+  mkdirSync(dir, { recursive: true });
+  const paths = Object.fromEntries(["mission", "queue", "queueResult", "lifecycle", "adapter", "verifier", "worker", "result", "admission", "packet", "manifest"].map((name) => [name, path.join(dir, `${name}.json`)]));
+  writeFileSync(paths.mission, JSON.stringify({ expires_at: "2099-01-01T00:00:00Z" }));
+  writeFileSync(paths.queue, "{}");
+  const prep = preparation(missionId, missionRevision, paths);
+  const suppliedResultId = crossRunClaim ? prep.run_id : "canonical-result-another-mission-1";
+  const claims = crossRunClaim ? { filesystem_writes: { classification: "OBSERVED_NOT_USED", value: false, source: "synthetic", run_id: "canonical-result-another-mission-1" } } : null;
+  const admission = { status: "ADMITTED", result_id: suppliedResultId, admission_receipt_path: paths.admission, reasons: [], caveats: [] };
+  return {
+    preparation: prep,
+    processResult: { code: 0, child_exited: true },
+    queueResult: { final_queue_state: "complete_ready_for_gate", admission_receipt: admission },
+    lifecycle: { worker_status: "CODEX_APP_SERVER_WORKER_GREEN", preservation_status: "PRESERVED" },
+    adapter: claims ? { observation_claims: claims } : null,
+    verifier: { verdict: "GREEN", verified: true },
+    workerResult: null,
+    durableResult: null,
+  };
+}
+
 async function closeServer(server) {
   await server.hqDispatchShutdown();
   await new Promise((resolve) => server.close(resolve));
@@ -239,12 +261,15 @@ try {
   const repeatedPreview = await getPreview(natural);
   const completedReplay = await post(port, "/api/v1/missions", token, origin, submissionFor(natural, repeatedPreview));
   equal(completedReplay.json.mission_id, admitted.json.mission_id, "completed identical submission reuses canonical terminal mission");
+  equal(completedReplay.json.result_id, admitted.json.result_id, "completed replay preserves the same terminal result identity");
   equal(completedReplay.json.duplicate_replay.completed_identical_submission_returned, true, "completed replay is explicit");
   equal(executionCount, 1, "completed replay creates no second execution");
   equal((await request(port, { pathname: `/api/v1/missions/${admitted.json.mission_id}` })).json.state, "ADMITTED_WITH_CAVEATS", "mission status projection readable");
   const events = (await request(port, { pathname: `/api/v1/missions/${admitted.json.mission_id}/events` })).json.events;
   for (const state of ["PREPARING", "VERIFYING", "PRESERVING", "ADMITTED_WITH_CAVEATS"]) check(events.some((event) => event.state === state), `${state} event projected`);
-  check(events.every((event) => Object.hasOwn(event, "canonical_source_record") && Object.hasOwn(event, "source_path") && event.timestamp && event.assurance && event.explanation), "event contract retains source, time, assurance, and explanation");
+  check(events.every((event) => Object.hasOwn(event, "canonical_source_record") && Object.hasOwn(event, "source_path") && Object.hasOwn(event, "result_id") && event.timestamp && event.assurance && event.explanation), "event contract retains source, time, result identity field, assurance, and explanation");
+  check(events.filter((event) => event.state !== "ADMITTED_WITH_CAVEATS").every((event) => event.result_id === null), "pre-result events do not invent result identity");
+  equal(events.find((event) => event.state === "ADMITTED_WITH_CAVEATS").result_id, admitted.json.result_id, "terminal event retains exact canonical result identity");
 
   const crossSessionPreview = await getPreview(`${natural} cross session`);
   const secondSession = await session(port, origin);
@@ -263,9 +288,46 @@ try {
   const unaccepted = await post(port, "/api/v1/missions", token, origin, submissionFor(unacceptedNatural, unacceptedPreview));
   equal(unaccepted.json.state, "REJECTED", "worker success without admission remains unaccepted");
   equal(unaccepted.json.admission, null, "missing admission receipt is visible and never fabricated");
+  equal(unaccepted.json.result_id, null, "rejected status does not invent terminal result identity");
+  equal(unaccepted.json.result.result_id, null, "rejected nested result does not inherit run identity");
 } finally {
   await closeServer(server);
 }
+
+const mismatchServer = await startHqDispatchServerForTest({ executionAdapter: (input) => mismatchedIdentityOutcome(input) });
+try {
+  const port = mismatchServer.address().port;
+  const origin = `http://127.0.0.1:${port}`;
+  const issued = await session(port, origin);
+  const preview = await post(port, "/api/v1/route-preview", issued.json.session_token, origin, { natural_request: "Reject a cross-run result identity." });
+  const result = await post(port, "/api/v1/missions", issued.json.session_token, origin, submissionFor("Reject a cross-run result identity.", preview));
+  check(!["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(result.json.state), "result identity from another mission/run fails closed before projection");
+} finally {
+  await closeServer(mismatchServer);
+}
+
+const claimServer = await startHqDispatchServerForTest({ executionAdapter: (input) => mismatchedIdentityOutcome(input, { crossRunClaim: true }) });
+try {
+  const port = claimServer.address().port;
+  const origin = `http://127.0.0.1:${port}`;
+  const issued = await session(port, origin);
+  const preview = await post(port, "/api/v1/route-preview", issued.json.session_token, origin, { natural_request: "Reject a cross-run observation claim." });
+  const result = await post(port, "/api/v1/missions", issued.json.session_token, origin, submissionFor("Reject a cross-run observation claim.", preview));
+  check(!["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(result.json.state), "cross-run observation substitution fails closed");
+} finally {
+  await closeServer(claimServer);
+}
+
+const browserSource = readFileSync(path.join(root, "tools", "hq-dispatch", "v1", "public", "app.js"), "utf8");
+const browserHtml = readFileSync(path.join(root, "tools", "hq-dispatch", "v1", "public", "index.html"), "utf8");
+const browserText = `${browserSource}\n${browserHtml}`;
+check(browserSource.includes("result_id: status.result_id"), "browser projection retains the API result identity");
+check(browserText.includes("bounded governed TSF-local read-only missions"), "UI truthfully describes governed bounded submission as available");
+check(browserText.includes("Arbitrary repositories and general commands") && browserText.includes("remain unavailable"), "UI keeps arbitrary/general execution unavailable");
+check(browserText.includes("deferred to Milestone 2B"), "UI keeps approval, denial, and clarification responses deferred");
+check(browserText.includes("Submission is not approval") && browserText.includes("worker completion is not admission"), "UI separates submission, worker completion, and admission");
+check(browserText.includes("canonical admission receipt is terminal truth"), "UI names the canonical admission receipt as terminal truth");
+check(!browserText.includes("mission submission, and mission execution are unavailable"), "obsolete Milestone 1-only wording is absent");
 
 let testNow = 1000;
 const expiryServer = await startHqDispatchServerForTest({ executionAdapter: syntheticOutcome, sessionOptions: { ttlMs: 10, now: () => testNow } });

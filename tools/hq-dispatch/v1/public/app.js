@@ -123,7 +123,7 @@ function renderPreview(preview) {
           (approval) => `${approval.gate}: ${approval.status}`,
         )
       : [
-          "No exact approval is identified by this preview. Future mission execution remains disabled and separately gated.",
+          "No exact approval is identified by this preview. A reviewed preview may be submitted as a bounded governed read-only mission; submission is not approval and worker completion is not admission.",
         ];
   replaceList("#approval-list", approvals);
   replaceList(
@@ -230,7 +230,7 @@ function renderRegistryProjection(projection) {
   setText("#boundary-state", restrictions.posture);
   setText(
     "#boundary-detail",
-    "Plugins, credentials, environment enumeration, live AI services, external repositories, mission submission, and mission execution are unavailable.",
+    "Reviewed route previews may be submitted as bounded governed TSF-local read-only missions through canonical mission, queue, lifecycle, verifier, preservation, and admission controls. Arbitrary repositories and general commands; plugins, credentials, deployment, push, merge, production access, and expanded authority remain unavailable. TIM_REQUIRED is display/preservation-only in Milestone 2A; approval, denial, and clarification responses remain deferred to Milestone 2B. Submission is not approval; worker completion is not admission; the canonical admission receipt is terminal truth.",
   );
 }
 

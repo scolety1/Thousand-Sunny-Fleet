@@ -33,6 +33,7 @@ function request(port, { method = "GET", pathname = "/", token = null, origin = 
 }
 
 const server = await startHqDispatchServerForTest({ testOnlyQueueRoot: queueRoot, workerTimeoutSeconds: 180 });
+let serverClosed = false;
 try {
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
@@ -57,11 +58,32 @@ try {
     ? await request(port, { pathname: `/api/v1/missions/${mission.json.mission_id}/events` })
     : { status: 0, json: null };
   const cleanup = await server.hqDispatchShutdown();
+  await new Promise((resolve) => server.close(resolve));
+  serverClosed = true;
   const queueFiles = readdirSync(queueRoot, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => path.join(entry.parentPath, entry.name));
+  const runId = mission.json.run_id;
+  const runtimeClaims = mission.json.worker?.observation_claims ?? {};
+  for (const [name, claim] of Object.entries(runtimeClaims)) {
+    if (claim.run_id !== runId) throw new Error(`CROSS_RUN_OBSERVATION_CLAIM_${name}`);
+  }
+  const observationClaims = {
+    product_repository_policy: { classification: "POLICY_PROHIBITED", value: false, source: "terminal authority explicitly denies product repository access", run_id: runId },
+    product_repository_access: runtimeClaims.product_repository_access ?? { classification: "NOT_OBSERVED", value: null, source: "no authoritative runtime read audit", run_id: runId },
+    plugin_policy: { classification: "POLICY_PROHIBITED", value: false, source: "terminal authority explicitly denies plugins", run_id: runId },
+    plugin_use: runtimeClaims.plugin_use ?? { classification: "NOT_OBSERVED", value: null, source: "no authoritative runtime plugin audit", run_id: runId },
+    credential_policy: { classification: "POLICY_PROHIBITED", value: false, source: "terminal authority explicitly denies credentials", run_id: runId },
+    credential_access: runtimeClaims.credential_access ?? { classification: "NOT_OBSERVED", value: null, source: "no authoritative runtime credential audit", run_id: runId },
+    worker_tool_network: runtimeClaims.worker_tool_network ?? { classification: "UNKNOWN", value: null, source: "missing canonical worker network observation", run_id: runId },
+    external_network_access: runtimeClaims.external_network_access ?? { classification: "NOT_OBSERVED", value: null, source: "no authoritative runtime network-use audit", run_id: runId },
+    filesystem_writes: runtimeClaims.filesystem_writes ?? { classification: "UNKNOWN", value: null, source: "missing lifecycle filesystem observation", run_id: runId },
+    detached_or_unowned_child: { classification: cleanup.child_exited ? "OBSERVED_NOT_USED" : "UNKNOWN", value: cleanup.child_exited ? false : null, source: "HQ Dispatch foreground cleanup result", run_id: runId },
+    listener_remaining: { classification: server.listening ? "UNKNOWN" : "OBSERVED_NOT_USED", value: server.listening ? null : false, source: "Node server listening state after close callback", run_id: runId },
+  };
   process.stdout.write(JSON.stringify({
     schema_version: "tsf_hq_dispatch_real_readonly_http_proof_v1",
+    submission_id: preview.json.submission_id,
     http_status: mission.status,
     final_status: mission.json,
     events: events.json,
@@ -69,12 +91,17 @@ try {
     queue_file_count: queueFiles.length,
     queue_files: queueFiles,
     foreground_cleanup: cleanup,
-    product_repository_used: false,
-    plugin_used: false,
-    worker_tool_network_enabled: false,
+    exact_response: {
+      expected_response_sha256: mission.json.worker?.exact_response?.expected_response_sha256 ?? null,
+      observed_response_sha256: mission.json.worker?.exact_response?.observed_response_sha256 ?? null,
+      worker_exact_match: mission.json.worker?.exact_response?.exact_match ?? null,
+      verifier_exact_match: mission.json.verifier?.exact_response?.exact_match ?? null,
+      verifier_independently_recomputed: mission.json.verifier?.exact_response?.independently_recomputed ?? null,
+    },
+    observation_claims: observationClaims,
   }, null, 2));
   process.stdout.write("\n");
   if (mission.status !== 200 || !["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(mission.json.state)) process.exitCode = 1;
 } finally {
-  await new Promise((resolve) => server.close(resolve));
+  if (!serverClosed) await new Promise((resolve) => server.close(resolve));
 }

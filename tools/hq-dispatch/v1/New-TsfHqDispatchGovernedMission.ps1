@@ -94,7 +94,7 @@ $mission = [pscustomobject][ordered]@{
     allowed_writes = @()
     forbidden_actions = @($forbidden)
     completion_criteria = @('Bound foreground app-server read-only turn completes.','Independent canonical verifier passes.','Canonical admission receipt is written.')
-    required_tests = @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-exact-response'; required = $true; command = 'native stable stdio protocol' })
+    required_tests = @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-exact-response'; required = $true; command = 'exact-response-sha256:106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba' })
     required_artifacts = @([pscustomobject]@{ path = 'fleet/control/policy-manifest.v1.json'; hash_required = $true })
     required_verifier_independence = 'SEPARATE_ROLE'
     stop_conditions = @('Unexpected file touch.','Worker-tool network request.','Native identity mismatch.','Timeout.','Verifier failure.','TIM_REQUIRED request.')

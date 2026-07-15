@@ -110,9 +110,22 @@
         "control_plane_service_network_policy": { "enum": ["NONE", "CODEX_SERVICE_ONLY"] },
         "worker_tool_network_policy": { "const": "DISABLED" },
         "codex_service_connection_used": { "type": "boolean" },
-        "direct_openai_api_called_by_tsf": { "const": false },
-        "external_api_called": { "const": false },
-        "worker_network_used": { "const": false }
+        "direct_openai_api_called_by_tsf": { "type": ["boolean", "null"] },
+        "external_api_called": { "type": ["boolean", "null"] },
+        "worker_network_used": { "type": ["boolean", "null"] }
+      }
+    },
+    "observation_claims": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "product_repository_access": { "$ref": "#/$defs/observationClaim" },
+        "plugin_use": { "$ref": "#/$defs/observationClaim" },
+        "credential_access": { "$ref": "#/$defs/observationClaim" },
+        "worker_tool_network": { "$ref": "#/$defs/observationClaim" },
+        "external_network_access": { "$ref": "#/$defs/observationClaim" },
+        "filesystem_writes": { "$ref": "#/$defs/observationClaim" },
+        "detached_or_unowned_child": { "$ref": "#/$defs/observationClaim" },
+        "listener_remaining": { "$ref": "#/$defs/observationClaim" }
       }
     },
     "artifacts": {
@@ -169,6 +182,15 @@
   "$defs": {
     "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
     "canonicalEffort": { "enum": ["UNKNOWN", "LIGHT", "MEDIUM", "HIGH", "EXTRA_HIGH", "MAX", "ULTRA"] },
-    "evidenceClass": { "enum": ["NATIVE_OBSERVED", "ADAPTER_OBSERVED", "KERNEL_OBSERVED", "FILESYSTEM_OBSERVED", "VERIFIER_OBSERVED", "AGENT_REPORTED", "UNVERIFIED"] }
+    "evidenceClass": { "enum": ["NATIVE_OBSERVED", "ADAPTER_OBSERVED", "KERNEL_OBSERVED", "FILESYSTEM_OBSERVED", "VERIFIER_OBSERVED", "AGENT_REPORTED", "UNVERIFIED"] },
+    "observationClaim": {
+      "type": "object", "additionalProperties": false, "required": ["classification", "value", "source", "run_id"],
+      "properties": {
+        "classification": { "enum": ["POLICY_PROHIBITED", "CONFIGURED_DISABLED", "OBSERVED_NOT_USED", "NOT_OBSERVED", "UNKNOWN"] },
+        "value": { "type": ["boolean", "null"] },
+        "source": { "type": "string", "minLength": 1 },
+        "run_id": { "type": "string", "minLength": 1 }
+      }
+    }
   }
 }
