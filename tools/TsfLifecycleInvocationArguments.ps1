@@ -3,13 +3,17 @@ function Test-TsfApprovalLedgerInvocationBinding {
     param(
         [Parameter(Mandatory)][object]$Mission,
         [AllowEmptyString()][string]$ApprovalLedgerPath='',
-        [Parameter(Mandatory)][string]$CanonicalLedgerPath
+        [Parameter(Mandatory)][string]$CanonicalLedgerPath,
+        [switch]$AllowMissingForCanonicalTimRequest
     )
     $required=@(Get-TsfKernelApprovalRequirements -Mission $Mission)
     if($required.Count-eq0){
         return [pscustomobject]@{approval_semantics='NO_APPROVAL_REQUIRED';include_approval_ledger=$false;approval_ledger_path='';approval_ledger_consumed=$false;required_count=0}
     }
-    if([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)){throw 'TIM_REQUIRED_APPROVAL_LEDGER_MISSING'}
+    if([string]::IsNullOrWhiteSpace($ApprovalLedgerPath)){
+        if($AllowMissingForCanonicalTimRequest){return [pscustomobject]@{approval_semantics='APPROVAL_REQUIRED';include_approval_ledger=$false;approval_ledger_path='';approval_ledger_consumed=$false;required_count=$required.Count;canonical_tim_request_required=$true}}
+        throw 'TIM_REQUIRED_APPROVAL_LEDGER_MISSING'
+    }
     $actual=Get-TsfKernelFullPath $ApprovalLedgerPath
     $expected=Get-TsfKernelFullPath $CanonicalLedgerPath
     if(![string]::Equals($actual,$expected,[StringComparison]::OrdinalIgnoreCase)){throw 'NONCANONICAL_APPROVAL_LEDGER_PATH'}

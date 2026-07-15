@@ -378,6 +378,60 @@ function Get-TsfKernelApprovalRequirements {
     return $requirements
 }
 
+function Write-TsfKernelAtomicJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][object]$Value,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$Replace
+    )
+    $full = Get-TsfKernelFullPath $Path
+    $parent = Split-Path -Parent $full
+    New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    $temp = Join-Path $parent ('.tsf-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        $Value | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath $temp -Encoding UTF8
+        $roundTrip = Read-TsfKernelJson $temp
+        if ((Get-TsfRuntimeSha256Text ($roundTrip | ConvertTo-Json -Depth 50 -Compress)) -ne (Get-TsfRuntimeSha256Text ($Value | ConvertTo-Json -Depth 50 -Compress))) { throw 'ATOMIC_JSON_ROUND_TRIP_MISMATCH' }
+        if ($Replace) {
+            $backup = Join-Path $parent ('.tsf-' + [guid]::NewGuid().ToString('N') + '.bak')
+            try { [IO.File]::Replace($temp, $full, $backup, $true) } finally { if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force } }
+        } else {
+            [IO.File]::Move($temp, $full)
+        }
+    } finally {
+        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
+    }
+    return $full
+}
+
+function Get-TsfKernelClarificationRequirements {
+    param([Parameter(Mandatory = $true)][object]$Mission)
+    if (!($Mission.PSObject.Properties.Name -contains 'clarification_requirements')) { return @() }
+    return @(ConvertTo-TsfKernelArray -Value $Mission.clarification_requirements)
+}
+
+function Test-TsfKernelExactPathSet {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Left,
+        [Parameter(Mandatory = $true)][object[]]$Right,
+        [Parameter(Mandatory = $true)][string]$Repository
+    )
+    if ($Left.Count -ne $Right.Count -or $Left.Count -eq 0) { return $false }
+    $normalize = {
+        param([object[]]$Values)
+        @($Values | ForEach-Object {
+            if (!(Test-TsfKernelPathTokenSafe -Path ([string]$_))) { throw 'UNSAFE_APPROVAL_PATH_TOKEN' }
+            (Get-TsfKernelFullPath -Path ([string]$_) -BasePath $Repository).TrimEnd('\','/').ToLowerInvariant()
+        } | Sort-Object -Unique)
+    }
+    try {
+        $a = @(& $normalize $Left)
+        $b = @(& $normalize $Right)
+        return $a.Count -eq $b.Count -and (@(Compare-Object -ReferenceObject $a -DifferenceObject $b -CaseSensitive).Count -eq 0)
+    } catch { return $false }
+}
+
 function Get-TsfKernelApprovalLedger {
     param([string]$ApprovalLedgerPath)
 
@@ -390,6 +444,135 @@ function Get-TsfKernelApprovalLedger {
     $validation = Test-TsfJsonContract -Value $ledger -SchemaPath $schemaPath
     if (!$validation.valid) { throw "Approval ledger schema validation failed: $($validation.errors -join '; ')" }
     return $ledger
+}
+
+function New-TsfKernelExactApprovalLedger {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][object]$Request,
+        [Parameter(Mandatory = $true)][string]$RequestEvidencePath,
+        [Parameter(Mandatory = $true)][string]$RequestEvidenceSha256,
+        [Parameter(Mandatory = $true)][string]$ResponseId,
+        [Parameter(Mandatory = $true)][string]$ResponseContentSha256,
+        [Parameter(Mandatory = $true)][int]$AuthorizedMissionRevision,
+        [datetimeoffset]$CurrentTime = [datetimeoffset]::UtcNow
+    )
+    $requestValidation = Test-TsfJsonContract $Request (Join-Path (Get-TsfKernelRoot) 'fleet\control\tim-required-request.schema.v1.json')
+    if (!$requestValidation.valid) { throw "CANONICAL_TIM_REQUEST_INVALID: $($requestValidation.errors -join '; ')" }
+    if ([string]$Request.request_kind -ne 'APPROVAL_REQUIRED' -or @($Request.response_types) -notcontains 'APPROVE_EXACT_REQUEST') { throw 'INCOMPATIBLE_APPROVAL_RESPONSE_TYPE' }
+    if ($AuthorizedMissionRevision -ne ([int]$Request.mission_revision + 1)) { throw 'APPROVAL_AUTHORIZED_REVISION_MISMATCH' }
+    if ($CurrentTime -gt [datetimeoffset]::Parse([string]$Request.expires_at)) { throw 'TIM_REQUIRED_REQUEST_EXPIRED' }
+    $evidencePath = Get-TsfKernelFullPath $RequestEvidencePath
+    if (!(Test-Path -LiteralPath $evidencePath -PathType Leaf) -or (Get-FileHash -LiteralPath $evidencePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $RequestEvidenceSha256) { throw 'TIM_REQUIRED_REQUEST_EVIDENCE_MISMATCH' }
+    $terminal = Read-TsfKernelJson $evidencePath
+    if ([string]$terminal.terminal_status -ne 'TIM_REQUIRED' -or [string]$terminal.tim_required_request.request_id -ne [string]$Request.request_id) { throw 'TIM_REQUIRED_TERMINAL_RESULT_MISMATCH' }
+    foreach($field in @('mission_id','mission_revision','run_id','result_id')){if([string]$terminal.$field-ne[string]$Request.$field){throw "TIM_REQUIRED_$($field.ToUpperInvariant())_MISMATCH"}}
+    $canonicalRequestJson = $terminal.tim_required_request | ConvertTo-Json -Depth 30 -Compress
+    $suppliedRequestJson = $Request | ConvertTo-Json -Depth 30 -Compress
+    if (![string]::Equals($canonicalRequestJson, $suppliedRequestJson, [StringComparison]::Ordinal)) { throw 'CANONICAL_TIM_REQUEST_EVIDENCE_CONTENT_MISMATCH' }
+    if (@($Request.exact_paths | Where-Object { [string]$_ -match '[?*]' }).Count -gt 0) { throw 'WILDCARD_APPROVAL_PROHIBITED' }
+    $runId = "canonical-result-$($Request.mission_id)-$AuthorizedMissionRevision"
+    $plan = New-TsfCompleteRuntimePathPlan -MissionId ([string]$Request.mission_id) -MissionRevision $AuthorizedMissionRevision -RunId $runId
+    $ledgerPath = [string]$plan.queue_plan.artifacts.approval_ledger
+    $approvalId = 'approval-' + (Get-TsfRuntimeSha256Text ("$ResponseId`n$($Request.request_id)`n$RequestEvidenceSha256")).Substring(0,32)
+    $approval = [pscustomobject][ordered]@{
+        approval_id = $approvalId
+        approved_by = 'TIM_LOCAL_OPERATOR'
+        approved_at = $CurrentTime.ToUniversalTime().ToString('o')
+        expires_at = ([datetimeoffset]::Parse([string]$Request.expires_at)).ToUniversalTime().ToString('o')
+        repo_path = Get-TsfKernelFullPath ([string]$Request.repository)
+        lane = 'MASTER_TSF_CONTROL_PLANE'
+        worktree_path = Get-TsfKernelFullPath ([string]$Request.worktree)
+        exact_action = [string]$Request.operation
+        allowed_files_or_paths = @($Request.exact_paths)
+        required_verifier = 'canonical-kernel-postrun'
+        sample_fixture_only = $false
+        state = 'ACTIVE'
+        mission_id = [string]$Request.mission_id
+        usage_count = 0
+        max_uses = 1
+        reuse_policy = 'SINGLE_USE'
+        request_id = [string]$Request.request_id
+        request_evidence_sha256 = $RequestEvidenceSha256
+        request_evidence_path = $evidencePath
+        source_mission_revision = [int]$Request.mission_revision
+        authorized_mission_revision = $AuthorizedMissionRevision
+        source_run_id = [string]$Request.run_id
+        source_result_id = [string]$Request.result_id
+        response_id = $ResponseId
+        response_content_sha256 = $ResponseContentSha256
+        access_level = [string]$Request.access_level
+        network_policy = [string]$Request.network_scope.mission_policy
+        control_plane_service_network_policy = [string]$Request.network_scope.control_plane
+        worker_tool_network_policy = [string]$Request.network_scope.worker_tool
+        surface = [string]$Request.surface
+        model = $Request.model
+        authority_not_included = @($Request.authority_not_included)
+        consumed_by_run_id = $null
+        consumed_at = $null
+        notes = 'Exact single-use HQ Dispatch relay. The canonical ledger record is the sole approval authority.'
+    }
+    $ledger = [pscustomobject][ordered]@{schema_version=1;ledger_id=('ledger-' + $approvalId);notes='Canonical exact TIM_REQUIRED approval ledger.';approvals=@($approval)}
+    $schemaPath = Join-Path (Get-TsfKernelRoot) 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\approval_ledger_schema_v1.json'
+    $validation = Test-TsfJsonContract $ledger $schemaPath
+    if (!$validation.valid) { throw "APPROVAL_LEDGER_SCHEMA_MISMATCH: $($validation.errors -join '; ')" }
+    $idempotent = $false
+    if (Test-Path -LiteralPath $ledgerPath -PathType Leaf) {
+        $existing = Get-TsfKernelApprovalLedger $ledgerPath
+        $match = @($existing.approvals | Where-Object { [string]$_.approval_id -eq $approvalId -and [string]$_.response_id -eq $ResponseId -and [string]$_.response_content_sha256 -eq $ResponseContentSha256 -and [string]$_.request_id -eq [string]$Request.request_id })
+        if ($match.Count -ne 1) { throw 'APPROVAL_LEDGER_CHANGED_REPLAY_REJECTED' }
+        $ledger = $existing; $approval = $match[0]; $idempotent = $true
+    } else {
+        try { Write-TsfKernelAtomicJson $ledger $ledgerPath | Out-Null } catch {
+            if (!(Test-Path -LiteralPath $ledgerPath -PathType Leaf)) { throw }
+            $existing = Get-TsfKernelApprovalLedger $ledgerPath
+            $match = @($existing.approvals | Where-Object { [string]$_.approval_id -eq $approvalId -and [string]$_.response_id -eq $ResponseId -and [string]$_.response_content_sha256 -eq $ResponseContentSha256 -and [string]$_.request_id -eq [string]$Request.request_id })
+            if ($match.Count -ne 1) { throw 'APPROVAL_LEDGER_CONCURRENT_CONFLICT' }
+            $ledger = $existing; $approval = $match[0]; $idempotent = $true
+        }
+    }
+    [pscustomobject][ordered]@{approval=$approval;approval_id=[string]$approval.approval_id;ledger_path=$ledgerPath;ledger_sha256=(Get-FileHash -LiteralPath $ledgerPath -Algorithm SHA256).Hash.ToLowerInvariant();idempotent_replay=$idempotent}
+}
+
+function Use-TsfKernelApproval {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][object]$Mission,
+        [Parameter(Mandatory = $true)][string]$ApprovalLedgerPath,
+        [Parameter(Mandatory = $true)][string]$RunId,
+        [datetimeoffset]$CurrentTime = [datetimeoffset]::UtcNow
+    )
+    $full = Get-TsfKernelFullPath $ApprovalLedgerPath
+    $mutexName = 'Local\TSF_APPROVAL_' + (Get-TsfRuntimeSha256Text $full).Substring(0,24)
+    $mutex = [Threading.Mutex]::new($false,$mutexName)
+    if (!$mutex.WaitOne([TimeSpan]::FromSeconds(15))) { $mutex.Dispose(); throw 'APPROVAL_CONSUMPTION_LOCK_TIMEOUT' }
+    try {
+        $ledger = Get-TsfKernelApprovalLedger $full
+        $matches = @(Find-TsfKernelApprovalMatches -Mission $Mission -Ledger $ledger -LedgerPath $full -CurrentTime $CurrentTime -RequireCanonicalUsageBinding)
+        $required = @(Get-TsfKernelApprovalRequirements -Mission $Mission)
+        if ($matches.Count -ne $required.Count -or @($matches | Where-Object { !$_.satisfied }).Count -gt 0) { throw 'APPROVAL_CONSUMPTION_MATCH_FAILED' }
+        $used = @()
+        foreach ($match in $matches) {
+            $record = @($ledger.approvals | Where-Object { [string]$_.approval_id -eq [string]$match.approval_id })
+            if ($record.Count -ne 1) { throw 'APPROVAL_CONSUMPTION_RECORD_AMBIGUOUS' }
+            if (![string]::IsNullOrWhiteSpace([string]$record[0].consumed_by_run_id)) {
+                if ([string]$record[0].consumed_by_run_id -ne $RunId -or [int]$record[0].usage_count -ne 1) { throw 'APPROVAL_ALREADY_CONSUMED_BY_ANOTHER_RUN' }
+            } else {
+                if ([int]$record[0].usage_count -ge [int]$record[0].max_uses) { throw 'APPROVAL_USAGE_EXHAUSTED' }
+                $record[0].usage_count = [int]$record[0].usage_count + 1
+                $record[0].consumed_by_run_id = $RunId
+                $record[0].consumed_at = $CurrentTime.ToUniversalTime().ToString('o')
+                if ([int]$record[0].usage_count -ge [int]$record[0].max_uses) { $record[0].state = 'EXHAUSTED' }
+            }
+            $used += [pscustomobject][ordered]@{approval_id=[string]$record[0].approval_id;exact_action=[string]$record[0].exact_action;used=$true;request_id=[string]$record[0].request_id;request_evidence_sha256=[string]$record[0].request_evidence_sha256;consumed_by_run_id=$RunId}
+        }
+        $validation = Test-TsfJsonContract $ledger (Join-Path (Get-TsfKernelRoot) 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\approval_ledger_schema_v1.json')
+        if (!$validation.valid) { throw "APPROVAL_CONSUMPTION_SCHEMA_MISMATCH: $($validation.errors -join '; ')" }
+        Write-TsfKernelAtomicJson $ledger $full -Replace | Out-Null
+        return @($used)
+    } finally {
+        $mutex.ReleaseMutex(); $mutex.Dispose()
+    }
 }
 
 function Test-TsfKernelApprovalPathScope {
@@ -438,7 +621,8 @@ function Find-TsfKernelApprovalMatches {
         [Parameter(Mandatory = $true)][object]$Ledger,
         [string]$LedgerPath = "",
         [datetimeoffset]$CurrentTime = [datetimeoffset]::UtcNow,
-        [switch]$RequireCanonicalUsageBinding
+        [switch]$RequireCanonicalUsageBinding,
+        [string]$ExpectedConsumedRunId = ''
     )
 
     $now = $CurrentTime
@@ -501,7 +685,8 @@ function Find-TsfKernelApprovalMatches {
                 continue
             }
 
-            if ($approval.PSObject.Properties.Name -contains "state" -and [string]$approval.state -ne "ACTIVE") {
+            $consumedForExpectedRun = ![string]::IsNullOrWhiteSpace($ExpectedConsumedRunId) -and [string]$approval.consumed_by_run_id -eq $ExpectedConsumedRunId -and [int]$approval.usage_count -eq 1
+            if ($approval.PSObject.Properties.Name -contains "state" -and [string]$approval.state -ne "ACTIVE" -and !([string]$approval.state -eq 'EXHAUSTED' -and $consumedForExpectedRun)) {
                 $requirementResult.match_status = "MATCH_INACTIVE_STATE"
                 $requirementResult.approval_id = [string]$approval.approval_id
                 continue
@@ -544,9 +729,61 @@ function Find-TsfKernelApprovalMatches {
                         continue
                     }
                 }
+                if ($requirement.PSObject.Properties.Name -contains 'request_id') {
+                    $requiredTimFields = @('request_id','request_evidence_sha256','request_evidence_path','source_mission_revision','authorized_mission_revision','source_run_id','source_result_id','response_id','response_content_sha256','access_level','network_policy','control_plane_service_network_policy','worker_tool_network_policy','surface','model','authority_not_included')
+                    $missingTimField = @($requiredTimFields | Where-Object { !($approval.PSObject.Properties.Name -contains $_) })
+                    if ($missingTimField.Count -gt 0) {
+                        $requirementResult.match_status = 'MATCH_MISSING_TIM_REQUEST_BINDING'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                    foreach ($field in @('request_id','request_evidence_sha256','source_mission_revision','source_run_id','source_result_id','response_id')) {
+                        if ([string]$approval.$field -ne [string]$requirement.$field) {
+                            $requirementResult.match_status = "MATCH_$($field.ToUpperInvariant())_MISMATCH"
+                            $requirementResult.approval_id = [string]$approval.approval_id
+                            break
+                        }
+                    }
+                    if ([string]$requirementResult.match_status -ne 'NO_MATCH') { continue }
+                    $binding = if ($Mission.PSObject.Properties.Name -contains 'durable_source_binding') { $Mission.durable_source_binding } else { $null }
+                    if ($null -eq $binding -or [int]$approval.authorized_mission_revision -ne [int]$binding.durable_mission_revision -or [string]$approval.access_level -ne [string]$binding.expected_permission_mode -or [string]$approval.network_policy -ne [string]$binding.expected_network_policy -or [string]$approval.control_plane_service_network_policy -ne [string]$binding.expected_control_plane_service_network_policy -or [string]$approval.worker_tool_network_policy -ne [string]$binding.expected_worker_tool_network_policy -or [string]$approval.surface -ne [string]$binding.expected_surface -or [string]$approval.model -ne [string]$binding.expected_model) {
+                        $requirementResult.match_status = 'MATCH_AUTHORITY_BINDING_MISMATCH'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                    $exactMissionPaths = if (@(ConvertTo-TsfKernelArray -Value $Mission.allowed_writes).Count -gt 0) { @(ConvertTo-TsfKernelArray -Value $Mission.allowed_writes) } else { @(ConvertTo-TsfKernelArray -Value $Mission.allowed_reads) }
+                    if (!(Test-TsfKernelExactPathSet -Left @($approval.allowed_files_or_paths) -Right $exactMissionPaths -Repository $repoFull)) {
+                        $requirementResult.match_status = 'MATCH_EXACT_PATH_SET_MISMATCH'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                    $evidencePath = Get-TsfKernelFullPath ([string]$approval.request_evidence_path)
+                    if (!(Test-Path -LiteralPath $evidencePath -PathType Leaf) -or (Get-FileHash -LiteralPath $evidencePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne [string]$approval.request_evidence_sha256) {
+                        $requirementResult.match_status = 'MATCH_REQUEST_EVIDENCE_MISMATCH'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                    try { $sourceResult = Read-TsfKernelJson $evidencePath } catch { $sourceResult = $null }
+                    $sourceRequest = if ($null -ne $sourceResult) { $sourceResult.tim_required_request } else { $null }
+                    if ($null -eq $sourceRequest -or [string]$sourceResult.terminal_status -ne 'TIM_REQUIRED' -or [string]$sourceRequest.request_kind -ne 'APPROVAL_REQUIRED' -or [string]$sourceRequest.request_id -ne [string]$approval.request_id -or [string]$sourceRequest.operation -ne [string]$approval.exact_action -or [string]$sourceRequest.repository -ne [string]$approval.repo_path -or [string]$sourceRequest.worktree -ne [string]$approval.worktree_path -or [string]$sourceRequest.access_level -ne [string]$approval.access_level -or [string]$sourceRequest.network_scope.mission_policy -ne [string]$approval.network_policy -or [string]$sourceRequest.network_scope.control_plane -ne [string]$approval.control_plane_service_network_policy -or [string]$sourceRequest.network_scope.worker_tool -ne [string]$approval.worker_tool_network_policy -or !(Test-TsfKernelExactPathSet -Left @($sourceRequest.exact_paths) -Right @($approval.allowed_files_or_paths) -Repository $repoFull)) {
+                        $requirementResult.match_status = 'MATCH_CANONICAL_REQUEST_MISMATCH'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                    if ([int]$approval.max_uses -ne [int]$sourceRequest.usage_limit.max_uses -or [string]$approval.reuse_policy -ne [string]$sourceRequest.usage_limit.reuse_policy) {
+                        $requirementResult.match_status = 'MATCH_USAGE_POLICY_MISMATCH'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                    if ([datetimeoffset]::Parse([string]$approval.expires_at) -gt [datetimeoffset]::Parse([string]$sourceRequest.expires_at)) {
+                        $requirementResult.match_status = 'MATCH_EXPIRY_BROADENED'
+                        $requirementResult.approval_id = [string]$approval.approval_id
+                        continue
+                    }
+                }
             }
 
-            if ($approval.PSObject.Properties.Name -contains "max_uses" -and
+            if (!$consumedForExpectedRun -and $approval.PSObject.Properties.Name -contains "max_uses" -and
                 $approval.PSObject.Properties.Name -contains "usage_count" -and
                 [int]$approval.usage_count -ge [int]$approval.max_uses) {
                 $requirementResult.match_status = "MATCH_USAGE_EXHAUSTED"
@@ -825,6 +1062,7 @@ function Invoke-TsfKernelPreflight {
     $approvalMatches = @()
     $approvalSemantics = 'NO_APPROVAL_REQUIRED'
     $approvalLedgerConsumed = $false
+    $timRequestKind = ''
 
     if ($null -ne $mission -and $blockedReasons.Count -eq 0) {
         $repoPath = Get-TsfKernelFullPath -Path ([string]$mission.repo_path)
@@ -880,8 +1118,24 @@ function Invoke-TsfKernelPreflight {
         }
 
         $approvalRequirements = @(Get-TsfKernelApprovalRequirements -Mission $mission)
-        if($approvalRequirements.Count -gt 0){
+        $clarificationRequirements = @(Get-TsfKernelClarificationRequirements -Mission $mission)
+        if($approvalRequirements.Count -gt 0 -and $clarificationRequirements.Count -gt 0){
+            $checks.Add((New-TsfKernelCheck -Name 'tim.request.ambiguous' -Status 'TIM_REQUIRED' -Message 'Approval and clarification cannot be requested in one canonical response.'))|Out-Null
+            $timRequiredReasons.Add('TIM_REQUEST_AMBIGUOUS_APPROVAL_AND_CLARIFICATION')|Out-Null
+            $timRequestKind = 'AUTHORITY_DECISION_REQUIRED'
+        }elseif($clarificationRequirements.Count -gt 0){
+            if($clarificationRequirements.Count -ne 1){
+                $checks.Add((New-TsfKernelCheck -Name 'clarification.single' -Status 'TIM_REQUIRED' -Message 'Exactly one bounded clarification request is supported.'))|Out-Null
+                $timRequiredReasons.Add('TIM_REQUEST_MULTIPLE_CLARIFICATIONS_NOT_SUPPORTED')|Out-Null
+                $timRequestKind = 'AUTHORITY_DECISION_REQUIRED'
+            }else{
+                $checks.Add((New-TsfKernelCheck -Name 'clarification.required' -Status 'TIM_REQUIRED' -Message ([string]$clarificationRequirements[0].question)))|Out-Null
+                $timRequiredReasons.Add([string]$clarificationRequirements[0].reason)|Out-Null
+                $timRequestKind = 'CLARIFICATION_REQUIRED'
+            }
+        }elseif($approvalRequirements.Count -gt 0){
             $approvalSemantics = 'APPROVAL_REQUIRED'
+            $timRequestKind = 'APPROVAL_REQUIRED'
             try{
                 $ledger = Get-TsfKernelApprovalLedger -ApprovalLedgerPath $ApprovalLedgerPath
                 if($null-eq$ledger){throw 'APPROVAL_LEDGER_REQUIRED_BUT_MISSING'}
@@ -935,6 +1189,7 @@ function Invoke-TsfKernelPreflight {
         approval_matches = @($approvalMatches)
         approval_semantics = $approvalSemantics
         approval_ledger_consumed = $approvalLedgerConsumed
+        tim_request_kind = $timRequestKind
         git_state = $gitState
         project_registration = $projectRegistration
         background_runner_started = $false

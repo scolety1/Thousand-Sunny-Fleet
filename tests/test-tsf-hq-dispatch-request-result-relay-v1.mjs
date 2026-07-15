@@ -108,7 +108,9 @@ async function syntheticOutcome({ missionId, missionRevision }) {
     };
   }
   if (executionCount === 2) {
-    const lifecycle = { terminal_status: "TIM_REQUIRED", approval_semantics: "APPROVAL_REQUIRED", worker_status: "NOT_RUN", verifier_verdict: "", preservation_status: "PRESERVED", preservation_packet_file: paths.packet, preservation_manifest_path: paths.manifest, evidence_preserved: true, blocked_reasons: ["Missing active approval for exact action: bounded_fixture_review"] };
+    const runId = prep.run_id;
+    const timRequest = { schema_version: "tsf_tim_required_request_v1", request_id: "timreq-11111111111111111111111111111111", request_kind: "APPROVAL_REQUIRED", mission_id: missionId, mission_revision: missionRevision, run_id: runId, result_id: runId, repository: root, worktree: root, operation: "bounded_fixture_review", exact_paths: ["fleet/control/policy-manifest.v1.json"], access_level: "READ_ONLY", network_scope: { mission_policy: "PROHIBITED", control_plane: "CODEX_SERVICE_ONLY", worker_tool: "DISABLED" }, surface: "CODEX", model: "gpt-5.6-terra", reason: "Missing active approval for exact action: bounded_fixture_review", question: null, issued_at: "2026-07-15T00:00:00Z", expires_at: "2099-01-01T00:00:00Z", usage_limit: { max_uses: 1, reuse_policy: "SINGLE_USE" }, response_types: ["APPROVE_EXACT_REQUEST", "DENY_REQUEST"], authority_not_included: ["merge", "push", "deploy", "production", "plugins", "credentials", "product_repository", "wildcard_paths", "wider_network", "wider_access"], original_run_terminal: true, worker_active: false, app_server_child_active: false, superseded: false, invalidated: false };
+    const lifecycle = { terminal_status: "TIM_REQUIRED", final_decision: "TIM_REQUIRED", mission_id: missionId, mission_revision: missionRevision, run_id: runId, result_id: runId, approval_semantics: "APPROVAL_REQUIRED", worker_launched: false, worker_status: "NOT_RUN", verifier_verdict: "", preservation_status: "PRESERVED", preservation_packet_file: paths.packet, preservation_manifest_path: paths.manifest, evidence_preserved: true, blocked_reasons: ["Missing active approval for exact action: bounded_fixture_review"], tim_required_request: timRequest };
     writeFileSync(paths.packet, JSON.stringify({ final_decision: "TIM_REQUIRED" }));
     writeFileSync(paths.manifest, JSON.stringify({ evidence: "fixture" }));
     writeFileSync(paths.lifecycle, JSON.stringify(lifecycle));
@@ -279,7 +281,7 @@ try {
   const timPreview = await getPreview(timNatural);
   const tim = await post(port, "/api/v1/missions", token, origin, submissionFor(timNatural, timPreview));
   equal(tim.json.state, "TIM_REQUIRED", "canonical TIM_REQUIRED projected without alternate response state");
-  equal(tim.json.tim_request.original_run_stopped, true, "original TIM run stopped");
+  equal(tim.json.tim_request.original_run_terminal, true, "original TIM run is terminal");
   equal(createHash("sha256").update(readFileSync(tim.json.tim_request.evidence_path)).digest("hex"), tim.json.tim_request.evidence_sha256, "TIM evidence hash binds exact preserved request");
   equal((await post(port, `/api/v1/missions/${tim.json.mission_id}/responses`, token, origin, {})).status, 404, "typed response endpoint is deferred rather than partially authoritative");
 
@@ -324,7 +326,7 @@ const browserText = `${browserSource}\n${browserHtml}`;
 check(browserSource.includes("result_id: status.result_id"), "browser projection retains the API result identity");
 check(browserText.includes("bounded governed TSF-local read-only missions"), "UI truthfully describes governed bounded submission as available");
 check(browserText.includes("Arbitrary repositories and general commands") && browserText.includes("remain unavailable"), "UI keeps arbitrary/general execution unavailable");
-check(browserText.includes("deferred to Milestone 2B"), "UI keeps approval, denial, and clarification responses deferred");
+check(browserText.includes("APPROVE EXACT REQUEST") && browserText.includes("PROVIDE CLARIFICATION"), "UI exposes only bounded Milestone 2B decision controls");
 check(browserText.includes("Submission is not approval") && browserText.includes("worker completion is not admission"), "UI separates submission, worker completion, and admission");
 check(browserText.includes("canonical admission receipt is terminal truth"), "UI names the canonical admission receipt as terminal truth");
 check(!browserText.includes("mission submission, and mission execution are unavailable"), "obsolete Milestone 1-only wording is absent");

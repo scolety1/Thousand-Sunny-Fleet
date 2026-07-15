@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/tim-required-response.schema.v1.json",
+  "title": "TSF Canonical TIM_REQUIRED Response V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "response_id", "response_content_sha256", "response_type",
+    "operator_confirmation", "response_payload", "response_payload_sha256", "recorded_at",
+    "source_request", "request_evidence_sha256", "terminal_disposition", "authority_granted",
+    "approval", "revision", "idempotency"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_tim_required_response_v1" },
+    "response_id": { "type": "string", "pattern": "^hq-response-[A-Za-z0-9-]{16,80}$" },
+    "response_content_sha256": { "$ref": "#/$defs/sha256" },
+    "response_type": { "enum": ["APPROVE_EXACT_REQUEST", "DENY_REQUEST", "PROVIDE_CLARIFICATION"] },
+    "operator_confirmation": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "response_payload": { "type": ["string", "null"], "maxLength": 2000 },
+    "response_payload_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "source_request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mission_id", "mission_revision", "run_id", "result_id", "request_id"],
+      "properties": {
+        "mission_id": { "type": "string", "minLength": 8, "maxLength": 160 },
+        "mission_revision": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 8, "maxLength": 200 },
+        "result_id": { "type": "string", "minLength": 8, "maxLength": 200 },
+        "request_id": { "type": "string", "pattern": "^timreq-[a-f0-9]{32}$" }
+      }
+    },
+    "request_evidence_sha256": { "$ref": "#/$defs/sha256" },
+    "terminal_disposition": { "enum": ["EXACT_APPROVAL_RELAYED", "TIM_REQUIRED_DENIED", "CLARIFICATION_RECORDED"] },
+    "authority_granted": {
+      "type": "array", "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 160 }
+    },
+    "approval": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["approval_id", "ledger_path", "ledger_sha256", "authority_source"],
+          "properties": {
+            "approval_id": { "type": "string", "minLength": 8, "maxLength": 160 },
+            "ledger_path": { "type": "string", "minLength": 1 },
+            "ledger_sha256": { "$ref": "#/$defs/sha256" },
+            "authority_source": { "const": "CANONICAL_TSF_APPROVAL_LEDGER" }
+          }
+        }
+      ]
+    },
+    "revision": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["mission_id", "mission_revision", "run_id", "mission_path", "queue_record_path"],
+          "properties": {
+            "mission_id": { "type": "string", "minLength": 8, "maxLength": 160 },
+            "mission_revision": { "type": "integer", "minimum": 2 },
+            "run_id": { "type": "string", "minLength": 8, "maxLength": 200 },
+            "mission_path": { "type": "string", "minLength": 1 },
+            "queue_record_path": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "idempotency": {
+      "type": "object", "additionalProperties": false,
+      "required": ["one_response_per_request", "changed_replay_rejected", "duplicate_revision_prevented", "duplicate_queue_prevented"],
+      "properties": {
+        "one_response_per_request": { "const": true },
+        "changed_replay_rejected": { "const": true },
+        "duplicate_revision_prevented": { "const": true },
+        "duplicate_queue_prevented": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

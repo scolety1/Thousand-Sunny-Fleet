@@ -40,8 +40,19 @@ try{
     if(!$check.valid){foreach($error in @($check.errors)){$blocked.Add([string]$error)|Out-Null};throw 'PREPARATION_BLOCKED'}
     $queueHash=[string]$check.queue_document_sha256
     $leaf="$missionId.r$revision.json"
-    $collisions=@(Get-ChildItem -LiteralPath ([string]$queueAuthority.root) -File -Recurse -ErrorAction SilentlyContinue|Where-Object{$_.Name-eq$leaf-or$_.Name-like"$missionId.r*.json"})
-    if($collisions.Count){$status='BLOCKED_COLLISION';$blocked.Add("Mission identity already exists in queue: $($collisions.FullName -join ', ')")|Out-Null;throw 'PREPARATION_BLOCKED'}
+    $collisions=@(Get-ChildItem -LiteralPath ([string]$queueAuthority.root) -File -Recurse -ErrorAction SilentlyContinue|Where-Object{$_.Name-like"$missionId.r*.json"})
+    $sameRevision=@($collisions|Where-Object{$_.Name-eq$leaf})
+    if($sameRevision.Count){
+        if($sameRevision.Count-ne1){$status='BLOCKED_COLLISION';$blocked.Add('Canonical queue contains duplicate records for one mission revision.')|Out-Null;throw 'PREPARATION_BLOCKED'}
+        try{$existingDocument=Read-TsfKernelJson $sameRevision[0].FullName;$existingCheck=Test-TsfCanonicalQueueDocument $existingDocument $mission $fleetRoot}catch{$existingCheck=$null}
+        if($null-eq$existingCheck-or!$existingCheck.valid-or[string]$existingCheck.queue_document_sha256-ne$queueHash){$status='BLOCKED_COLLISION';$blocked.Add('Existing mission revision queue record has different content.')|Out-Null;throw 'PREPARATION_BLOCKED'}
+        $queueRecord=$sameRevision[0].FullName;$status='PREPARED';$created=$false
+    }elseif($revision-gt1){
+        $priorLeaf="$missionId.r$($revision-1).json"
+        $prior=@($collisions|Where-Object{$_.Name-eq$priorLeaf})
+        if($prior.Count-ne1-or(Split-Path -Leaf (Split-Path -Parent $prior[0].FullName))-ne'blocked_needs_tim'){$status='BLOCKED_COLLISION';$blocked.Add('New mission revision requires exactly one immediately prior terminal blocked_needs_tim record.')|Out-Null;throw 'PREPARATION_BLOCKED'}
+        if($null-eq$mission.parent_mission_id-or[string]$mission.parent_mission_id-ne$missionId){$status='BLOCKED_COLLISION';$blocked.Add('Revised mission must bind parent_mission_id to the canonical mission identity.')|Out-Null;throw 'PREPARATION_BLOCKED'}
+    }elseif($collisions.Count){$status='BLOCKED_COLLISION';$blocked.Add("Mission identity already exists in queue: $($collisions.FullName -join ', ')")|Out-Null;throw 'PREPARATION_BLOCKED'}
     if($RecoveryFromMissionId){
         if($RecoveryFromMissionId-eq$missionId){$status='BLOCKED_COLLISION';$blocked.Add('Retry must not reuse the failed mission ID.')|Out-Null;throw 'PREPARATION_BLOCKED'}
         $stopPath=Join-Path $RecoveryEvidenceDirectory 'STOP_RECORD.json';$snapshotPath=Join-Path $RecoveryEvidenceDirectory 'queue-record-preflight-pending.json'
@@ -52,15 +63,17 @@ try{
         $recoveryMarker=[string]$plan.queue_plan.artifacts.recovery_marker
         Write-TsfKernelJson $marker $recoveryMarker
     }
-    $queueRecord=Join-Path (Join-Path ([string]$queueAuthority.root) 'inbox') $leaf
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $queueRecord)|Out-Null
-    Write-TsfKernelJson $document ([string]$plan.queue_plan.artifacts.transition_temp)
-    Move-Item -LiteralPath ([string]$plan.queue_plan.artifacts.transition_temp) -Destination $queueRecord
-    $created=$true;$status='PREPARED'
+    if(!$queueRecord){
+        $queueRecord=Join-Path (Join-Path ([string]$queueAuthority.root) 'inbox') $leaf
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $queueRecord)|Out-Null
+        Write-TsfKernelJson $document ([string]$plan.queue_plan.artifacts.transition_temp)
+        Move-Item -LiteralPath ([string]$plan.queue_plan.artifacts.transition_temp) -Destination $queueRecord
+        $created=$true;$status='PREPARED'
+    }
 }catch{
     if($_.Exception.Message-ne'PREPARATION_BLOCKED'){$blocked.Add($_.Exception.Message)|Out-Null}
 }
-$result=[pscustomobject][ordered]@{schema_version='tsf_mission_preparation_result_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');status=$status;mission_id=$missionId;mission_revision=$revision;run_id=$runId;result_path=$resultPath;queue_record_created=$created;queue_record_path=$queueRecord;queue_document_sha256=$queueHash;policy_fingerprint=[string]$mission.policy.fingerprint;repository=$fleetRoot;branch=[string]$git.branch;worktree=$fleetRoot;helpers_verified=($missingHelpers.Count-eq0);recovery_from_mission_id=$RecoveryFromMissionId;recovery_marker_path=$recoveryMarker;blocked_reasons=@($blocked)}
+$result=[pscustomobject][ordered]@{schema_version='tsf_mission_preparation_result_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');status=$status;mission_id=$missionId;mission_revision=$revision;run_id=$runId;result_path=$resultPath;queue_record_created=$created;queue_record_path=$queueRecord;queue_document_sha256=$queueHash;policy_fingerprint=[string]$mission.policy.fingerprint;repository=$fleetRoot;branch=[string]$git.branch;worktree=$fleetRoot;helpers_verified=($missingHelpers.Count-eq0);recovery_from_mission_id=$RecoveryFromMissionId;recovery_marker_path=$recoveryMarker;idempotent_replay=($status-eq'PREPARED'-and!$created);blocked_reasons=@($blocked)}
 $validation=Test-TsfJsonContract $result (Join-Path $fleetRoot 'fleet\control\mission-preparation-result.schema.v1.json')
 if(!$validation.valid){throw "PREPARATION_RESULT_SCHEMA_MISMATCH: $($validation.errors -join '; ')"}
 Write-TsfKernelJson $result $resultPath

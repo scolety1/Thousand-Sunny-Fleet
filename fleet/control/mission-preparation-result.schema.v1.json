@@ -23,6 +23,7 @@
     "helpers_verified": { "type": "boolean" },
     "recovery_from_mission_id": { "type": "string" },
     "recovery_marker_path": { "type": "string" },
+    "idempotent_replay": { "type": "boolean" },
     "blocked_reasons": { "type": "array", "items": { "type": "string" } }
   }
 }

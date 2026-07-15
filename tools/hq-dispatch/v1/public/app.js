@@ -7,6 +7,11 @@ const previewResult = document.querySelector("#preview-result");
 const intentConfirm = document.querySelector("#intent-confirm");
 const missionSubmit = document.querySelector("#mission-submit");
 const missionResult = document.querySelector("#mission-result");
+const timConfirmation = document.querySelector("#tim-confirmation");
+const timClarification = document.querySelector("#tim-clarification");
+const timApprove = document.querySelector("#tim-approve");
+const timDeny = document.querySelector("#tim-deny");
+const timClarify = document.querySelector("#tim-clarify");
 let operatorSessionToken = null;
 let reviewedPreview = null;
 let activeMissionStatus = null;
@@ -157,14 +162,57 @@ function renderMission(status) {
   }, null, 2));
   setText("#mission-route", JSON.stringify({ route: status.route, access: status.access, queue_state: status.queue_state }, null, 2));
   setText("#mission-worker", JSON.stringify({ worker: status.worker, verifier: status.verifier, result: status.result }, null, 2));
-  setText("#mission-admission", JSON.stringify({ preservation: status.preservation, admission: status.admission, caveats: status.caveats }, null, 2));
+  setText("#mission-admission", JSON.stringify({ response: status.response, prior_terminal: status.prior_terminal ? { mission_id: status.prior_terminal.mission_id, mission_revision: status.prior_terminal.mission_revision, run_id: status.prior_terminal.run_id, result_id: status.prior_terminal.result_id, state: status.prior_terminal.state, source_path: status.prior_terminal.source_path } : null, preservation: status.preservation, admission: status.admission, caveats: status.caveats }, null, 2));
   setText("#mission-authority", JSON.stringify({ authority: status.authority, duplicate_replay: status.duplicate_replay, next_action: status.next_action }, null, 2));
   const tim = document.querySelector("#tim-required");
   tim.hidden = !status.tim_request;
+  const responseTypes = status.tim_request?.response_types ?? [];
+  document.querySelector("#tim-approval-controls").hidden = !responseTypes.some((value) => ["APPROVE_EXACT_REQUEST", "DENY_REQUEST"].includes(value));
+  document.querySelector("#tim-clarification-controls").hidden = !responseTypes.includes("PROVIDE_CLARIFICATION");
+  timApprove.hidden = !responseTypes.includes("APPROVE_EXACT_REQUEST");
+  timDeny.hidden = !responseTypes.includes("DENY_REQUEST");
   if (status.tim_request) setText("#tim-request", JSON.stringify(status.tim_request, null, 2));
   missionResult.hidden = false;
   missionResult.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+async function sendTimResponse(responseType) {
+  const request = activeMissionStatus?.tim_request;
+  if (!request || !operatorSessionToken) return;
+  for (const control of [timApprove, timDeny, timClarify]) control.disabled = true;
+  setText("#tim-response-status", "Revalidating the canonical terminal request…");
+  try {
+    const responsePayload = responseType === "PROVIDE_CLARIFICATION" ? timClarification.value : null;
+    const response = await fetch(`/api/v1/missions/${encodeURIComponent(request.mission_id)}/tim-response`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-TSF-HQ-Session": operatorSessionToken },
+      body: JSON.stringify({
+        mission_id: request.mission_id,
+        mission_revision: request.mission_revision,
+        run_id: request.run_id,
+        result_id: request.result_id,
+        tim_required_request_id: request.request_id,
+        request_evidence_sha256: request.evidence_sha256,
+        response_id: request.response_id,
+        response_type: responseType,
+        operator_confirmation: timConfirmation.value,
+        response_payload: responsePayload,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error?.code ?? "TIM response failed closed.");
+    renderMission(payload);
+    setText("#tim-response-status", payload.explanation);
+  } catch (error) {
+    setText("#tim-response-status", error instanceof Error ? error.message : "TIM response failed closed.");
+  } finally {
+    for (const control of [timApprove, timDeny, timClarify]) control.disabled = false;
+  }
+}
+
+timApprove.addEventListener("click", () => sendTimResponse("APPROVE_EXACT_REQUEST"));
+timDeny.addEventListener("click", () => sendTimResponse("DENY_REQUEST"));
+timClarify.addEventListener("click", () => sendTimResponse("PROVIDE_CLARIFICATION"));
 
 async function acquireSession() {
   const response = await fetch("/api/v1/session", {
@@ -230,7 +278,7 @@ function renderRegistryProjection(projection) {
   setText("#boundary-state", restrictions.posture);
   setText(
     "#boundary-detail",
-    "Reviewed route previews may be submitted as bounded governed TSF-local read-only missions through canonical mission, queue, lifecycle, verifier, preservation, and admission controls. Arbitrary repositories and general commands; plugins, credentials, deployment, push, merge, production access, and expanded authority remain unavailable. TIM_REQUIRED is display/preservation-only in Milestone 2A; approval, denial, and clarification responses remain deferred to Milestone 2B. Submission is not approval; worker completion is not admission; the canonical admission receipt is terminal truth.",
+    "Reviewed route previews may be submitted as bounded governed TSF-local read-only missions through canonical mission, queue, lifecycle, verifier, preservation, and admission controls. Canonical TIM_REQUIRED requests accept only exact approval, denial, or bounded clarification responses. A response may create a new governed revision; the prior worker is never resumed. Arbitrary repositories and general commands; plugins, credentials, deployment, push, merge, production access, and expanded authority remain unavailable. Submission is not approval; the canonical approval ledger controls approval and the canonical admission receipt is terminal truth.",
   );
 }
 

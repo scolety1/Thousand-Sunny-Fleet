@@ -37,6 +37,8 @@
     "fleet/control/mission-envelope.schema.v1.json",
     "fleet/control/canonical-queue-document.schema.v1.json",
     "fleet/control/lifecycle-terminal-result.schema.v1.json",
+    "fleet/control/tim-required-request.schema.v1.json",
+    "fleet/control/tim-required-response.schema.v1.json",
     "fleet/control/executor-invocation-failure-result.schema.v1.json",
     "fleet/control/mission-preparation-result.schema.v1.json",
     "fleet/control/self-hosted-audit-recovery-policy.v1.json",
@@ -55,6 +57,8 @@
     "admission_decision": "tsf_admission_decision_v1",
     "runtime_artifact_manifest": "tsf_runtime_artifact_manifest_v1",
     "canonical_recovery_envelope": "tsf_canonical_recovery_envelope_v1",
+    "tim_required_request": "tsf_tim_required_request_v1",
+    "tim_required_response": "tsf_tim_required_response_v1",
     "worker_instruction_packet": "v1",
     "project_context_capsule": "v1",
     "research_import_metadata": "tsf_deep_research_import_metadata_v1"

@@ -66,7 +66,7 @@ $retryPlan=New-TsfCompleteRuntimePathPlan $retryMission.mission_id 1 "canonical-
 Assert-Case 'SHLC-RETRY-001' ($retryPrep.status-eq'PREPARED'-and$marker.original_attempt_completed-eq$false-and$marker.original_attempt_resumable-eq$false-and$marker.retry_mission_id-eq$retryMission.mission_id) ([string]$retryPrep.recovery_marker_path)
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\New-TsfCanonicalQueueMission.ps1') -DurableMissionPath $retryPath -QueueRoot $retryQueue -RecoveryFromMissionId 'tsf-foundation-authority-audit-bd35f991-20260711' -RecoveryEvidenceDirectory $preserved -TestOnlyAllowAlternateQueueRoot|Out-Null
 $retryCollision=Get-Content $retryPlan.queue_plan.artifacts.preparation_result -Raw|ConvertFrom-Json
-Assert-Case 'SHLC-RETRY-COLLISION-001' ($retryCollision.status-eq'BLOCKED_COLLISION'-and!$retryCollision.queue_record_created) ($retryCollision.blocked_reasons -join '; ')
+Assert-Case 'SHLC-RETRY-COLLISION-001' ($retryCollision.status-eq'PREPARED'-and!$retryCollision.queue_record_created-and$retryCollision.idempotent_replay-and@(Get-ChildItem $retryQueue -File -Recurse|Where-Object Name -eq (Split-Path -Leaf $retryPrep.queue_record_path)).Count-eq1) 'Exact retry preparation replay returns the one existing canonical queue record.'
 Assert-Case 'SHLC-ORIGINAL-EVIDENCE-001' ((Get-FileHash $stopPath -Algorithm SHA256).Hash.ToLowerInvariant()-eq$originalStopHash-and(Get-FileHash $snapshotPath -Algorithm SHA256).Hash.ToLowerInvariant()-eq$originalSnapshotHash) "$originalStopHash|$originalSnapshotHash"
 
 $out=Join-Path $root 'EXECUTED_TEST_COVERAGE.csv';$rows|Export-Csv -LiteralPath $out -NoTypeInformation -Encoding UTF8

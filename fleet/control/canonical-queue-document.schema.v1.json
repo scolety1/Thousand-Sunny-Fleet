@@ -35,6 +35,12 @@
         "expected_branch": { "type": ["string", "null"] },
         "expected_worktree": { "type": ["string", "null"] },
         "expected_role": { "type": "string", "minLength": 1 }
+        ,"expected_permission_mode": { "enum": ["READ_ONLY", "WORKSPACE_WRITE", "APPROVAL_REQUIRED", "EXACT_ELEVATED_ACTION", "CUSTOM"] }
+        ,"expected_network_policy": { "enum": ["PROHIBITED", "PUBLIC_READ_ONLY", "ALLOWLISTED", "APPROVAL_REQUIRED"] }
+        ,"expected_control_plane_service_network_policy": { "enum": ["NONE", "CODEX_SERVICE_ONLY"] }
+        ,"expected_worker_tool_network_policy": { "const": "DISABLED" }
+        ,"expected_surface": { "type": "string", "minLength": 1 }
+        ,"expected_model": { "type": ["string", "null"] }
       }
     },
     "model_resolution": { "type": "object" },
