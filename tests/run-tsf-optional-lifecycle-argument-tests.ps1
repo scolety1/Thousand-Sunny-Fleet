@@ -91,6 +91,7 @@ function New-AuditMission([string]$Name) {
     $m.created_at = [datetimeoffset]::UtcNow.ToString('o')
     $m.expires_at = [datetimeoffset]::UtcNow.AddHours(1).ToString('o')
     $m.approval_references = @()
+    $m.repository_allowlist = @($repo)
     $m.branch_worktree_policy.expected_branch = $branch
     $m.branch_worktree_policy.expected_worktree = $repo
     $m.branch_worktree_policy.starting_head = $head

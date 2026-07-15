@@ -4,6 +4,12 @@ const requestCount = document.querySelector("#request-count");
 const previewButton = document.querySelector("#preview-button");
 const requestStatus = document.querySelector("#request-status");
 const previewResult = document.querySelector("#preview-result");
+const intentConfirm = document.querySelector("#intent-confirm");
+const missionSubmit = document.querySelector("#mission-submit");
+const missionResult = document.querySelector("#mission-result");
+let operatorSessionToken = null;
+let reviewedPreview = null;
+let activeMissionStatus = null;
 
 function setText(selector, value) {
   const element = document.querySelector(selector);
@@ -87,6 +93,7 @@ function renderExplanations(explanation) {
 }
 
 function renderPreview(preview) {
+  reviewedPreview = preview;
   setText("#classification", preview.classification);
   const classification = document.querySelector("#classification");
   classification.classList.toggle(
@@ -134,6 +141,40 @@ function renderPreview(preview) {
 
   previewResult.hidden = false;
   previewResult.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderMission(status) {
+  activeMissionStatus = status;
+  setText("#mission-state", status.state);
+  setText("#mission-identity", JSON.stringify({
+    mission_id: status.mission_id,
+    mission_revision: status.mission_revision,
+    run_id: status.run_id,
+    result_id: status.result_id,
+    canonical_source_record: status.canonical_source_record,
+    source_path: status.source_path,
+    assurance: status.assurance,
+  }, null, 2));
+  setText("#mission-route", JSON.stringify({ route: status.route, access: status.access, queue_state: status.queue_state }, null, 2));
+  setText("#mission-worker", JSON.stringify({ worker: status.worker, verifier: status.verifier, result: status.result }, null, 2));
+  setText("#mission-admission", JSON.stringify({ preservation: status.preservation, admission: status.admission, caveats: status.caveats }, null, 2));
+  setText("#mission-authority", JSON.stringify({ authority: status.authority, duplicate_replay: status.duplicate_replay, next_action: status.next_action }, null, 2));
+  const tim = document.querySelector("#tim-required");
+  tim.hidden = !status.tim_request;
+  if (status.tim_request) setText("#tim-request", JSON.stringify(status.tim_request, null, 2));
+  missionResult.hidden = false;
+  missionResult.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function acquireSession() {
+  const response = await fetch("/api/v1/session", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok) throw new Error("Local operator session acquisition failed closed.");
+  const payload = await response.json();
+  operatorSessionToken = payload.session_token;
 }
 
 function renderRegistryProjection(projection) {
@@ -206,6 +247,38 @@ async function loadRegistries() {
   }
 }
 
+intentConfirm.addEventListener("change", () => {
+  missionSubmit.disabled = !intentConfirm.checked || !reviewedPreview;
+});
+
+missionSubmit.addEventListener("click", async () => {
+  if (!reviewedPreview || !operatorSessionToken || !intentConfirm.checked) return;
+  missionSubmit.disabled = true;
+  setText("#mission-message", "Canonical mission preparation and foreground execution are running…");
+  try {
+    const response = await fetch("/api/v1/missions", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-TSF-HQ-Session": operatorSessionToken },
+      body: JSON.stringify({
+        natural_request: requestInput.value,
+        preview_id: reviewedPreview.preview_id,
+        preview_sha256: reviewedPreview.preview_sha256,
+        request_hash: reviewedPreview.request_hash,
+        intent: "CREATE_GOVERNED_MISSION",
+        submission_id: reviewedPreview.submission_id,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error?.code ?? "Mission submission failed closed.");
+    renderMission(payload);
+    setText("#mission-message", payload.explanation);
+  } catch (error) {
+    setText("#mission-message", error instanceof Error ? error.message : "Mission submission failed closed.");
+  } finally {
+    missionSubmit.disabled = !intentConfirm.checked || !reviewedPreview || !operatorSessionToken;
+  }
+});
+
 requestInput.addEventListener("input", () => {
   requestCount.textContent = String(requestInput.value.length);
 });
@@ -222,6 +295,7 @@ form.addEventListener("submit", async (event) => {
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+        "X-TSF-HQ-Session": operatorSessionToken,
       },
       body: JSON.stringify({ natural_request: requestInput.value }),
     });
@@ -241,4 +315,8 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-loadRegistries();
+Promise.all([loadRegistries(), acquireSession()]).catch(() => {
+  requestStatus.classList.add("is-error");
+  requestStatus.textContent = "Local operator session initialization failed closed.";
+  previewButton.disabled = true;
+});
