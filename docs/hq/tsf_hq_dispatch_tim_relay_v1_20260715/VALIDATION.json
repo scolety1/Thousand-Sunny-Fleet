@@ -1,0 +1,71 @@
+{
+  "schema_version": "tsf_hq_dispatch_tim_relay_validation_v1",
+  "generated_at_utc": "2026-07-16T00:20:00Z",
+  "verdict": "GREEN",
+  "canonical_base": "58c54190d254d1b31149aae032467d33a1180a57",
+  "canonical_base_tree": "fc6c1b6df2d91fa294340bf3c92d22ab26667cb5",
+  "branch": "work/tsf-hq-dispatch-tim-relay-v1-20260715",
+  "worktree": "C:\\TSF_M2B",
+  "full_validation": {
+    "generated_at_utc": "2026-07-16T00:19:39.5399023+00:00",
+    "status": "PASS",
+    "command_count": 11,
+    "assertion_count": 1813,
+    "all_exit_codes_zero": true,
+    "stderr_empty_for_full_matrix": true
+  },
+  "additional_regression_assertions": 182,
+  "real_proof_assertions": 29,
+  "total_recorded_assertions": 2024,
+  "real_proof": {
+    "status": "PASS",
+    "proof_id": "proof-a3ef758d-9e0e-4b3f-9520-f1b398c7f144",
+    "mission_id": "hq2-mrmqtbv8-e54bb7",
+    "old_run_id": "canonical-result-hq2-mrmqtbv8-e54bb7-1",
+    "new_run_id": "canonical-result-hq2-mrmqtbv8-e54bb7-2",
+    "request_id": "timreq-33ee9f2902f3389c39b5da58442d6a7c",
+    "response_id": "hq-response-df9032e2-ee73-4ea2-abd2-c9f57152a291",
+    "thread_id": "019f6839-dbc3-7580-be4a-29e6ebe25c09",
+    "turn_id": "019f6839-f125-7af2-aa12-4c57c5c3d5e8",
+    "verifier_verdict": "GREEN",
+    "admission_verdict": "ADMITTED_WITH_CAVEATS",
+    "admission_receipt_id": "admission-jdnbh3zrnted66cbhl5nbocn",
+    "worker_tool_network": "DISABLED",
+    "child_exited": true,
+    "listener_remaining": false,
+    "stdout_sha256": "9870e6e8ed0df9af47069a8f512ab4af4ed89808654ff1706de5780db179f513",
+    "stdout_bytes": 6622,
+    "stdout_hash_status": "CAPTURED_BY_EXTERNAL_READ_ONLY_PROOF_WRAPPER",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "deterministic_proof": {
+    "approval_id": "approval-cad04778c72135391269b7464c87e338",
+    "approval_response_id": "hq-response-contract-20260715-0001",
+    "denial_response_id": "hq-response-contract-20260715-0002",
+    "clarification_response_id": "hq-response-contract-20260715-0003",
+    "authority_change_response_id": "hq-response-contract-20260715-0006",
+    "old_run_id": "canonical-result-m2b-contract-clarification-clarification-0001-mrmrdc5w-27204-1",
+    "new_run_id": "canonical-result-m2b-contract-clarification-clarification-0001-mrmrdc5w-27204-2",
+    "approval_usage": "1/1 EXHAUSTED"
+  },
+  "authority_denied": [
+    "merge",
+    "auto_merge",
+    "milestone_3",
+    "product_repository_access",
+    "plugins",
+    "credentials",
+    "deployment",
+    "package_installation",
+    "remote_listener",
+    "detached_or_persistent_process",
+    "unrelated_repository_access"
+  ],
+  "candidate_tree_recording": "Final commit and tree are recorded externally after the one-commit evidence freeze because a file cannot truthfully contain its own final Git tree identity.",
+  "historical_evidence_files_restored_to_head_bytes": true,
+  "notes": [
+    "The two additional legacy suites write historical reports; their regenerated values were verified and restored to baseline bytes after the run.",
+    "The canonical-runtime regression intentionally ran without a live case and retained its historical YELLOW report semantics while all 149 assertions exited zero.",
+    "No session token, credential, or raw secret-like clarification content is recorded."
+  ]
+}

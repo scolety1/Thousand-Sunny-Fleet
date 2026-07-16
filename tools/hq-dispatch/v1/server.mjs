@@ -586,6 +586,7 @@ async function handleRequest(req, res, context) {
         "POST /api/v1/missions",
         "GET /api/v1/missions/:missionId",
         "GET /api/v1/missions/:missionId/events",
+        "POST /api/v1/missions/:missionId/tim-response",
       ],
       mission_execution_enabled: true,
       queue_mutation_enabled: true,
@@ -679,7 +680,7 @@ async function handleRequest(req, res, context) {
     return;
   }
 
-  const missionMatch = url.pathname.match(/^\/api\/v1\/missions\/([A-Za-z0-9._:-]{8,160})(\/events)?$/);
+  const missionMatch = url.pathname.match(/^\/api\/v1\/missions\/([A-Za-z0-9._:-]{8,160})(\/events|\/tim-response)?$/);
   if (missionMatch) {
     const missionId = missionMatch[1];
     const operation = missionMatch[2] ?? "";
@@ -687,6 +688,19 @@ async function handleRequest(req, res, context) {
       const body = await readBody(req);
       if (body.byteLength) { sendJson(res, 400, errorPayload("BODY_NOT_ALLOWED", "GET requests must not include a body.")); return; }
       try { sendJson(res, 200, operation === "/events" ? context.relay.getEvents(missionId) : context.relay.getMission(missionId)); } catch (error) { relayError(res, error); }
+      return;
+    }
+    if (operation === "/tim-response" && req.method === "POST") {
+      if (!requireJson(req, res)) { await readBody(req); return; }
+      const auth = context.sessions.validate(req);
+      if (auth.error) { await readBody(req); sendJson(res, 403, errorPayload(auth.error, "Exact local operator session validation failed.")); return; }
+      const parsed = parseJsonObject(await readBody(req));
+      if (parsed.error) { sendJson(res, 400, parsed.error); return; }
+      if (parsed.value.mission_id !== missionId) {
+        sendJson(res, 422, errorPayload("TIM_RESPONSE_PATH_IDENTITY_MISMATCH", "The path and body mission identities must match exactly."));
+        return;
+      }
+      try { sendJson(res, 200, await context.relay.respond(parsed.value, auth.sessionKey)); } catch (error) { relayError(res, error); }
       return;
     }
     await readBody(req);
@@ -710,7 +724,9 @@ function createHqDispatchServer(options = {}) {
     invokePreview: invokeRoutePreview,
     previewRoot: PREVIEW_ROOT,
     testOnlyQueueRoot: options.testOnlyQueueRoot ?? "",
+    testOnlyInitialTimKind: options.testOnlyInitialTimKind ?? "NONE",
     executionAdapter: options.executionAdapter ?? null,
+    responseAdapter: options.responseAdapter ?? null,
     workerTimeoutSeconds: options.workerTimeoutSeconds ?? 180,
   });
   const context = { sessions, relay };

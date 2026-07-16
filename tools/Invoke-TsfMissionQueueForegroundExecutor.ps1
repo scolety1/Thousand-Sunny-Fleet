@@ -282,7 +282,7 @@ if ($RunCanonicalAppServerWorker -or $TestOnlyNoWorkerLifecycle -or $TestOnlyLif
     $canonicalQueueCheck = Test-TsfCanonicalQueueDocument -QueueDocument $missionInput
     if (![bool]$canonicalQueueCheck.valid) { throw "Canonical queue binding failed: $($canonicalQueueCheck.errors -join '; ')" }
 }
-$mission = if ($missionInput.PSObject.Properties.Name -contains "mission_packet") { $missionInput.mission_packet } else { $missionInput }
+$mission = if ($null -ne $canonicalQueueCheck -and $null -ne $canonicalQueueCheck.effective_mission) { $canonicalQueueCheck.effective_mission } elseif ($missionInput.PSObject.Properties.Name -contains "mission_packet") { $missionInput.mission_packet } else { $missionInput }
 $missionId = [string]$mission.mission_id
 if ([string]::IsNullOrWhiteSpace($missionId)) { $missionId = "queue-mission-" + (Get-Date -Format "yyyyMMddHHmmss") }
 $missionRevision=if($missionInput.PSObject.Properties.Name-contains'source_binding'){[int]$missionInput.source_binding.durable_mission_revision}else{1}
@@ -401,7 +401,7 @@ try {
         if ($RunCanonicalAppServerWorker) { $lifecycleArgumentNamesIncluded += 'RunCanonicalAppServerWorker' }
         if ($TestOnlyAllowAlternateQueueRoot) { $lifecycleArgumentNamesIncluded += 'TestOnlyAllowAlternateQueueRoot' }
         $lifecycleOptionalArgumentsOmitted = @('ApprovalLedgerPath')
-        $approvalPlan = Test-TsfApprovalLedgerInvocationBinding -Mission $mission -ApprovalLedgerPath $ApprovalLedgerPath -CanonicalLedgerPath $canonicalLedgerPath
+        $approvalPlan = Test-TsfApprovalLedgerInvocationBinding -Mission $mission -ApprovalLedgerPath $ApprovalLedgerPath -CanonicalLedgerPath $canonicalLedgerPath -AllowMissingForCanonicalTimRequest
         $approvalSemantics = [string]$approvalPlan.approval_semantics
         $approvalLedgerConsumed = [bool]$approvalPlan.approval_ledger_consumed
         $argumentPlan = New-TsfLifecycleInvocationArgumentPlan -PowerShellPath 'powershell' -LifecycleEntryPoint (Join-Path $fleetRoot 'tools\Invoke-TsfMissionLifecycle.ps1') -MissionPath $currentMissionPath -OutDirectory $lifecycleDirectory -OutFile $lifecyclePath -StateRoot (Join-Path $lifecycleDirectory 's') -QueueMissionPath $currentMissionPath -QueueRoot $queueRootForTransitions -CanonicalQueueDocumentEvidencePath $canonicalQueueEvidencePath -WorkerTimeoutSeconds $WorkerTimeoutSeconds -ApprovalPlan $approvalPlan -RunCanonicalAppServerWorker:$RunCanonicalAppServerWorker -ManageQueueTransitions -TestOnlyAllowAlternateQueueRoot:$TestOnlyAllowAlternateQueueRoot
@@ -430,6 +430,18 @@ try {
         $lifecycleTerminalStatus=[string]$lifecycle.terminal_status
         $lifecycleValidation=Test-TsfLifecycleTerminalResult -Result $lifecycle -PathPlan $completeRuntimePlan -QueueDocumentSha256 ([string]$canonicalQueueCheck.queue_document_sha256) -PolicyFingerprint ([string]$missionInput.source_binding.policy_fingerprint) -RequireProducerProvenance
         if(!$lifecycleValidation.valid){throw "LIFECYCLE_TERMINAL_RESULT_REJECTED: $($lifecycleValidation.errors -join '; ')"}
+        if ([string]$lifecycle.terminal_status -eq 'TIM_REQUIRED') {
+            $currentMissionPath = [string]$lifecycle.queue_mission_path
+            $currentState = Get-QueueExecutorMissionState -MissionFullPath $currentMissionPath -QueueRootFullPath $queueRootFull -States @($statePolicy.states)
+            if ($currentState -ne 'preflight_pending') { throw "TIM_REQUIRED_QUEUE_STATE_INVALID: $currentState" }
+            $transitionPath = [string]$queueStoragePlan.artifacts.transition_03
+            $transition = Invoke-QueueExecutorTransition -CurrentMissionPath $currentMissionPath -FromState 'preflight_pending' -ToState 'blocked_needs_tim' -QueueRootPath $queueRootForTransitions -OutPath $transitionPath -DryRunTransition:$false
+            $currentMissionPath = [string]$transition.destination_path
+            $currentState = 'blocked_needs_tim'
+            $finalState = 'blocked_needs_tim'
+            Add-QueueExecutorEvent -Events $events -Step 'transition' -Status 'PASS' -Message 'preflight_pending -> blocked_needs_tim after canonical terminal TIM_REQUIRED' -Evidence $transitionPath
+            throw "TIM_REQUIRED_CANONICAL_LIFECYCLE: $($lifecycle.blocked_reasons -join '; ')"
+        }
         if ($lifecycleExit -ne 0 -or [string]$lifecycle.terminal_status -ne 'COMPLETED_GREEN') { throw "Canonical lifecycle terminal status $($lifecycle.terminal_status): $($lifecycle.blocked_reasons -join '; ')" }
         $currentMissionPath = [string]$lifecycle.queue_mission_path
         $currentState = 'postrun_pending'

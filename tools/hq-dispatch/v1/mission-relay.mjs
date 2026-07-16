@@ -13,6 +13,19 @@ function jsonHash(value) {
   return hash(JSON.stringify(value));
 }
 
+function responseContentHash(value) {
+  const names = [
+    "mission_id", "mission_revision", "run_id", "result_id",
+    "tim_required_request_id", "request_evidence_sha256", "response_id",
+    "response_type", "operator_confirmation", "response_payload",
+  ];
+  const parts = names.map((name) => {
+    const text = value[name] === null || value[name] === undefined ? "" : String(value[name]);
+    return `${name}:${Buffer.byteLength(text, "utf8")}:${text}`;
+  });
+  return hash(`${parts.join("\n")}\n`);
+}
+
 function closedObject(value, allowed, required) {
   if (!value || Array.isArray(value) || typeof value !== "object") {
     throw new Error("INVALID_REQUEST_SHAPE");
@@ -88,7 +101,9 @@ export class HqMissionRelay {
     invokePreview,
     previewRoot = path.join(repositoryRoot, ".codex-local", "hq-dispatch", "preview"),
     testOnlyQueueRoot = "",
+    testOnlyInitialTimKind = "NONE",
     executionAdapter = null,
+    responseAdapter = null,
     workerTimeoutSeconds = 180,
   }) {
     this.repositoryRoot = repositoryRoot;
@@ -96,11 +111,14 @@ export class HqMissionRelay {
     this.invokePreview = invokePreview;
     this.previewRoot = path.resolve(previewRoot);
     this.testOnlyQueueRoot = testOnlyQueueRoot;
+    this.testOnlyInitialTimKind = testOnlyInitialTimKind;
     this.executionAdapter = executionAdapter;
+    this.responseAdapter = responseAdapter;
     this.workerTimeoutSeconds = workerTimeoutSeconds;
     this.previews = new Map();
     this.submissions = new Map();
     this.missions = new Map();
+    this.responses = new Map();
     this.completedBindings = new Map();
     this.activeMissionId = null;
     this.activeChild = null;
@@ -237,7 +255,12 @@ export class HqMissionRelay {
     try {
       const outcome = this.executionAdapter
         ? await this.executionAdapter({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest })
-        : await this.#prepareAndExecute({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest });
+        : await this.#prepareAndExecute({
+          missionId,
+          missionRevision: 1,
+          naturalRequest: record.naturalRequest,
+          forceNoWorkerLifecycle: this.testOnlyInitialTimKind !== "NONE",
+        });
       this.#applyOutcome(record, outcome);
     } catch (error) {
       record.terminal = true;
@@ -260,11 +283,23 @@ export class HqMissionRelay {
     return record.status;
   }
 
-  async #prepareAndExecute({ missionId, missionRevision, naturalRequest }) {
+  async #prepareAndExecute({
+    missionId,
+    missionRevision,
+    naturalRequest,
+    revisionInput = null,
+    approvalLedgerPath = "",
+    forceNoWorkerLifecycle = false,
+  }) {
     const wrapper = path.join(this.repositoryRoot, "tools", "hq-dispatch", "v1", "New-TsfHqDispatchGovernedMission.ps1");
     const args = ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", wrapper];
-    if (this.testOnlyQueueRoot) args.push("-TestOnlyQueueRoot", this.testOnlyQueueRoot);
-    const prepInput = {
+    if (this.testOnlyQueueRoot) {
+      args.push("-TestOnlyQueueRoot", this.testOnlyQueueRoot, "-UnsupportedDevelopmentMode");
+      if (!revisionInput && this.testOnlyInitialTimKind !== "NONE") {
+        args.push("-TestOnlyInitialTimKind", this.testOnlyInitialTimKind);
+      }
+    }
+    const prepInput = revisionInput ?? {
       mission_id: missionId,
       mission_revision: missionRevision,
       natural_request: naturalRequest,
@@ -291,10 +326,11 @@ export class HqMissionRelay {
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", executor,
       "-MissionPath", preparation.queue_record_path,
       "-QueueRoot", this.testOnlyQueueRoot || "fleet/missions",
-      "-RunCanonicalAppServerWorker",
       "-WorkerTimeoutSeconds", String(this.workerTimeoutSeconds),
     ];
-    if (this.testOnlyQueueRoot) execArgs.push("-TestOnlyAllowAlternateQueueRoot");
+    execArgs.push(forceNoWorkerLifecycle ? "-TestOnlyNoWorkerLifecycle" : "-RunCanonicalAppServerWorker");
+    if (approvalLedgerPath) execArgs.push("-ApprovalLedgerPath", approvalLedgerPath);
+    if (this.testOnlyQueueRoot) execArgs.push("-TestOnlyAllowAlternateQueueRoot", "-UnsupportedDevelopmentMode");
     if (record) {
       record.status = this.#status("DISPATCHING", missionId, missionRevision, {
         sourcePath: preparation.queue_record_path,
@@ -386,35 +422,65 @@ export class HqMissionRelay {
     }
     const timRequired = lifecycle?.terminal_status === "TIM_REQUIRED" || String(queueResult?.final_decision ?? "").startsWith("TIM_REQUIRED") || String(processResult.code) !== "0" && /TIM_REQUIRED/.test(`${JSON.stringify({ queueResult, lifecycle })}\n${processResult.stderr ?? ""}`);
     if (timRequired) {
+      const canonicalRequest = lifecycle?.tim_required_request;
+      if (!canonicalRequest || canonicalRequest.schema_version !== "tsf_tim_required_request_v1") {
+        throw new Error("CANONICAL_TIM_REQUEST_MISSING");
+      }
+      if (canonicalRequest.mission_id !== record.missionId
+          || Number(canonicalRequest.mission_revision) !== record.revision
+          || canonicalRequest.run_id !== preparation.run_id
+          || canonicalRequest.result_id !== preparation.run_id
+          || !canonicalRequest.original_run_terminal
+          || canonicalRequest.worker_active
+          || canonicalRequest.app_server_child_active) {
+        throw new Error("CANONICAL_TIM_REQUEST_BINDING_INVALID");
+      }
+      if (!["APPROVAL_REQUIRED", "CLARIFICATION_REQUIRED", "AUTHORITY_DECISION_REQUIRED"].includes(canonicalRequest.request_kind)
+          || !Array.isArray(canonicalRequest.response_types)
+          || canonicalRequest.response_types.length === 0) {
+        throw new Error("CANONICAL_TIM_REQUEST_KIND_INVALID");
+      }
       record.terminal = true;
-      const kind = lifecycle?.approval_semantics === "APPROVAL_REQUIRED" ? "APPROVAL_REQUIRED" : "AUTHORITY_DECISION_REQUIRED";
       const evidencePath = preparation.lifecycle_result_path || preparation.queue_result_path;
-      const evidenceHash = existsSync(evidencePath) ? hash(readFileSync(evidencePath)) : "0".repeat(64);
+      if (!existsSync(evidencePath)) throw new Error("CANONICAL_TIM_EVIDENCE_MISSING");
+      const evidenceHash = hash(readFileSync(evidencePath));
+      const responseId = `hq-response-${randomUUID()}`;
       record.timRequest = {
         schema_version: "tsf_hq_dispatch_tim_request_projection_v1",
-        request_kind: kind,
-        mission_id: record.missionId,
-        mission_revision: record.revision,
-        run_id: preparation.run_id,
-        result_id: queueResult?.admission_receipt?.result_id ?? preparation.run_id,
-        requested_operation: kind === "APPROVAL_REQUIRED" ? "EXACT_CANONICAL_APPROVAL" : "REVIEW_RUNTIME_AUTHORITY_OR_SERVICE_BLOCKER",
-        exact_paths: preparation.access?.allowed_writes ?? [],
-        access_level: preparation.access?.permission_mode ?? "READ_ONLY",
-        network_scope: preparation.access?.control_plane_service_network_policy ?? "CODEX_SERVICE_ONLY",
-        repository: this.repositoryRoot,
-        worktree: this.repositoryRoot,
-        reason: [...(lifecycle?.blocked_reasons ?? []), ...(queueResult?.blocked_reasons ?? [])].join("; ") || "Canonical runtime requested an operator decision.",
-        expiry: parseJsonFile(preparation.mission_path).expires_at,
-        usage: "SINGLE_USE",
+        request_id: canonicalRequest.request_id,
+        request_kind: canonicalRequest.request_kind,
+        mission_id: canonicalRequest.mission_id,
+        mission_revision: canonicalRequest.mission_revision,
+        run_id: canonicalRequest.run_id,
+        result_id: canonicalRequest.result_id,
+        response_id: responseId,
+        response_types: [...canonicalRequest.response_types],
+        requested_operation: canonicalRequest.operation,
+        exact_paths: [...canonicalRequest.exact_paths],
+        access_level: canonicalRequest.access_level,
+        network_scope: { ...canonicalRequest.network_scope },
+        repository: canonicalRequest.repository,
+        worktree: canonicalRequest.worktree,
+        surface: canonicalRequest.surface,
+        model: canonicalRequest.model,
+        reason: canonicalRequest.reason,
+        question: canonicalRequest.question,
+        expiry: canonicalRequest.expires_at,
+        usage: { ...canonicalRequest.usage_limit },
         evidence_path: evidencePath,
         evidence_sha256: evidenceHash,
-        requested_action: kind === "APPROVAL_REQUIRED" ? "APPROVE_EXACT_REQUEST or DENY_REQUEST" : "Resolve the bounded authority/service blocker through a new governed run.",
-        authority_not_included: ["merge", "push", "deploy", "production", "plugins", "credentials", "product repositories"],
-        original_run_stopped: true,
+        requested_action: canonicalRequest.response_types.join(" or "),
+        authority_not_included: [...canonicalRequest.authority_not_included],
+        original_run_terminal: true,
+        prior_worker_resumed: false,
       };
+      record.timCanonicalRequest = canonicalRequest;
+      record.timResponseId = responseId;
+      record.originalTimStatus = null;
       record.status = this.#status("TIM_REQUIRED", record.missionId, record.revision, {
         sourcePath: evidencePath,
         runId: preparation.run_id,
+        resultId: canonicalRequest.result_id,
         explanation: "The original run is terminal and will never be silently resumed.",
         assurance: "CANONICAL_TERMINAL_EVIDENCE",
         route: preparation.route,
@@ -427,6 +493,7 @@ export class HqMissionRelay {
         authority: this.#authorityProjection(),
         next_action: record.timRequest.requested_action,
       });
+      record.originalTimStatus = structuredClone(record.status);
       this.#event(record, record.status);
       return;
     }
@@ -464,6 +531,161 @@ export class HqMissionRelay {
     const record = this.missions.get(missionId);
     if (!record) throw new Error("MISSION_NOT_FOUND");
     return { schema_version: "tsf_hq_dispatch_mission_events_v1", mission_id: missionId, events: record.events };
+  }
+
+  async respond(raw, sessionKey) {
+    const fields = [
+      "mission_id", "mission_revision", "run_id", "result_id",
+      "tim_required_request_id", "request_evidence_sha256", "response_id",
+      "response_type", "operator_confirmation", "response_payload",
+    ];
+    const input = closedObject(raw, fields, fields);
+    const record = this.missions.get(input.mission_id);
+    if (!record) throw new Error("MISSION_NOT_FOUND");
+    if (record.sessionKey !== sessionKey) throw new Error("CROSS_SESSION_TIM_RESPONSE");
+    const request = record.timRequest;
+    if (!request) throw new Error("MISSION_HAS_NO_CANONICAL_TIM_REQUEST");
+    if (Number(input.mission_revision) !== Number(request.mission_revision)
+        || input.run_id !== request.run_id
+        || input.result_id !== request.result_id
+        || input.tim_required_request_id !== request.request_id
+        || input.request_evidence_sha256 !== request.evidence_sha256
+        || input.response_id !== request.response_id) {
+      throw new Error("TIM_RESPONSE_BINDING_MISMATCH");
+    }
+    if (Date.now() > Date.parse(request.expiry)) throw new Error("TIM_REQUIRED_REQUEST_EXPIRED");
+    if (!existsSync(request.evidence_path) || hash(readFileSync(request.evidence_path)) !== request.evidence_sha256) {
+      throw new Error("TIM_REQUIRED_REQUEST_EVIDENCE_MISMATCH");
+    }
+    const terminal = parseJsonFile(request.evidence_path);
+    const canonical = terminal.tim_required_request;
+    if (terminal.terminal_status !== "TIM_REQUIRED" || terminal.final_decision !== "TIM_REQUIRED"
+        || terminal.mission_id !== input.mission_id
+        || Number(terminal.mission_revision) !== Number(input.mission_revision)
+        || terminal.run_id !== input.run_id || terminal.result_id !== input.result_id
+        || canonical?.request_id !== input.tim_required_request_id
+        || canonical?.superseded || canonical?.invalidated
+        || !canonical?.original_run_terminal || canonical?.worker_active || canonical?.app_server_child_active) {
+      throw new Error("TIM_REQUIRED_TERMINAL_REVALIDATION_FAILED");
+    }
+    if (!request.response_types.includes(input.response_type)) throw new Error("TIM_RESPONSE_TYPE_INCOMPATIBLE_WITH_REQUEST");
+    if (typeof input.operator_confirmation !== "string"
+        || !(input.response_payload === null || typeof input.response_payload === "string")) {
+      throw new Error("TIM_RESPONSE_PAYLOAD_INVALID");
+    }
+    const expectedPhrase = {
+      APPROVE_EXACT_REQUEST: "APPROVE EXACT REQUEST",
+      DENY_REQUEST: "DENY REQUEST",
+      PROVIDE_CLARIFICATION: "PROVIDE CLARIFICATION",
+    }[input.response_type];
+    if (input.operator_confirmation !== expectedPhrase) throw new Error("TIM_RESPONSE_CONFIRMATION_MISMATCH");
+    if (input.response_type === "APPROVE_EXACT_REQUEST" && input.response_payload !== null) throw new Error("APPROVAL_RESPONSE_PAYLOAD_PROHIBITED");
+    if (input.response_type === "DENY_REQUEST" && input.response_payload !== null
+        && (input.response_payload.length > 500 || input.response_payload.includes("\0"))) throw new Error("DENIAL_REASON_INVALID");
+    if (input.response_type === "PROVIDE_CLARIFICATION") {
+      if (!input.response_payload?.trim() || input.response_payload.length > 2000 || input.response_payload.includes("\0")) throw new Error("CLARIFICATION_INVALID");
+      if (/(-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\b(?:sk|ghp|github_pat)-?[A-Za-z0-9_-]{16,}\b|\b(?:password|passwd|secret|token|api[_-]?key)\s*[:=])/i.test(input.response_payload)) throw new Error("CLARIFICATION_SECRET_LIKE_REJECTED");
+      if (/(\bcmd\.exe\b|\bpowershell(?:\.exe)?\b|\bbash\b|\bsh\s+-c\b|Invoke-Expression|Start-Process|\$\(|`[^`]+`|<script\b)/i.test(input.response_payload)) throw new Error("CLARIFICATION_EXECUTABLE_CONTENT_REJECTED");
+    }
+    const contentHash = responseContentHash(input);
+    const prior = this.responses.get(input.response_id);
+    if (prior) {
+      if (prior.contentHash !== contentHash || prior.sessionKey !== sessionKey) throw new Error("RESPONSE_REPLAY_CONTENT_MISMATCH");
+      const status = await prior.promise;
+      return { ...status, duplicate_replay: { ...status.duplicate_replay, exact_response_replay_returned: true } };
+    }
+    if (record.acceptedResponse) throw new Error("TIM_REQUEST_ALREADY_ANSWERED");
+    const promise = this.#respondNew(record, input, contentHash);
+    this.responses.set(input.response_id, { contentHash, sessionKey, promise });
+    record.acceptedResponse = { contentHash, responseId: input.response_id, promise };
+    return promise;
+  }
+
+  async #respondNew(record, input, contentHash) {
+    if (this.shuttingDown) throw new Error("SERVER_SHUTTING_DOWN");
+    if (this.activeChild) throw new Error("FOREGROUND_CHILD_STILL_ACTIVE");
+    const wrapperInput = { ...input, response_content_sha256: contentHash };
+    let wrapperResult;
+    let revisedOutcome = null;
+    if (this.responseAdapter) {
+      const adapted = await this.responseAdapter({ input: wrapperInput, record });
+      wrapperResult = adapted?.response ?? adapted;
+      revisedOutcome = adapted?.outcome ?? null;
+    } else {
+      const wrapper = path.join(this.repositoryRoot, "tools", "hq-dispatch", "v1", "Invoke-TsfHqDispatchTimResponse.ps1");
+      const args = ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", wrapper];
+      if (this.testOnlyQueueRoot) args.push("-TestOnlyQueueRoot", this.testOnlyQueueRoot);
+      const processResult = await this.#spawnOwned(this.powershellExe, args, JSON.stringify(wrapperInput), 60_000);
+      if (processResult.code !== 0) throw new Error("CANONICAL_TIM_RESPONSE_REJECTED");
+      wrapperResult = JSON.parse(processResult.stdout.trim().split(/\r?\n/).at(-1));
+    }
+    if (wrapperResult?.response_id !== input.response_id
+        || wrapperResult?.request_id !== input.tim_required_request_id
+        || wrapperResult?.response_content_sha256 !== contentHash
+        || wrapperResult?.worker_resumed !== false
+        || wrapperResult?.original_result_unchanged !== true) {
+      throw new Error("CANONICAL_TIM_RESPONSE_OUTCOME_INVALID");
+    }
+    record.responseOutcome = wrapperResult;
+    if (input.response_type === "DENY_REQUEST") {
+      if (wrapperResult.terminal_disposition !== "TIM_REQUIRED_DENIED" || wrapperResult.approval !== null || wrapperResult.revision !== null) {
+        throw new Error("CANONICAL_DENIAL_OUTCOME_INVALID");
+      }
+      record.terminal = true;
+      record.status = this.#status("TIM_REQUIRED_DENIED", record.missionId, record.revision, {
+        sourcePath: wrapperResult.response_record_path,
+        runId: input.run_id,
+        resultId: input.result_id,
+        explanation: "The canonical immutable denial record grants no authority and starts no worker.",
+        assurance: "CANONICAL_TIM_DENIAL_RECORD",
+        tim_request: record.timRequest,
+        response: wrapperResult,
+        prior_terminal: record.originalTimStatus,
+        next_action: "Create a new operator-authored mission only if work should be reconsidered.",
+      });
+      this.#event(record, record.status);
+      return record.status;
+    }
+    const targetRevision = Number(input.mission_revision) + 1;
+    if (!wrapperResult.revision
+        || Number(wrapperResult.revision.mission_revision) !== targetRevision
+        || wrapperResult.revision.run_id !== `canonical-result-${record.missionId}-${targetRevision}`) {
+      throw new Error("CANONICAL_REVISION_LINK_INVALID");
+    }
+    const revisionInput = {
+      mission_id: record.missionId,
+      mission_revision: targetRevision,
+      parent_mission_revision: Number(input.mission_revision),
+      source_result_id: input.result_id,
+      tim_required_request_id: input.tim_required_request_id,
+      response_id: input.response_id,
+      response_record_sha256: wrapperResult.response_record_sha256,
+    };
+    record.revision = targetRevision;
+    record.terminal = false;
+    record.status = this.#status("REVISING", record.missionId, targetRevision, {
+      sourcePath: wrapperResult.response_record_path,
+      runId: wrapperResult.revision.run_id,
+      explanation: "A new governed mission revision is being prepared; the original terminal run is not resumed.",
+      assurance: "CANONICAL_RESPONSE_BOUND_REVISION",
+      response: wrapperResult,
+      prior_terminal: record.originalTimStatus,
+    });
+    this.#event(record, record.status);
+    this.activeMissionId = record.missionId;
+    try {
+      const outcome = revisedOutcome ?? await this.#prepareAndExecute({
+        missionId: record.missionId,
+        missionRevision: targetRevision,
+        naturalRequest: record.naturalRequest,
+        revisionInput,
+        approvalLedgerPath: wrapperResult.approval?.ledger_path ?? "",
+      });
+      this.#applyOutcome(record, outcome);
+      return record.status;
+    } finally {
+      if (record.terminal && this.activeMissionId === record.missionId) this.activeMissionId = null;
+    }
   }
 
   async #spawnOwned(executable, args, input, timeoutMs) {
@@ -609,6 +831,7 @@ export class HqMissionRelay {
   }
 
   #status(state, missionId, revision, fields = {}) {
+    const record = this.missions.get(missionId);
     return {
       schema_version: "tsf_hq_dispatch_mission_status_v1",
       state,
@@ -630,6 +853,8 @@ export class HqMissionRelay {
       admission: fields.admission ?? null,
       result: fields.result ?? null,
       tim_request: fields.tim_request ?? null,
+      response: fields.response ?? record?.responseOutcome ?? null,
+      prior_terminal: fields.prior_terminal ?? record?.originalTimStatus ?? null,
       authority: fields.authority ?? this.#authorityProjection(),
       caveats: fields.caveats ?? [],
       duplicate_replay: { duplicate_execution_prevented: true, response_replay_bound: true },

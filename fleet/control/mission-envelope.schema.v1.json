@@ -66,11 +66,84 @@
     },
     "required_verifier_independence": { "enum": ["NONE", "SEPARATE_TASK", "SEPARATE_ROLE", "INDEPENDENT_HUMAN"] },
     "stop_conditions": { "$ref": "#/$defs/nonEmptyStringArray" },
+    "approval_requirements": {
+      "type": "array", "maxItems": 1, "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["exact_action", "exact_paths", "access_level", "network_policy", "control_plane_service_network_policy", "worker_tool_network_policy", "reason", "expires_at", "max_uses", "reuse_policy"],
+        "properties": {
+          "exact_action": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9._:-]+$" },
+          "exact_paths": { "$ref": "#/$defs/nonEmptyStringArray" },
+          "access_level": { "enum": ["READ_ONLY", "WORKSPACE_WRITE", "APPROVAL_REQUIRED", "EXACT_ELEVATED_ACTION", "CUSTOM"] },
+          "network_policy": { "enum": ["PROHIBITED", "PUBLIC_READ_ONLY", "ALLOWLISTED", "APPROVAL_REQUIRED"] },
+          "control_plane_service_network_policy": { "enum": ["NONE", "CODEX_SERVICE_ONLY"] },
+          "worker_tool_network_policy": { "const": "DISABLED" },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "max_uses": { "const": 1 },
+          "reuse_policy": { "const": "SINGLE_USE" }
+        }
+      }
+    },
     "approval_references": {
       "type": "array", "items": {
-        "type": "object", "additionalProperties": false, "required": ["approval_id", "exact_action"],
-        "properties": { "approval_id": { "type": "string", "minLength": 1 }, "exact_action": { "type": "string", "minLength": 1 } }
+        "type": "object", "additionalProperties": false,
+        "required": ["approval_id", "exact_action"],
+        "properties": {
+          "approval_id": { "type": "string", "minLength": 1 },
+          "exact_action": { "type": "string", "minLength": 1 },
+          "request_id": { "type": "string", "pattern": "^timreq-[a-f0-9]{32}$" },
+          "request_evidence_sha256": { "$ref": "#/$defs/sha256" },
+          "source_mission_revision": { "type": "integer", "minimum": 1 },
+          "source_run_id": { "type": "string", "minLength": 8 },
+          "source_result_id": { "type": "string", "minLength": 8 },
+          "response_id": { "type": "string", "pattern": "^hq-response-[A-Za-z0-9-]{16,80}$" }
+        }
       }
+    },
+    "clarification_requirements": {
+      "type": "array", "maxItems": 1, "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["question", "scope", "reason", "expires_at"],
+        "properties": {
+          "question": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "scope": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "expires_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "clarification_references": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["request_id", "response_id", "response_sha256", "response_record_path", "response_record_sha256"],
+        "properties": {
+          "request_id": { "type": "string", "pattern": "^timreq-[a-f0-9]{32}$" },
+          "response_id": { "type": "string", "pattern": "^hq-response-[A-Za-z0-9-]{16,80}$" },
+          "response_sha256": { "$ref": "#/$defs/sha256" },
+          "response_record_path": { "type": "string", "minLength": 1 },
+          "response_record_sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "revision_context": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["parent_mission_revision", "supersedes_result_id", "tim_request_id", "response_type", "response_id", "response_record_sha256", "route_classification", "authority_relevant_change", "approval_id"],
+          "properties": {
+            "parent_mission_revision": { "type": "integer", "minimum": 1 },
+            "supersedes_result_id": { "type": "string", "minLength": 8 },
+            "tim_request_id": { "type": "string", "pattern": "^timreq-[a-f0-9]{32}$" },
+            "response_type": { "enum": ["APPROVE_EXACT_REQUEST", "PROVIDE_CLARIFICATION"] },
+            "response_id": { "type": "string", "pattern": "^hq-response-[A-Za-z0-9-]{16,80}$" },
+            "response_record_sha256": { "$ref": "#/$defs/sha256" },
+            "route_classification": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "authority_relevant_change": { "type": "boolean" },
+            "approval_id": { "type": ["string", "null"], "maxLength": 160 }
+          }
+        }
+      ]
     },
     "policy": {
       "type": "object", "additionalProperties": false,
@@ -89,6 +162,7 @@
     "required_result_envelope_version": { "const": "tsf_result_envelope_v1" }
   },
   "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
     "nonEmptyStringArray": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
   }

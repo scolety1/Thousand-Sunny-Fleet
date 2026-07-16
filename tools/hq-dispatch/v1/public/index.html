@@ -195,9 +195,23 @@
           <article class="detail-card wide-card"><h3>Authority and exact next action</h3><pre id="mission-authority"></pre></article>
         </div>
         <section id="tim-required" class="detail-card danger-card" hidden>
-          <h3>TIM_REQUIRED · original run stopped</h3>
+          <h3>TIM_REQUIRED · original run is terminal</h3>
           <pre id="tim-request"></pre>
-          <p>Typed approval, denial, and clarification responses are deferred. Resolve the canonical blocker outside this run; the original worker will not resume.</p>
+          <p>A response may create a new governed revision. The prior worker is never resumed; submission is not approval, and the canonical approval record or revised mission is the source of truth.</p>
+          <div id="tim-response-controls" class="response-controls">
+            <label for="tim-confirmation">Type the exact phrase shown for the selected response</label>
+            <input id="tim-confirmation" type="text" maxlength="80" autocomplete="off" spellcheck="false">
+            <div id="tim-approval-controls" class="response-actions" hidden>
+              <button id="tim-approve" type="button">APPROVE EXACT REQUEST</button>
+              <button id="tim-deny" class="deny-button" type="button">DENY REQUEST</button>
+            </div>
+            <div id="tim-clarification-controls" hidden>
+              <label for="tim-clarification">Bounded clarification (plain text, 2000 characters maximum)</label>
+              <textarea id="tim-clarification" maxlength="2000" rows="4"></textarea>
+              <button id="tim-clarify" type="button">PROVIDE CLARIFICATION</button>
+            </div>
+            <p id="tim-response-status" class="request-status" aria-live="polite"></p>
+          </div>
         </section>
         <p id="mission-message" class="request-status" aria-live="polite"></p>
       </section>
@@ -235,7 +249,7 @@
           <article class="registry-card boundary-card">
             <p class="registry-label">Milestone boundary</p>
             <strong id="boundary-state">BOUNDED GOVERNED FIXTURE ONLY</strong>
-            <span id="boundary-detail">Reviewed previews can become bounded governed TSF-local read-only missions through canonical controls. Arbitrary repositories and general commands; plugins, credentials, deployment, push, merge, production access, and expanded authority remain unavailable. TIM_REQUIRED is display/preservation-only in Milestone 2A; approval, denial, and clarification responses remain deferred to Milestone 2B. Submission is not approval; worker completion is not admission; the canonical admission receipt is terminal truth.</span>
+            <span id="boundary-detail">Reviewed previews can become bounded governed TSF-local read-only missions through canonical controls. Canonical TIM_REQUIRED requests allow exact approval, denial, or bounded clarification responses only. A response may create a new governed revision; the prior worker is never resumed. Arbitrary repositories and general commands; plugins, credentials, deployment, push, merge, production access, and expanded authority remain unavailable. Submission is not approval; worker completion is not admission; the canonical approval ledger, mission revision, and admission receipt remain authoritative.</span>
           </article>
         </div>
       </section>

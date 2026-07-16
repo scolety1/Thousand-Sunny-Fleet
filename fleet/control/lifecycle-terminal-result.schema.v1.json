@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version", "generated_at", "lifecycle_invoked", "terminal_status", "final_decision",
-    "outcome_stage", "mission_id", "mission_revision", "run_id", "queue_document_sha256",
+    "outcome_stage", "mission_id", "mission_revision", "run_id", "result_id", "queue_document_sha256",
     "policy_fingerprint", "repository", "branch", "worktree", "result_path", "out_directory",
     "producer_registry_path", "producer_binding_identity_sha256", "orchestrator_invocation_identity",
     "mission_path", "effective_mission_path", "queue_mission_path", "queue_state",
@@ -15,7 +15,7 @@
     "preservation_manifest_path", "adapter_result_path", "worker_result_path",
     "verifier_result_path", "evidence_preserved", "runtime_path_maximum", "events",
     "blocked_reasons", "internal_error", "background_runner_started",
-    "worker_tool_network_enabled", "push_merge_deploy_attempted"
+    "worker_tool_network_enabled", "push_merge_deploy_attempted", "tim_required_request"
   ],
   "properties": {
     "schema_version": { "const": "tsf_lifecycle_terminal_result_v1" },
@@ -27,6 +27,7 @@
     "mission_id": { "type": "string", "minLength": 1 },
     "mission_revision": { "type": "integer", "minimum": 1 },
     "run_id": { "type": "string", "minLength": 1 },
+    "result_id": { "type": "string", "minLength": 1 },
     "queue_document_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "policy_fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "repository": { "type": "string", "minLength": 1 },
@@ -65,6 +66,12 @@
     "internal_error": { "type": "string" },
     "background_runner_started": { "const": false },
     "worker_tool_network_enabled": { "const": false },
-    "push_merge_deploy_attempted": { "const": false }
+    "push_merge_deploy_attempted": { "const": false },
+    "tim_required_request": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "tim-required-request.schema.v1.json" }
+      ]
+    }
   }
 }
