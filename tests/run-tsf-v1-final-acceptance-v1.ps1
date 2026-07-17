@@ -159,7 +159,7 @@ Invoke-AcceptanceCommand -Name 'committed_candidate_diff_check' -File $git -Argu
 $realProofRan = $false
 if (-not $SkipRealAppServerProof -and -not $hasFailure) {
     $realProofRan = $true
-    Invoke-AcceptanceCommand -Name 'real_app_server_interruption_recovery' -File $node -Arguments @((Join-Path $PSScriptRoot 'test-tsf-hq-dispatch-real-reliability-v1.mjs')) -PassBasis '83_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF' | Out-Null
+    Invoke-AcceptanceCommand -Name 'real_app_server_interruption_recovery' -File $node -Arguments @((Join-Path $PSScriptRoot 'test-tsf-hq-dispatch-real-reliability-v1.mjs')) -PassBasis '94_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF' | Out-Null
 } elseif (-not $SkipRealAppServerProof) {
     Add-AssertionRow -Name 'real_app_server_interruption_recovery' -Passed $false -Evidence 'Blocked because an earlier acceptance gate failed; no real proof was started.'
 }

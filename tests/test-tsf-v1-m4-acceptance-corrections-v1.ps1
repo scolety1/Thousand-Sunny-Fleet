@@ -80,6 +80,8 @@ $finalAcceptanceSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-
 Assert-True ($finalAcceptanceSource -match 'ExpectedExitCodes @\(0, 2, 3\)') 'Final acceptance recognizes every safe governed Doctor disposition'
 Assert-True ($finalAcceptanceSource -notmatch 'ExpectedExitCodes @\(0, 2, 3, 4\)') 'Final acceptance never accepts Doctor UNSAFE_TO_START exit four'
 Assert-True ($finalAcceptanceSource -match "diff', '--check', 'refs/remotes/origin/main\.\.\.HEAD'") 'Final acceptance checks whitespace in the committed candidate diff'
+Assert-True ($finalAcceptanceSource -match "94_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF") 'Final acceptance PASS basis records the exact current real-proof assertion count'
+Assert-True ($finalAcceptanceSource -notmatch "83_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF") 'Final acceptance rejects the stale pre-correction real-proof assertion count'
 $kernelSource = Get-Content -LiteralPath (Join-Path $repoRoot 'tools\codex-fleet-enforcement-kernel.ps1') -Raw
 Assert-True ($kernelSource -match 'mission_revision\s*=\s*\[int\]\$responseContractMission\.mission_revision') 'Verifier top-level revision comes from the authoritative durable response contract'
 $durableContractSource = Get-Content -LiteralPath (Join-Path $repoRoot 'tools\TsfDurableContract.Canonical.ps1') -Raw
