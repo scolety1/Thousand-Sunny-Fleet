@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$BaseRef = 'refs/remotes/origin/main'
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -22,13 +24,17 @@ function Assert-StaticIntegrity {
 
 Push-Location $repoRoot
 try {
-    $candidateFiles = @(
+    $committedFiles = @(& git diff --name-only "$BaseRef...HEAD")
+    $committedDiffExit = $LASTEXITCODE
+    Assert-StaticIntegrity -Condition ($committedDiffExit -eq 0) -Message "git diff against $BaseRef must succeed"
+
+    $workingFiles = @(
         & git status --porcelain=v1 -uall |
             ForEach-Object { $_.Substring(3) } |
-            Where-Object { $_ -notlike '.codex-local/*' } |
-            Sort-Object -Unique
+            Where-Object { $_ -notlike '.codex-local/*' }
     )
     Assert-StaticIntegrity -Condition ($LASTEXITCODE -eq 0) -Message 'git status must succeed'
+    $candidateFiles = @($committedFiles + $workingFiles | Where-Object { $_ } | Sort-Object -Unique)
     Assert-StaticIntegrity -Condition ($candidateFiles.Count -gt 0) -Message 'static correction files must be discoverable'
 
     $powerShellFiles = @($candidateFiles | Where-Object { $_ -like '*.ps1' })

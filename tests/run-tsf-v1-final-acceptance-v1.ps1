@@ -136,7 +136,7 @@ Add-AssertionRow -Name 'required_baseline_ancestry' -Passed $baselineIsAncestor 
 
 $changedPaths = @(git -C $repoRoot diff --name-only refs/remotes/origin/main...HEAD; git -C $repoRoot diff --name-only)
 $changedPaths = @($changedPaths | Where-Object { $_ } | Sort-Object -Unique)
-$allowedPattern = '^(tools/hq-dispatch/v1/(Test-TsfHqDispatchDoctorV1\.ps1|doctor-format\.ps1)|tests/(run-tsf-hq-dispatch-reliability-v1\.ps1|run-tsf-v1-final-acceptance-v1\.ps1|run-tsf-hq-chokepoint-tests\.ps1|test-tsf-v1-m4-acceptance-corrections-v1\.ps1|test-tsf-hq-dispatch-start-stop-v1\.mjs|test-tsf-hq-dispatch-real-reliability-v1\.mjs|support/TsfParserEvidence\.ps1)|docs/hq/tsf_v1_final_acceptance_demo_v1_20260717/)'
+$allowedPattern = '^(tools/hq-dispatch/v1/(Test-TsfHqDispatchDoctorV1\.ps1|doctor-format\.ps1)|tests/(run-tsf-hq-dispatch-reliability-v1\.ps1|run-tsf-v1-final-acceptance-v1\.ps1|run-tsf-hq-chokepoint-tests\.ps1|run-tsf-final-static-integrity-tests\.ps1|run-tsf-canonical-runtime-app-server-tests\.ps1|test-tsf-v1-m4-acceptance-corrections-v1\.ps1|test-tsf-hq-dispatch-start-stop-v1\.mjs|test-tsf-hq-dispatch-real-reliability-v1\.mjs|support/TsfParserEvidence\.ps1)|docs/hq/tsf_v1_final_acceptance_demo_v1_20260717/)'
 $unexpectedPaths = @($changedPaths | Where-Object { $_.Replace('\', '/') -notmatch $allowedPattern })
 Add-AssertionRow -Name 'protected_path_scope' -Passed ($unexpectedPaths.Count -eq 0) -Evidence $(if ($unexpectedPaths.Count) { 'unexpected=' + ($unexpectedPaths -join ',') } else { 'Only M4 acceptance, documentation, and localized caveat paths changed.' })
 

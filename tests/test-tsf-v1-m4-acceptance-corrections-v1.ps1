@@ -70,6 +70,13 @@ $runnerSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-hq-di
 Assert-True ($runnerSource -match 'New-TsfParserEvidenceRowV1') 'Aggregate runner uses the tested parser evidence constructor'
 Assert-True ($runnerSource -notmatch 'function Add-Result[\s\S]*?exit_code\s*=\s*0') 'Aggregate runner has no hardcoded-zero generic result row'
 
+$canonicalMatrixSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-canonical-runtime-app-server-tests.ps1') -Raw
+Assert-True ($canonicalMatrixSource -match 'synthetic-tsf-readonly-appserver-\$testRunNonce') 'Canonical matrix uses a unique read-only fixture identity per run'
+Assert-True ($canonicalMatrixSource -match 'synthetic-transaction-\$Name-\$testRunNonce') 'Canonical matrix uses unique transactional fixture identities per run'
+Assert-True ($canonicalMatrixSource -notmatch "New-CanonicalMission 'synthetic-tsf-readonly-appserver-correction-0001'") 'Canonical matrix cannot reuse the historical fixed read-only fixture identity'
+$staticIntegritySource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-final-static-integrity-tests.ps1') -Raw
+Assert-True ($staticIntegritySource -match 'git diff --name-only "\$BaseRef\.\.\.HEAD"') 'Static integrity discovers committed M4 corrections relative to the baseline'
+
 $m3ValidationPath = Join-Path $repoRoot 'docs\hq\tsf_hq_dispatch_reliability_lifecycle_v1_20260716\VALIDATION.json'
 $errataPath = Join-Path $repoRoot 'docs\hq\tsf_v1_final_acceptance_demo_v1_20260717\M3_VALIDATION_ERRATA_V1.json'
 $m3Validation = Get-Content -LiteralPath $m3ValidationPath -Raw | ConvertFrom-Json
@@ -94,6 +101,7 @@ Assert-Equal $hashManifestHash $errata.immutable_adoption_bundle_binding.bundle_
     doctor_json_authority_unchanged = $true
     doctor_missing_label_negative_test = 'PASS'
     parser_failure_negative_test = 'PASS'
+    repeatable_fixture_identity_test = 'PASS'
     failed_parser_exit_code = $parserFailure.exit_code
     failed_parser_result_identity = $parserFailure.parser_result_identity
     m3_erratum_external_rehash = 'PASS'
