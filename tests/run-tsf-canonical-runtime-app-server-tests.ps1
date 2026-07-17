@@ -142,14 +142,19 @@ foreach($mode in @('malformed','exit','timeout','duplicate','out-of-order','spoo
 $mapperRoot=Join-Path $runtimeRoot 'mapper-producer-binding';New-Item -ItemType Directory -Force $mapperRoot|Out-Null
 $mapperQueuePath=Join-Path $mapperRoot 'queue.json';Write-Json $readQueue $mapperQueuePath
 $mapperQueueHash=Get-TsfContractJsonHash $readQueue
+$mapperRunId="mapper-caller-spoof-result-0001-$testRunNonce"
 $mapperAdapter=Invoke-FakeAdapter normal $readMission.mission_id $readMission.mission_revision $readMission.policy.fingerprint $mapperQueueHash $repo $readMission.model_selection_assurance
 $mapperPreflightPath=Join-Path $mapperRoot 'preflight.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;preflight_approved=$true}) $mapperPreflightPath
 $mapperRolePath=Join-Path $mapperRoot 'role.json';Write-Json ([pscustomobject]@{role_id=$readMission.worker_role;role_preflight_approved=$true}) $mapperRolePath
 $mapperWorkerPath=Join-Path $mapperRoot 'worker.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;files_touched=@();tests=@([pscustomobject]@{test_id='app-server-automatic-round-trip';status='PASS';observed='bound fake adapter';evidence=$mapperAdapter.result.event_journal_sha256});approval_use=@()}) $mapperWorkerPath
-$mapperVerifierPath=Join-Path $mapperRoot 'verifier.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;verdict='GREEN';verified=$true}) $mapperVerifierPath
+$mapperVerifier=[pscustomobject]@{mission_id=$readMission.mission_id;mission_revision=$readMission.mission_revision;run_id=$mapperRunId;result_id=$mapperRunId;verdict='GREEN';verified=$true}
+$mapperVerifierIdentity=Test-TsfCanonicalVerifierIdentity $mapperVerifier $readMission $mapperRunId
+Assert-Case 'VS-VERIFIER-IDENTITY-001' evidence $mapperVerifierIdentity.valid 'verifier identity is fully bound to durable mission and result'
+$wrongRevisionVerifier=Copy-Object $mapperVerifier;$wrongRevisionVerifier.mission_revision=0
+Assert-Case 'VS-VERIFIER-IDENTITY-002' evidence (!(Test-TsfCanonicalVerifierIdentity $wrongRevisionVerifier $readMission $mapperRunId).valid) 'revision-zero verifier identity fails closed'
+$mapperVerifierPath=Join-Path $mapperRoot 'verifier.json';Write-Json $mapperVerifier $mapperVerifierPath
 $mapperMissionPath=Join-Path $mapperRoot 'mission.json';Write-Json $readQueueCheck.effective_mission $mapperMissionPath
 $mapperInstructionPath=Join-Path $mapperRoot 'instruction.json';Write-Json $readQueue.worker_instruction_packet $mapperInstructionPath
-$mapperRunId="mapper-caller-spoof-result-0001-$testRunNonce"
 $mapperPacket=Write-TsfKernelPreservationPacket -MissionPath $mapperMissionPath -PreflightResultPath $mapperPreflightPath -RolePreflightPath $mapperRolePath -WorkerInstructionPath $mapperInstructionPath -WorkerResultPath $mapperWorkerPath -VerifierResultPath $mapperVerifierPath -AdapterResultPath $mapperAdapter.result_path -EventJournalPath $mapperAdapter.result.event_journal_path -QueueDocumentPath $mapperQueuePath -PromptPath $promptPath -StderrPath (Join-Path $mapperAdapter.out 'se.log') -OutputDirectory (Get-TsfCanonicalRuntimeRoot) -RunId $mapperRunId -DurableMission $readMission -TestOnlyAllowSyntheticProducerRegistry
 $mapperDescriptor=Get-TsfPreservationPacketDescriptor $mapperPacket.packet_file $readMission.mission_id $readMission.mission_revision
 $mapperRuntime=[pscustomobject][ordered]@{schema_version='tsf_authenticated_runtime_evidence_v1';result_id=$mapperRunId;queue_document_path=(Join-Path $mapperPacket.packet_directory 'qd.json');adapter_result_path=(Join-Path $mapperPacket.packet_directory 'ar.json');preflight_path=(Join-Path $mapperPacket.packet_directory 'pf.json');role_preflight_path=(Join-Path $mapperPacket.packet_directory 'rp.json');worker_result_path=(Join-Path $mapperPacket.packet_directory 'wr.json');verifier_result_path=(Join-Path $mapperPacket.packet_directory 'vr.json');preservation_packet_path=$mapperPacket.packet_file;starting_head=$head;base_head=$head;dirty_before=$true;effective_effort='HIGH';effective_effort_source='CALLER_REPORTED';proposed_next_action='Verify caller effort cannot become authority.';created_at=[datetimeoffset]::UtcNow.ToString('o')}

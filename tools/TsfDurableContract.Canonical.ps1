@@ -227,6 +227,20 @@ function Test-TsfCanonicalQueueDocument {
     [pscustomobject]@{valid=$errors.Count -eq 0;errors=@($errors);mission_id=if($null-ne$QueueDocument.source_binding){[string]$QueueDocument.source_binding.durable_mission_id}else{''};queue_document_sha256=Get-TsfContractJsonHash $QueueDocument;effective_mission=$effective}
 }
 
+function Test-TsfCanonicalVerifierIdentity {
+    param(
+        [Parameter(Mandatory)][object]$Verifier,
+        [Parameter(Mandatory)][object]$Mission,
+        [Parameter(Mandatory)][string]$ResultId
+    )
+    $errors=[Collections.Generic.List[string]]::new()
+    if([string]$Verifier.mission_id-ne[string]$Mission.mission_id){$errors.Add('Verifier mission_id differs from the durable mission.')|Out-Null}
+    if([string]$Verifier.mission_revision-ne[string][int]$Mission.mission_revision){$errors.Add('Verifier mission_revision differs from the durable mission.')|Out-Null}
+    if([string]$Verifier.run_id-ne$ResultId){$errors.Add('Verifier run_id differs from the authenticated result identity.')|Out-Null}
+    if([string]$Verifier.result_id-ne$ResultId){$errors.Add('Verifier result_id differs from the authenticated result identity.')|Out-Null}
+    [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors)}
+}
+
 function ConvertTo-TsfDurableResultEnvelope {
     [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[Parameter(Mandatory)][object]$RuntimeEvidence,[string]$RepositoryRoot=$script:TsfRoot,[switch]$TestOnlyAllowSyntheticProducerRegistry)
     if([string]$RuntimeEvidence.schema_version -ne 'tsf_authenticated_runtime_evidence_v1'){throw 'Runtime evidence is not an authenticated producer-binding packet.'}
@@ -262,6 +276,8 @@ function ConvertTo-TsfDurableResultEnvelope {
     }
     $adapter=Read-TsfKernelJson $boundAdapter.path;$preflight=Read-TsfKernelJson $boundPreflight.path;$rolePreflight=Read-TsfKernelJson $boundRole.path;$worker=Read-TsfKernelJson $boundWorker.path;$verifierResult=Read-TsfKernelJson $boundVerifier.path;$preservation=Read-TsfKernelJson $boundPreservation.path
     foreach($producer in @($adapter,$preflight,$worker,$verifierResult,$preservation)){if([string]$producer.mission_id -ne [string]$Mission.mission_id){throw 'Observed producer mission identity mismatch.'}}
+    $verifierIdentity=Test-TsfCanonicalVerifierIdentity -Verifier $verifierResult -Mission $Mission -ResultId ([string]$RuntimeEvidence.result_id)
+    if(!$verifierIdentity.valid){throw "Verifier durable identity binding failed: $($verifierIdentity.errors -join '; ')"}
     if([string]$rolePreflight.role_id -ne [string]$Mission.worker_role -or ![bool]$rolePreflight.role_preflight_approved){throw 'Role preflight producer is unbound or not approved.'}
     if(![bool]$preflight.preflight_approved -or ![bool]$verifierResult.verified){throw 'Kernel producer evidence is not approved and verified.'}
     if([string]$adapter.mission_revision -ne [string]$Mission.mission_revision -or [string]$adapter.policy_fingerprint -ne [string]$Mission.policy.fingerprint -or [string]$adapter.queue_document_sha256 -ne [string]$queueCheck.queue_document_sha256){throw 'Adapter durable binding mismatch.'}

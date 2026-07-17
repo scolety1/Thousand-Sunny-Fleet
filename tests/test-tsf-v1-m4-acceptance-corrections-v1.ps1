@@ -79,6 +79,11 @@ Assert-True ($staticIntegritySource -match 'git diff --name-only "\$BaseRef\.\.\
 $finalAcceptanceSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-v1-final-acceptance-v1.ps1') -Raw
 Assert-True ($finalAcceptanceSource -match 'ExpectedExitCodes @\(0, 2, 3\)') 'Final acceptance recognizes every safe governed Doctor disposition'
 Assert-True ($finalAcceptanceSource -notmatch 'ExpectedExitCodes @\(0, 2, 3, 4\)') 'Final acceptance never accepts Doctor UNSAFE_TO_START exit four'
+Assert-True ($finalAcceptanceSource -match "diff', '--check', 'refs/remotes/origin/main\.\.\.HEAD'") 'Final acceptance checks whitespace in the committed candidate diff'
+$kernelSource = Get-Content -LiteralPath (Join-Path $repoRoot 'tools\codex-fleet-enforcement-kernel.ps1') -Raw
+Assert-True ($kernelSource -match 'mission_revision\s*=\s*\[int\]\$responseContractMission\.mission_revision') 'Verifier top-level revision comes from the authoritative durable response contract'
+$durableContractSource = Get-Content -LiteralPath (Join-Path $repoRoot 'tools\TsfDurableContract.Canonical.ps1') -Raw
+Assert-True ($durableContractSource -match 'Test-TsfCanonicalVerifierIdentity') 'Durable-result mapping rejects an unbound verifier identity'
 
 $m3ValidationPath = Join-Path $repoRoot 'docs\hq\tsf_hq_dispatch_reliability_lifecycle_v1_20260716\VALIDATION.json'
 $errataPath = Join-Path $repoRoot 'docs\hq\tsf_v1_final_acceptance_demo_v1_20260717\M3_VALIDATION_ERRATA_V1.json'

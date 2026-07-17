@@ -66,9 +66,14 @@ try {
 
     $savedErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    $diffCheck = & git diff --check 2>&1
+    $diffCheck = & git diff --check "$BaseRef...HEAD" 2>&1
     $ErrorActionPreference = $savedErrorActionPreference
-    Assert-StaticIntegrity -Condition ($LASTEXITCODE -eq 0) -Message "git diff --check: $($diffCheck -join ' ')"
+    Assert-StaticIntegrity -Condition ($LASTEXITCODE -eq 0) -Message "git committed candidate diff --check: $($diffCheck -join ' ')"
+
+    $ErrorActionPreference = 'Continue'
+    $workingDiffCheck = & git diff --check 2>&1
+    $ErrorActionPreference = $savedErrorActionPreference
+    Assert-StaticIntegrity -Condition ($LASTEXITCODE -eq 0) -Message "git working-tree diff --check: $($workingDiffCheck -join ' ')"
 
     $ErrorActionPreference = 'Continue'
     $stagedDiffCheck = & git diff --cached --check 2>&1

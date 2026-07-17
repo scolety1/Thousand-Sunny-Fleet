@@ -481,6 +481,18 @@ async function runProof() {
   equal(newRun.old_thread_or_turn_resumed, false, "recovery never resumes the old thread or turn");
   check(["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(newRun.state), "new run independently reaches canonical admission");
   equal(newRun.verifier.verified, true, "new run independently verifies");
+  check(newRun.verifier.result_path && existsSync(newRun.verifier.result_path), "new run verifier artifact is preserved");
+  equal(newRun.verifier.result_sha256, sha256File(newRun.verifier.result_path), "new run verifier hash is independently reproduced");
+  const recoveryVerifier = readJson(newRun.verifier.result_path);
+  equal(recoveryVerifier.mission_id, newRun.mission_id, "verifier top-level mission identity binds the new mission");
+  equal(recoveryVerifier.mission_revision, newRun.mission_revision, "verifier top-level revision binds the governed new revision");
+  equal(recoveryVerifier.run_id, newRun.run_id, "verifier top-level run identity binds the new run");
+  equal(recoveryVerifier.result_id, newRun.result_id, "verifier top-level result identity binds the admitted result");
+  equal(recoveryVerifier.exact_response_evidence.mission_revision, newRun.mission_revision, "verifier nested exact-response revision agrees with its top-level identity");
+  check(newRun.preservation.packet_path && existsSync(newRun.preservation.packet_path), "new run preservation packet is retained");
+  equal(newRun.preservation.packet_sha256, sha256File(newRun.preservation.packet_path), "new run preservation packet hash is independently reproduced");
+  check(newRun.preservation.manifest_path && existsSync(newRun.preservation.manifest_path), "new run preservation manifest is retained");
+  equal(newRun.preservation.manifest_sha256, sha256File(newRun.preservation.manifest_path), "new run preservation manifest hash is independently reproduced");
   equal(newRun.access.control_plane_service_network_policy, "CODEX_SERVICE_ONLY", "new run uses CODEX_SERVICE_ONLY control-plane policy");
   equal(newRun.access.worker_tool_network_policy, "DISABLED", "new run keeps worker-tool network disabled");
   equal(newRun.worker.observation_claims.worker_tool_network.value, false, "new run observes worker-tool network disabled");
@@ -552,6 +564,11 @@ async function runProof() {
       app_server_process_start_time: recoveryAdapter.started_at,
       verifier_identity: newRun.verifier.identity,
       verifier_result_path: newRun.verifier.result_path,
+      verifier_result_sha256: newRun.verifier.result_sha256,
+      preservation_packet_path: newRun.preservation.packet_path,
+      preservation_packet_sha256: newRun.preservation.packet_sha256,
+      preservation_manifest_path: newRun.preservation.manifest_path,
+      preservation_manifest_sha256: newRun.preservation.manifest_sha256,
       admission_receipt_id: newRun.admission.receipt_id,
       admission_receipt_path: newRun.admission.receipt_path,
       admission_receipt_sha256: newRun.admission.receipt_sha256,
