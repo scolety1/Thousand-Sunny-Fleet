@@ -1,0 +1,100 @@
+{
+  "schema_version": "tsf_v1_m4_acceptance_seal_v1",
+  "sealed_at": "2026-07-17T22:26:00Z",
+  "verdict": "GREEN_PENDING_INDEPENDENT_AUDIT",
+  "tested_candidate": {
+    "commit": "b2ea672031b610bb82065fb571189b09689cf3d7",
+    "tree": "46a919c4c8898d0a71da22c15bf73c16addf7667",
+    "branch": "work/tsf-v1-final-acceptance-demo-v1-20260717",
+    "required_baseline": "952f30e137214735fe2513a7b068d9680ca882c7",
+    "origin_main_at_test": "952f30e137214735fe2513a7b068d9680ca882c7",
+    "required_baseline_is_ancestor": true
+  },
+  "all_up_acceptance": {
+    "status": "PASS",
+    "started_utc": "2026-07-17T22:14:04.1867362+00:00",
+    "finished_utc": "2026-07-17T22:24:46.3316984+00:00",
+    "duration_seconds": 642.145,
+    "checks": 21,
+    "failed_checks": 0,
+    "real_app_server_proof_ran": true,
+    "real_app_server_assertions": 83,
+    "control_plane_network_policy": "CODEX_SERVICE_ONLY",
+    "worker_tool_network_policy": "DISABLED",
+    "final_doctor": {
+      "overall_status": "TIM_REQUIRED",
+      "exit_code": 3,
+      "safe_to_start": true,
+      "owner_disposition": "ABSENT",
+      "listener_count": 0,
+      "owned_child_count": 0
+    }
+  },
+  "raw_local_evidence": {
+    "root": ".codex-local/evidence/m4-final-acceptance/20260717T221404186Z-12600",
+    "acceptance_summary_sha256": "0ff461a03e226820d3b01c6cfda481961a6643f87c69eb378676ad9cd67022dc",
+    "executed_test_coverage_sha256": "3450c82130a5efd7d504abb4d18aa7d339f7736b9c68e5924cf3a37a8694a469",
+    "evidence_index_sha256": "f420a4110da0ba6022241dea7769685b699e75bef9a9e22f8ce8e1588f7c8f7b",
+    "real_app_server_proof_sha256": "f956ae79d3d59a3703b0a278308a0ce88cea234a0fb723db7daa907c81732585",
+    "m4_corrections_proof_sha256": "a3bb669feef535ff3cd174fa94ea27d507ddc4815607480312660cf93674d743",
+    "indexed_files": 92
+  },
+  "versioned_package": {
+    "normalization": "The versioned copies are normalized to LF with one trailing newline. Their normalized text is byte-for-byte equal to the raw captured text.",
+    "files": [
+      {
+        "path": "VALIDATION.json",
+        "sha256": "50d954f3f6e5643648e69a3d12b2e1ee04fe9c65af502aff265e75e9edc1be02"
+      },
+      {
+        "path": "VALIDATION.md",
+        "sha256": "ffb47b5dd9711b980eef3a2c6380f4b1182776e22277989e08faaeebf430fae4"
+      },
+      {
+        "path": "EXECUTED_TEST_COVERAGE.csv",
+        "sha256": "ea0de95a603ee3397bf02cb4a33a636f5501d8a2f70271ad5538844e093ffe5c"
+      },
+      {
+        "path": "EVIDENCE_INDEX.csv",
+        "sha256": "f9681a6d3d46b033428b0734d858a5aaa18a5b1196dd5a37a781832c3024e66e"
+      },
+      {
+        "path": "REAL_APP_SERVER_PROOF.json",
+        "sha256": "f956ae79d3d59a3703b0a278308a0ce88cea234a0fb723db7daa907c81732585"
+      },
+      {
+        "path": "M4_CORRECTIONS_PROOF.json",
+        "sha256": "deaf97f73c61f60f8d00ac9d9d339dcb7462654d502daf4bad69a1e399f66cc1"
+      }
+    ]
+  },
+  "repeatability_proof": {
+    "canonical_matrix_runs": 2,
+    "assertions_per_run": 149,
+    "run_1_validation_sha256": "963511a911af0be2ec75c6d0e8d9361df3d7163baf786d03b753d26c01a3bb26",
+    "run_2_validation_sha256": "ab054bb634be7a576ec725bba336b5c706b59d73f2267f6d04f2f4287e46b018",
+    "coverage_sha256_both_runs": "c324f424b7da6d7cf773891a83c4152629ba979c29e524ec54a44e2d4d8e67ed",
+    "post_run_doctor_safe_to_start": true,
+    "post_run_replay_conflicts": 0,
+    "post_run_owner_listener_child_counts": [0, 0, 0]
+  },
+  "pre_green_failed_evidence_archive": {
+    "manifest_sha256": "a160083663b0963ad981278b24cd87d551ee65b4e306f917c6b4ec4a538e42bf",
+    "validation_sha256": "9f9e2da7932165c69a2e896dd74b593e7d14e0800d524dbca7812f2e3ad377e8",
+    "file_count_before": 1375,
+    "file_count_after": 1375,
+    "byte_and_sha256_identity_preserved": true,
+    "records_erased_or_rewritten": false
+  },
+  "authority_boundary": {
+    "arbitrary_command_authority_added": false,
+    "arbitrary_repository_authority_added": false,
+    "production_deployment_authority_added": false,
+    "push_or_merge_authority_added": false,
+    "automatic_approval_added": false,
+    "background_or_persistent_execution_added": false,
+    "plugin_execution_added": false,
+    "credential_discovery_added": false,
+    "second_canonical_system_added": false
+  }
+}

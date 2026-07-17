@@ -14,6 +14,8 @@ The source changes are intentionally narrow:
 
 The deterministic Demo is clearly labeled fixture behavior. The final acceptance run is what proves the real Codex app-server interruption and distinct new-run recovery path under `CODEX_SERVICE_ONLY`, with worker-tool network disabled.
 
+The sealed candidate `b2ea672031b610bb82065fb571189b09689cf3d7` passed all 21 acceptance gates in 642.145 seconds. The real proof passed 83 assertions, final Doctor was safely governed `TIM_REQUIRED`, and cleanup found no owner, listener, or owned child. See [ACCEPTANCE_SEAL.json](ACCEPTANCE_SEAL.json), [VALIDATION.md](VALIDATION.md), [REAL_APP_SERVER_PROOF.json](REAL_APP_SERVER_PROOF.json), and [PRE_GREEN_FAILURE_DISPOSITION.md](PRE_GREEN_FAILURE_DISPOSITION.md).
+
 Publication remains prohibited until a fresh independent Tester and Auditor both report GREEN on the frozen candidate. Publication is one normal non-force push and one ready PR; this milestone never merges or enables auto-merge.
 
-Start with [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md), [DEMO_SCRIPT.md](DEMO_SCRIPT.md), and [PHASE_0_FINAL_INVENTORY.md](PHASE_0_FINAL_INVENTORY.md).
+Start with [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md), [DEMO_SCRIPT.md](DEMO_SCRIPT.md), and [PHASE_0_FINAL_INVENTORY.md](PHASE_0_FINAL_INVENTORY.md). The exact executed rows and raw-evidence hashes are in [EXECUTED_TEST_COVERAGE.csv](EXECUTED_TEST_COVERAGE.csv) and [EVIDENCE_INDEX.csv](EVIDENCE_INDEX.csv).

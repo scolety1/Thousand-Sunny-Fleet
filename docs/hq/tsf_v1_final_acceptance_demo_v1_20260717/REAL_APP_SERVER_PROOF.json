@@ -1,0 +1,202 @@
+{
+  "schema_version": "tsf_hq_dispatch_real_reliability_proof_v1",
+  "status": "PASS",
+  "assertions": 83,
+  "fixture_root": "C:\\TSF_V1\\.codex-local\\fixtures\\hq-dispatch-m3-real-interruption-v1\\run-mrpi7ilw-12336",
+  "initial_doctor_status": "GREEN",
+  "idle_server": {
+    "process_id": 15580,
+    "server_instance_id": "hq-instance-d65457d9-68d1-45e6-8879-114d9bf57d6d",
+    "stop_status": "GREEN"
+  },
+  "interrupted_server": {
+    "process_id": 28392,
+    "server_instance_id": "hq-instance-f2754e05-62a8-4b76-8424-edaf9337c54b",
+    "mission_id": "hq2-mrpi7vp9-ea397e",
+    "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1",
+    "executor_process_id": 40664,
+    "executor_process_start_time": "2026-07-17T22:23:13.8303755Z",
+    "app_server_process_id": 40476,
+    "app_server_process_start_time": "2026-07-17T22:23:21.8396530Z",
+    "barrier_hook_point": "REAL_APP_SERVER_PROCESS_SUSPENDED_BEFORE_TERMINAL_RESULT",
+    "barrier_ready_path": "C:\\TSF_V1\\.codex-local\\fixtures\\hq-dispatch-m3-real-interruption-v1\\run-mrpi7ilw-12336\\BARRIER_READY.json",
+    "barrier_ready_sha256": "4b6a1377cbb38a4e31548492f4a32c1eacd68f291b77e0a14e36ddda9d3b65f3",
+    "stop_requested_at": "2026-07-17T22:23:25.419Z",
+    "final_queue_state": "worker_running",
+    "interruption_evidence_path": "C:\\TSF_V1\\.codex-local\\rt\\q\\uw7qssb7ehtzrjqdts64ehdcrlr7u6uw\\7cvu7kmcu5rt6gvf6sdwmwpv3rt5yzdm\\recovery\\STOP_RECORD.json",
+    "interruption_evidence_sha256": "471683f2293fd0a2db13dcf36479d1fcd464da8b64ad6514bc6e30b01a822053",
+    "submission_transport_after_stop": {
+      "status": 200,
+      "json": {
+        "schema_version": "tsf_hq_dispatch_mission_status_v1",
+        "state": "REJECTED",
+        "timestamp": "2026-07-17T22:23:37.770Z",
+        "canonical_source_record": "lc.json",
+        "source_path": "C:\\TSF_V1\\.codex-local\\rt\\l\\uw7qssb7ehtzrjqdts64ehdcrlr7u6uw\\7cvu7kmcu5rt6gvf6sdwmwpv3rt5yzdm\\lc.json",
+        "mission_id": "hq2-mrpi7vp9-ea397e",
+        "mission_revision": 1,
+        "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1",
+        "result_id": null,
+        "assurance": "NO_ADMISSION_RECEIPT",
+        "explanation": "No successful canonical admission receipt exists; NO_ADMISSION_RECEIPT.",
+        "route": {
+          "worker_role": "researcher_source_tracer_worker",
+          "model_alias": "BALANCED",
+          "resolved_model": "gpt-5.6-terra",
+          "effort": "MEDIUM",
+          "assurance": "RECOMMENDED_ONLY"
+        },
+        "access": {
+          "permission_mode": "READ_ONLY",
+          "network_policy": "PROHIBITED",
+          "control_plane_service_network_policy": "CODEX_SERVICE_ONLY",
+          "worker_tool_network_policy": "DISABLED",
+          "allowed_reads": [
+            "fleet/control/policy-manifest.v1.json"
+          ],
+          "allowed_writes": []
+        },
+        "queue_state": "inbox",
+        "worker": {
+          "status": "NOT_RUN_DRY_RUN",
+          "thread_id": "",
+          "turn_id": "",
+          "model": "",
+          "effort": "UNKNOWN",
+          "child_exited": true,
+          "no_orphan_process": true,
+          "changed_paths": [],
+          "created_paths": [],
+          "tests": [],
+          "exact_response": null,
+          "observation_claims": {
+            "product_repository_access": {
+              "classification": "NOT_OBSERVED",
+              "value": null,
+              "source": "app-server protocol exposes no filesystem-read audit",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            },
+            "plugin_use": {
+              "classification": "NOT_OBSERVED",
+              "value": null,
+              "source": "app-server protocol exposes no plugin-use audit",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            },
+            "credential_access": {
+              "classification": "NOT_OBSERVED",
+              "value": null,
+              "source": "app-server protocol exposes no credential-read audit",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            },
+            "worker_tool_network": {
+              "classification": "CONFIGURED_DISABLED",
+              "value": false,
+              "source": "thread and turn sandbox networkAccess=false",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            },
+            "external_network_access": {
+              "classification": "NOT_OBSERVED",
+              "value": null,
+              "source": "sandbox is configured disabled but no runtime network-use audit is exposed",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            },
+            "filesystem_writes": {
+              "classification": "NOT_OBSERVED",
+              "value": null,
+              "source": "adapter delegates before/after filesystem observation to lifecycle",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            },
+            "detached_or_unowned_child": {
+              "classification": "OBSERVED_NOT_USED",
+              "value": false,
+              "source": "adapter-owned foreground child exit observation",
+              "run_id": "canonical-result-hq2-mrpi7vp9-ea397e-1"
+            }
+          }
+        },
+        "verifier": {
+          "identity": "canonical-kernel-postrun",
+          "verdict": "",
+          "verified": false,
+          "exact_response": null,
+          "result_path": "C:\\TSF_V1\\.codex-local\\rt\\l\\uw7qssb7ehtzrjqdts64ehdcrlr7u6uw\\7cvu7kmcu5rt6gvf6sdwmwpv3rt5yzdm\\vr.json",
+          "result_sha256": null
+        },
+        "preservation": {
+          "status": "BLOCKED",
+          "packet_path": "",
+          "packet_sha256": null,
+          "manifest_path": "",
+          "manifest_sha256": null,
+          "evidence_preserved": false
+        },
+        "admission": null,
+        "result": {
+          "result_id": null,
+          "mission_sha256": "127331d4edce68fad32eda37cd5fdd2e6c1964106905bb8f7f5cd1d1c84b3229",
+          "queue_document_sha256": "d8e82305ce468dc98b20c84bc9cb28ac7b750f5d37ad805d2945687bf7ba265c",
+          "durable_result_path": null,
+          "durable_result_sha256": null,
+          "tests": [],
+          "observation_claims": null
+        },
+        "tim_request": null,
+        "response": null,
+        "prior_terminal": null,
+        "authority": {
+          "granted": [],
+          "explicitly_denied": [
+            "approval",
+            "merge",
+            "push",
+            "deployment",
+            "production",
+            "plugins",
+            "credentials",
+            "product repository access"
+          ]
+        },
+        "caveats": [],
+        "duplicate_replay": {
+          "duplicate_execution_prevented": true,
+          "response_replay_bound": true
+        },
+        "next_action": "Inspect the canonical lifecycle and verifier evidence; do not treat this run as accepted.",
+        "projection_only": true
+      }
+    }
+  },
+  "recovery_server": {
+    "process_id": 32496,
+    "server_instance_id": "hq-instance-8c6e058f-f326-46f6-aa56-12d05df26596",
+    "new_mission_id": "hq2-mrpi7vp9-ea397e-retry-a028b6f0c39d7ee7",
+    "new_run_id": "canonical-result-hq2-mrpi7vp9-ea397e-retry-a028b6f0c39d7ee7-1",
+    "new_result_id": "canonical-result-hq2-mrpi7vp9-ea397e-retry-a028b6f0c39d7ee7-1",
+    "final_state": "ADMITTED_WITH_CAVEATS",
+    "thread_id": "019f722e-1304-7b23-a025-79b0e30401ea",
+    "turn_id": "019f722e-285d-7212-b415-afa6ee210778",
+    "app_server_process_id": 17272,
+    "app_server_process_start_time": "2026-07-17T22:24:05.412Z",
+    "verifier_identity": "canonical-kernel-postrun",
+    "verifier_result_path": "C:\\TSF_V1\\.codex-local\\rt\\l\\fptycbxzoa73zqrgat7cewvyhbhu6dna\\4nkxnq6zuostf7x2ccdrljhikddkwrub\\vr.json",
+    "admission_receipt_id": "admission-yksxfjernjeetiaxsw5vxhpt",
+    "admission_receipt_path": "C:\\TSF_V1\\.codex-local\\rt\\p\\fptycbxzoa73zqrgat7cewvyhbhu6dna\\4nkxnq6zuostf7x2ccdrljhikddkwrub\\r\\a-yksxfjernjeetiaxsw5vxhptwrodjq3k.json",
+    "admission_receipt_sha256": "5b5e5bf4b662ca9af983330d5356131ea63fced4d61e47e09f7a3838325be5cd",
+    "recovery_receipt_id": "hq-recovery-receipt-7ea9edbd25bffaaf9f8ee19799be36bc",
+    "recovery_receipt_path": "C:\\TSF_V1\\.codex-local\\hq-dispatch\\v1\\recovery-receipts\\hr-ce0583fa2fd245083dfc2e1c0566bfb5.json",
+    "recovery_receipt_sha256": "bc8af4bf51c6e533c842cddb4db70c5880172e25e9f2b97f092794f54a7e5ff4"
+  },
+  "loopback_host": "127.0.0.1",
+  "loopback_port": 4317,
+  "operator_session_invalidated": true,
+  "original_run_immutable": true,
+  "automatic_rerun_performed": false,
+  "old_thread_or_turn_resumed": false,
+  "control_plane_service_network_policy": "CODEX_SERVICE_ONLY",
+  "worker_tool_network_policy": "DISABLED",
+  "product_repository_used": false,
+  "plugin_used": false,
+  "credential_value_accessed": false,
+  "background_or_detached_process_created": false,
+  "empty_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
