@@ -22,8 +22,8 @@
   "nonblocking_reason": "The accepted VALIDATION.json value is a one-nibble transcription error. The preserved file bytes independently hash to the value already recorded by the immutable bundle HASHES.sha256 manifest. No source, index, adoption decision, tracked patch, staged patch, or untracked archive byte is changed or reinterpreted.",
   "historical_files_modified": false,
   "m4_auditor_disposition": {
-    "status": "PENDING_INDEPENDENT_AUDIT",
-    "audited_candidate_commit": null,
+    "status": "GREEN_NONBLOCKING",
+    "audited_candidate_commit": "e9d29bfb79e3b4a3da48b11887fa7a0bd8a9090e",
     "finding": null
   }
 }

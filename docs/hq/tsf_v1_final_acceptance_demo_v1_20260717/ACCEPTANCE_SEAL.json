@@ -1,7 +1,7 @@
 {
   "schema_version": "tsf_v1_m4_acceptance_seal_v1",
-  "sealed_at": "2026-07-17T23:39:00Z",
-  "verdict": "GREEN_PENDING_FRESH_INDEPENDENT_AUDIT",
+  "sealed_at": "2026-07-17T23:52:00Z",
+  "verdict": "GREEN_INDEPENDENT_AUDIT_COMPLETE_READY_PR_AUTHORIZED",
   "supersedes_tested_candidate": "f8d5d845e1e3e32061b914a5a500b2080b686604",
   "first_independent_audit": "RED_PUBLICATION_BLOCKED_AND_PRESERVED",
   "second_independent_audit": "RED_PUBLICATION_BLOCKED_AND_PRESERVED",
@@ -82,6 +82,23 @@
     "correction_commit": "f1a9fc6d64add5370067b90f2cae668bf55f342c",
     "negative_regression_test": "PASS",
     "full_all_up_reproof": "PASS"
+  },
+  "fresh_independent_audit": {
+    "candidate_commit": "e9d29bfb79e3b4a3da48b11887fa7a0bd8a9090e",
+    "candidate_tree": "5000fb0e440ebfec21f030f60b2b58d328711e3f",
+    "tester_disposition": "GREEN",
+    "auditor_disposition": "GREEN",
+    "findings": 0,
+    "tester_deterministic_rerun": {
+      "status": "PASS_DETERMINISTIC_ONLY_REAL_PROOF_NOT_RERUN",
+      "checks": 20,
+      "failed_checks": 0,
+      "duration_seconds": 569.964,
+      "evidence_root": ".codex-local/evidence/m4-final-acceptance/20260717T234058880Z-24804",
+      "acceptance_summary_sha256": "2cc9ee3f6a54013cf93529eb2c315465fc93989fc333e757eeb345c4fe8085a1",
+      "evidence_index_sha256": "d6200afa6c1060671579b309b6d5508cba4dc7ec27ff95940faa93418129ced1"
+    },
+    "ready_pr_publication_authorized": true
   },
   "historical_fixture_identity_repeatability_proof": {
     "canonical_matrix_runs": 2,
