@@ -24,4 +24,4 @@ The acceptance record retains both pre-GREEN runs. Neither is presented as a suc
 
 All 1,375 pre-GREEN canonical runtime fixture files were moved, not deleted, into an ignored M4 evidence archive. `ARCHIVE_MANIFEST.json` records every relative path, byte count, and SHA-256. `ARCHIVE_VALIDATION.json` confirms the before/after file counts and hashes are identical. The manifest and validation hashes are bound by `ACCEPTANCE_SEAL.json`.
 
-The final all-up run on `b2ea672031b610bb82065fb571189b09689cf3d7` passed 21 of 21 gates, including 83 real app-server assertions and final cooperative cleanup.
+The first all-up GREEN run on `b2ea672031b610bb82065fb571189b09689cf3d7` passed its recorded gates but was subsequently rejected by independent audit for an invalid verifier revision identity and two evidence-harness gaps. That RED audit is preserved separately. Corrected candidate `f8d5d845e1e3e32061b914a5a500b2080b686604` then passed 21 of 21 gates, including 94 strengthened real app-server assertions and final cooperative cleanup.

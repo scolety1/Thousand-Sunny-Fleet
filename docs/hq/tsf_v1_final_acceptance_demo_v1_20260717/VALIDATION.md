@@ -1,8 +1,8 @@
 # TSF V1 Final Acceptance Result
 
 - Status: `PASS`
-- HEAD: `b2ea672031b610bb82065fb571189b09689cf3d7`
-- Tree: `46a919c4c8898d0a71da22c15bf73c16addf7667`
+- HEAD: `f8d5d845e1e3e32061b914a5a500b2080b686604`
+- Tree: `02a9c8277570ff9770126f821446e7426566d67b`
 - Checks: 21
 - Failed: 0
 - Real app-server proof ran: True
@@ -26,7 +26,7 @@
 | hq_chokepoint | PASS | 0 | EXPECTED_PROCESS_EXIT_0 |
 | canonical_app_server_matrix | PASS | 0 | EXPECTED_PROCESS_EXIT_0 |
 | final_static_integrity | PASS | 0 | EXPECTED_PROCESS_EXIT_0 |
-| git_diff_check | PASS | 0 | EXPECTED_PROCESS_EXIT_0 |
+| committed_candidate_diff_check | PASS | 0 | EXPECTED_PROCESS_EXIT_0 |
 | real_app_server_interruption_recovery | PASS | 0 | EXPECTED_PROCESS_EXIT_0 |
 | final_doctor_json | PASS | 3 | EXPECTED_PROCESS_EXIT_3 |
 | final_no_owner_listener_or_owned_child | PASS | 0 | ASSERTION_PASS |

@@ -1,0 +1,43 @@
+{
+  "schema_version": "tsf_v1_m4_independent_audit_disposition_v1",
+  "sequence": 1,
+  "audited_at": "2026-07-17T22:40:00Z",
+  "candidate_commit": "c18ea760f09c91a1f13adda3e51c6a58e68f011f",
+  "candidate_tree": "09f03866df6042cf78692c71b9b95524a7eb38e5",
+  "required_baseline": "952f30e137214735fe2513a7b068d9680ca882c7",
+  "tester_disposition": "RED",
+  "auditor_disposition": "RED",
+  "publication_authorized": false,
+  "tester_deterministic_rerun": {
+    "status": "PASS_DETERMINISTIC_ONLY_REAL_PROOF_NOT_RERUN",
+    "checks": 20,
+    "failed_checks": 0,
+    "duration_seconds": 505.814,
+    "evidence_root": ".codex-local/evidence/m4-final-acceptance/20260717T223047798Z-40380",
+    "summary_sha256": "0897d57e7b110b0e029393370c5c0bf9ac33b722892a3f5140af5342c68fd1bf",
+    "evidence_index_sha256": "827ac9838dd66f76be99dcff668d4541154177f58fc344c007a5a7775190fb99"
+  },
+  "findings": [
+    {
+      "severity": "HIGH",
+      "finding": "The admitted recovery verifier recorded top-level mission_revision 0 while the durable mission, nested exact-response evidence, result, and admission recorded revision 1.",
+      "defective_verifier_sha256": "02ad2fa533d4f0525e4cdac77f1a419eb27477e619d03b03918a73762a564fd5",
+      "correction_commit": "f8d5d845e1e3e32061b914a5a500b2080b686604",
+      "correction_status": "IMPLEMENTED_AND_LOCAL_PROOFS_GREEN_FRESH_AUDIT_REQUIRED"
+    },
+    {
+      "severity": "MEDIUM",
+      "finding": "The acceptance and static whitespace gates did not check the committed origin/main...HEAD candidate diff.",
+      "correction_commit": "f8d5d845e1e3e32061b914a5a500b2080b686604",
+      "correction_status": "IMPLEMENTED_AND_LOCAL_PROOFS_GREEN_FRESH_AUDIT_REQUIRED"
+    },
+    {
+      "severity": "MEDIUM",
+      "finding": "The versioned real-proof output omitted verifier and preservation packet/manifest hash bindings.",
+      "correction_commit": "f8d5d845e1e3e32061b914a5a500b2080b686604",
+      "correction_status": "IMPLEMENTED_AND_LOCAL_PROOFS_GREEN_FRESH_AUDIT_REQUIRED"
+    }
+  ],
+  "m3_errata_disposition": "GREEN_NONBLOCKING",
+  "tracked_mutation_by_independent_agents": false
+}

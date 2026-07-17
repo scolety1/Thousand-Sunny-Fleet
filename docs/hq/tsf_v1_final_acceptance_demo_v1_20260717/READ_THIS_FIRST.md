@@ -14,7 +14,7 @@ The source changes are intentionally narrow:
 
 The deterministic Demo is clearly labeled fixture behavior. The final acceptance run is what proves the real Codex app-server interruption and distinct new-run recovery path under `CODEX_SERVICE_ONLY`, with worker-tool network disabled.
 
-The sealed candidate `b2ea672031b610bb82065fb571189b09689cf3d7` passed all 21 acceptance gates in 642.145 seconds. The real proof passed 83 assertions, final Doctor was safely governed `TIM_REQUIRED`, and cleanup found no owner, listener, or owned child. See [ACCEPTANCE_SEAL.json](ACCEPTANCE_SEAL.json), [VALIDATION.md](VALIDATION.md), [REAL_APP_SERVER_PROOF.json](REAL_APP_SERVER_PROOF.json), and [PRE_GREEN_FAILURE_DISPOSITION.md](PRE_GREEN_FAILURE_DISPOSITION.md).
+The corrected sealed candidate `f8d5d845e1e3e32061b914a5a500b2080b686604` passed all 21 acceptance gates in 721.567 seconds. The real proof passed 94 assertions, final Doctor was safely governed `TIM_REQUIRED`, and cleanup found no owner, listener, or owned child. The first independent audit was RED and is preserved in [INDEPENDENT_AUDIT_RED_1.md](INDEPENDENT_AUDIT_RED_1.md); publication remains blocked until a fresh audit is GREEN. See [ACCEPTANCE_SEAL.json](ACCEPTANCE_SEAL.json), [VALIDATION.md](VALIDATION.md), [REAL_APP_SERVER_PROOF.json](REAL_APP_SERVER_PROOF.json), and [PRE_GREEN_FAILURE_DISPOSITION.md](PRE_GREEN_FAILURE_DISPOSITION.md).
 
 Publication remains prohibited until a fresh independent Tester and Auditor both report GREEN on the frozen candidate. Publication is one normal non-force push and one ready PR; this milestone never merges or enables auto-merge.
 
