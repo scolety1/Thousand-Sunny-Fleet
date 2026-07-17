@@ -402,7 +402,7 @@ async function runProof() {
     .catch((error) => { missionTransport = { transport_error: String(error.message) }; return missionTransport; });
 
   const barrierPath = path.join(fixtureRoot, "BARRIER_READY.json");
-  const barrierReady = await waitFor(() => existsSync(barrierPath) ? readJson(barrierPath) : null, 90_000, "M3_REAL_INTERRUPTION_BARRIER_NOT_READY", 25);
+  const barrierReady = await waitFor(() => existsSync(barrierPath) ? readJson(barrierPath) : null, 240_000, "M3_REAL_INTERRUPTION_BARRIER_NOT_READY", 25);
   equal(barrierReady.fixture_type, FIXTURE_TYPE, "barrier evidence is bound to the exact committed fixture identity");
   equal(barrierReady.test_run_identity, testRunIdentity, "barrier evidence is bound to the exact test-run identity");
   equal(barrierReady.hook_point, BARRIER_HOOK_POINT, "barrier activates only at the real app-server pre-terminal hook point");

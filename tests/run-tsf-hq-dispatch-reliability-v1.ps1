@@ -61,7 +61,8 @@ $powerShellFiles = @(
     'tools/hq-dispatch/v1/Invoke-TsfHqDispatchQueueReconcileV1.ps1',
     'tests/support/TsfParserEvidence.ps1',
     'tests/test-tsf-v1-m4-acceptance-corrections-v1.ps1',
-    'tests/run-tsf-v1-final-acceptance-v1.ps1'
+    'tests/run-tsf-v1-final-acceptance-v1.ps1',
+    'tests/run-tsf-hq-chokepoint-tests.ps1'
 )
 foreach ($relative in $powerShellFiles) {
     $tokens=$null;$errors=$null

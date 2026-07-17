@@ -1,11 +1,25 @@
-param()
+param(
+    [string]$EvidenceRoot
+)
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$packetPath = Join-Path $repoRoot "tests/fixtures/fleet/hq-chokepoint/operator-console-sample.packet.json"
+$localRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot '.codex-local'))
+if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
+    $EvidenceRoot = Join-Path $localRoot "fixtures\hq-chokepoint-v1\$PID"
+}
+$EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
+if (-not $EvidenceRoot.StartsWith(($localRoot.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'HQ_CHOKEPOINT_EVIDENCE_ROOT_OUTSIDE_CODEX_LOCAL'
+}
+[IO.Directory]::CreateDirectory($EvidenceRoot) | Out-Null
+if ((Get-Item -LiteralPath $EvidenceRoot).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw 'HQ_CHOKEPOINT_EVIDENCE_ROOT_REPARSE_POINT_REJECTED'
+}
+$packetPath = Join-Path $EvidenceRoot "operator-console-sample.packet.json"
 $responsePath = Join-Path $repoRoot "tests/fixtures/fleet/hq-chokepoint/mock-hq-response.green.json"
-$validationPath = Join-Path $repoRoot "tests/fixtures/fleet/hq-chokepoint/mock-hq-response.green.validation.json"
+$validationPath = Join-Path $EvidenceRoot "mock-hq-response.green.validation.json"
 
 & (Join-Path $repoRoot "tools/New-TsfHqEscalationPacket.ps1") `
     -PacketId "operator-console-sample" `
