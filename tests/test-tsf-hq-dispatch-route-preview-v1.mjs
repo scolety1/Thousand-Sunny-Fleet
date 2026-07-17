@@ -27,6 +27,8 @@ const WRAPPER_PATH = path.join(
 const POWERSHELL_EXE =
   "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
 let assertions = 0;
+let operatorOrigin = null;
+let operatorSessionToken = null;
 
 function check(condition, message) {
   assertions += 1;
@@ -95,6 +97,9 @@ function request(port, options = {}) {
         headers: {
           Accept: "application/json",
           Connection: "close",
+          ...(pathname === "/api/v1/route-preview" && operatorSessionToken
+            ? { Origin: operatorOrigin, "X-TSF-HQ-Session": operatorSessionToken }
+            : {}),
           ...headers,
         },
       },
@@ -217,6 +222,16 @@ try {
   check(address && typeof address === "object", "test listener exposes an address");
   equal(address.address, "127.0.0.1", "listener binds only to IPv4 loopback");
   const port = address.port;
+  operatorOrigin = `http://127.0.0.1:${port}`;
+  const issuedSession = await request(port, {
+    method: "POST",
+    pathname: "/api/v1/session",
+    headers: { Origin: operatorOrigin, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  equal(issuedSession.status, 200, "merged baseline issues a same-origin operator session");
+  operatorSessionToken = issuedSession.json.session_token;
+  check(operatorSessionToken.length >= 32, "operator session token is cryptographically sized");
 
   const health = await request(port, { pathname: "/health" });
   equal(health.status, 200, "GET /health succeeds");
@@ -228,8 +243,8 @@ try {
   );
   equal(
     health.json.mission_execution_enabled,
-    false,
-    "health denies mission execution",
+    true,
+    "health reports governed mission execution added by Milestone 2A",
   );
   equal(health.json.plugin_access_enabled, false, "health denies plugin access");
   equal(
@@ -262,8 +277,8 @@ try {
   equal(registries.status, 200, "GET /api/v1/registries succeeds");
   equal(
     registries.json.milestone_restrictions.posture,
-    "MILESTONE_1_LOCAL_PREVIEW_ONLY",
-    "registry projection preserves the exact Milestone 1 posture",
+    "MILESTONE_2_BOUNDED_GOVERNED_OPERATOR_BRIDGE",
+    "registry projection preserves the merged Milestone 2 governed posture",
   );
   equal(
     registries.json.milestone_restrictions.plugin_access_enabled,
@@ -292,13 +307,13 @@ try {
   );
   equal(
     registries.json.milestone_restrictions.mission_submission_enabled,
-    false,
-    "registry projection denies mission submission",
+    true,
+    "registry projection reports governed mission submission added by Milestone 2A",
   );
   equal(
     registries.json.milestone_restrictions.mission_execution_enabled,
-    false,
-    "registry projection denies mission execution",
+    true,
+    "registry projection reports governed mission execution added by Milestone 2A",
   );
   check(
     registries.json.registry_sources.every(
@@ -352,9 +367,9 @@ try {
     "browser UI displays the exact authority banner",
   );
   check(
-    index.text.includes("Milestone boundary") &&
-      index.text.includes("NO EXTERNAL INTEGRATIONS"),
-    "browser UI displays the Milestone 1 external-integration boundary",
+    index.text.includes("Operator lifecycle") &&
+      index.text.includes("Doctor, recovery, and exact owned stop"),
+    "browser UI displays the bounded operator lifecycle boundary",
   );
   check(
     index.text.includes("Access proposal") &&
@@ -385,15 +400,15 @@ try {
   );
   const buttonText = [...index.text.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/gi)]
     .map((match) => match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-  equal(buttonText.length, 1, "browser UI exposes exactly one button");
-  check(buttonText[0].startsWith("Preview route"), "browser UI exposes only route preview");
+  equal(buttonText.length, 6, "browser UI exposes only the six bounded operator controls");
   check(
-    !buttonText.some((text) =>
-      /\b(Submit|Approve|Resume|Retry|Execute|Install|Enable|Connect|Launch|Push|Merge|Deploy|Run)\b/i.test(
-        text,
-      ),
-    ),
-    "browser UI exposes no prohibited control label",
+    buttonText.some((text) => text.startsWith("Preview route")) &&
+      buttonText.includes("Create governed mission") &&
+      buttonText.includes("APPROVE EXACT REQUEST") &&
+      buttonText.includes("DENY REQUEST") &&
+      buttonText.includes("PROVIDE CLARIFICATION") &&
+      buttonText.includes("Refresh canonical evidence"),
+    "browser UI labels every bounded governed control explicitly",
   );
   equal(
     index.headers["x-frame-options"],

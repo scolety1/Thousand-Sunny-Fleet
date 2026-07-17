@@ -4,6 +4,45 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 
 const MAX_CHILD_OUTPUT = 2 * 1024 * 1024;
+const M3_REAL_INTERRUPTION_FIXTURE = "TSF_HQ_DISPATCH_M3_REAL_INTERRUPTION_FIXTURE_V1";
+const M3_REAL_INTERRUPTION_ROOT = path.join(".codex-local", "fixtures", "hq-dispatch-m3-real-interruption-v1");
+const m3RealInterruptionBarriers = new WeakSet();
+
+export function createM3RealInterruptionBarrier({
+  repositoryRoot,
+  fixtureType,
+  fixtureRoot,
+  testRunIdentity,
+  access,
+  inMemoryCapability,
+  onOwnedExecutor,
+}) {
+  const resolvedRepository = path.resolve(repositoryRoot ?? "");
+  const expectedRoot = path.resolve(resolvedRepository, M3_REAL_INTERRUPTION_ROOT);
+  if (fixtureType !== M3_REAL_INTERRUPTION_FIXTURE) throw new Error("M3_INTERRUPTION_FIXTURE_IDENTITY_REJECTED");
+  if (path.resolve(fixtureRoot ?? "") !== expectedRoot) throw new Error("M3_INTERRUPTION_FIXTURE_ROOT_REJECTED");
+  if (!/^[a-z0-9][a-z0-9-]{7,63}$/.test(String(testRunIdentity ?? ""))) throw new Error("M3_INTERRUPTION_TEST_RUN_IDENTITY_REJECTED");
+  if (!inMemoryCapability || typeof inMemoryCapability !== "object") throw new Error("M3_INTERRUPTION_IN_MEMORY_CAPABILITY_REQUIRED");
+  if (!access || access.permission_mode !== "READ_ONLY"
+      || access.worker_tool_network_policy !== "DISABLED"
+      || access.control_plane_service_network_policy !== "CODEX_SERVICE_ONLY"
+      || !Array.isArray(access.allowed_writes) || access.allowed_writes.length !== 0
+      || path.resolve(access.repository ?? "") !== resolvedRepository
+      || access.product_repository_targeted !== false) {
+    throw new Error("M3_INTERRUPTION_FIXTURE_ACCESS_REJECTED");
+  }
+  if (typeof onOwnedExecutor !== "function") throw new Error("M3_INTERRUPTION_OWNED_EXECUTOR_HOOK_REQUIRED");
+  const barrier = Object.freeze({
+    fixture_type: M3_REAL_INTERRUPTION_FIXTURE,
+    fixture_root: expectedRoot,
+    test_run_identity: testRunIdentity,
+    test_run_root: path.join(expectedRoot, testRunIdentity),
+    timeout_ms: 30_000,
+    onOwnedExecutor,
+  });
+  m3RealInterruptionBarriers.add(barrier);
+  return barrier;
+}
 
 function hash(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -105,6 +144,12 @@ export class HqMissionRelay {
     executionAdapter = null,
     responseAdapter = null,
     workerTimeoutSeconds = 180,
+    onChildStart = null,
+    onChildExit = null,
+    onMissionChange = null,
+    onInterrupted = null,
+    terminateOwnedChild = null,
+    testOnlyInterruptionBarrier = null,
   }) {
     this.repositoryRoot = repositoryRoot;
     this.powershellExe = powershellExe;
@@ -115,10 +160,20 @@ export class HqMissionRelay {
     this.executionAdapter = executionAdapter;
     this.responseAdapter = responseAdapter;
     this.workerTimeoutSeconds = workerTimeoutSeconds;
+    this.onChildStart = onChildStart;
+    this.onChildExit = onChildExit;
+    this.onMissionChange = onMissionChange;
+    this.onInterrupted = onInterrupted;
+    this.terminateOwnedChild = terminateOwnedChild;
+    if (testOnlyInterruptionBarrier && !m3RealInterruptionBarriers.has(testOnlyInterruptionBarrier)) {
+      throw new Error("M3_INTERRUPTION_IN_MEMORY_CAPABILITY_REJECTED");
+    }
+    this.testOnlyInterruptionBarrier = testOnlyInterruptionBarrier;
     this.previews = new Map();
     this.submissions = new Map();
     this.missions = new Map();
     this.responses = new Map();
+    this.recoveries = new Map();
     this.completedBindings = new Map();
     this.activeMissionId = null;
     this.activeChild = null;
@@ -172,7 +227,8 @@ export class HqMissionRelay {
     const prior = this.submissions.get(input.submission_id);
     if (prior) {
       if (prior.contentHash !== contentHash || prior.sessionKey !== sessionKey) throw new Error("SUBMISSION_REPLAY_CONTENT_MISMATCH");
-      return prior.promise;
+      const existing = await prior.promise;
+      return { ...existing, operator_message: "IDEMPOTENT_REPLAY" };
     }
     const promise = this.#submitNew(input, sessionKey).finally(() => {
       if (this.activeMissionId && this.missions.get(this.activeMissionId)?.terminal) {
@@ -216,6 +272,7 @@ export class HqMissionRelay {
             ...active.status.duplicate_replay,
             active_identical_submission_returned: true,
           },
+          operator_message: "EXISTING_ACTIVE_MISSION",
         };
       }
       throw new Error("ONE_ACTIVE_MISSION_LIMIT");
@@ -230,6 +287,7 @@ export class HqMissionRelay {
           completed_identical_submission_returned: true,
           canonical_terminal_source_reused: completed.status.source_path,
         },
+        operator_message: "EXISTING_COMPLETED_MISSION",
       };
     }
 
@@ -280,6 +338,7 @@ export class HqMissionRelay {
       this.#event(record, record.status);
     }
     if (record.terminal) this.completedBindings.set(replayKey, missionId);
+    if (record.terminal && this.onMissionChange) this.onMissionChange(null);
     return record.status;
   }
 
@@ -310,6 +369,15 @@ export class HqMissionRelay {
     const record = this.missions.get(missionId);
     if (record) {
       record.preparation = preparation;
+      if (this.onMissionChange) {
+        this.onMissionChange({
+          mission_id: missionId,
+          mission_revision: missionRevision,
+          run_id: preparation.run_id,
+          result_id: preparation.run_id,
+          queue_record_path: preparation.queue_record_path,
+        });
+      }
       record.status = this.#status("QUEUED", missionId, missionRevision, {
         sourcePath: preparation.queue_record_path,
         runId: preparation.run_id,
@@ -342,7 +410,13 @@ export class HqMissionRelay {
       });
       this.#event(record, record.status);
     }
-    const executing = this.#spawnOwned(this.powershellExe, execArgs, "", (this.workerTimeoutSeconds + 60) * 1000);
+    const executing = this.#spawnOwned(this.powershellExe, execArgs, "", (this.workerTimeoutSeconds + 60) * 1000, {
+      mission_id: missionId,
+      mission_revision: missionRevision,
+      run_id: preparation.run_id,
+      result_id: preparation.run_id,
+      preparation,
+    });
     if (record) {
       record.status = this.#status("RUNNING", missionId, missionRevision, {
         sourcePath: preparation.queue_record_path,
@@ -592,7 +666,7 @@ export class HqMissionRelay {
     if (prior) {
       if (prior.contentHash !== contentHash || prior.sessionKey !== sessionKey) throw new Error("RESPONSE_REPLAY_CONTENT_MISMATCH");
       const status = await prior.promise;
-      return { ...status, duplicate_replay: { ...status.duplicate_replay, exact_response_replay_returned: true } };
+      return { ...status, operator_message: "IDEMPOTENT_REPLAY", duplicate_replay: { ...status.duplicate_replay, exact_response_replay_returned: true } };
     }
     if (record.acceptedResponse) throw new Error("TIM_REQUEST_ALREADY_ANSWERED");
     const promise = this.#respondNew(record, input, contentHash);
@@ -685,10 +759,11 @@ export class HqMissionRelay {
       return record.status;
     } finally {
       if (record.terminal && this.activeMissionId === record.missionId) this.activeMissionId = null;
+      if (record.terminal && this.onMissionChange) this.onMissionChange(null);
     }
   }
 
-  async #spawnOwned(executable, args, input, timeoutMs) {
+  async #spawnOwned(executable, args, input, timeoutMs, interruptionContext = null) {
     if (this.shuttingDown) throw new Error("SERVER_SHUTTING_DOWN");
     return new Promise((resolve, reject) => {
       const child = spawn(executable, args, {
@@ -712,6 +787,9 @@ export class HqMissionRelay {
         clearTimeout(timer);
         if (this.activeChild === child) this.activeChild = null;
         if (this.activeChildClosed) this.activeChildClosed = null;
+        if (this.onChildExit) {
+          try { this.onChildExit(child.pid); } catch { /* Preserve owner evidence for Doctor. */ }
+        }
         fn(value);
       };
       const timer = setTimeout(() => {
@@ -746,6 +824,29 @@ export class HqMissionRelay {
           no_orphan_process: null,
         });
       });
+      try {
+        if (this.onChildStart) this.onChildStart(child);
+      } catch {
+        abortError = new Error("OWNED_CHILD_EVIDENCE_WRITE_FAILED");
+        child.kill();
+      }
+      if (interruptionContext && this.testOnlyInterruptionBarrier && !abortError) {
+        Promise.resolve(this.testOnlyInterruptionBarrier.onOwnedExecutor({
+          ...interruptionContext,
+          executor_child: child,
+          fixture_type: this.testOnlyInterruptionBarrier.fixture_type,
+          fixture_root: this.testOnlyInterruptionBarrier.fixture_root,
+          test_run_identity: this.testOnlyInterruptionBarrier.test_run_identity,
+          test_run_root: this.testOnlyInterruptionBarrier.test_run_root,
+          timeout_ms: this.testOnlyInterruptionBarrier.timeout_ms,
+        })).catch((error) => {
+          abortError = error instanceof Error ? error : new Error("M3_INTERRUPTION_BARRIER_FAILED_CLOSED");
+          try {
+            if (this.terminateOwnedChild) this.terminateOwnedChild(child);
+            else child.kill();
+          } catch { child.kill(); }
+        });
+      }
       child.stdin.on("error", () => {});
       child.stdin.end(input, "utf8");
     });
@@ -754,8 +855,10 @@ export class HqMissionRelay {
   async shutdown() {
     this.shuttingDown = true;
     const record = this.activeMissionId ? this.missions.get(this.activeMissionId) : null;
+    let interruptionPending = false;
     if (record && !record.terminal) {
       record.terminal = true;
+      interruptionPending = true;
       record.status = this.#status("INTERRUPTED", record.missionId, record.revision, {
         sourcePath: record.preparation?.queue_record_path,
         runId: record.preparation?.run_id,
@@ -770,11 +873,191 @@ export class HqMissionRelay {
     if (this.activeChildClosed) {
       await Promise.race([
         this.activeChildClosed,
-        new Promise((resolve) => setTimeout(resolve, 5000)),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
       ]);
     }
+    if (this.activeChild && this.terminateOwnedChild) {
+      await this.terminateOwnedChild(this.activeChild);
+      if (this.activeChildClosed) {
+        await Promise.race([
+          this.activeChildClosed,
+          new Promise((resolve) => setTimeout(resolve, 15_000)),
+        ]);
+      }
+    }
+    if (this.activeChild) throw new Error("OWNED_CHILD_CLOSE_CONFIRMATION_TIMEOUT");
+    if (interruptionPending && this.onInterrupted) {
+      try { record.interruption = await this.onInterrupted(record); }
+      catch (error) { record.interruption_error = errorCode(error); }
+    }
     this.previews.clear();
+    if (!this.activeChild && this.onMissionChange) this.onMissionChange(null);
     return { child_exited: !this.activeChild, interrupted_mission_id: record?.missionId ?? null };
+  }
+
+  async retryInterrupted({ item, interruption = null, sessionGeneration = "" }) {
+    if (this.shuttingDown) throw new Error("SERVER_SHUTTING_DOWN");
+    if (!item || !["INTERRUPTED_PROCESS_GONE", "DISPATCHING_WITHOUT_OWNER"].includes(item.classification)) {
+      throw new Error("NEW_RUN_RECOVERY_SOURCE_NOT_INTERRUPTED");
+    }
+    if (this.activeMissionId) throw new Error("ONE_ACTIVE_MISSION_LIMIT");
+    const recoveryEvidencePath = interruption?.stop_record_path ?? item.interruption_evidence?.path;
+    if (!recoveryEvidencePath || !existsSync(recoveryEvidencePath)) throw new Error("NEW_RUN_RECOVERY_EVIDENCE_MISSING");
+    const recoveryEvidenceDirectory = path.dirname(recoveryEvidencePath);
+    const recoveryKey = jsonHash({ source: item.evidence_hash, sessionGeneration });
+    const prior = this.recoveries.get(recoveryKey);
+    if (prior) return prior;
+
+    const sourceMissionPath = (item.canonical_paths?.mission ?? [])[0];
+    if (!sourceMissionPath || !existsSync(sourceMissionPath)) throw new Error("NEW_RUN_SOURCE_MISSION_MISSING");
+    const sourceMission = parseJsonFile(sourceMissionPath);
+    const suffix = randomBytes(8).toString("hex");
+    const prefix = String(item.mission_id).replace(/[^A-Za-z0-9._:-]/g, "-").slice(0, 118);
+    const missionId = `${prefix}-retry-${suffix}`;
+    const runId = `canonical-result-${missionId}-1`;
+    const record = {
+      missionId,
+      requestHash: hash(String(sourceMission.original_request ?? "")),
+      previewId: null,
+      naturalRequest: String(sourceMission.original_request ?? ""),
+      revision: 1,
+      sessionKey: sessionGeneration,
+      replayKey: recoveryKey,
+      events: [],
+      terminal: false,
+      recoveryParent: { mission_id: item.mission_id, mission_revision: item.mission_revision, run_id: item.run_id, evidence_hash: item.evidence_hash },
+      status: this.#status("PREPARING", missionId, 1, {
+        runId,
+        explanation: "A new run is being prepared through canonical routing and queue controls; the interrupted source run remains immutable.",
+        assurance: "CANONICAL_NEW_RUN_RECOVERY_PENDING",
+      }),
+    };
+    this.activeMissionId = missionId;
+    this.missions.set(missionId, record);
+    this.#event(record, record.status);
+    const promise = (async () => {
+      try {
+        const outcome = this.executionAdapter
+          ? await this.executionAdapter({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest, recoveryParent: record.recoveryParent })
+          : await this.#prepareAndExecute({
+            missionId,
+            missionRevision: 1,
+            naturalRequest: record.naturalRequest,
+            revisionInput: {
+              mission_id: missionId,
+              mission_revision: 1,
+              natural_request: record.naturalRequest,
+              recovery_parent_mission_id: item.mission_id,
+              recovery_parent_mission_revision: item.mission_revision,
+              recovery_parent_run_id: item.run_id,
+              recovery_source_evidence_sha256: item.evidence_hash,
+              recovery_evidence_directory: recoveryEvidenceDirectory,
+            },
+          });
+        this.#applyOutcome(record, outcome);
+        record.status = { ...record.status, recovery_parent: record.recoveryParent, new_run_identity: true, old_thread_or_turn_resumed: false };
+        return { ...record.status, operator_message: "NEW_RUN_REQUIRED" };
+      } finally {
+        if (record.terminal && this.activeMissionId === missionId) this.activeMissionId = null;
+        if (record.terminal && this.onMissionChange) this.onMissionChange(null);
+      }
+    })();
+    this.recoveries.set(recoveryKey, promise);
+    return promise;
+  }
+
+  loadReconciledTimRequired(item, sessionKey) {
+    if (!item || item.classification !== "TIM_REQUIRED_PENDING_RESPONSE") throw new Error("RECONCILED_TIM_REQUIRED_SOURCE_INVALID");
+    const existing = this.missions.get(item.mission_id);
+    if (existing) {
+      if (existing.sessionKey !== sessionKey || existing.reconciliationEvidenceHash !== item.evidence_hash) throw new Error("CROSS_SESSION_TIM_RESPONSE");
+      return existing.status;
+    }
+    const first = (role) => {
+      const values = item.canonical_paths?.[role] ?? [];
+      return Array.isArray(values) ? values[0] ?? "" : values;
+    };
+    const lifecyclePath = first("lifecycle");
+    const missionPath = first("mission");
+    const runtimeQueuePath = first("runtime_queue_document");
+    const queueRecordPath = first("queue_documents") || runtimeQueuePath;
+    if (!lifecyclePath || !missionPath || !queueRecordPath || !existsSync(lifecyclePath) || !existsSync(missionPath) || !existsSync(queueRecordPath)) {
+      throw new Error("RECONCILED_TIM_REQUIRED_CANONICAL_PATH_MISSING");
+    }
+    const lifecycle = parseJsonFile(lifecyclePath);
+    const mission = parseJsonFile(missionPath);
+    const queueResultPath = first("queue_result");
+    const adapterPath = first("adapter");
+    const verifierPath = first("verifier");
+    const resultPath = first("result");
+    const queueResult = queueResultPath && existsSync(queueResultPath) ? parseJsonFile(queueResultPath) : { final_decision: "TIM_REQUIRED_RECONCILED", final_queue_state: item.last_known_queue_state };
+    const adapter = adapterPath && existsSync(adapterPath) ? parseJsonFile(adapterPath) : null;
+    const verifier = verifierPath && existsSync(verifierPath) ? parseJsonFile(verifierPath) : null;
+    const durableResult = resultPath && existsSync(resultPath) ? parseJsonFile(resultPath) : null;
+    const preparation = {
+      mission_id: item.mission_id,
+      mission_revision: item.mission_revision,
+      run_id: item.run_id,
+      mission_path: missionPath,
+      queue_record_path: queueRecordPath,
+      queue_result_path: queueResultPath,
+      lifecycle_result_path: lifecyclePath,
+      adapter_result_path: adapterPath,
+      verifier_result_path: verifierPath,
+      preservation_packet_path: lifecycle.preservation_packet_file ?? "",
+      route: { worker_role: mission.worker_role ?? null, resolved_model: mission.resolved_model ?? null, effort: mission.reasoning_effort ?? null },
+      access: { permission_mode: mission.permission_mode ?? null, network_policy: mission.network_policy ?? null, control_plane_service_network_policy: mission.control_plane_service_network_policy ?? null, worker_tool_network_policy: mission.worker_tool_network_policy ?? null, allowed_reads: mission.allowed_reads ?? [], allowed_writes: mission.allowed_writes ?? [] },
+    };
+    const record = {
+      missionId: item.mission_id,
+      requestHash: hash(String(mission.original_request ?? "")),
+      previewId: null,
+      naturalRequest: String(mission.original_request ?? ""),
+      revision: item.mission_revision,
+      sessionKey,
+      replayKey: item.evidence_hash,
+      reconciliationEvidenceHash: item.evidence_hash,
+      events: [],
+      terminal: false,
+      status: this.#status("RECONCILING", item.mission_id, item.mission_revision, { sourcePath: lifecyclePath, runId: item.run_id, explanation: "Canonical TIM_REQUIRED evidence is being projected without resuming the old run.", assurance: "CANONICAL_RESTART_RECONCILIATION" }),
+    };
+    this.missions.set(item.mission_id, record);
+    this.#event(record, record.status);
+    this.#applyOutcome(record, { preparation, processResult: { code: 1, child_exited: true, stdout: "", stderr: "TIM_REQUIRED" }, queueResult, lifecycle, adapter, verifier, workerResult: null, durableResult });
+    return { ...record.status, restart_reconciled: true, automatic_rerun_performed: false, old_thread_or_turn_resumed: false };
+  }
+
+  async reconcileQueueFromCanonicalReceipt(item) {
+    if (!item || item.classification !== "ADMISSION_WITH_QUEUE_MISMATCH") throw new Error("QUEUE_RECONCILIATION_SOURCE_INVALID");
+    const first = (role) => {
+      const values = item.canonical_paths?.[role] ?? [];
+      return Array.isArray(values) ? values[0] ?? "" : values;
+    };
+    const queuePath = first("queue_documents");
+    const receiptPath = first("admission");
+    const transactionPath = first("transaction");
+    if (!queuePath || !receiptPath || !transactionPath || !existsSync(queuePath) || !existsSync(receiptPath) || !existsSync(transactionPath)) throw new Error("QUEUE_RECONCILIATION_CANONICAL_EVIDENCE_MISSING");
+    const wrapper = path.join(this.repositoryRoot, "tools", "hq-dispatch", "v1", "Invoke-TsfHqDispatchQueueReconcileV1.ps1");
+    const args = ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", wrapper];
+    if (this.testOnlyQueueRoot) args.push("-TestOnlyQueueRoot", this.testOnlyQueueRoot, "-UnsupportedDevelopmentMode");
+    const input = {
+      mission_id: item.mission_id,
+      mission_revision: item.mission_revision,
+      run_id: item.run_id,
+      result_id: item.result_id,
+      queue_record_path: queuePath,
+      queue_record_sha256: hash(readFileSync(queuePath)),
+      receipt_path: receiptPath,
+      receipt_sha256: hash(readFileSync(receiptPath)),
+      transaction_path: transactionPath,
+      transaction_sha256: hash(readFileSync(transactionPath)),
+      source_evidence_sha256: item.evidence_hash,
+    };
+    const result = await this.#spawnOwned(this.powershellExe, args, JSON.stringify(input), 60_000);
+    if (result.code !== 0) throw new Error("CANONICAL_QUEUE_RECONCILIATION_REJECTED");
+    const parsed = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1));
+    if (parsed.schema_version !== "tsf_hq_dispatch_queue_reconciliation_result_v1" || parsed.mission_id !== item.mission_id || Number(parsed.mission_revision) !== item.mission_revision || parsed.run_id !== item.run_id || parsed.source_evidence_sha256 !== item.evidence_hash || parsed.canonical_history_preserved !== true || parsed.approval_inferred !== false) throw new Error("CANONICAL_QUEUE_RECONCILIATION_RESULT_INVALID");
+    return parsed;
   }
 
   #event(record, status) {

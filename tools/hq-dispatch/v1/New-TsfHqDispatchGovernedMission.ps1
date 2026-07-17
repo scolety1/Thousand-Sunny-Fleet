@@ -14,7 +14,10 @@ function Get-ClosedInput {
     $raw = [Console]::In.ReadToEnd()
     if ([Text.Encoding]::UTF8.GetByteCount($raw) -gt 16384) { throw 'HQ_SUBMISSION_INPUT_TOO_LARGE' }
     try { $value = $raw | ConvertFrom-Json -ErrorAction Stop } catch { throw 'HQ_SUBMISSION_INPUT_INVALID_JSON' }
-    $allowed = @('mission_id','mission_revision','natural_request','parent_mission_revision','source_result_id','tim_required_request_id','response_id','response_record_sha256')
+    $allowed = @(
+        'mission_id','mission_revision','natural_request','parent_mission_revision','source_result_id','tim_required_request_id','response_id','response_record_sha256',
+        'recovery_parent_mission_id','recovery_parent_mission_revision','recovery_parent_run_id','recovery_source_evidence_sha256','recovery_evidence_directory'
+    )
     $unknown = @($value.PSObject.Properties.Name | Where-Object { $allowed -notcontains $_ })
     if ($unknown.Count) { throw "HQ_SUBMISSION_UNKNOWN_FIELD: $($unknown -join ',')" }
     return $value
@@ -30,9 +33,11 @@ $inputValue = Get-ClosedInput
 $missionId = [string]$inputValue.mission_id
 $revision = [int]$inputValue.mission_revision
 $isRevision = $inputValue.PSObject.Properties.Name -contains 'parent_mission_revision'
+$isRecovery = $inputValue.PSObject.Properties.Name -contains 'recovery_parent_mission_id'
 $naturalRequest = if ($inputValue.PSObject.Properties.Name -contains 'natural_request') { ([string]$inputValue.natural_request).Trim() } else { '' }
 Assert-BoundedText $missionId 160 'mission_id'
 if ($missionId -notmatch '^[A-Za-z0-9._:-]{8,160}$' -or $revision -lt 1) { throw 'HQ_SUBMISSION_INVALID_IDENTITY' }
+if ($isRevision -and $isRecovery) { throw 'HQ_SUBMISSION_REVISION_AND_RECOVERY_CONFLICT' }
 if (!$isRevision) {
     Assert-BoundedText $naturalRequest 4000 'natural_request'
     if ($revision -ne 1) { throw 'HQ_INITIAL_MISSION_REVISION_MUST_BE_ONE' }
@@ -43,6 +48,41 @@ if (!$isRevision) {
     if ([int]$inputValue.parent_mission_revision -lt 1 -or $revision -ne ([int]$inputValue.parent_mission_revision + 1)) { throw 'HQ_REVISION_SEQUENCE_INVALID' }
     if ([string]$inputValue.source_result_id -ne "canonical-result-$missionId-$([int]$inputValue.parent_mission_revision)") { throw 'HQ_REVISION_SOURCE_RESULT_MISMATCH' }
     if ([string]$inputValue.tim_required_request_id -notmatch '^timreq-[a-f0-9]{32}$' -or [string]$inputValue.response_id -notmatch '^hq-response-[A-Za-z0-9-]{16,80}$' -or [string]$inputValue.response_record_sha256 -notmatch '^[a-f0-9]{64}$') { throw 'HQ_REVISION_RESPONSE_BINDING_INVALID' }
+}
+$recoveryParentId = ''
+$recoveryParentRevision = 0
+$recoveryParentRunId = ''
+$recoveryEvidenceDirectory = ''
+$recoverySourceEvidenceSha256 = ''
+if ($isRecovery) {
+    $requiredRecoveryFields = @('recovery_parent_mission_id','recovery_parent_mission_revision','recovery_parent_run_id','recovery_source_evidence_sha256','recovery_evidence_directory')
+    $missingRecoveryFields = @($requiredRecoveryFields | Where-Object { !($inputValue.PSObject.Properties.Name -contains $_) })
+    if ($missingRecoveryFields.Count) { throw "HQ_RECOVERY_INPUT_MISSING_FIELD: $($missingRecoveryFields -join ',')" }
+    $recoveryParentId = [string]$inputValue.recovery_parent_mission_id
+    $recoveryParentRevision = [int]$inputValue.recovery_parent_mission_revision
+    $recoveryParentRunId = [string]$inputValue.recovery_parent_run_id
+    $recoverySourceEvidenceSha256 = [string]$inputValue.recovery_source_evidence_sha256
+    $recoveryEvidenceDirectory = Get-TsfKernelFullPath ([string]$inputValue.recovery_evidence_directory)
+    Assert-BoundedText $recoveryParentId 160 'recovery_parent_mission_id'
+    if ($recoveryParentId -eq $missionId -or $recoveryParentRevision -lt 1 -or $recoveryParentRunId -ne "canonical-result-$recoveryParentId-$recoveryParentRevision" -or $recoverySourceEvidenceSha256 -notmatch '^[a-f0-9]{64}$') { throw 'HQ_RECOVERY_IDENTITY_INVALID' }
+    $runtimeRoot = Get-TsfCanonicalRuntimeRoot
+    if (!(Test-TsfKernelPathInside $recoveryEvidenceDirectory $runtimeRoot) -or !(Test-TsfKernelReparseContained $recoveryEvidenceDirectory $repoRoot)) { throw 'HQ_RECOVERY_EVIDENCE_OUTSIDE_CANONICAL_RUNTIME' }
+    $stopPath = Join-Path $recoveryEvidenceDirectory 'STOP_RECORD.json'
+    $snapshotPath = Join-Path $recoveryEvidenceDirectory 'queue-record-preflight-pending.json'
+    if (!(Test-Path -LiteralPath $stopPath -PathType Leaf) -or !(Test-Path -LiteralPath $snapshotPath -PathType Leaf)) { throw 'HQ_RECOVERY_EVIDENCE_MISSING' }
+    $stopRecord = Read-TsfKernelJson $stopPath
+    if ([string]$stopRecord.schema_version -ne 'tsf_hq_dispatch_interruption_evidence_v1' -or [string]$stopRecord.mission_id -ne $recoveryParentId -or [int]$stopRecord.mission_revision -ne $recoveryParentRevision -or [string]$stopRecord.run_id -ne $recoveryParentRunId -or [string]$stopRecord.source_evidence_hash -ne $recoverySourceEvidenceSha256 -or [bool]$stopRecord.original_attempt_completed -or [bool]$stopRecord.original_attempt_resumable) { throw 'HQ_RECOVERY_STOP_RECORD_INVALID' }
+    $snapshotHash = (Get-FileHash -LiteralPath $snapshotPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($snapshotHash -ne [string]$stopRecord.queue_snapshot_sha256) { throw 'HQ_RECOVERY_QUEUE_SNAPSHOT_HASH_MISMATCH' }
+    $sourcePlan = New-TsfCompleteRuntimePathPlan -MissionId $recoveryParentId -MissionRevision $recoveryParentRevision -RunId $recoveryParentRunId
+    if (!(Test-Path -LiteralPath ([string]$sourcePlan.registry_mission_path) -PathType Leaf)) { throw 'HQ_RECOVERY_SOURCE_MISSION_MISSING' }
+    $sourceLifecyclePath = [string]$sourcePlan.lifecycle_plan.artifacts.lifecycle_result
+    if (Test-Path -LiteralPath $sourceLifecyclePath -PathType Leaf) {
+        $sourceLifecycle = Read-TsfKernelJson $sourceLifecyclePath
+        if ([string]$sourceLifecycle.terminal_status -eq 'TIM_REQUIRED' -or [string]$sourceLifecycle.terminal_status -like 'COMPLETED*') { throw 'HQ_RECOVERY_TERMINAL_SOURCE_REJECTED' }
+    }
+    $sourceAdmission = @(Get-ChildItem -LiteralPath ([string]$sourcePlan.preservation_plan.receipt_root) -Filter 'a-*.json' -File -ErrorAction SilentlyContinue)
+    if ($sourceAdmission.Count) { throw 'HQ_RECOVERY_COMPLETED_OR_ADMITTED_SOURCE_REJECTED' }
 }
 if ($TestOnlyInitialTimKind -ne 'NONE') {
     if ($isRevision -or !$TestOnlyQueueRoot) { throw 'HQ_TEST_TIM_KIND_REQUIRES_INITIAL_ISOLATED_FIXTURE' }
@@ -147,7 +187,7 @@ $mission = [pscustomobject][ordered]@{
     schema_version = 'tsf_mission_envelope_v1'
     mission_id = $missionId
     mission_revision = $revision
-    parent_mission_id = if($isRevision){$missionId}else{$null}
+    parent_mission_id = if($isRevision){$missionId}elseif($isRecovery){$recoveryParentId}else{$null}
     project_id = 'TSF_CONTROL_PLANE'
     original_request = $naturalRequest
     normalized_goal = 'Read the TSF-local fleet/control/policy-manifest.v1.json fixture and return exactly TSF_HQ_DISPATCH_READ_ONLY_GREEN. Do not use tools, modify files, access another repository, or use worker-tool network.'
@@ -215,6 +255,10 @@ if (Test-Path -LiteralPath $missionPath -PathType Leaf) {
 }
 
 $prepareParams = @{ DurableMissionPath = $missionPath }
+if ($isRecovery) {
+    $prepareParams.RecoveryFromMissionId = $recoveryParentId
+    $prepareParams.RecoveryEvidenceDirectory = $recoveryEvidenceDirectory
+}
 if ($TestOnlyQueueRoot) {
     $fixtureRoot = Get-TsfKernelFullPath (Join-Path $repoRoot '.codex-local\fixtures')
     $queueFull = Get-TsfKernelFullPath $TestOnlyQueueRoot
@@ -236,6 +280,12 @@ if ([string]$preparation.status -ne 'PREPARED' -or [string]::IsNullOrWhiteSpace(
     response_id = if($isRevision){[string]$inputValue.response_id}else{$null}
     response_record_path = if($isRevision){$responseRecordPath}else{$null}
     response_record_sha256 = if($isRevision){$responseRecordHash}else{$null}
+    recovery_parent_mission_id = if($isRecovery){$recoveryParentId}else{$null}
+    recovery_parent_mission_revision = if($isRecovery){$recoveryParentRevision}else{$null}
+    recovery_parent_run_id = if($isRecovery){$recoveryParentRunId}else{$null}
+    recovery_source_evidence_sha256 = if($isRecovery){$recoverySourceEvidenceSha256}else{$null}
+    recovery_evidence_directory = if($isRecovery){$recoveryEvidenceDirectory}else{$null}
+    old_thread_or_turn_resumed = $false
     mission_path = $missionPath
     mission_sha256 = (Get-FileHash $missionPath -Algorithm SHA256).Hash.ToLowerInvariant()
     queue_record_path = [string]$preparation.queue_record_path

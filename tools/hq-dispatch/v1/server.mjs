@@ -1,13 +1,28 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { readFileSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { HqMissionRelay } from "./mission-relay.mjs";
+import {
+  CANONICAL_QUEUE_ROOT,
+  CANONICAL_RUNTIME_ROOT,
+  HQ_HOST,
+  HQ_PORT,
+  LOCAL_LIFECYCLE_ROOT,
+  OWNER_PATH,
+  POWERSHELL_EXE as RELIABILITY_POWERSHELL_EXE,
+  ProcessOwnership,
+  REPOSITORY_ROOT as RELIABILITY_REPOSITORY_ROOT,
+  performRecoveryAction,
+  reconcileCanonicalState,
+  runDoctor,
+  writeInterruptionEvidence,
+} from "./reliability.mjs";
 
-const LOOPBACK_HOST = "127.0.0.1";
-const PRODUCTION_PORT = 4317;
+const LOOPBACK_HOST = HQ_HOST;
+const PRODUCTION_PORT = HQ_PORT;
 const MAX_REQUEST_BYTES = 8192;
 const MAX_WRAPPER_OUTPUT_BYTES = 1024 * 1024;
 const WRAPPER_TIMEOUT_MS = 15000;
@@ -15,8 +30,9 @@ const SESSION_TTL_MS = 30 * 60 * 1000;
 const SESSION_RATE_WINDOW_MS = 60 * 1000;
 const SESSION_RATE_LIMIT = 60;
 const SESSION_HEADER = "x-tsf-hq-session";
-const POWERSHELL_EXE = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+const POWERSHELL_EXE = RELIABILITY_POWERSHELL_EXE;
 const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("../../../", import.meta.url)));
+if (REPOSITORY_ROOT !== RELIABILITY_REPOSITORY_ROOT) throw new Error("HQ_DISPATCH_REPOSITORY_ROOT_DIVERGENCE");
 const PUBLIC_ROOT = path.join(REPOSITORY_ROOT, "tools", "hq-dispatch", "v1", "public");
 const PREVIEW_ROOT = path.join(REPOSITORY_ROOT, ".codex-local", "hq-dispatch", "preview");
 const ROUTE_PREVIEW_WRAPPER = path.join(
@@ -517,6 +533,103 @@ async function handleRequest(req, res, context) {
     return;
   }
 
+  if (req.method === "GET" && (url.pathname === "/api/v1/doctor" || url.pathname === "/api/v1/recovery" || url.pathname === "/api/v1/stop-status")) {
+    const body = await readBody(req);
+    if (body.byteLength !== 0) {
+      sendJson(res, 400, errorPayload("BODY_NOT_ALLOWED", "GET requests must not include a body."));
+      return;
+    }
+    if (!context.lifecycle) {
+      sendJson(res, 404, errorPayload("LIFECYCLE_PROJECTION_UNAVAILABLE", "Lifecycle projection is not enabled for this server."));
+      return;
+    }
+    if (url.pathname === "/api/v1/doctor") {
+      sendJson(res, 200, context.lifecycle.doctor());
+      return;
+    }
+    if (url.pathname === "/api/v1/recovery") {
+      sendJson(res, 200, context.lifecycle.reconcile());
+      return;
+    }
+    sendJson(res, 200, context.lifecycle.stopView());
+    return;
+  }
+
+  if (url.pathname === "/api/v1/recovery") {
+    if (req.method !== "POST") {
+      await readBody(req);
+      sendJson(res, 405, errorPayload("METHOD_NOT_ALLOWED", "Only POST is allowed for recovery decisions."), { Allow: "POST" });
+      return;
+    }
+    if (!context.lifecycle) {
+      await readBody(req);
+      sendJson(res, 404, errorPayload("LIFECYCLE_PROJECTION_UNAVAILABLE", "Lifecycle recovery is not enabled for this server."));
+      return;
+    }
+    if (!requireJson(req, res)) { await readBody(req); return; }
+    const auth = context.sessions.validate(req);
+    if (auth.error) { await readBody(req); sendJson(res, 403, errorPayload(auth.error, "Exact local operator session validation failed.")); return; }
+    const parsed = parseJsonObject(await readBody(req));
+    if (parsed.error) { sendJson(res, 400, parsed.error); return; }
+    const input = parsed.value;
+    const allowed = ["recovery_item_id", "evidence_hash", "action", "operator_confirmation"];
+    if (Object.keys(input).length !== allowed.length || Object.keys(input).some((key) => !allowed.includes(key)) || allowed.some((key) => typeof input[key] !== "string" || !input[key])) {
+      sendJson(res, 422, errorPayload("RECOVERY_INPUT_CONTRACT_INVALID", "Recovery requires only the exact evidence identity, action, and confirmation."));
+      return;
+    }
+    const reconciliation = context.lifecycle.reconcile();
+    const item = reconciliation.items.find((candidate) => candidate.recovery_item_id === input.recovery_item_id);
+    if (!item || item.evidence_hash !== input.evidence_hash) {
+      sendJson(res, 409, errorPayload("RECOVERY_SOURCE_EVIDENCE_CHANGED", "Canonical evidence changed; refresh Doctor and make a new decision."));
+      return;
+    }
+    try {
+      const result = await performRecoveryAction({
+        item,
+        action: input.action,
+        operatorConfirmation: input.operator_confirmation,
+        sessionGeneration: context.lifecycle.sessionGeneration,
+        sessionKey: auth.sessionKey,
+        relay: context.relay,
+        localRoot: context.lifecycle.localRoot,
+        serverInstanceId: context.lifecycle.serverInstanceId,
+      });
+      sendJson(res, 200, result);
+    } catch (error) {
+      relayError(res, error);
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/v1/admin/stop") {
+    if (req.method !== "POST") {
+      await readBody(req);
+      sendJson(res, 405, errorPayload("METHOD_NOT_ALLOWED", "Only POST is allowed for exact owned shutdown."), { Allow: "POST" });
+      return;
+    }
+    if (!context.lifecycle || !requireJson(req, res)) { await readBody(req); if (!context.lifecycle) sendJson(res, 404, errorPayload("LIFECYCLE_PROJECTION_UNAVAILABLE", "Owned shutdown is unavailable.")); return; }
+    const parsed = parseJsonObject(await readBody(req));
+    if (parsed.error) { sendJson(res, 400, parsed.error); return; }
+    const keys = Object.keys(parsed.value);
+    if (keys.length !== 3 || keys.some((key) => !["server_instance_id", "evidence_hash", "process_id"].includes(key)) || !context.lifecycle.authenticateStop(req.headers["x-tsf-hq-stop"], parsed.value)) {
+      sendJson(res, 403, errorPayload("EXACT_OWNER_STOP_AUTHENTICATION_FAILED", "Stop rejected because process, instance, evidence, or local capability identity did not match."));
+      return;
+    }
+    context.acceptingMissions = false;
+    context.sessions.invalidate();
+    sendJson(res, 202, {
+      schema_version: "tsf_hq_dispatch_stop_accepted_v1",
+      server_instance_id: context.lifecycle.serverInstanceId,
+      active_mission: context.lifecycle.owner.owner?.active_mission ?? null,
+      owned_child_process_ids: context.lifecycle.owner.owner?.owned_child_process_ids ?? [],
+      behavior: "STOP_ACCEPTING_THEN_COOPERATIVE_DRAIN_OR_EXACT_OWNED_TREE_TERMINATION",
+      canonical_records_preserved: true,
+      operator_session_invalidated: true,
+    });
+    setImmediate(() => { void context.lifecycle.requestStop("EXACT_OPERATOR_STOP"); });
+    return;
+  }
+
   if (url.pathname === "/api/v1/session") {
     if (req.method !== "POST") {
       await readBody(req);
@@ -546,6 +659,7 @@ async function handleRequest(req, res, context) {
       schema_version: "tsf_hq_dispatch_operator_session_v1",
       session_token: issued.token,
       expires_at: new Date(issued.expiresAt).toISOString(),
+      operator_session_generation: context.lifecycle?.sessionGeneration ?? "TEST_PROCESS_LOCAL_GENERATION",
       origin: exactOrigin(req),
       local_browser_session_only: true,
       grants_tsf_authority: false,
@@ -577,7 +691,10 @@ async function handleRequest(req, res, context) {
       schema_version: "tsf_hq_dispatch_health_v1",
       status: "ok",
       banner: "PREVIEW_ONLY_NOT_AUTHORITY",
-      listener: { host: LOOPBACK_HOST, port: PRODUCTION_PORT, loopback_only: true },
+      listener: { host: LOOPBACK_HOST, port: req.socket.localPort, loopback_only: true },
+      server_instance_id: context.lifecycle?.serverInstanceId ?? null,
+      operator_session_generation: context.lifecycle?.sessionGeneration ?? null,
+      lifecycle_mode: context.lifecycle?.mode ?? "TEST",
       operations: [
         "GET /health",
         "GET /api/v1/registries",
@@ -672,6 +789,7 @@ async function handleRequest(req, res, context) {
       return;
     }
     if (!requireJson(req, res)) { await readBody(req); return; }
+    if (!context.acceptingMissions) { await readBody(req); sendJson(res, 503, errorPayload("SERVER_SHUTTING_DOWN", "HQ Dispatch is not accepting new mission submissions.")); return; }
     const auth = context.sessions.validate(req);
     if (auth.error) { await readBody(req); sendJson(res, 403, errorPayload(auth.error, "Exact local operator session validation failed.")); return; }
     const parsed = parseJsonObject(await readBody(req));
@@ -716,8 +834,9 @@ async function handleRequest(req, res, context) {
   );
 }
 
-function createHqDispatchServer(options = {}) {
+export function createHqDispatchServer(options = {}) {
   const sessions = createSessionBoundary(options.sessionOptions);
+  const lifecycle = options.lifecycle ?? null;
   const relay = options.relay ?? new HqMissionRelay({
     repositoryRoot: REPOSITORY_ROOT,
     powershellExe: POWERSHELL_EXE,
@@ -728,8 +847,14 @@ function createHqDispatchServer(options = {}) {
     executionAdapter: options.executionAdapter ?? null,
     responseAdapter: options.responseAdapter ?? null,
     workerTimeoutSeconds: options.workerTimeoutSeconds ?? 180,
+    onChildStart: lifecycle ? (child) => lifecycle.owner.childStarted(child) : null,
+    onChildExit: lifecycle ? (processId) => lifecycle.owner.childExited(processId) : null,
+    onMissionChange: lifecycle ? (mission) => lifecycle.owner.missionChanged(mission) : null,
+    onInterrupted: lifecycle ? (record) => lifecycle.recordInterruption(record) : null,
+    terminateOwnedChild: lifecycle ? (child) => lifecycle.owner.terminateOwnedChildTree(child) : null,
+    testOnlyInterruptionBarrier: options.testOnlyInterruptionBarrier ?? null,
   });
-  const context = { sessions, relay };
+  const context = { sessions, relay, lifecycle, acceptingMissions: true };
   const server = createServer((req, res) => {
     handleRequest(req, res, context).catch((error) => {
       const code =
@@ -755,18 +880,23 @@ function createHqDispatchServer(options = {}) {
   });
   server.hqDispatchRelay = relay;
   let shutdownPromise = null;
-  server.hqDispatchShutdown = () => {
+  server.hqDispatchShutdown = (reason = "SERVER_CLOSE") => {
     if (!shutdownPromise) {
+      context.acceptingMissions = false;
       sessions.invalidate();
-      shutdownPromise = relay.shutdown();
+      if (lifecycle?.owner?.owner) {
+        try { lifecycle.owner.stopping(); } catch { /* Preserve mismatched owner evidence for Doctor. */ }
+      }
+      shutdownPromise = relay.shutdown(reason);
     }
     return shutdownPromise;
   };
+  server.hqDispatchContext = context;
   server.once("close", () => { void server.hqDispatchShutdown(); });
   return server;
 }
 
-function listen(server, port) {
+export function listenHqDispatchServer(server, port) {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, LOOPBACK_HOST, () => {
@@ -777,7 +907,7 @@ function listen(server, port) {
 }
 
 export async function startHqDispatchServerForTest(options = {}) {
-  return listen(createHqDispatchServer(options), 0);
+  return listenHqDispatchServer(createHqDispatchServer(options), 0);
 }
 
 async function main() {
@@ -788,16 +918,94 @@ async function main() {
     process.exitCode = 64;
     return;
   }
-  const server = await listen(createHqDispatchServer(), PRODUCTION_PORT);
-  process.stdout.write(
-    `TSF HQ Dispatch V1 listening at http://${LOOPBACK_HOST}:${PRODUCTION_PORT} PREVIEW_ONLY_NOT_AUTHORITY\n`,
-  );
-  const close = async () => {
-    await server.hqDispatchShutdown();
-    server.close(() => process.exit(0));
-  };
-  process.once("SIGINT", close);
-  process.once("SIGTERM", close);
+  const doctor = runDoctor();
+  if (!doctor.safe_to_start) {
+    process.stderr.write(`${JSON.stringify({ status: doctor.overall_status, safe_to_start: false, exact_next_action: doctor.exact_next_action })}\n`);
+    process.exitCode = 78;
+    return;
+  }
+
+  const owner = new ProcessOwnership();
+  owner.claim();
+  let server;
+  let closing = null;
+  try {
+    const lifecycle = {
+      mode: "PRODUCTION",
+      owner,
+      localRoot: LOCAL_LIFECYCLE_ROOT,
+      sessionGeneration: owner.sessionGeneration,
+      serverInstanceId: owner.serverInstanceId,
+      doctor: () => runDoctor(),
+      reconcile: () => reconcileCanonicalState(),
+      stopView: () => {
+        const reconciliation = reconcileCanonicalState();
+        return {
+          schema_version: "tsf_hq_dispatch_stop_view_v1",
+          server_instance: owner.serverInstanceId,
+          lifecycle_state: owner.owner?.lifecycle_state ?? "UNKNOWN",
+          active_mission: owner.owner?.active_mission ?? null,
+          owned_child: owner.owner?.owned_children ?? [],
+          behavior: "Stop accepting submissions, request cooperative child exit, then terminate only the exact verified owned child tree if the grace bound expires.",
+          session_invalidation: "ALL_IN_MEMORY_OPERATOR_SESSIONS_INVALIDATED_ON_STOP",
+          remaining_canonical_work: reconciliation.items.filter((item) => !item.classification.startsWith("COMPLETED_")).map((item) => ({ recovery_item_id: item.recovery_item_id, mission_id: item.mission_id, mission_revision: item.mission_revision, status: item.classification, recommended_action: item.recommended_action })),
+        };
+      },
+      authenticateStop: (token, body) => owner.authenticateStop(token, body),
+      recordInterruption: (record) => {
+        const reconciliation = reconcileCanonicalState();
+        let item = reconciliation.items.find((candidate) => candidate.mission_id === record.missionId && candidate.mission_revision === record.revision && candidate.run_id === record.preparation?.run_id);
+        if (!item) {
+          const runtimeQueue = record.preparation?.queue_result_path ? path.join(path.dirname(record.preparation.queue_result_path), "qd.json") : null;
+          const queuePaths = [record.preparation?.queue_record_path, runtimeQueue].filter((candidate) => candidate && existsSync(candidate));
+          const evidenceHash = createHash("sha256").update(JSON.stringify({ mission_id: record.missionId, mission_revision: record.revision, run_id: record.preparation?.run_id, queue_hashes: queuePaths.map((candidate) => createHash("sha256").update(readFileSync(candidate)).digest("hex")) })).digest("hex");
+          item = {
+            recovery_item_id: `recovery-${evidenceHash.slice(0, 32)}`,
+            evidence_hash: evidenceHash,
+            mission_id: record.missionId,
+            mission_revision: record.revision,
+            run_id: record.preparation?.run_id,
+            result_id: record.preparation?.run_id,
+            classification: "INTERRUPTED_PROCESS_GONE",
+            canonical_paths: { queue_documents: queuePaths, runtime_queue_document: runtimeQueue ? [runtimeQueue] : [] },
+            last_canonical_event: queuePaths[0] ? { path: queuePaths[0] } : null,
+          };
+        }
+        return writeInterruptionEvidence({ item, reason: "HQ_DISPATCH_SERVER_SHUTDOWN_DURING_EXECUTION", serverInstanceId: owner.serverInstanceId, operatorInitiated: true });
+      },
+      requestStop: null,
+    };
+    server = createHqDispatchServer({ lifecycle });
+    const close = (reason) => {
+      if (!closing) {
+        closing = (async () => {
+          await server.hqDispatchShutdown(reason);
+          await new Promise((resolve) => {
+            if (!server.listening) { resolve(); return; }
+            server.close(resolve);
+          });
+          if (server.hqDispatchRelay.activeChild) throw new Error("OWNED_CHILD_REMAINS_AFTER_SHUTDOWN");
+          owner.release();
+        })().catch((error) => {
+          process.stderr.write(`HQ Dispatch cleanup failed closed: ${error instanceof Error ? error.message : "UNKNOWN"}\n`);
+          process.exitCode = 1;
+        });
+      }
+      return closing;
+    };
+    lifecycle.requestStop = close;
+    await listenHqDispatchServer(server, PRODUCTION_PORT);
+    owner.activate();
+    process.stdout.write(
+      `TSF HQ Dispatch V1 listening at http://${LOOPBACK_HOST}:${PRODUCTION_PORT} PREVIEW_ONLY_NOT_AUTHORITY\nCanonical runtime root: ${CANONICAL_RUNTIME_ROOT}\nCanonical queue root: ${CANONICAL_QUEUE_ROOT}\nLocal lifecycle root: ${LOCAL_LIFECYCLE_ROOT}\nServer instance: ${owner.serverInstanceId}\n`,
+    );
+    process.once("SIGINT", () => { void close("SIGINT"); });
+    process.once("SIGTERM", () => { void close("SIGTERM"); });
+  } catch (error) {
+    if (server?.listening) await new Promise((resolve) => server.close(resolve));
+    owner.release();
+    throw error;
+  }
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";

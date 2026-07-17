@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/hq-dispatch/hq-dispatch-interruption-evidence.schema.v1.json",
+  "title": "TSF HQ Dispatch interruption evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "mission_id", "mission_revision", "run_id", "result_id", "recorded_at", "reason",
+    "server_instance_id", "operator_initiated", "original_attempt_completed", "original_attempt_resumable",
+    "automatic_retry_performed", "old_thread_or_turn_resumed", "queue_record_path", "queue_record_sha256",
+    "queue_snapshot_path", "queue_snapshot_sha256", "source_evidence_hash", "interruption_identity_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_hq_dispatch_interruption_evidence_v1" },
+    "mission_id": { "type": "string", "minLength": 8, "maxLength": 160 },
+    "mission_revision": { "type": "integer", "minimum": 1 },
+    "run_id": { "type": "string", "minLength": 8 },
+    "result_id": { "type": "string", "minLength": 8 },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "reason": { "type": "string", "minLength": 1 },
+    "server_instance_id": { "type": ["string", "null"] },
+    "operator_initiated": { "type": "boolean" },
+    "original_attempt_completed": { "const": false },
+    "original_attempt_resumable": { "const": false },
+    "automatic_retry_performed": { "const": false },
+    "old_thread_or_turn_resumed": { "const": false },
+    "queue_record_path": { "type": "string", "minLength": 1 },
+    "queue_record_sha256": { "$ref": "#/$defs/sha256" },
+    "queue_snapshot_path": { "type": "string", "minLength": 1 },
+    "queue_snapshot_sha256": { "$ref": "#/$defs/sha256" },
+    "source_evidence_hash": { "$ref": "#/$defs/sha256" },
+    "interruption_identity_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": { "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
