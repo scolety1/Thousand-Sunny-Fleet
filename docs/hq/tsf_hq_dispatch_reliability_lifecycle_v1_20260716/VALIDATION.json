@@ -1,0 +1,172 @@
+{
+  "schema_version": "tsf_hq_dispatch_reliability_lifecycle_validation_v1",
+  "generated_at": "2026-07-17T20:27:10.3825028Z",
+  "builder_status": "GREEN_ALL_IMPLEMENTATION_DETERMINISTIC_REGRESSION_AND_REAL_PROOF_GATES",
+  "publication_status": "PENDING_INDEPENDENT_TESTER_AND_MANDATORY_GPT_5_6_SOL_AUDITOR",
+  "repository": {
+    "worktree": "C:\\TSF_M3",
+    "branch": "work/tsf-hq-dispatch-reliability-lifecycle-v1-20260716",
+    "starting_head": "6f0fc0a481f2832a60073e872854f56ac6207516",
+    "starting_tree": "255d6264e3f02b2057dea5dabeea982da7bdc24a",
+    "origin_main": "6f0fc0a481f2832a60073e872854f56ac6207516",
+    "candidate_implementation_tree_before_validation_seal": "e3d3a250bd662914302d898a4046943229962c8a",
+    "staged_paths_at_static_gate": 0,
+    "owner_record_present_at_seal": false,
+    "port_4317_listeners_at_seal": 0
+  },
+  "adoption": {
+    "status": "ADOPT_EXISTING_M3_WORKTREE_HASHES_REVERIFIED",
+    "bundle": ".codex-local/recovery/overnight-m3-adoption",
+    "hashes": {
+      "tracked.patch": "e210173417dcc4ca1c60831b79a99e406af25f0c9a651a43d755bebfc9c50bdd",
+      "staged.patch": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "untracked.tar": "253c3d1fd3065bfcf642533d4b3284cf0907e8658fb125f95662cd8d84bd30b0",
+      "ADOPTION.json": "d95dc30190805a59b35143811288ac0b06d5e795efcfd2f9875c7f722cb63c38",
+      "changed-files.sha256": "798823ac6491dd2cb94e8b05b7c7ef57361eb6653d74c5c84b07053668c11e20",
+      "CLASSIFICATION.md": "0d971d575d5a2c02aa4448deb1142ee2d81af066d599037002b68a4044612168",
+      "status-porcelain-v2.txt": "c43ed4b42e4f6ea308732136199f90f9ba2d184044327841ef9820ca2734fb6a"
+    }
+  },
+  "test_only_interruption_seam": {
+    "fixture_type": "TSF_HQ_DISPATCH_M3_REAL_INTERRUPTION_FIXTURE_V1",
+    "activation": "DIRECT_IN_MEMORY_TEST_DEPENDENCY_INJECTION_ONLY",
+    "hook_point": "REAL_APP_SERVER_PROCESS_SUSPENDED_BEFORE_TERMINAL_RESULT",
+    "production_activation_surfaces": [],
+    "safety_suite_assertions": 25,
+    "safety_suite_exit_code": 0,
+    "safety_stdout_sha256": "e3bee010b436ac5c3a112688ab19a7f125c61dd65a7f2b81aa076d320f063dbd",
+    "safety_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "real_proof": {
+    "command": "node.exe .\\tests\\test-tsf-hq-dispatch-real-reliability-v1.mjs",
+    "started_utc": "2026-07-17T20:02:16.2108209Z",
+    "finished_utc": "2026-07-17T20:03:40.9733028Z",
+    "process_id": 29584,
+    "exit_code": 0,
+    "assertions": 83,
+    "stdout_sha256": "c0697cbe41c2e2570fe954d2d9777013ce3ce1a8ed14c87e90bb19f7b643332b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture_root": "C:\\TSF_M3\\.codex-local\\fixtures\\hq-dispatch-m3-real-interruption-v1\\run-mrpd6q1v-29584",
+    "interrupted": {
+      "server_process_id": 36284,
+      "server_instance_id": "hq-instance-d5f96e23-492a-4f44-883b-1c57af361d5b",
+      "mission_id": "hq2-mrpd6ya4-c4c88a",
+      "revision": 1,
+      "run_id": "canonical-result-hq2-mrpd6ya4-c4c88a-1",
+      "result_id_when_allocated": "canonical-result-hq2-mrpd6ya4-c4c88a-1",
+      "executor_process_id": 22352,
+      "executor_process_start_time": "2026-07-17T20:02:30.5479175Z",
+      "app_server_process_id": 27756,
+      "app_server_process_start_time": "2026-07-17T20:02:36.4891010Z",
+      "barrier_ready_sha256": "ab323b8c6b69c87ac222c83d335f4b693f01bde1987a4fd7742aca77e0152ffc",
+      "stop_requested_at": "2026-07-17T20:02:38.687Z",
+      "stop_record_sha256": "bc7845797c5a15acd799f057b161ffc094ab3c33c3a3e202a150ae08951ebb52",
+      "final_queue_observation": "worker_running",
+      "verifier_success": false,
+      "admission_receipt_present": false,
+      "restart_doctor_classification": "INTERRUPTED_PROCESS_GONE",
+      "automatic_rerun": false
+    },
+    "recovery": {
+      "server_process_id": 33992,
+      "server_instance_id": "hq-instance-a3764b8d-cdb1-44e6-bdd8-3de604a5434d",
+      "new_mission_id": "hq2-mrpd6ya4-c4c88a-retry-6a9d2b7dff838556",
+      "new_run_id": "canonical-result-hq2-mrpd6ya4-c4c88a-retry-6a9d2b7dff838556-1",
+      "new_result_id": "canonical-result-hq2-mrpd6ya4-c4c88a-retry-6a9d2b7dff838556-1",
+      "thread_id": "019f71ad-062f-7ca0-81a5-90f52b9b919a",
+      "turn_id": "019f71ad-1bab-70b1-9742-c3120cde6c67",
+      "app_server_process_id": 34232,
+      "verifier_identity": "canonical-kernel-postrun",
+      "admission_state": "ADMITTED_WITH_CAVEATS",
+      "admission_receipt_id": "admission-n6pg773tngptf57xw3ea4iak",
+      "admission_receipt_sha256": "8505acebe5d504d87ce277c6bfcffd83ab246554e02254ad98a805c167759b1b",
+      "recovery_receipt_id": "hq-recovery-receipt-a952c465a0173fb49a8e671d1d55dce4",
+      "recovery_receipt_sha256": "c9dbeec9c9851a6d2245be9fc3e0f8413c5ad6ff72fcc0e4ad4de6ea09a1e823",
+      "old_identities_reused": false,
+      "original_run_immutable": true
+    },
+    "completed_race_preserved": {
+      "lifecycle": "COMPLETED_GREEN",
+      "worker": "CODEX_APP_SERVER_WORKER_GREEN",
+      "verifier": "GREEN",
+      "queue": "postrun_pending",
+      "admission_receipt_present": false,
+      "reconciliation": "RESULT_WITHOUT_ADMISSION",
+      "relabeled_or_rewritten": false
+    }
+  },
+  "aggregate": {
+    "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/run-tsf-hq-dispatch-reliability-v1.ps1",
+    "exit_code": 0,
+    "generated_at": "2026-07-17T20:07:13.4791325Z",
+    "summary_sha256": "1e3ca806fc71f2f300e635803c67c9b44b0403c62e5568f90d1e11c47d35db92",
+    "suites": {
+      "failure_injection_matrix": { "assertions": 60, "stdout_sha256": "a42607d9b2ba6732b824a1d567f34262e2151d5dc037c9702539c6e31381c58d" },
+      "start_doctor_stop": { "assertions": 24, "stdout_sha256": "7e1f1f3c0c6bc74213e0ea3d74c2895640553fed28925fa5ddb4308deb38caec" },
+      "demo": { "assertions": 20, "stdout_sha256": "ba82efc8dcecf625cb51f8288010e9e61cca80755b6fee9326dcba3b8f9cb3c4" },
+      "restart_tim_required": { "stdout_sha256": "c14afea96a9a911a080b4fc624fac8c1f3579cdcad97dfaa99fa1f3ce4cc4a18" },
+      "barrier_safety": { "assertions": 25, "stdout_sha256": "e3bee010b436ac5c3a112688ab19a7f125c61dd65a7f2b81aa076d320f063dbd" },
+      "milestone_2a": { "assertions": 93, "stdout_sha256": "00dea00f7898d3e411179b1cf3481b034f393f266ce847f417b979d092ec3311" },
+      "milestone_2b_http": { "assertions": 89, "stdout_sha256": "550f28291d4a852f7e6fb08edbc81b0f6a456d99e2e6586757c933f475981a35" },
+      "milestone_2b_canonical": { "assertions": 152, "stdout_sha256": "99846d767204596d6eb75bb80092323a9a63b82ebd675e583fe7fd5763c244cd" }
+    },
+    "empty_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_diff_check_stderr_warning_sha256": "0ea56cc00e9a3cb4446d389bba77ab34c8e42fe4676b966439b688c9222d088e"
+  },
+  "post_seal_aggregate": {
+    "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/run-tsf-hq-dispatch-reliability-v1.ps1 -EvidenceRoot <evidence>/suite",
+    "started_utc": "2026-07-17T20:24:29.8600538Z",
+    "finished_utc": "2026-07-17T20:27:10.3825028Z",
+    "exit_code": 0,
+    "stdout_sha256": "e1026d9d3a1e6181bc3da5916c6c1efbb0d7b3f26ea0fcd28a74abafcce20a82",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "suite_summary_sha256": "ba6d98ab5842e704ed32dc2c6eb4efe1e4b04a142df4065e5b9d72a6df37186d",
+    "evidence_root": ".codex-local/evidence/m3-post-seal/20260717T202429833Z"
+  },
+  "regression_pack": {
+    "status": "PASS",
+    "evidence_root": ".codex-local/evidence/m3-final-regressions/20260717T200951043Z",
+    "summary_file": "regression-summary.json",
+    "suite_count": 12,
+    "failed_suites": 0,
+    "not_run_as_gates": [
+      "run-tsf-self-hosted-lifecycle-recovery-tests.ps1 expects a non-present historical ignored STOP_RECORD fixture",
+      "run-tsf-optional-lifecycle-argument-tests.ps1 expects the same non-present historical fixture",
+      "run-tsf-main-bot-self-continuation-tests.ps1 contains an approval that expired on 2026-07-10 and correctly fails closed"
+    ]
+  },
+  "candidate_static": {
+    "status": "PASS",
+    "evidence_root": ".codex-local/evidence/m3-final-static/20260717T201647902Z",
+    "protected_path_unexpected": 0,
+    "powershell_errors": 0,
+    "json_errors": 0,
+    "csv_errors": 0,
+    "node_errors": 0,
+    "plugin_import_hits": 0,
+    "public_barrier_hits": 0,
+    "git_diff_check_exit": 0,
+    "path_budget_maximum": 138,
+    "path_budget_target": 225,
+    "doctor_exit": 4,
+    "doctor_status": "UNSAFE_TO_START",
+    "doctor_disposition": "EXPECTED_FAIL_CLOSED_FOR_UNCOMMITTED_CANDIDATE_AND_PRESERVED_SYNTHETIC_CONFLICT_FIXTURES",
+    "owner_record_present": false,
+    "listener_count": 0
+  },
+  "prohibitions_observed": {
+    "merge": false,
+    "auto_merge": false,
+    "milestone_4_source_work": false,
+    "product_repository_access": false,
+    "plugin_use": false,
+    "credential_value_access": false,
+    "deployment": false,
+    "package_installation": false,
+    "service_creation": false,
+    "scheduled_task_creation": false,
+    "remote_listener": false,
+    "background_or_detached_process": false,
+    "unrelated_repository_access": false
+  }
+}

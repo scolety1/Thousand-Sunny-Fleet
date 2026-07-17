@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/hq-dispatch/hq-dispatch-process-owner.schema.v1.json",
+  "title": "TSF HQ Dispatch local process ownership evidence V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "lifecycle_state", "mode", "process_id", "process_start_time", "executable",
+    "repository", "worktree", "branch", "commit", "host", "port", "server_instance_id",
+    "operator_session_generation", "owned_child_process_ids", "owned_children", "active_mission",
+    "created_at", "updated_at", "control_token_sha256", "evidence_hash"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_hq_dispatch_process_owner_v1" },
+    "lifecycle_state": { "enum": ["STARTING", "ACTIVE", "STOPPING"] },
+    "mode": { "enum": ["PRODUCTION", "DEMO_FIXTURE_ONLY"] },
+    "process_id": { "type": "integer", "minimum": 1 },
+    "process_start_time": { "type": "string", "format": "date-time" },
+    "executable": { "type": "string", "minLength": 1 },
+    "repository": { "type": "string", "minLength": 1 },
+    "worktree": { "type": "string", "minLength": 1 },
+    "branch": { "type": ["string", "null"] },
+    "commit": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+    "host": { "const": "127.0.0.1" },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "server_instance_id": { "type": "string", "pattern": "^hq-instance-[A-Za-z0-9-]+$" },
+    "operator_session_generation": { "type": "string", "pattern": "^hq-session-generation-[A-Za-z0-9-]+$" },
+    "owned_child_process_ids": { "type": "array", "uniqueItems": true, "items": { "type": "integer", "minimum": 1 } },
+    "owned_children": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["process_id", "process_start_time", "executable", "process_name"],
+        "properties": {
+          "process_id": { "type": "integer", "minimum": 1 },
+          "process_start_time": { "type": "string", "format": "date-time" },
+          "executable": { "type": "string", "minLength": 1 },
+          "process_name": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "active_mission": { "type": ["object", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "control_token_sha256": { "$ref": "#/$defs/sha256" },
+    "evidence_hash": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": { "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

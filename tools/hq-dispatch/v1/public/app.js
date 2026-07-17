@@ -21,6 +21,117 @@ function setText(selector, value) {
   if (element) element.textContent = value;
 }
 
+function pretty(value) {
+  return JSON.stringify(value, null, 2);
+}
+
+function renderDoctorStatus(report) {
+  setText("#doctor-overall", report.overall_status);
+  document.querySelector("#doctor-overall")?.classList.toggle("is-gated", ["UNSAFE_TO_START", "TIM_REQUIRED", "ACTION_REQUIRED"].includes(report.overall_status));
+  setText("#doctor-repository", `${report.repository.head?.slice(0, 12) ?? "unknown commit"}`);
+  setText("#doctor-branch", report.repository.branch ?? "detached / unavailable");
+  setText("#doctor-listener", `${report.listener_state.host}:${report.listener_state.port} · ${report.listener_state.listeners.length ? "LISTENING" : "CLOSED"}`);
+  setText("#doctor-owner", report.process_owner.disposition);
+  setText("#doctor-child", report.active_child.length ? report.active_child.map((child) => `PID ${child.process_id}`).join(", ") : "No active owned child");
+  setText("#doctor-path-budget", `${report.path_budget.maximum_path_length}/${report.path_budget.target_limit} characters`);
+  setText("#doctor-queue", Object.entries(report.queue_consistency).map(([key, count]) => `${key}: ${count}`).join(" · ") || "No canonical mission records");
+  setText("#doctor-recovery-counts", `TIM_REQUIRED ${report.pending_tim_required_requests} · interrupted ${report.interrupted_missions} · conflicts ${report.duplicate_replay_conflicts}`);
+  setText("#doctor-next-action", report.exact_next_action);
+  const unsafeChecks = report.checks.filter((item) => item.status === "UNSAFE_TO_START");
+  const startupBlock = document.querySelector("#startup-block");
+  startupBlock.hidden = unsafeChecks.length === 0;
+  if (unsafeChecks.length) {
+    setText("#startup-block-reason", unsafeChecks.map((item) => `${item.id}: ${item.next_action}`).join(" "));
+    setText("#startup-block-evidence", pretty(unsafeChecks.map((item) => ({ id: item.id, status: item.status, evidence: item.evidence }))));
+  }
+}
+
+async function sendRecoveryAction(item, action, button) {
+  if (!operatorSessionToken) {
+    setText("#recovery-message", "A fresh in-memory operator session is required.");
+    return;
+  }
+  button.disabled = true;
+  setText("#recovery-message", `Revalidating canonical evidence for ${action}…`);
+  try {
+    const response = await fetch("/api/v1/recovery", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-TSF-HQ-Session": operatorSessionToken },
+      body: JSON.stringify({ recovery_item_id: item.recovery_item_id, evidence_hash: item.evidence_hash, action, operator_confirmation: action }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error?.code ?? "Recovery action failed closed.");
+    if (payload.mission_status) renderMission(payload.mission_status);
+    if (payload.new_run) renderMission(payload.new_run);
+    setText("#recovery-message", `${action}: ${payload.changed ? "receipt created" : "read-only or idempotent result"}. Canonical history remains immutable.`);
+    await loadLifecycle();
+  } catch (error) {
+    setText("#recovery-message", error instanceof Error ? error.message : "Recovery action failed closed.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderRecoveryCenter(reconciliation) {
+  const list = document.querySelector("#recovery-list");
+  const fragment = document.createDocumentFragment();
+  const items = reconciliation.items.filter((item) => Array.isArray(item.safe_operator_options) && item.safe_operator_options.length > 0);
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No canonical recovery decision is currently pending.";
+    fragment.append(empty);
+  }
+  for (const item of items) {
+    const card = document.createElement("article");
+    const header = document.createElement("div");
+    const title = document.createElement("strong");
+    const status = document.createElement("code");
+    const detail = document.createElement("pre");
+    const warning = document.createElement("p");
+    const actions = document.createElement("div");
+    card.className = "recovery-card";
+    header.className = "recovery-card-header";
+    actions.className = "recovery-actions";
+    title.textContent = `${item.mission_id} · revision ${item.mission_revision}`;
+    status.textContent = item.classification;
+    header.append(title, status);
+    detail.textContent = pretty({ run_id: item.run_id, result_id: item.result_id, last_queue_state: item.last_known_queue_state, last_canonical_event: item.last_canonical_event, admission: item.admission_state, verifier: item.verifier_state, process: item.process_evidence, duplicate_replay: item.duplicate_replay_state, source_evidence_hash: item.evidence_hash, recommended_action: item.recommended_action, authority_required: item.authority_required });
+    warning.textContent = item.immutable_history_warning;
+    for (const action of item.safe_operator_options) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = `Confirm ${action.replaceAll("_", " ")}`;
+      button.addEventListener("click", () => sendRecoveryAction(item, action, button));
+      actions.append(button);
+    }
+    card.append(header, detail, warning, actions);
+    fragment.append(card);
+  }
+  list.replaceChildren(fragment);
+}
+
+async function loadLifecycle() {
+  try {
+    const [doctorResponse, recoveryResponse, stopResponse, healthResponse] = await Promise.all([
+      fetch("/api/v1/doctor", { headers: { Accept: "application/json" } }),
+      fetch("/api/v1/recovery", { headers: { Accept: "application/json" } }),
+      fetch("/api/v1/stop-status", { headers: { Accept: "application/json" } }),
+      fetch("/health", { headers: { Accept: "application/json" } }),
+    ]);
+    if (![doctorResponse, recoveryResponse, stopResponse, healthResponse].every((response) => response.ok)) throw new Error("Lifecycle projection failed closed.");
+    const [doctor, reconciliation, stopView, health] = await Promise.all([doctorResponse.json(), recoveryResponse.json(), stopResponse.json(), healthResponse.json()]);
+    renderDoctorStatus(doctor);
+    renderRecoveryCenter(reconciliation);
+    setText("#stop-view-output", pretty(stopView));
+    document.querySelector("#demo-fixture-banner").hidden = health.lifecycle_mode !== "DEMO_FIXTURE_ONLY";
+  } catch (error) {
+    setText("#doctor-overall", "UNSAFE_TO_START");
+    setText("#doctor-next-action", error instanceof Error ? error.message : "Lifecycle projection failed closed.");
+  }
+}
+
+document.querySelector("#recovery-refresh")?.addEventListener("click", loadLifecycle);
+
 function replaceList(selector, values, formatter = (value) => value) {
   const list = document.querySelector(selector);
   const fragment = document.createDocumentFragment();
@@ -363,7 +474,7 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-Promise.all([loadRegistries(), acquireSession()]).catch(() => {
+Promise.all([loadRegistries(), acquireSession(), loadLifecycle()]).catch(() => {
   requestStatus.classList.add("is-error");
   requestStatus.textContent = "Local operator session initialization failed closed.";
   previewButton.disabled = true;

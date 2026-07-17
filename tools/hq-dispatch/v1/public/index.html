@@ -27,12 +27,71 @@
         </div>
       </div>
       <div class="header-posture">
-        <span>V1 / Milestone 2</span>
+        <span>V1 / Milestone 3</span>
         <strong>Loopback only</strong>
       </div>
     </header>
 
     <main>
+      <section class="lifecycle-shell" aria-labelledby="doctor-heading">
+        <div id="demo-fixture-banner" class="boundary-note" hidden>
+          <strong>FIXTURE BEHAVIOR — NOT REAL APP-SERVER BEHAVIOR.</strong>
+          <span>This deterministic demo uses only its isolated TSF-local fixture roots. It requires no product repository, plugin, credential, or external network.</span>
+        </div>
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Operator lifecycle</p>
+            <h2 id="doctor-heading">Doctor, recovery, and exact owned stop</h2>
+          </div>
+          <span id="doctor-overall" class="classification-pill">Loading Doctor</span>
+        </div>
+        <div class="lifecycle-grid">
+          <article class="registry-card">
+            <p class="registry-label">Repository / commit</p>
+            <strong id="doctor-repository">—</strong>
+            <span id="doctor-branch">—</span>
+          </article>
+          <article class="registry-card">
+            <p class="registry-label">Listener / owner</p>
+            <strong id="doctor-listener">—</strong>
+            <span id="doctor-owner">—</span>
+          </article>
+          <article class="registry-card">
+            <p class="registry-label">Active child / path budget</p>
+            <strong id="doctor-child">—</strong>
+            <span id="doctor-path-budget">—</span>
+          </article>
+          <article class="registry-card">
+            <p class="registry-label">Canonical reconciliation</p>
+            <strong id="doctor-queue">—</strong>
+            <span id="doctor-recovery-counts">—</span>
+          </article>
+        </div>
+        <div id="startup-block" class="startup-block" hidden>
+          <h3>Startup block</h3>
+          <p id="startup-block-reason"></p>
+          <pre id="startup-block-evidence"></pre>
+          <p><strong>Data preserved:</strong> yes. Doctor never cleans, resets, deletes, resumes, or repairs.</p>
+        </div>
+        <p id="doctor-next-action" class="request-status" aria-live="polite"></p>
+
+        <div class="recovery-heading">
+          <div>
+            <p class="section-kicker">Canonical restart reconciliation</p>
+            <h3>Recovery center</h3>
+          </div>
+          <button id="recovery-refresh" class="secondary-button" type="button">Refresh canonical evidence</button>
+        </div>
+        <p class="boundary-note"><strong>Immutable history.</strong><span>No completed mission is rerun; interrupted is never converted to completed; no old Codex thread or turn is resumed; no TIM_REQUIRED response is inferred.</span></p>
+        <div id="recovery-list" class="recovery-list"></div>
+        <p id="recovery-message" class="request-status" aria-live="polite"></p>
+
+        <details class="stop-view">
+          <summary>Stop view</summary>
+          <pre id="stop-view-output">Loading exact owned process state…</pre>
+        </details>
+      </section>
+
       <section class="hero-grid" aria-labelledby="route-heading">
         <div class="hero-copy">
           <p class="section-kicker">Canonical route preview</p>
