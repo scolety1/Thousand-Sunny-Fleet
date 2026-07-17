@@ -164,10 +164,10 @@ if (-not $SkipRealAppServerProof -and -not $hasFailure) {
     Add-AssertionRow -Name 'real_app_server_interruption_recovery' -Passed $false -Evidence 'Blocked because an earlier acceptance gate failed; no real proof was started.'
 }
 
-$doctorRow = Invoke-AcceptanceCommand -Name 'final_doctor_json' -File $powershell -Arguments ($psBase + @((Join-Path $repoRoot 'tools\hq-dispatch\v1\Test-TsfHqDispatchDoctorV1.ps1'), '-Json')) -PassBasis 'DOCTOR_EXPECTED_GREEN_OR_TIM_REQUIRED_EXIT_AND_CANONICAL_JSON_ASSERTIONS' -ExpectedExitCodes @(0, 3)
+$doctorRow = Invoke-AcceptanceCommand -Name 'final_doctor_json' -File $powershell -Arguments ($psBase + @((Join-Path $repoRoot 'tools\hq-dispatch\v1\Test-TsfHqDispatchDoctorV1.ps1'), '-Json')) -PassBasis 'DOCTOR_EXPECTED_GREEN_ACTION_REQUIRED_OR_TIM_REQUIRED_EXIT_AND_CANONICAL_JSON_ASSERTIONS' -ExpectedExitCodes @(0, 2, 3)
 $doctor = $null
 try {
-    if (@(0, 3) -contains $doctorRow.exit_code) { $doctor = Get-Content -LiteralPath (Join-Path $EvidenceRoot 'final_doctor_json.stdout.txt') -Raw | ConvertFrom-Json }
+    if (@(0, 2, 3) -contains $doctorRow.exit_code) { $doctor = Get-Content -LiteralPath (Join-Path $EvidenceRoot 'final_doctor_json.stdout.txt') -Raw | ConvertFrom-Json }
 } catch {
     $doctor = $null
 }

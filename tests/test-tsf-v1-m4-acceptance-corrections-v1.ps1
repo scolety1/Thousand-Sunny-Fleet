@@ -76,6 +76,9 @@ Assert-True ($canonicalMatrixSource -match 'synthetic-transaction-\$Name-\$testR
 Assert-True ($canonicalMatrixSource -notmatch "New-CanonicalMission 'synthetic-tsf-readonly-appserver-correction-0001'") 'Canonical matrix cannot reuse the historical fixed read-only fixture identity'
 $staticIntegritySource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-final-static-integrity-tests.ps1') -Raw
 Assert-True ($staticIntegritySource -match 'git diff --name-only "\$BaseRef\.\.\.HEAD"') 'Static integrity discovers committed M4 corrections relative to the baseline'
+$finalAcceptanceSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-v1-final-acceptance-v1.ps1') -Raw
+Assert-True ($finalAcceptanceSource -match 'ExpectedExitCodes @\(0, 2, 3\)') 'Final acceptance recognizes every safe governed Doctor disposition'
+Assert-True ($finalAcceptanceSource -notmatch 'ExpectedExitCodes @\(0, 2, 3, 4\)') 'Final acceptance never accepts Doctor UNSAFE_TO_START exit four'
 
 $m3ValidationPath = Join-Path $repoRoot 'docs\hq\tsf_hq_dispatch_reliability_lifecycle_v1_20260716\VALIDATION.json'
 $errataPath = Join-Path $repoRoot 'docs\hq\tsf_v1_final_acceptance_demo_v1_20260717\M3_VALIDATION_ERRATA_V1.json'
