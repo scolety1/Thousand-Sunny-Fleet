@@ -136,6 +136,8 @@ if (!$isRevision -and [string]$draft.classification -ne 'SAFE_LOCAL_MISSION') { 
 if ($isRevision -and [string]$draft.classification -eq 'BLOCKED_UNSAFE') { throw 'HQ_REVISION_CLARIFICATION_CLASSIFIED_UNSAFE' }
 $git = Get-TsfKernelGitState $repoRoot
 if (!$git.can_capture) { throw 'HQ_SUBMISSION_GIT_STATE_UNAVAILABLE' }
+if (![bool]$git.branch_identity_available) { throw 'HQ_SUBMISSION_BRANCH_IDENTITY_UNAVAILABLE' }
+if (![bool]$git.detached_head -and [string]::IsNullOrWhiteSpace([string]$git.branch)) { throw 'HQ_SUBMISSION_ATTACHED_BRANCH_IDENTITY_UNAVAILABLE' }
 $policy = Get-TsfPolicyFingerprint (Join-Path $repoRoot 'fleet\control\policy-manifest.v1.json') $repoRoot -UnsupportedDevelopmentMode:$UnsupportedDevelopmentMode
 $route = Resolve-TsfModelRouting 'BALANCED' 'CODEX'
 $created = if($isRevision){[datetimeoffset]::Parse([string]$responseRecord.recorded_at)}else{[datetimeoffset]::UtcNow}
@@ -207,9 +209,9 @@ $mission = [pscustomobject][ordered]@{
     source_allowlist = @('fleet/control/policy-manifest.v1.json')
     forbidden_sources = @('NORMAL_NWR_PACKETS','SECRETS','CREDENTIALS','PRIVATELENS','PRODUCT_REPOS')
     branch_worktree_policy = [pscustomobject]@{
-        branch_required = $true
+        branch_required = ![bool]$git.detached_head
         worktree_required = $true
-        expected_branch = [string]$git.branch
+        expected_branch = if([bool]$git.detached_head){$null}else{[string]$git.branch}
         expected_worktree = $repoRoot
         starting_head = [string]$git.head
         unexpected_advance_behavior = 'REJECT'

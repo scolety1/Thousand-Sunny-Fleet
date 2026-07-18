@@ -178,11 +178,27 @@ function ConvertTo-TsfOperationalForbiddenActions {
     }
     return @($mapped | Sort-Object -Unique)
 }
+function Test-TsfCanonicalBranchWorktreeContract {
+    [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission)
+    $errors=[Collections.Generic.List[string]]::new()
+    $branchPolicy=$Mission.branch_worktree_policy
+    if([bool]$branchPolicy.branch_required){
+        if([string]::IsNullOrWhiteSpace([string]$branchPolicy.expected_branch)){$errors.Add('A branch-required mission must bind one exact attached branch.')|Out-Null}
+    }else{
+        if($null-ne$branchPolicy.expected_branch){$errors.Add('A branch-not-applicable mission must represent expected_branch as null.')|Out-Null}
+        if([string]$Mission.permission_mode-ne'READ_ONLY'-or@($Mission.allowed_writes).Count-ne0){$errors.Add('Detached workspace writes are unsafe; an attached approved branch is required.')|Out-Null}
+        if(![bool]$branchPolicy.worktree_required-or[string]::IsNullOrWhiteSpace([string]$branchPolicy.expected_worktree)){$errors.Add('A detached read-only mission must bind one exact worktree.')|Out-Null}
+        if([string]$branchPolicy.starting_head-notmatch'^[a-f0-9]{40,64}$'){$errors.Add('A detached read-only mission must bind one exact immutable HEAD commit.')|Out-Null}
+        if([string]$Mission.worker_tool_network_policy-ne'DISABLED'){$errors.Add('A detached read-only mission must keep worker-tool network disabled.')|Out-Null}
+    }
+    [pscustomobject]@{valid=$errors.Count-eq0;errors=@($errors)}
+}
 function ConvertTo-TsfCanonicalExecutionArtifacts {
     [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[string]$RepositoryRoot=$script:TsfRoot)
     $contractRoot=Get-TsfKernelFullPath $RepositoryRoot
     $translatorVersion='tsf_durable_to_operational_v1'
     $validation=Test-TsfMissionEnvelope $Mission (Join-Path $contractRoot 'fleet\control\mission-envelope.schema.v1.json'); if(!$validation.valid){throw "Invalid durable mission: $($validation.errors -join '; ')"}
+    $branchContract=Test-TsfCanonicalBranchWorktreeContract $Mission; if(!$branchContract.valid){throw "Invalid canonical branch/worktree contract: $($branchContract.errors -join '; ')"}
     $roles=Read-TsfKernelJson (Join-Path $contractRoot 'fleet\control\worker-role-registry.v1.json'); $role=@($roles.roles|Where-Object{[string]$_.role_id -eq [string]$Mission.worker_role}); if($role.Count -ne 1){throw 'Worker role is absent or ambiguous in canonical registry.'}
     $profiles=Read-TsfKernelJson (Join-Path $contractRoot 'fleet\control\worker-permission-profiles.v1.json'); if(!(Test-TsfContractProperty $profiles.profiles ([string]$Mission.worker_role))){throw 'Permission profile is absent from canonical registry.'}; $profile=$profiles.profiles.([string]$Mission.worker_role)
     if(@($Mission.allowed_writes).Count -gt 0 -and ![bool]$profile.may_commit_locally){throw 'Durable writes conflict with canonical permission profile.'}
@@ -199,7 +215,15 @@ function ConvertTo-TsfCanonicalExecutionArtifacts {
         [pscustomobject]$item
     })
     $clarifications=@();if($Mission.PSObject.Properties.Name-contains'clarification_requirements'){$clarifications=@($Mission.clarification_requirements)}
-    $packet=[pscustomobject][ordered]@{mission_id=[string]$Mission.mission_id;project_id=[string]$Mission.project_id;repo_path=$repo;lane='MASTER_TSF_CONTROL_PLANE';mission_type='tsf_infrastructure';required_branch=[string]$Mission.branch_worktree_policy.expected_branch;required_worktree=[string]$Mission.branch_worktree_policy.expected_worktree;control_plane_service_network_policy=[string]$Mission.control_plane_service_network_policy;worker_tool_network_policy=[string]$Mission.worker_tool_network_policy;allowed_reads=@($Mission.allowed_reads);allowed_writes=@($Mission.allowed_writes);forbidden_reads=@($Mission.forbidden_sources);forbidden_writes=@($Mission.forbidden_repositories);forbidden_actions=$forbidden;expected_artifacts=@($Mission.required_artifacts|ForEach-Object{[string]$_.path});required_preflight_checks=@('schema','repo_exists','path_scope','restricted_action_coverage','git_status_capture','approval_ledger','worker_role_permission','durable_source_binding');required_postrun_checks=@('mission_id_match','expected_artifacts_exist','restricted_actions_absent','forbidden_outputs_absent')+@($Mission.required_tests|Where-Object{$_.required}|ForEach-Object{"test:$($_.test_id)"});stop_conditions=$stops;approval_requirements=@($approvals);clarification_requirements=@($clarifications);hq_escalation_policy=[pscustomobject]@{default='local_only_no_api';escalate_on=@('RED','TIM_REQUIRED','approval_gap','scope_conflict');notes='Generated from canonical durable mission.'};created_by='TSF_DURABLE_TRANSLATOR';created_at=[string]$Mission.created_at}
+    $packetFields=[ordered]@{mission_id=[string]$Mission.mission_id;project_id=[string]$Mission.project_id;repo_path=$repo;lane='MASTER_TSF_CONTROL_PLANE';mission_type='tsf_infrastructure'}
+    if([bool]$Mission.branch_worktree_policy.branch_required){$packetFields.required_branch=[string]$Mission.branch_worktree_policy.expected_branch}
+    $packetFields.required_worktree=[string]$Mission.branch_worktree_policy.expected_worktree
+    $packetFields.control_plane_service_network_policy=[string]$Mission.control_plane_service_network_policy
+    $packetFields.worker_tool_network_policy=[string]$Mission.worker_tool_network_policy
+    $packetFields.allowed_reads=@($Mission.allowed_reads);$packetFields.allowed_writes=@($Mission.allowed_writes);$packetFields.forbidden_reads=@($Mission.forbidden_sources);$packetFields.forbidden_writes=@($Mission.forbidden_repositories);$packetFields.forbidden_actions=$forbidden
+    $packetFields.expected_artifacts=@($Mission.required_artifacts|ForEach-Object{[string]$_.path});$packetFields.required_preflight_checks=@('schema','repo_exists','path_scope','restricted_action_coverage','git_status_capture','approval_ledger','worker_role_permission','durable_source_binding');$packetFields.required_postrun_checks=@('mission_id_match','expected_artifacts_exist','restricted_actions_absent','forbidden_outputs_absent')+@($Mission.required_tests|Where-Object{$_.required}|ForEach-Object{"test:$($_.test_id)"})
+    $packetFields.stop_conditions=$stops;$packetFields.approval_requirements=@($approvals);$packetFields.clarification_requirements=@($clarifications);$packetFields.hq_escalation_policy=[pscustomobject]@{default='local_only_no_api';escalate_on=@('RED','TIM_REQUIRED','approval_gap','scope_conflict');notes='Generated from canonical durable mission.'};$packetFields.created_by='TSF_DURABLE_TRANSLATOR';$packetFields.created_at=[string]$Mission.created_at
+    $packet=[pscustomobject]$packetFields
     $roleExt=[pscustomobject][ordered]@{requested_by='TSF_DURABLE_MISSION';project_main_bot_id=[string]$Mission.project_id;worker_role=[string]$Mission.worker_role;translator_used=$true;lane_id='MASTER_TSF_CONTROL_PLANE';parent_mission_id=if($null -eq $Mission.parent_mission_id){''}else{[string]$Mission.parent_mission_id};sibling_lane_ids=@();role_permission_profile_id=[string]$profile.profile_id;role_output_contract=[string]$role[0].output_contract;verifier_role=if([bool]$profile.requires_verifier){'verifier_worker'}else{'NONE'};escalation_policy_id='canonical_durable_v1'}
     $worker=[pscustomobject][ordered]@{mission_id=[string]$Mission.mission_id;worker_role=[string]$Mission.worker_role;allowed_reads=@($Mission.allowed_reads);allowed_writes=@($Mission.allowed_writes);forbidden_actions=$forbidden;exact_task=[string]$Mission.normalized_goal;expected_artifacts=@($packet.expected_artifacts);stop_conditions=$stops;verifier_contract=[string]$Mission.required_verifier_independence;escalation_triggers=@('approval_gap','scope_conflict','validation_failure');do_not_exceed_role_authority=$true}
     foreach($contract in @(

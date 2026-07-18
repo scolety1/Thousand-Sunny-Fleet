@@ -239,6 +239,8 @@ function Get-TsfKernelGitState {
         can_capture = $false
         git_available = $false
         branch = ""
+        branch_identity_available = $false
+        detached_head = $false
         head = ""
         status_short = @()
         dirty = $false
@@ -259,6 +261,7 @@ function Get-TsfKernelGitState {
         $branchExit = $LASTEXITCODE
         if ($branchExit -eq 0) {
             $state.branch = ($branchOutput -join "`n").Trim()
+            $state.branch_identity_available = $true
         }
 
         $statusOutput = @(& git -c "safe.directory=$safeDirectory" -C $RepoPath status --short 2>&1)
@@ -275,6 +278,7 @@ function Get-TsfKernelGitState {
         $headExit = $LASTEXITCODE
         if ($headExit -eq 0) {
             $state.head = ($headOutput -join "`n").Trim()
+            $state.detached_head = $state.branch_identity_available -and ![string]::IsNullOrWhiteSpace($state.head) -and [string]::IsNullOrWhiteSpace($state.branch)
         } elseif ($state.can_capture) {
             $state.error = "HEAD unavailable; status was captured for an unborn or empty git repository."
         }

@@ -242,7 +242,7 @@ function repositoryEvidence(repositoryRoot, expectedBaseline = REQUIRED_BASELINE
     const status = gitText(repositoryRoot, ["status", "--porcelain=v1", "--untracked-files=all"]);
     const headDescends = gitExit(repositoryRoot, ["merge-base", "--is-ancestor", expectedBaseline, head]).status === 0;
     const originDescends = gitExit(repositoryRoot, ["merge-base", "--is-ancestor", expectedBaseline, originMain]).status === 0;
-    return { available: true, top, head, branch, origin_main: originMain, clean: status === "", status_lines: status ? status.split(/\r?\n/) : [], head_descends_from_required_baseline: headDescends, origin_main_descends_from_required_baseline: originDescends };
+    return { available: true, top, head, branch: branch || null, detached_head: branch === "", origin_main: originMain, clean: status === "", status_lines: status ? status.split(/\r?\n/) : [], head_descends_from_required_baseline: headDescends, origin_main_descends_from_required_baseline: originDescends };
   } catch (error) {
     return { available: false, error: String(error.message), clean: false, status_lines: [] };
   }
