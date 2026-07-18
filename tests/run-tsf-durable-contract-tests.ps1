@@ -82,6 +82,8 @@ try {
     $conflict=Copy-Object $mission; $conflict.resolved_model='conflicting-model'; Assert-Case 'DC-T007' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $conflict $repo }) 'model conflict rejected'
     $effort=Copy-Object $mission; $effort.reasoning_effort='HIGH'; Assert-Case 'DC-T008' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $effort $repo }) 'effort conflict rejected'
     $unknownRole=Copy-Object $mission; $unknownRole.worker_role='missing-role'; Assert-Case 'DC-T009' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $unknownRole $repo }) 'unknown role rejected'
+    $wrongHead=Copy-Object $mission; $wrongHead.branch_worktree_policy.starting_head=('0'*40); $wrongHeadDocument=ConvertTo-TsfCanonicalExecutionArtifacts $wrongHead $repo
+    Assert-Case 'DC-T009A' translator (!(Test-TsfCanonicalQueueDocument $wrongHeadDocument $wrongHead $repo).valid) 'queue revalidation rejects changed HEAD before execution'
     & git -C $runtimeRepo checkout -q --detach $head
     $detachedGit=Get-TsfKernelGitState $runtimeRepo
     Assert-Case 'DC-G001' git ($detachedGit.can_capture-and$detachedGit.branch_identity_available-and$detachedGit.detached_head-and[string]::IsNullOrWhiteSpace([string]$detachedGit.branch)-and$detachedGit.head-eq$head) 'detached HEAD is explicit and commit-pinned'
