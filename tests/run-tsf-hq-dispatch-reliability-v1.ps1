@@ -1,11 +1,13 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$EvidenceRoot
+    [string]$EvidenceRoot,
+    [switch]$Milestone4Acceptance
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
+. (Join-Path $PSScriptRoot 'support\TsfParserEvidence.ps1')
 if (-not $EvidenceRoot) {
     $stamp = [datetimeoffset]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')
     $EvidenceRoot = Join-Path $repoRoot ".codex-local\evidence\m3-validation\$stamp-$PID"
@@ -14,18 +16,6 @@ $EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
 [IO.Directory]::CreateDirectory($EvidenceRoot) | Out-Null
 $rows = [Collections.Generic.List[object]]::new()
 $hasFailure = $false
-function Add-Result([string]$Check,[string]$Status,[string]$Evidence) {
-    $rows.Add([pscustomobject]@{
-        check = $Check
-        status = $Status
-        exit_code = 0
-        evidence = $Evidence
-        stdout_path = $null
-        stdout_sha256 = $null
-        stderr_path = $null
-        stderr_sha256 = $null
-    }) | Out-Null
-}
 function Invoke-Checked([string]$Name,[string]$File,[string[]]$Arguments=@()) {
     $safeName = $Name -replace '[^A-Za-z0-9_.-]', '_'
     $stdoutPath = Join-Path $EvidenceRoot "$safeName.stdout.txt"
@@ -50,6 +40,7 @@ function Invoke-Checked([string]$Name,[string]$File,[string[]]$Arguments=@()) {
         check = $Name
         status = $status
         exit_code = $exitCode
+        parser_result_identity = if ($status -eq 'PASS') { 'PROCESS_EXIT_0' } elseif ($launchError) { 'PROCESS_LAUNCH_FAILURE' } else { "PROCESS_EXIT_$exitCode" }
         evidence = $stdout.Trim()
         stdout_path = $stdoutPath
         stdout_sha256 = (Get-FileHash -LiteralPath $stdoutPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -61,23 +52,29 @@ function Invoke-Checked([string]$Name,[string]$File,[string[]]$Arguments=@()) {
 
 $powerShellFiles = @(
     'tools/hq-dispatch/v1/Test-TsfHqDispatchDoctorV1.ps1',
+    'tools/hq-dispatch/v1/doctor-format.ps1',
     'tools/hq-dispatch/v1/Start-TsfHqDispatchV1.ps1',
     'tools/hq-dispatch/v1/Stop-TsfHqDispatchV1.ps1',
     'tools/hq-dispatch/v1/Start-TsfHqDispatchDemoV1.ps1',
     'tools/hq-dispatch/v1/New-TsfHqDispatchGovernedMission.ps1',
     'tools/hq-dispatch/v1/Invoke-TsfHqDispatchTimResponse.ps1',
-    'tools/hq-dispatch/v1/Invoke-TsfHqDispatchQueueReconcileV1.ps1'
+    'tools/hq-dispatch/v1/Invoke-TsfHqDispatchQueueReconcileV1.ps1',
+    'tools/codex-fleet-enforcement-kernel.ps1',
+    'tools/TsfDurableContract.Canonical.ps1',
+    'tools/TsfDurableContract.psm1',
+    'tests/support/TsfParserEvidence.ps1',
+    'tests/test-tsf-v1-m4-acceptance-corrections-v1.ps1',
+    'tests/run-tsf-v1-final-acceptance-v1.ps1',
+    'tests/run-tsf-hq-chokepoint-tests.ps1',
+    'tests/run-tsf-final-static-integrity-tests.ps1',
+    'tests/run-tsf-canonical-runtime-app-server-tests.ps1'
 )
 foreach ($relative in $powerShellFiles) {
     $tokens=$null;$errors=$null
     [Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot $relative),[ref]$tokens,[ref]$errors)|Out-Null
-    if ($errors.Count) {
-        $hasFailure = $true
-        Add-Result "powershell_syntax:$relative" 'FAIL' ($errors.Message -join '; ')
-    }
-}
-if (-not @($rows | Where-Object { $_.check -like 'powershell_syntax:*' -and $_.status -eq 'FAIL' }).Count) {
-    Add-Result 'powershell_syntax' 'PASS' ($powerShellFiles -join ', ')
+    $row = New-TsfParserEvidenceRowV1 -Check "powershell_syntax:$relative" -ParserKind POWERSHELL -ParserErrors @($errors) -SuccessEvidence $relative
+    $rows.Add($row) | Out-Null
+    if ($row.status -eq 'FAIL') { $hasFailure = $true }
 }
 
 $nodeFiles = @(
@@ -103,8 +100,17 @@ $jsonFiles = @(
     'fleet/control/hq-dispatch/hq-dispatch-interruption-evidence.schema.v1.json',
     'fleet/control/hq-dispatch/hq-dispatch-recovery-receipt.schema.v1.json'
 )
-foreach ($relative in $jsonFiles) { Get-Content -LiteralPath (Join-Path $repoRoot $relative) -Raw | ConvertFrom-Json | Out-Null }
-Add-Result 'json_parseability' 'PASS' ($jsonFiles -join ', ')
+foreach ($relative in $jsonFiles) {
+    $errors = @()
+    try {
+        Get-Content -LiteralPath (Join-Path $repoRoot $relative) -Raw | ConvertFrom-Json | Out-Null
+    } catch {
+        $errors = @($_)
+    }
+    $row = New-TsfParserEvidenceRowV1 -Check "json_parseability:$relative" -ParserKind JSON -ParserErrors $errors -SuccessEvidence $relative
+    $rows.Add($row) | Out-Null
+    if ($row.status -eq 'FAIL') { $hasFailure = $true }
+}
 
 Invoke-Checked 'failure_injection_matrix_21' 'node' @('tests/test-tsf-hq-dispatch-reliability-v1.mjs')
 Invoke-Checked 'start_doctor_stop_fixture_proof' 'node' @('tests/test-tsf-hq-dispatch-start-stop-v1.mjs')
@@ -129,7 +135,7 @@ $result = [pscustomobject][ordered]@{
     plugin_used = $false
     credential_used = $false
     worker_tool_network_used = $false
-    milestone_4_acceptance_started = $false
+    milestone_4_acceptance_started = [bool]$Milestone4Acceptance
 }
 $summaryPath = Join-Path $EvidenceRoot 'validation-summary.json'
 $summaryJson = $result | ConvertTo-Json -Depth 20

@@ -1352,6 +1352,7 @@ function Invoke-TsfKernelPostRunVerify {
         $responseContractMission = $queueDocument.durable_mission
     }
     $expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission
+    $canonicalVerifierResultId = if (![string]::IsNullOrWhiteSpace($CanonicalQueueDocumentPath)) { "canonical-result-$([string]$responseContractMission.mission_id)-$([int]$responseContractMission.mission_revision)" } else { $null }
     $exactResponseVerification = $null
 
     if ([string]$worker.mission_id -eq [string]$mission.mission_id) {
@@ -1557,10 +1558,10 @@ function Invoke-TsfKernelPostRunVerify {
     $result = [pscustomobject]@{
         schema_version = 1
         generated_at = (Get-Date).ToString("o")
-        mission_id = [string]$mission.mission_id
-        mission_revision = [int]$mission.mission_revision
-        run_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.run_id } else { $null }
-        result_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.result_id } else { $null }
+        mission_id = [string]$responseContractMission.mission_id
+        mission_revision = [int]$responseContractMission.mission_revision
+        run_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.run_id } else { $canonicalVerifierResultId }
+        result_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.result_id } else { $canonicalVerifierResultId }
         exact_response_evidence = $exactResponseVerification
         verdict = $verdict
         final_state = $finalState

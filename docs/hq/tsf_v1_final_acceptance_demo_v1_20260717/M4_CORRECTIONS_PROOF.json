@@ -1,0 +1,13 @@
+{
+    "schema_version":  "tsf_v1_m4_acceptance_corrections_test_v1",
+    "status":  "PASS",
+    "assertions":  60,
+    "doctor_json_authority_unchanged":  true,
+    "doctor_missing_label_negative_test":  "PASS",
+    "parser_failure_negative_test":  "PASS",
+    "repeatable_fixture_identity_test":  "PASS",
+    "failed_parser_exit_code":  65,
+    "failed_parser_result_identity":  "POWERSHELL_PARSER_FAILURE",
+    "m3_erratum_external_rehash":  "PASS",
+    "m3_status_porcelain_correct_sha256":  "c43ed4b42e4f4ea308732136199f90f9ba2d184044327841ef9820ca2734fb6a"
+}

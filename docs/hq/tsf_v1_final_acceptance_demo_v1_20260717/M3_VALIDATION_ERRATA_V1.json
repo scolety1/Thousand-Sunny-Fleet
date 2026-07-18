@@ -1,0 +1,29 @@
+{
+  "schema_version": "tsf_m3_validation_errata_v1",
+  "created_at": "2026-07-17T21:32:00Z",
+  "disposition": "ADDITIVE_ERRATUM_HISTORICAL_PACKET_UNCHANGED",
+  "original_m3_commit": "b437d47206b820ea1d9ec9b110d0b09b47fedd93",
+  "original_m3_tree": "2368cd6c45f9fe7a131eab3bebe59e0f6c9e5657",
+  "accepted_merge_commit": "952f30e137214735fe2513a7b068d9680ca882c7",
+  "original_file": "docs/hq/tsf_hq_dispatch_reliability_lifecycle_v1_20260716/VALIDATION.json",
+  "original_field": "adoption.hashes.status-porcelain-v2.txt",
+  "recorded_hash": "c43ed4b42e4f6ea308732136199f90f9ba2d184044327841ef9820ca2734fb6a",
+  "independently_verified_correct_hash": "c43ed4b42e4f4ea308732136199f90f9ba2d184044327841ef9820ca2734fb6a",
+  "immutable_adoption_bundle_binding": {
+    "bundle_original_path": "C:/TSF_M3/.codex-local/recovery/overnight-m3-adoption",
+    "adoption_manifest": "ADOPTION.json",
+    "adoption_manifest_sha256": "d95dc30190805a59b35143811288ac0b06d5e795efcfd2f9875c7f722cb63c38",
+    "bundle_hash_manifest": "HASHES.sha256",
+    "bundle_hash_manifest_sha256": "34e9079fd9e51441ed2748451bfc8351ccb0b9d79607219628b5121473fd7180",
+    "bundle_manifest_status_porcelain_hash": "c43ed4b42e4f4ea308732136199f90f9ba2d184044327841ef9820ca2734fb6a",
+    "status_porcelain_bytes": 2024,
+    "independent_rehash_algorithm": "SHA-256"
+  },
+  "nonblocking_reason": "The accepted VALIDATION.json value is a one-nibble transcription error. The preserved file bytes independently hash to the value already recorded by the immutable bundle HASHES.sha256 manifest. No source, index, adoption decision, tracked patch, staged patch, or untracked archive byte is changed or reinterpreted.",
+  "historical_files_modified": false,
+  "m4_auditor_disposition": {
+    "status": "GREEN_NONBLOCKING",
+    "audited_candidate_commit": "e9d29bfb79e3b4a3da48b11887fa7a0bd8a9090e",
+    "finding": null
+  }
+}

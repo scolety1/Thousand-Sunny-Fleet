@@ -48,7 +48,7 @@ function New-CanonicalMission {
     }
 }
 
-$readMission=New-CanonicalMission 'synthetic-tsf-readonly-appserver-correction-0001' $repo $branch $head
+$readMission=New-CanonicalMission "synthetic-tsf-readonly-appserver-$testRunNonce" $repo $branch $head
 Assert-Case 'VS-SCHEMA-001' schema (Test-TsfMissionEnvelope $readMission).valid 'read-only durable mission schema'
 $readQueue=ConvertTo-TsfCanonicalExecutionArtifacts $readMission $repo
 $readQueue2=ConvertTo-TsfCanonicalExecutionArtifacts $readMission $repo
@@ -142,14 +142,19 @@ foreach($mode in @('malformed','exit','timeout','duplicate','out-of-order','spoo
 $mapperRoot=Join-Path $runtimeRoot 'mapper-producer-binding';New-Item -ItemType Directory -Force $mapperRoot|Out-Null
 $mapperQueuePath=Join-Path $mapperRoot 'queue.json';Write-Json $readQueue $mapperQueuePath
 $mapperQueueHash=Get-TsfContractJsonHash $readQueue
+$mapperRunId="mapper-caller-spoof-result-0001-$testRunNonce"
 $mapperAdapter=Invoke-FakeAdapter normal $readMission.mission_id $readMission.mission_revision $readMission.policy.fingerprint $mapperQueueHash $repo $readMission.model_selection_assurance
 $mapperPreflightPath=Join-Path $mapperRoot 'preflight.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;preflight_approved=$true}) $mapperPreflightPath
 $mapperRolePath=Join-Path $mapperRoot 'role.json';Write-Json ([pscustomobject]@{role_id=$readMission.worker_role;role_preflight_approved=$true}) $mapperRolePath
 $mapperWorkerPath=Join-Path $mapperRoot 'worker.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;files_touched=@();tests=@([pscustomobject]@{test_id='app-server-automatic-round-trip';status='PASS';observed='bound fake adapter';evidence=$mapperAdapter.result.event_journal_sha256});approval_use=@()}) $mapperWorkerPath
-$mapperVerifierPath=Join-Path $mapperRoot 'verifier.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;verdict='GREEN';verified=$true}) $mapperVerifierPath
+$mapperVerifier=[pscustomobject]@{mission_id=$readMission.mission_id;mission_revision=$readMission.mission_revision;run_id=$mapperRunId;result_id=$mapperRunId;verdict='GREEN';verified=$true}
+$mapperVerifierIdentity=Test-TsfCanonicalVerifierIdentity $mapperVerifier $readMission $mapperRunId
+Assert-Case 'VS-VERIFIER-IDENTITY-001' evidence $mapperVerifierIdentity.valid 'verifier identity is fully bound to durable mission and result'
+$wrongRevisionVerifier=Copy-Object $mapperVerifier;$wrongRevisionVerifier.mission_revision=0
+Assert-Case 'VS-VERIFIER-IDENTITY-002' evidence (!(Test-TsfCanonicalVerifierIdentity $wrongRevisionVerifier $readMission $mapperRunId).valid) 'revision-zero verifier identity fails closed'
+$mapperVerifierPath=Join-Path $mapperRoot 'verifier.json';Write-Json $mapperVerifier $mapperVerifierPath
 $mapperMissionPath=Join-Path $mapperRoot 'mission.json';Write-Json $readQueueCheck.effective_mission $mapperMissionPath
 $mapperInstructionPath=Join-Path $mapperRoot 'instruction.json';Write-Json $readQueue.worker_instruction_packet $mapperInstructionPath
-$mapperRunId="mapper-caller-spoof-result-0001-$testRunNonce"
 $mapperPacket=Write-TsfKernelPreservationPacket -MissionPath $mapperMissionPath -PreflightResultPath $mapperPreflightPath -RolePreflightPath $mapperRolePath -WorkerInstructionPath $mapperInstructionPath -WorkerResultPath $mapperWorkerPath -VerifierResultPath $mapperVerifierPath -AdapterResultPath $mapperAdapter.result_path -EventJournalPath $mapperAdapter.result.event_journal_path -QueueDocumentPath $mapperQueuePath -PromptPath $promptPath -StderrPath (Join-Path $mapperAdapter.out 'se.log') -OutputDirectory (Get-TsfCanonicalRuntimeRoot) -RunId $mapperRunId -DurableMission $readMission -TestOnlyAllowSyntheticProducerRegistry
 $mapperDescriptor=Get-TsfPreservationPacketDescriptor $mapperPacket.packet_file $readMission.mission_id $readMission.mission_revision
 $mapperRuntime=[pscustomobject][ordered]@{schema_version='tsf_authenticated_runtime_evidence_v1';result_id=$mapperRunId;queue_document_path=(Join-Path $mapperPacket.packet_directory 'qd.json');adapter_result_path=(Join-Path $mapperPacket.packet_directory 'ar.json');preflight_path=(Join-Path $mapperPacket.packet_directory 'pf.json');role_preflight_path=(Join-Path $mapperPacket.packet_directory 'rp.json');worker_result_path=(Join-Path $mapperPacket.packet_directory 'wr.json');verifier_result_path=(Join-Path $mapperPacket.packet_directory 'vr.json');preservation_packet_path=$mapperPacket.packet_file;starting_head=$head;base_head=$head;dirty_before=$true;effective_effort='HIGH';effective_effort_source='CALLER_REPORTED';proposed_next_action='Verify caller effort cannot become authority.';created_at=[datetimeoffset]::UtcNow.ToString('o')}
@@ -294,7 +299,7 @@ $recoveryRecord=Join-Path $sourceWorktree '.codex-local\preservation\transaction
 Assert-Case 'VS-RECOVERY-001' recovery ((Test-Path -LiteralPath $recoveryRecord)-and((Get-Content -LiteralPath $recoveryRecord -Raw|ConvertFrom-Json).recovery_action-eq'RECREATE_EXACT_SYNTHETIC_FIXTURE_ROOT')) 'previous failed scratch transaction preserved and deterministically recreated'
 
 function New-AdmissionFixture {
-    param([string]$Name,[string]$ResultId,[string]$MissionId="synthetic-transaction-$Name",[int]$PreservationPadding=0,[int]$PacketFolderPadding=40)
+    param([string]$Name,[string]$ResultId,[string]$MissionId="synthetic-transaction-$Name-$testRunNonce",[int]$PreservationPadding=0,[int]$PacketFolderPadding=40)
     $ResultId=if(($ResultId.Length+33)-gt160){$ResultId.Substring(0,126)+"-$testRunNonce"}else{"$ResultId-$testRunNonce"};$mission=Copy-Object $readMission;$mission.mission_id=$MissionId;$mission.original_request="SYNTHETIC_TRANSACTION_$Name";$mission.normalized_goal='Exercise transactional admission only.';$mission.created_at=[datetimeoffset]::UtcNow.ToString('o');$mission.expires_at=[datetimeoffset]::UtcNow.AddMinutes(30).ToString('o')
     $root=Join-Path $runtimeRoot "transactional\$Name";$queueRoot=Join-Path $root 'queue';$queuePath=Join-Path $queueRoot 'postrun_pending\m.json';$document=ConvertTo-TsfCanonicalExecutionArtifacts $mission $repo;Write-Json $document $queuePath
     $registry=Join-Path $root 'registry';Write-Json $mission (Join-Path $registry 'm.json')
@@ -309,7 +314,7 @@ function Invoke-AdmissionFixture($Fixture,[string]$Fault='NONE',[string]$QueuePa
     Get-TsfAdmissionDecision $Fixture.result_path $Fixture.registry (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $Fixture.ledger $QueuePath $Fixture.queue_root -UnsupportedDevelopmentMode -TestOnlyAllowAlternateQueueRoot -TestFault $Fault
 }
 
-$longMissionId='synthetic-'+('m'*110);$longResultId='r'+('x'*150);$txLong=New-AdmissionFixture 'long' $longResultId $longMissionId
+$longMissionId='synthetic-'+('m'*76)+'-'+$testRunNonce;$longResultId='r'+('x'*150);$txLong=New-AdmissionFixture 'long' $longResultId $longMissionId
 $txReceipt=Invoke-AdmissionFixture $txLong
 $receiptLeaf=Split-Path -Leaf $txReceipt.admission_receipt_path;$receiptKey=$receiptLeaf.Substring(2,32);$receiptRoot=Split-Path -Parent $txReceipt.admission_receipt_path;$allReceiptPaths=@('a','t','x','y','z','c'|ForEach-Object{Join-Path $receiptRoot "$_-$receiptKey.$(if($_-in@('a','t','c')){'json'}else{'tmp'})"});$maximumReceiptPath=($allReceiptPaths|ForEach-Object{$_.Length}|Measure-Object -Maximum).Maximum
 Assert-Case 'VS-TX-001' transaction ($maximumReceiptPath-le240-and$maximumReceiptPath-le225-and$receiptLeaf-match'^a-[a-z2-7]{32}\.json$') "160-bit deterministic Base32 key; max path $maximumReceiptPath"
@@ -416,7 +421,7 @@ if($RunLiveReadOnly){
 }
 
 if($RunLiveWorkspaceWrite-and$readGreen){
-    $writeRepo=Join-Path $runtimeRoot 'workspace-write-repo';New-Item -ItemType Directory -Force (Join-Path $writeRepo 'input'),(Join-Path $writeRepo 'output')|Out-Null;Set-Content -LiteralPath (Join-Path $writeRepo 'input\source.txt') -Value 'synthetic input';& git -C $writeRepo init -q;& git -C $writeRepo config user.email 'fixture@tsf.invalid';& git -C $writeRepo config user.name 'TSF Fixture';& git -C $writeRepo add .;& git -C $writeRepo commit -q -m fixture;$writeBranch=(& git -C $writeRepo branch --show-current).Trim();$writeHead=(& git -C $writeRepo rev-parse HEAD).Trim();$writeMission=New-CanonicalMission 'synthetic-tsf-workspace-appserver-correction-0001' $writeRepo $writeBranch $writeHead -WorkspaceWrite
+    $writeRepo=Join-Path $runtimeRoot 'workspace-write-repo';New-Item -ItemType Directory -Force (Join-Path $writeRepo 'input'),(Join-Path $writeRepo 'output')|Out-Null;Set-Content -LiteralPath (Join-Path $writeRepo 'input\source.txt') -Value 'synthetic input';& git -C $writeRepo init -q;& git -C $writeRepo config user.email 'fixture@tsf.invalid';& git -C $writeRepo config user.name 'TSF Fixture';& git -C $writeRepo add .;& git -C $writeRepo commit -q -m fixture;$writeBranch=(& git -C $writeRepo branch --show-current).Trim();$writeHead=(& git -C $writeRepo rev-parse HEAD).Trim();$writeMission=New-CanonicalMission "synthetic-tsf-workspace-appserver-$testRunNonce" $writeRepo $writeBranch $writeHead -WorkspaceWrite
     $writeCase=Invoke-LiveCase $writeMission 'workspace-write';$writeGreen=$writeCase.exit-eq0-and$null-ne$writeCase.result-and[string]$writeCase.result.final_decision-eq'GREEN';Assert-Case 'VS-LIVE-WR-001' live_workspace_write $writeGreen ($writeCase.output-join' ')
     if($writeGreen){$artifact=Join-Path $writeRepo 'output\result.txt';$adapter=Get-Content (Get-Content $writeCase.result.lifecycle_result_path -Raw|ConvertFrom-Json).adapter_result_path -Raw|ConvertFrom-Json;Assert-Case 'VS-LIVE-WR-002' live_workspace_write ((Get-Content $artifact -Raw).Trim()-eq'TSF workspace-write round trip complete.') 'exact fixture content';Assert-Case 'VS-LIVE-WR-003' live_workspace_write ($adapter.worker_tool_network_policy-eq'DISABLED'-and!$adapter.worker_network_used) 'worker network disabled';Assert-Case 'VS-LIVE-WR-004' live_workspace_write ($writeCase.result.admission_status-eq'ADMITTED_WITH_CAVEATS'-and$writeCase.result.final_queue_state-eq'complete_ready_for_gate') 'workspace admission with truthful effort caveat';Assert-Case 'VS-LIVE-WR-005' live_workspace_write ($adapter.turn_usage.evidence_classification-eq'NATIVE_OBSERVED'-and$adapter.turn_usage.total_tokens-gt0) 'workspace native usage observed';Assert-Case 'VS-LIVE-WR-006' live_workspace_write ((Test-Path -LiteralPath $writeCase.result.admission_receipt.admission_receipt_path)-and(Test-Path -LiteralPath $writeCase.result.admission_receipt.transaction_receipt_path)) 'workspace mandatory receipts persisted'}
 }elseif($RunLiveWorkspaceWrite-and!$readGreen){Assert-Case 'VS-LIVE-WR-GATE' live_workspace_write $false 'read-only GREEN gate not satisfied'}

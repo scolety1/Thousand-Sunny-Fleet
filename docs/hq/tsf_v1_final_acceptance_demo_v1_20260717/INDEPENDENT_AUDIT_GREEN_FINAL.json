@@ -1,0 +1,61 @@
+{
+  "schema_version": "tsf_v1_m4_independent_audit_disposition_v1",
+  "sequence": 3,
+  "audited_at": "2026-07-17T23:51:00Z",
+  "candidate_commit": "e9d29bfb79e3b4a3da48b11887fa7a0bd8a9090e",
+  "candidate_tree": "5000fb0e440ebfec21f030f60b2b58d328711e3f",
+  "required_baseline": "952f30e137214735fe2513a7b068d9680ca882c7",
+  "origin_main_at_audit": "952f30e137214735fe2513a7b068d9680ca882c7",
+  "tester_disposition": "GREEN",
+  "auditor_disposition": "GREEN",
+  "publication_authorized": true,
+  "authorized_publication": "ONE_READY_NORMAL_NON_FORCE_PR",
+  "tester_deterministic_rerun": {
+    "status": "PASS_DETERMINISTIC_ONLY_REAL_PROOF_NOT_RERUN",
+    "checks": 20,
+    "failed_checks": 0,
+    "started_utc": "2026-07-17T23:40:58.8801202+00:00",
+    "finished_utc": "2026-07-17T23:50:28.8444825+00:00",
+    "duration_seconds": 569.964,
+    "evidence_root": ".codex-local/evidence/m4-final-acceptance/20260717T234058880Z-24804",
+    "acceptance_summary_sha256": "2cc9ee3f6a54013cf93529eb2c315465fc93989fc333e757eeb345c4fe8085a1",
+    "executed_test_coverage_sha256": "a49ed4109e3d79c644f7e964376b900d6f67fd87ea6aafcab10ae91e38079b7f",
+    "evidence_index_sha256": "d6200afa6c1060671579b309b6d5508cba4dc7ec27ff95940faa93418129ced1"
+  },
+  "sealed_real_run": {
+    "status": "PASS",
+    "checks": 21,
+    "failed_checks": 0,
+    "real_app_server_assertions": 94,
+    "pass_basis": "94_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF",
+    "evidence_root": ".codex-local/evidence/m4-final-acceptance/20260717T232319036Z-25768",
+    "acceptance_summary_sha256": "d836da1d82d041749e5a73c8c2f483bd55f4477f0bb4347cf29c512197911780",
+    "indexed_files": 92
+  },
+  "verified_bindings": {
+    "versioned_package_files": 6,
+    "evidence_index_rows": 92,
+    "preservation_manifest_artifacts": 15,
+    "pre_green_archive_files": 1375,
+    "verifier_revision": 1,
+    "verifier_result_sha256": "f6ed42cd18e6d6656c84c866ba62b88d914d1c6654067c8bdfc35c5cf6f4ffa0",
+    "preservation_packet_sha256": "534bd1a9386c5542be7ca1e574c801910078229595a5c35b018171fc49f8879b",
+    "preservation_manifest_sha256": "038e9d908cc19d7518aa218e6886d0c4b0856bd0b6868ee44bbcbe1d4a384057",
+    "admission_receipt_sha256": "eed08e5feb510e0c4ba2a347d31fe70831e0402f2e4bc8c9a455ef76fb32d2bc",
+    "recovery_receipt_sha256": "8fb4f33a5403b1ce2bf57510003838d0286df21f6bd1f20fb2de1de050209d8a"
+  },
+  "final_safe_state": {
+    "doctor_status": "TIM_REQUIRED",
+    "doctor_exit_code": 3,
+    "safe_to_start": true,
+    "owner_disposition": "ABSENT",
+    "listener_count": 0,
+    "owned_child_count": 0,
+    "replay_conflict_count": 0
+  },
+  "prior_red_findings": "ALL_CLOSED",
+  "m3_errata_disposition": "GREEN_NONBLOCKING",
+  "authority_boundary": "INTACT",
+  "findings": [],
+  "tracked_mutation_by_independent_agents": false
+}

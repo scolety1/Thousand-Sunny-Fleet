@@ -29,8 +29,8 @@ try {
   equal(owner.mode, "DEMO_FIXTURE_ONLY", "demo owner is explicitly labeled");
   equal(owner.host, "127.0.0.1", "listener host is fixed loopback");
   check(inspectListeners(owner.port).some((listener) => Number(listener.process_id) === owner.process_id && String(listener.host) === "127.0.0.1"), "exact owner owns the loopback listener");
-  check(stdout.includes("FIXTURE BEHAVIOR"), "demo labels fixture behavior");
-  check(stdout.includes("Canonical production-style mission roots are not used"), "demo discloses isolated roots");
+  check(await waitFor(() => stdout.includes("FIXTURE BEHAVIOR")), "demo labels fixture behavior");
+  check(await waitFor(() => stdout.includes("Canonical production-style mission roots are not used")), "demo discloses isolated roots");
 
   const health = await fetch(`http://${owner.host}:${owner.port}/health`).then((response) => response.json());
   equal(health.lifecycle_mode, "DEMO_FIXTURE_ONLY", "health labels demo mode");

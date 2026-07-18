@@ -1,0 +1,32 @@
+{
+  "schema_version": "tsf_v1_m4_independent_audit_disposition_v1",
+  "sequence": 2,
+  "audited_at": "2026-07-17T23:20:00Z",
+  "candidate_commit": "11e0b116afe150dccf82b4674bee45ae9ed59555",
+  "candidate_tree": "f95cf67602e0fabea1c5d119b8f7a7e80d7b62e1",
+  "required_baseline": "952f30e137214735fe2513a7b068d9680ca882c7",
+  "tester_disposition": "RED",
+  "auditor_disposition": "RED",
+  "publication_authorized": false,
+  "tester_deterministic_rerun": {
+    "status": "PASS_DETERMINISTIC_ONLY_REAL_PROOF_NOT_RERUN",
+    "checks": 20,
+    "failed_checks": 0,
+    "duration_seconds": 514.069,
+    "evidence_root": ".codex-local/evidence/m4-final-acceptance/20260717T231123122Z-24240",
+    "summary_sha256": "2afddb6b9a4bd84f2d5ae96d51d767e73e891bd8b7e7a0b9467d0eddd69f6f70"
+  },
+  "prior_findings_disposition": "ALL_THREE_CLOSED",
+  "m3_errata_disposition": "GREEN_NONBLOCKING",
+  "findings": [
+    {
+      "severity": "MEDIUM",
+      "finding": "The authoritative real app-server PASS basis recorded 83 assertions while the executed proof, output marker, and acceptance seal recorded 94.",
+      "stale_pass_basis": "83_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF",
+      "corrected_pass_basis": "94_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF",
+      "correction_commit": "f1a9fc6d64add5370067b90f2cae668bf55f342c",
+      "correction_status": "IMPLEMENTED_FULL_ALL_UP_GREEN_FRESH_AUDIT_REQUIRED"
+    }
+  ],
+  "tracked_mutation_by_independent_agents": false
+}
