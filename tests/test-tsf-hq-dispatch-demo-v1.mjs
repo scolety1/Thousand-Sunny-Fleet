@@ -53,7 +53,7 @@ try {
   equal(issued.status, 200, "demo operator session issued without credential");
   const token = issued.json.session_token;
 
-  const executionRequest = "Demonstrate deterministic fixture execution without plugins, credentials, or external network.";
+  const executionRequest = "Demonstrate deterministic fixture execution without plugins, credentials, or external network and return exactly TSF_HQ_DISPATCH_READ_ONLY_GREEN.";
   const executionPreview = await preview(port, origin, token, executionRequest);
   const executed = await request(port, { method: "POST", pathname: "/api/v1/missions", token, origin, body: submission(executionRequest, executionPreview) });
   equal(executed.status, 200, "Milestone 2A fixture submission succeeds");

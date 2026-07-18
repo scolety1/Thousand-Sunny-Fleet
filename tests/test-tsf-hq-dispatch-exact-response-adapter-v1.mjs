@@ -83,6 +83,48 @@ function runCase(name, response, mode = "present") {
   return JSON.parse(readFileSync(resultFile, "utf8"));
 }
 
+function runSpawnFailureCase() {
+  const output = path.join(fixtureRoot, "spawn-failure");
+  mkdirSync(output, { recursive: true });
+  const resultFile = path.join(output, "adapter-result.json");
+  const eventFile = path.join(output, "events.jsonl");
+  const stderrFile = path.join(output, "stderr.txt");
+  const promptFile = path.join(output, "prompt.txt");
+  writeFileSync(promptFile, "This request must never reach a worker.", "utf8");
+  const child = spawnSync(process.execPath, [
+    adapterPath,
+    "--codex-executable", path.join(output, "missing-app-server.exe"),
+    "--mission-id", missionId,
+    "--mission-revision", "1",
+    "--policy-fingerprint", "a".repeat(64),
+    "--queue-document-sha256", "b".repeat(64),
+    "--run-id", runId,
+    "--result-id", runId,
+    "--cwd", root,
+    "--model", "gpt-5.6-terra",
+    "--mission-requested-effort", "MEDIUM",
+    "--canonical-resolved-effort", "MEDIUM",
+    "--required-effort-assurance", "RECOMMENDED_ONLY",
+    "--effort", "medium",
+    "--sandbox", "read-only",
+    "--prompt-file", promptFile,
+    "--output-dir", output,
+    "--result-file", resultFile,
+    "--event-file", eventFile,
+    "--stderr-file", stderrFile,
+    "--timeout-seconds", "10",
+    "--expires-at", "2099-01-01T00:00:00.000Z",
+  ], { cwd: root, encoding: "utf8", timeout: 20_000 });
+  equal(child.status, 1, "spawn failure exits nonzero");
+  const result = JSON.parse(readFileSync(resultFile, "utf8"));
+  const journal = readFileSync(eventFile, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse);
+  equal(result.transport_success, false, "spawn failure is not transport success");
+  equal(result.failure_classification, "AUTHORITATIVE_APP_SERVER_SPAWN_OR_INSPECTION_FAILED", "spawn failure has a closed classification");
+  equal(result.failure_stage, "AUTHORITATIVE_APP_SERVER_SPAWN_INSPECTION", "spawn failure records the exact stage");
+  check(typeof result.failure === "string" && result.failure.length > 0, "spawn failure preserves its exact error");
+  equal(journal.at(-1)?.message?.event_type, "AUTHORITATIVE_APP_SERVER_SPAWN_FAILURE", "spawn failure is journaled before result serialization");
+}
+
 try {
   const exact = runCase("exact", expected);
   equal(exact.transport_success, true, "literal expected response has transport success");
@@ -109,6 +151,8 @@ try {
     equal(result.semantic_response_success, false, `${name}: semantic result fails closed`);
     equal(result.response_exact_match, false, `${name}: exact comparison rejects mismatch`);
   }
+
+  runSpawnFailureCase();
 
   const runnerSource = readFileSync(path.join(root, "tests", "run-tsf-hq-dispatch-real-readonly-v1.mjs"), "utf8");
   check(!/product_repository_used\s*:\s*false/.test(runnerSource), "real proof no longer hardcodes product non-use boolean");

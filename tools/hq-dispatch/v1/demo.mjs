@@ -42,11 +42,11 @@ async function main() {
       sessionGeneration: owner.sessionGeneration,
       serverInstanceId: owner.serverInstanceId,
       doctor: () => runDoctor({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT, ownerPath: OWNER_PATH, port: HQ_PORT, allowDirtyForTest: true, demoMode: true }),
-      reconcile: () => reconcileCanonicalState({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT }),
-      stopView: () => ({ schema_version: "tsf_hq_dispatch_stop_view_v1", server_instance: owner.serverInstanceId, mode: "DEMO_FIXTURE_ONLY", active_mission: owner.owner?.active_mission ?? null, owned_child: owner.owner?.owned_children ?? [], behavior: "Exact owned demo fixture process only.", remaining_canonical_work: reconcileCanonicalState({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT }).items }),
+      reconcile: () => reconcileCanonicalState({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT, testOnlyAllowAlternateQueueRoot: true }),
+      stopView: () => ({ schema_version: "tsf_hq_dispatch_stop_view_v1", server_instance: owner.serverInstanceId, mode: "DEMO_FIXTURE_ONLY", active_mission: owner.owner?.active_mission ?? null, owned_child: owner.owner?.owned_children ?? [], behavior: "Exact owned demo fixture process only.", remaining_canonical_work: reconcileCanonicalState({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT, testOnlyAllowAlternateQueueRoot: true }).items }),
       authenticateStop: (token, body) => owner.authenticateStop(token, body),
       recordInterruption: (record) => {
-        const reconciliation = reconcileCanonicalState({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT });
+        const reconciliation = reconcileCanonicalState({ runtimeRoot: RUNTIME_ROOT, queueRoot: QUEUE_ROOT, testOnlyAllowAlternateQueueRoot: true });
         const item = reconciliation.items.find((candidate) => candidate.mission_id === record.missionId && candidate.mission_revision === record.revision);
         return item ? writeInterruptionEvidence({ item, reason: "DEMO_SERVER_SHUTDOWN_DURING_FIXTURE", serverInstanceId: owner.serverInstanceId, operatorInitiated: true }) : null;
       },

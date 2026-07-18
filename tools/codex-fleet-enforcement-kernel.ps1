@@ -1256,6 +1256,7 @@ function New-TsfKernelWorkerInstruction {
         expected_artifacts = @(ConvertTo-TsfKernelArray -Value $mission.expected_artifacts)
         stop_conditions = @(ConvertTo-TsfKernelArray -Value $mission.stop_conditions)
         required_postrun_checks = @(ConvertTo-TsfKernelArray -Value $mission.required_postrun_checks)
+        exact_response_contract = if ($mission.PSObject.Properties.Name -contains "exact_response_contract") { $mission.exact_response_contract } else { $null }
         role_extension = if ($mission.PSObject.Properties.Name -contains "role_extension") { $mission.role_extension } else { $null }
     }
 
@@ -1294,6 +1295,7 @@ function New-TsfKernelWorkerInstruction {
         }
         forbidden_action_summary = $forbiddenActionSummary
         expected_artifact_contract = $expectedArtifactSummary
+        exact_response_contract = if ($mission.PSObject.Properties.Name -contains "exact_response_contract") { $mission.exact_response_contract } else { $null }
         postrun_verifier_instruction = $postrunVerifierInstruction
         worker_instruction = "Use only the mission packet scope. Do not exceed role authority. Do not run background, all-fleet, product repo mutation, push, merge, deploy, install, migration, secrets, PrivateLens, canonical NWR, or normal NWR packet work."
         handoff_packet = $handoff
@@ -1319,6 +1321,13 @@ function Get-TsfExpectedResponseSha256 {
         [string]$TestId = ''
     )
 
+    $contractHash = ''
+    if ($Mission.PSObject.Properties.Name -contains 'exact_response_contract' -and $null -ne $Mission.exact_response_contract) {
+        $contract = $Mission.exact_response_contract
+        $contractCheck = Test-TsfExactResponseContract -Contract $contract -NaturalRequest ([string]$Mission.original_request) -PreviewId ([string]$contract.preview_binding.preview_id) -PreviewArtifactSha256 ([string]$contract.preview_binding.preview_artifact_sha256) -MissionId ([string]$Mission.mission_id) -MissionRevision ([int]$Mission.mission_revision)
+        if (!$contractCheck.valid) { throw "INVALID_EXPECTED_RESPONSE_CONTRACT: $($contractCheck.errors -join '; ')" }
+        $contractHash = [string]$contract.expected_literal_sha256
+    }
     $hashMatches = @()
     foreach ($test in @(ConvertTo-TsfKernelArray -Value $Mission.required_tests)) {
         if (![string]::IsNullOrWhiteSpace($TestId) -and [string]$test.test_id -ne $TestId) { continue }
@@ -1328,7 +1337,8 @@ function Get-TsfExpectedResponseSha256 {
         }
     }
     if ($hashMatches.Count -gt 1 -and @($hashMatches | Sort-Object -Unique).Count -ne 1) { throw 'CONFLICTING_EXPECTED_RESPONSE_HASHES' }
-    return $(if ($hashMatches.Count) { [string]$hashMatches[0] } else { '' })
+    if ($contractHash -and $hashMatches.Count -and [string]$hashMatches[0] -ne $contractHash) { throw 'EXPECTED_RESPONSE_CONTRACT_TEST_HASH_MISMATCH' }
+    return $(if ($contractHash) { $contractHash } elseif ($hashMatches.Count) { [string]$hashMatches[0] } else { '' })
 }
 
 function Invoke-TsfKernelPostRunVerify {
@@ -1356,6 +1366,7 @@ function Invoke-TsfKernelPostRunVerify {
         $responseContractMission = $queueDocument.durable_mission
     }
     $expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission
+    $boundExactResponseContract = if ($responseContractMission.PSObject.Properties.Name -contains 'exact_response_contract') { $responseContractMission.exact_response_contract } else { $null }
     $canonicalVerifierResultId = if (![string]::IsNullOrWhiteSpace($CanonicalQueueDocumentPath)) { "canonical-result-$([string]$responseContractMission.mission_id)-$([int]$responseContractMission.mission_revision)" } else { $null }
     $exactResponseVerification = $null
 
@@ -1488,12 +1499,21 @@ function Invoke-TsfKernelPostRunVerify {
                     [pscustomobject]@{name='turn_id';value=[string]$adapter.turn_id}, [pscustomobject]@{name='expected_response_sha256';value=$expectedResponseSha256},
                     [pscustomobject]@{name='observed_response_sha256';value=$observedResponseSha256}, [pscustomobject]@{name='adapter_result_sha256';value=$adapterFileSha256}
                 )) { if ([string]$exact.($binding.name) -ne [string]$binding.value) { $exactErrors.Add("Worker exact-response binding mismatch: $($binding.name).") | Out-Null } }
+                if ($null -ne $boundExactResponseContract) {
+                    if ([string]$exact.validation_mode -ne 'EXACT_LITERAL_V1' -or [string]$exact.normalization_version -ne [string]$boundExactResponseContract.normalization_version -or [string]$exact.expected_literal -cne [string]$boundExactResponseContract.expected_literal -or [string]$exact.semantic_contract_sha256 -ne [string]$boundExactResponseContract.semantic_contract_sha256) { $exactErrors.Add('Worker exact-response semantic contract differs from the mission binding.') | Out-Null }
+                }
                 if (![bool]$exact.transport_success -or ![bool]$exact.exact_match -or ![bool]$exact.semantic_success) { $exactErrors.Add('Worker exact-response verdict is not successful.') | Out-Null }
             }
             $requiredTest = @($worker.tests | Where-Object { [string]$_.test_id -eq 'hq-dispatch-read-only-exact-response' })
             if ($requiredTest.Count -ne 1 -or [string]$requiredTest[0].status -ne 'PASS' -or [string]$requiredTest[0].evidence -ne $observedResponseSha256) { $exactErrors.Add('Required exact-response test is not bound to the observed response hash.') | Out-Null }
         }
         $exactResponseVerification = [pscustomobject][ordered]@{
+            validation_mode = if ($null -ne $boundExactResponseContract) { [string]$boundExactResponseContract.validation_mode } else { 'LEGACY_EXACT_HASH' }
+            normalization_version = if ($null -ne $boundExactResponseContract) { [string]$boundExactResponseContract.normalization_version } else { 'LEGACY_RAW_UTF8' }
+            expected_literal = if ($null -ne $boundExactResponseContract) { [string]$boundExactResponseContract.expected_literal } else { $null }
+            observed_literal = if ($null -ne $adapter -and [string]$adapter.final_response -cmatch '^[A-Z][A-Z0-9_]{0,127}$') { [string]$adapter.final_response } else { $null }
+            observed_representation = if ($null -ne $adapter -and [string]$adapter.final_response -cmatch '^[A-Z][A-Z0-9_]{0,127}$') { 'SAFE_LITERAL' } else { 'SHA256_ONLY_UNSAFE_OR_OUT_OF_POLICY' }
+            semantic_contract_sha256 = if ($null -ne $boundExactResponseContract) { [string]$boundExactResponseContract.semantic_contract_sha256 } else { $null }
             expected_response_sha256 = $expectedResponseSha256
             observed_response_sha256 = $(if ($observedResponseSha256) { $observedResponseSha256 } else { $null })
             exact_match = ($exactErrors.Count -eq 0)

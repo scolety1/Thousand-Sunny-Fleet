@@ -15,7 +15,7 @@ function Get-ClosedInput {
     if ([Text.Encoding]::UTF8.GetByteCount($raw) -gt 16384) { throw 'HQ_SUBMISSION_INPUT_TOO_LARGE' }
     try { $value = $raw | ConvertFrom-Json -ErrorAction Stop } catch { throw 'HQ_SUBMISSION_INPUT_INVALID_JSON' }
     $allowed = @(
-        'mission_id','mission_revision','natural_request','parent_mission_revision','source_result_id','tim_required_request_id','response_id','response_record_sha256',
+        'mission_id','mission_revision','natural_request','preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract','parent_mission_revision','source_result_id','tim_required_request_id','response_id','response_record_sha256',
         'recovery_parent_mission_id','recovery_parent_mission_revision','recovery_parent_run_id','recovery_source_evidence_sha256','recovery_evidence_directory'
     )
     $unknown = @($value.PSObject.Properties.Name | Where-Object { $allowed -notcontains $_ })
@@ -95,6 +95,7 @@ $responseRecord = $null
 $responseRecordPath = ''
 $responseRecordHash = ''
 $sourceMission = $null
+$recoverySourceMission = $null
 $sourceRequest = $null
 if ($isRevision) {
     $parentRevision = [int]$inputValue.parent_mission_revision
@@ -114,6 +115,52 @@ if ($isRevision) {
     $sourceRequest = $sourceLifecycle.tim_required_request
     if ([string]$sourceLifecycle.terminal_status -ne 'TIM_REQUIRED' -or [string]$sourceRequest.request_id -ne [string]$inputValue.tim_required_request_id) { throw 'HQ_REVISION_SOURCE_NOT_TERMINAL_TIM_REQUIRED' }
     $naturalRequest = [string]$sourceMission.original_request
+}
+
+$exactResponseContract = $null
+if ($isRevision) {
+    if ($sourceMission.PSObject.Properties.Name -contains 'exact_response_contract' -and $null -ne $sourceMission.exact_response_contract) {
+        $sourceContract = $sourceMission.exact_response_contract
+        $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId ([string]$sourceContract.preview_binding.preview_id) -PreviewArtifactSha256 ([string]$sourceContract.preview_binding.preview_artifact_sha256) -MissionId $missionId -MissionRevision $revision
+        if ([string]$exactResponseContract.semantic_contract_sha256 -ne [string]$sourceContract.semantic_contract_sha256) { throw 'HQ_REVISION_EXACT_RESPONSE_CONTRACT_CHANGED' }
+    }
+} elseif ($isRecovery) {
+    $recoverySourceMission = Read-TsfKernelJson ([string]$sourcePlan.registry_mission_path)
+    if ($recoverySourceMission.PSObject.Properties.Name -contains 'exact_response_contract' -and $null -ne $recoverySourceMission.exact_response_contract) {
+        $sourceContract = $recoverySourceMission.exact_response_contract
+        $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId ([string]$sourceContract.preview_binding.preview_id) -PreviewArtifactSha256 ([string]$sourceContract.preview_binding.preview_artifact_sha256) -MissionId $missionId -MissionRevision $revision
+        if ([string]$exactResponseContract.semantic_contract_sha256 -ne [string]$sourceContract.semantic_contract_sha256) { throw 'HQ_RECOVERY_EXACT_RESPONSE_CONTRACT_CHANGED' }
+    }
+} else {
+    $previewFields = @('preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract')
+    $presentPreviewFieldCount = @($previewFields | Where-Object { $inputValue.PSObject.Properties.Name -contains $_ }).Count
+    if ($presentPreviewFieldCount -gt 0 -and $presentPreviewFieldCount -lt $previewFields.Count) { throw 'HQ_SUBMISSION_PARTIAL_PREVIEW_BINDING_REJECTED' }
+    $hasPreviewBinding = $presentPreviewFieldCount -eq $previewFields.Count
+    if (!$hasPreviewBinding -and !$TestOnlyQueueRoot) { throw 'HQ_SUBMISSION_REVIEWED_PREVIEW_BINDING_REQUIRED' }
+    if ($hasPreviewBinding) {
+        $previewId = [string]$inputValue.preview_id
+        $previewSha256 = [string]$inputValue.preview_sha256
+        $requestHash = [string]$inputValue.request_hash
+        if ($previewId -notmatch '^hq-preview-[a-f0-9]{32}$' -or $previewSha256 -notmatch '^[a-f0-9]{64}$' -or $requestHash -notmatch '^[a-f0-9]{64}$' -or [string]$inputValue.submission_id -notmatch '^hq-submission-[0-9a-f-]{36}$') { throw 'HQ_SUBMISSION_PREVIEW_BINDING_INVALID' }
+        if ((Get-TsfExactResponseLiteralSha256 $naturalRequest) -ne $requestHash) { throw 'HQ_SUBMISSION_REQUEST_HASH_MISMATCH' }
+        $previewPath = Join-Path $repoRoot ".codex-local\hq-dispatch\preview\$previewId.route-preview.json"
+        if (!(Test-Path -LiteralPath $previewPath -PathType Leaf) -or (Get-FileHash -LiteralPath $previewPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previewSha256) { throw 'HQ_SUBMISSION_PREVIEW_STALE_OR_CHANGED' }
+        $storedPreview = Read-TsfKernelJson $previewPath
+        if ([string]$storedPreview.preview_id -ne $previewId -or [string]$storedPreview.record_kind -ne 'hq_dispatch_route_preview') { throw 'HQ_SUBMISSION_PREVIEW_IDENTITY_MISMATCH' }
+        $recomputedUnbound = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId $previewId
+        $storedContract = $storedPreview.exact_response_contract
+        if (($null -eq $storedContract) -ne ($null -eq $recomputedUnbound)) { throw 'HQ_SUBMISSION_STORED_RESPONSE_CONTRACT_MISMATCH' }
+        if ($null -ne $storedContract -and (Get-TsfContractJsonHash $storedContract) -ne (Get-TsfContractJsonHash $recomputedUnbound)) { throw 'HQ_SUBMISSION_STORED_RESPONSE_CONTRACT_MISMATCH' }
+        if ($null -eq $recomputedUnbound) {
+            if ($null -ne $inputValue.reviewed_exact_response_contract -or [string]$storedPreview.result_validation_mode -ne 'GENERAL_RESULT_V1') { throw 'HQ_SUBMISSION_GENERAL_RESPONSE_CONTRACT_CHANGED' }
+        } else {
+            $reviewedCheck = Test-TsfExactResponseContract -Contract $inputValue.reviewed_exact_response_contract -NaturalRequest $naturalRequest -PreviewId $previewId -PreviewArtifactSha256 $previewSha256
+            if (!$reviewedCheck.valid) { throw "HQ_SUBMISSION_REVIEWED_RESPONSE_CONTRACT_INVALID: $($reviewedCheck.errors -join '; ')" }
+            $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId $previewId -PreviewArtifactSha256 $previewSha256 -MissionId $missionId -MissionRevision $revision
+        }
+    } elseif ($null -ne (Get-TsfExactResponseLiteralFromRequest -NaturalRequest $naturalRequest)) {
+        throw 'HQ_TEST_EXACT_RESPONSE_REQUIRES_REVIEWED_PREVIEW'
+    }
 }
 
 $draftRequest = if ($isRevision -and [string]$responseRecord.response_type -eq 'PROVIDE_CLARIFICATION') { "$naturalRequest`nOperator clarification: $([string]$responseRecord.response_payload)" } else { $naturalRequest }
@@ -185,6 +232,7 @@ if ($isRevision) {
         }
     }
 }
+$requiredResultTests = [object[]]$(if ($null -ne $exactResponseContract) { @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-exact-response'; required = $true; command = "exact-response-sha256:$([string]$exactResponseContract.expected_literal_sha256)" }) } else { @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-general-result'; required = $true; command = 'app-server-transport-result-v1' }) })
 $mission = [pscustomobject][ordered]@{
     schema_version = 'tsf_mission_envelope_v1'
     mission_id = $missionId
@@ -192,7 +240,8 @@ $mission = [pscustomobject][ordered]@{
     parent_mission_id = if($isRevision){$missionId}elseif($isRecovery){$recoveryParentId}else{$null}
     project_id = 'TSF_CONTROL_PLANE'
     original_request = $naturalRequest
-    normalized_goal = 'Read the TSF-local fleet/control/policy-manifest.v1.json fixture and return exactly TSF_HQ_DISPATCH_READ_ONLY_GREEN. Do not use tools, modify files, access another repository, or use worker-tool network.'
+    normalized_goal = $(if ($null -ne $exactResponseContract) { "Read the TSF-local fleet/control/policy-manifest.v1.json fixture and return exactly $([string]$exactResponseContract.expected_literal). Do not use tools, modify files, access another repository, or use worker-tool network." } else { 'Read the TSF-local fleet/control/policy-manifest.v1.json fixture and return a concise factual completion result. Do not use tools, modify files, access another repository, or use worker-tool network.' })
+    exact_response_contract = $exactResponseContract
     mission_type = 'hq_dispatch_read_only_vertical_slice'
     worker_role = [string]$draft.normalized_intent.proposed_worker_role
     recommended_surface = 'CODEX'
@@ -220,7 +269,7 @@ $mission = [pscustomobject][ordered]@{
     allowed_writes = @()
     forbidden_actions = @($forbidden)
     completion_criteria = @('Bound foreground app-server read-only turn completes.','Independent canonical verifier passes.','Canonical admission receipt is written.')
-    required_tests = @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-exact-response'; required = $true; command = 'exact-response-sha256:106dd1ebd1181784b66d19f0efc651e015e324d9f8fe106d91faf3ff935a11ba' })
+    required_tests = $requiredResultTests
     required_artifacts = @([pscustomobject]@{ path = 'fleet/control/policy-manifest.v1.json'; hash_required = $true })
     required_verifier_independence = 'SEPARATE_ROLE'
     stop_conditions = @('Unexpected file touch.','Worker-tool network request.','Native identity mismatch.','Timeout.','Verifier failure.','TIM_REQUIRED request.')
@@ -290,6 +339,7 @@ if ([string]$preparation.status -ne 'PREPARED' -or [string]::IsNullOrWhiteSpace(
     old_thread_or_turn_resumed = $false
     mission_path = $missionPath
     mission_sha256 = (Get-FileHash $missionPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    exact_response_contract = $exactResponseContract
     queue_record_path = [string]$preparation.queue_record_path
     queue_document_sha256 = [string]$preparation.queue_document_sha256
     queue_state = 'inbox'
@@ -297,6 +347,7 @@ if ([string]$preparation.status -ne 'PREPARED' -or [string]::IsNullOrWhiteSpace(
     queue_result_path = [string]$plan.queue_plan.artifacts.queue_result
     lifecycle_result_path = [string]$plan.lifecycle_plan.artifacts.lifecycle_result
     adapter_result_path = [string]$plan.adapter_plan.artifacts.adapter_result
+    adapter_event_path = [string]$plan.adapter_plan.artifacts.event_journal
     verifier_result_path = [string]$plan.lifecycle_plan.artifacts.verifier_result
     preservation_packet_path = [string]$plan.preservation_plan.artifacts.preservation_packet
     context_update_path = [string]$plan.queue_plan.artifacts.context_update

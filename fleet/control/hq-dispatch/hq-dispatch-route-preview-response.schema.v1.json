@@ -10,6 +10,8 @@
     "banner",
     "record_kind",
     "preview_id",
+    "result_validation_mode",
+    "exact_response_contract",
     "proposed_project",
     "proposed_worker_role",
     "model_routing",
@@ -43,6 +45,12 @@
     "preview_id": {
       "type": "string",
       "pattern": "^hq-preview-[a-f0-9]{32}$"
+    },
+    "result_validation_mode": {
+      "enum": ["GENERAL_RESULT_V1", "EXACT_LITERAL_V1"]
+    },
+    "exact_response_contract": {
+      "type": ["object", "null"]
     },
     "proposed_project": {
       "type": "object",

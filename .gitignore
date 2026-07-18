@@ -2,6 +2,19 @@ out/
 *.log
 .codex-logs/
 .codex-local/
+# Canonical local queue evidence: only generated mission-revision JSON records.
+# Doctor independently inventories and validates every non-.gitkeep file in these protected directories.
+/fleet/missions/inbox/*.r*.json
+/fleet/missions/drafted/*.r*.json
+/fleet/missions/preflight_pending/*.r*.json
+/fleet/missions/blocked_needs_tim/*.r*.json
+/fleet/missions/approved_for_worker/*.r*.json
+/fleet/missions/worker_running/*.r*.json
+/fleet/missions/postrun_pending/*.r*.json
+/fleet/missions/complete_review_only/*.r*.json
+/fleet/missions/complete_ready_for_gate/*.r*.json
+/fleet/missions/stopped/*.r*.json
+/fleet/missions/archived/*.r*.json
 audit-packages/
 docs/codex/CURRENT_STATE.md
 docs/codex/EVIDENCE_INDEX.md

@@ -21,7 +21,8 @@ rl.on("line", (line) => {
     write({ id: request.id, result: { turn: { id: "fake-turn-1" } } });
     const threadId = mode === "spoof" ? "spoofed-thread" : "fake-thread-1";
     const started = { method: "turn/started", params: { threadId, turn: { id: "fake-turn-1", status: "inProgress" } } };
-    const item = { method: "item/completed", params: { threadId, turnId: "fake-turn-1", item: { id: "fake-item-1", type: "agentMessage", text: "TSF_FAKE_GREEN" } } };
+    const responseText = mode === "old-substituted" ? "TSF_HQ_DISPATCH_READ_ONLY_GREEN" : "TSF_FAKE_GREEN";
+    const item = { method: "item/completed", params: { threadId, turnId: "fake-turn-1", item: { id: "fake-item-1", type: "agentMessage", text: responseText } } };
     const completed = { method: "turn/completed", params: { threadId, turn: { id: "fake-turn-1", status: "completed", usage: { inputTokens: 1, outputTokens: 1 } } } };
     const usage = (totalTokens, inputTokens = totalTokens - 2) => ({ method: "thread/tokenUsage/updated", params: { threadId, turnId: "fake-turn-1", tokenUsage: { total: { totalTokens, inputTokens, cachedInputTokens: 1, outputTokens: 2, reasoningOutputTokens: 0 }, last: { totalTokens, inputTokens, cachedInputTokens: 1, outputTokens: 2, reasoningOutputTokens: 0 }, modelContextWindow: 1000 } } });
     if (mode === "effort-match") write({ method: "thread/settings/updated", params: { threadId, threadSettings: { effort: "low" } } });

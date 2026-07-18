@@ -1,5 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,7 +41,7 @@ try {
   const session = await request(port, { method: "POST", pathname: "/api/v1/session", origin, body: "{}" });
   if (session.status !== 200) throw new Error(`SESSION_FAILED_${session.status}`);
   const token = session.json.session_token;
-  const naturalRequest = "Run the bounded TSF-local read-only HQ Dispatch vertical slice.";
+  const naturalRequest = "Run the bounded TSF-local read-only HQ Dispatch vertical slice and return exactly TSF_V1_CANONICAL_FIRST_LAUNCH_GREEN.";
   const preview = await request(port, { method: "POST", pathname: "/api/v1/route-preview", token, origin, body: JSON.stringify({ natural_request: naturalRequest }) });
   if (preview.status !== 200) throw new Error(`PREVIEW_FAILED_${preview.status}`);
   const mission = await request(port, {
@@ -83,7 +84,17 @@ try {
   };
   process.stdout.write(JSON.stringify({
     schema_version: "tsf_hq_dispatch_real_readonly_http_proof_v1",
+    candidate: {
+      head: execFileSync("git.exe", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true }).trim(),
+      tree: execFileSync("git.exe", ["-C", root, "rev-parse", "HEAD^{tree}"], { encoding: "utf8", windowsHide: true }).trim(),
+      worktree: root,
+      detached: execFileSync("git.exe", ["-C", root, "branch", "--show-current"], { encoding: "utf8", windowsHide: true }).trim() === "",
+    },
     submission_id: preview.json.submission_id,
+    preview_id: preview.json.preview_id,
+    preview_sha256: preview.json.preview_sha256,
+    expected_literal: preview.json.exact_response_contract?.expected_literal ?? null,
+    expected_literal_sha256: preview.json.exact_response_contract?.expected_literal_sha256 ?? null,
     http_status: mission.status,
     final_status: mission.json,
     events: events.json,

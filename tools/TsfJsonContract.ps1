@@ -29,7 +29,7 @@ function Test-TsfJsonType {
     param([AllowNull()][object]$Value, [Parameter(Mandatory)][string]$Type)
     switch ($Type) {
         'null' { return $null -eq $Value }
-        'object' { return $null -ne $Value -and $Value -isnot [string] -and $Value -isnot [array] -and $Value.PSObject.Properties.Count -ge 0 }
+        'object' { return $null -ne $Value -and $Value -isnot [string] -and $Value -isnot [array] -and @($Value.PSObject.Properties).Count -ge 0 }
         'array' { return $Value -is [array] }
         'string' { return $Value -is [string] }
         'boolean' { return $Value -is [bool] }
@@ -132,8 +132,10 @@ function Test-TsfSchemaNode {
     }
 
     if (Test-TsfJsonType $Value 'object') {
-        foreach ($required in @(ConvertTo-TsfContractArray $Schema.required)) {
-            if (!(Test-TsfContractProperty $Value ([string]$required))) { $Errors.Add("$Path.$required is required.") | Out-Null }
+        if (Test-TsfContractProperty $Schema 'required') {
+            foreach ($required in @(ConvertTo-TsfContractArray $Schema.required)) {
+                if (!(Test-TsfContractProperty $Value ([string]$required))) { $Errors.Add("$Path.$required is required.") | Out-Null }
+            }
         }
         if (Test-TsfContractProperty $Schema 'properties') {
             $allowed = @($Schema.properties.PSObject.Properties.Name)

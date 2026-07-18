@@ -23,7 +23,7 @@ child.stdout.on("data", (chunk) => { stdout += chunk; });
 child.stderr.on("data", (chunk) => { stderr += chunk; });
 
 try {
-  check(await waitFor(() => existsSync(OWNER_PATH) && readOwnership().disposition === "ACTIVE_OWNER_CONFIRMED"), `demo owner became active: ${stderr}`);
+  check(await waitFor(() => existsSync(OWNER_PATH) && readOwnership().disposition === "ACTIVE_OWNER_CONFIRMED" && readOwnership().owner?.lifecycle_state === "ACTIVE"), `demo owner and listener became active: ${stderr}`);
   const ownership = readOwnership();
   const owner = ownership.owner;
   equal(owner.mode, "DEMO_FIXTURE_ONLY", "demo owner is explicitly labeled");
