@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 if (![IO.Path]::IsPathRooted($EvidenceRoot)) { $EvidenceRoot = Join-Path $repo $EvidenceRoot }
 Import-Module (Join-Path $repo 'tools\TsfDurableContract.psm1') -Force
+. (Join-Path $repo 'tools\codex-fleet-enforcement-kernel.ps1')
 $script:Results = [Collections.Generic.List[object]]::new()
 function Assert-Case($Id, $Category, [bool]$Passed, $Observed) {
     $script:Results.Add([pscustomobject]@{ case_id=$Id; category=$Category; status=if($Passed){'PASS'}else{'FAIL'}; observed=[string]$Observed }) | Out-Null
@@ -27,6 +28,8 @@ try {
     $bad=Copy-Object $fixture; $bad|Add-Member extra_field $true; Assert-Case 'DC-C005' schema (!(Test-TsfMissionEnvelope $bad).valid) 'additional property rejected'
     $bad=Copy-Object $fixture; $bad.PSObject.Properties.Remove('policy'); Assert-Case 'DC-C006' schema (!(Test-TsfMissionEnvelope $bad).valid) 'missing nested contract rejected'
     $bad=Copy-Object $fixture; $bad.schema_version='v2'; Assert-Case 'DC-C007' schema (!(Test-TsfMissionEnvelope $bad).valid) 'version const rejected'
+    $bad=Copy-Object $fixture; $bad.branch_worktree_policy.expected_branch=''; Assert-Case 'DC-C008' schema (!(Test-TsfMissionEnvelope $bad).valid) 'branch-required empty identity rejected'
+    $bad=Copy-Object $fixture; $bad.branch_worktree_policy.expected_branch=$null; Assert-Case 'DC-C009' schema (!(Test-TsfMissionEnvelope $bad).valid) 'branch-required null identity rejected'
 
     foreach($alias in @('FAST','BALANCED','DEEP','MAX_SINGLE','PARALLEL')) {
         $route=Resolve-TsfModelRouting $alias CODEX
@@ -79,6 +82,18 @@ try {
     $conflict=Copy-Object $mission; $conflict.resolved_model='conflicting-model'; Assert-Case 'DC-T007' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $conflict $repo }) 'model conflict rejected'
     $effort=Copy-Object $mission; $effort.reasoning_effort='HIGH'; Assert-Case 'DC-T008' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $effort $repo }) 'effort conflict rejected'
     $unknownRole=Copy-Object $mission; $unknownRole.worker_role='missing-role'; Assert-Case 'DC-T009' translator (Throws { ConvertTo-TsfCanonicalExecutionArtifacts $unknownRole $repo }) 'unknown role rejected'
+    $wrongHead=Copy-Object $mission; $wrongHead.branch_worktree_policy.starting_head=('0'*40); $wrongHeadDocument=ConvertTo-TsfCanonicalExecutionArtifacts $wrongHead $repo
+    Assert-Case 'DC-T009A' translator (!(Test-TsfCanonicalQueueDocument $wrongHeadDocument $wrongHead $repo).valid) 'queue revalidation rejects changed HEAD before execution'
+    & git -C $runtimeRepo checkout -q --detach $head
+    $detachedGit=Get-TsfKernelGitState $runtimeRepo
+    Assert-Case 'DC-G001' git ($detachedGit.can_capture-and$detachedGit.branch_identity_available-and$detachedGit.detached_head-and[string]::IsNullOrWhiteSpace([string]$detachedGit.branch)-and$detachedGit.head-eq$head) 'detached HEAD is explicit and commit-pinned'
+    $detachedMission=Copy-Object $mission; $detachedMission.permission_mode='READ_ONLY'; $detachedMission.normalized_goal='Read one exact locally pinned fixture without tools or writes.'; $detachedMission.allowed_writes=@(); $detachedMission.required_artifacts=@([pscustomobject]@{path='input/source.txt';hash_required=$true}); $detachedMission.branch_worktree_policy.branch_required=$false; $detachedMission.branch_worktree_policy.expected_branch=$null; $detachedMission.branch_worktree_policy.unexpected_advance_behavior='REJECT'
+    $detachedTranslation=ConvertTo-TsfCanonicalExecutionArtifacts $detachedMission $repo
+    Assert-Case 'DC-T010' translator (!($detachedTranslation.mission_packet.PSObject.Properties.Name-contains'required_branch')) 'detached read-only packet omits required_branch'
+    Assert-Case 'DC-T011' translator ($null-eq$detachedTranslation.source_binding.expected_branch-and![bool]$detachedTranslation.durable_mission.branch_worktree_policy.branch_required-and[string]$detachedTranslation.durable_mission.branch_worktree_policy.starting_head-eq$head) 'detached durable binding uses null branch and exact HEAD'
+    $detachedWrite=Copy-Object $detachedMission; $detachedWrite.permission_mode='WORKSPACE_WRITE'; $detachedWrite.allowed_writes=@('output')
+    $detachedWriteError=''; try { ConvertTo-TsfCanonicalExecutionArtifacts $detachedWrite $repo|Out-Null } catch { $detachedWriteError=$_.Exception.Message }
+    Assert-Case 'DC-T012' translator ($detachedWriteError-match'Detached workspace writes are unsafe; an attached approved branch is required') $detachedWriteError
     Assert-Case 'DC-AUTH-001' authority (@(Get-Command -Module TsfDurableContract | Where-Object Name -eq 'Get-TsfAdmissionDecision').Count-eq1) 'one exported admission authority'
 
     New-Item -ItemType Directory -Force $EvidenceRoot|Out-Null

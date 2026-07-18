@@ -41,9 +41,27 @@
     "branch_worktree_policy": {
       "type": "object", "additionalProperties": false,
       "required": ["branch_required", "worktree_required", "expected_branch", "expected_worktree", "starting_head", "unexpected_advance_behavior"],
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["branch_required", "expected_branch"],
+          "properties": {
+            "branch_required": { "const": true },
+            "expected_branch": { "type": "string", "minLength": 1, "maxLength": 200 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["branch_required", "expected_branch"],
+          "properties": {
+            "branch_required": { "const": false },
+            "expected_branch": { "type": "null" }
+          }
+        }
+      ],
       "properties": {
         "branch_required": { "type": "boolean" }, "worktree_required": { "type": "boolean" },
-        "expected_branch": { "type": ["string", "null"] }, "expected_worktree": { "type": ["string", "null"] },
+        "expected_branch": { "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 200 }, { "type": "null" }] }, "expected_worktree": { "type": ["string", "null"] },
         "starting_head": { "type": ["string", "null"] },
         "unexpected_advance_behavior": { "enum": ["REVIEW_REQUIRED", "REJECT"] }
       }

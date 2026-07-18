@@ -34,7 +34,8 @@ try{
     if($missingHelpers.Count){foreach($helper in $missingHelpers){$blocked.Add("Required repository-relative helper is missing: $helper")|Out-Null};$status='BLOCKED_HELPER_IMPORT';throw 'PREPARATION_BLOCKED'
     }
     if(!$git.can_capture){$blocked.Add('Repository Git state cannot be captured.')|Out-Null;throw 'PREPARATION_BLOCKED'}
-    if([string]$git.branch-ne[string]$mission.branch_worktree_policy.expected_branch-or[string]$git.head-ne[string]$mission.branch_worktree_policy.starting_head){$blocked.Add('Mission branch/HEAD binding differs from the current repository.')|Out-Null;throw 'PREPARATION_BLOCKED'}
+    $branchMismatch=[bool]$mission.branch_worktree_policy.branch_required-and[string]$git.branch-ne[string]$mission.branch_worktree_policy.expected_branch
+    if($branchMismatch-or[string]$git.head-ne[string]$mission.branch_worktree_policy.starting_head){$blocked.Add('Mission branch/HEAD binding differs from the current repository.')|Out-Null;throw 'PREPARATION_BLOCKED'}
     $document=ConvertTo-TsfCanonicalExecutionArtifacts $mission $fleetRoot
     $check=Test-TsfCanonicalQueueDocument $document $mission $fleetRoot
     if(!$check.valid){foreach($error in @($check.errors)){$blocked.Add([string]$error)|Out-Null};throw 'PREPARATION_BLOCKED'}
