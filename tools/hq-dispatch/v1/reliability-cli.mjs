@@ -34,7 +34,7 @@ async function waitForExactStop(owner) {
 }
 
 async function stop() {
-  const { owner, token, listeners } = stopRequestEvidence();
+  const { owner, token, listeners, stop_authentication_hash } = stopRequestEvidence();
   const response = await fetch(`http://${owner.host}:${owner.port}/api/v1/admin/stop`, {
     method: "POST",
     headers: {
@@ -43,7 +43,7 @@ async function stop() {
       "X-TSF-HQ-Stop": token,
       Host: `${owner.host}:${owner.port}`,
     },
-    body: JSON.stringify({ server_instance_id: owner.server_instance_id, evidence_hash: owner.evidence_hash, process_id: owner.process_id }),
+    body: JSON.stringify({ server_instance_id: owner.server_instance_id, evidence_hash: stop_authentication_hash, process_id: owner.process_id }),
   });
   let accepted;
   try { accepted = await response.json(); } catch { accepted = null; }

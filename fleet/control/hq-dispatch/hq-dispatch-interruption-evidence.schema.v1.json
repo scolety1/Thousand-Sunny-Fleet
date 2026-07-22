@@ -29,6 +29,45 @@
     "queue_snapshot_path": { "type": "string", "minLength": 1 },
     "queue_snapshot_sha256": { "$ref": "#/$defs/sha256" },
     "source_evidence_hash": { "$ref": "#/$defs/sha256" },
+    "cleanup_summary": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "status", "server_instance_id", "mission_id", "mission_revision", "run_id", "result_id",
+        "process_action_ledger_path", "process_action_ledger_sha256", "terminal_dispositions", "archived_owner_path",
+        "archived_owner_sha256", "generated_at", "cleanup_summary_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "tsf_hq_dispatch_exact_cleanup_summary_v1" },
+        "status": { "const": "CLEANUP_CONFIRMED" },
+        "server_instance_id": { "type": "string", "minLength": 1 },
+        "mission_id": { "type": "string", "minLength": 8 },
+        "mission_revision": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 8 },
+        "result_id": { "type": "string", "minLength": 8 },
+        "process_action_ledger_path": { "type": "string", "minLength": 1 },
+        "process_action_ledger_sha256": { "$ref": "#/$defs/sha256" },
+        "terminal_dispositions": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["process_id", "process_start_time", "executable_identity_sha256", "ownership_evidence_sha256", "terminal_disposition", "terminal_evidence_sha256"],
+            "properties": {
+              "process_id": { "type": "integer", "minimum": 1 },
+              "process_start_time": { "type": "string", "format": "date-time" },
+              "executable_identity_sha256": { "$ref": "#/$defs/sha256" },
+              "ownership_evidence_sha256": { "$ref": "#/$defs/sha256" },
+              "terminal_disposition": { "enum": ["COOPERATIVE_EXIT_CONFIRMED", "FORCED_TERMINATION_CONFIRMED", "ALREADY_GONE_WITH_IDENTITY_CONFIRMED"] },
+              "terminal_evidence_sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        },
+        "archived_owner_path": { "type": "string", "minLength": 1 },
+        "archived_owner_sha256": { "$ref": "#/$defs/sha256" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "cleanup_summary_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "interruption_identity_sha256": { "$ref": "#/$defs/sha256" }
   },
   "$defs": { "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }

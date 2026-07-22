@@ -7,6 +7,7 @@ const MAX_CHILD_OUTPUT = 2 * 1024 * 1024;
 const M3_REAL_INTERRUPTION_FIXTURE = "TSF_HQ_DISPATCH_M3_REAL_INTERRUPTION_FIXTURE_V1";
 const M3_REAL_INTERRUPTION_ROOT = path.join(".codex-local", "fixtures", "hq-dispatch-m3-real-interruption-v1");
 const m3RealInterruptionBarriers = new WeakSet();
+const m3RealInterruptionCapabilities = new WeakMap();
 
 export function createM3RealInterruptionBarrier({
   repositoryRoot,
@@ -16,6 +17,8 @@ export function createM3RealInterruptionBarrier({
   access,
   inMemoryCapability,
   onOwnedExecutor,
+  onOwnedCleanup,
+  timeoutMs = 180_000,
 }) {
   const resolvedRepository = path.resolve(repositoryRoot ?? "");
   const expectedRoot = path.resolve(resolvedRepository, M3_REAL_INTERRUPTION_ROOT);
@@ -32,15 +35,27 @@ export function createM3RealInterruptionBarrier({
     throw new Error("M3_INTERRUPTION_FIXTURE_ACCESS_REJECTED");
   }
   if (typeof onOwnedExecutor !== "function") throw new Error("M3_INTERRUPTION_OWNED_EXECUTOR_HOOK_REQUIRED");
+  if (typeof onOwnedCleanup !== "function") throw new Error("M3_INTERRUPTION_OWNED_CLEANUP_HOOK_REQUIRED");
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 25 || timeoutMs > 240_000) throw new Error("M3_INTERRUPTION_TIMEOUT_REJECTED");
+  const capabilityIdentitySha256 = hash(randomBytes(32));
   const barrier = Object.freeze({
     fixture_type: M3_REAL_INTERRUPTION_FIXTURE,
     fixture_root: expectedRoot,
     test_run_identity: testRunIdentity,
     test_run_root: path.join(expectedRoot, testRunIdentity),
-    timeout_ms: 30_000,
-    onOwnedExecutor,
+    timeout_ms: timeoutMs,
+    capability_identity_sha256: capabilityIdentitySha256,
+    activate(suppliedCapability, context) {
+      if (suppliedCapability !== inMemoryCapability) throw new Error("M3_INTERRUPTION_IN_MEMORY_CAPABILITY_REJECTED");
+      return onOwnedExecutor(context);
+    },
+    cleanup(suppliedCapability) {
+      if (suppliedCapability !== inMemoryCapability) throw new Error("M3_INTERRUPTION_IN_MEMORY_CAPABILITY_REJECTED");
+      return onOwnedCleanup();
+    },
   });
   m3RealInterruptionBarriers.add(barrier);
+  m3RealInterruptionCapabilities.set(barrier, inMemoryCapability);
   return barrier;
 }
 
@@ -50,6 +65,91 @@ function hash(value) {
 
 function jsonHash(value) {
   return hash(JSON.stringify(value));
+}
+
+function exactResponseSemantic(contract) {
+  return {
+    validation_mode: contract.validation_mode,
+    normalization_version: contract.normalization_version,
+    expected_literal: contract.expected_literal,
+    expected_literal_sha256: contract.expected_literal_sha256,
+    case_sensitive: contract.case_sensitive,
+    whitespace_sensitive: contract.whitespace_sensitive,
+    executable_interpretation: contract.executable_interpretation,
+    source_requirement_kind: contract.source_requirement?.kind,
+    source_request_sha256: contract.source_requirement?.request_sha256,
+  };
+}
+
+function assertExactResponseContract(contract, {
+  requestHash,
+  previewId,
+  previewArtifactSha256 = null,
+  missionId = null,
+  missionRevision = null,
+} = {}) {
+  if (contract === null || contract === undefined) return null;
+  const literal = contract.expected_literal;
+  const semantic = exactResponseSemantic(contract);
+  const previewIdentity = {
+    preview_id: previewId,
+    source_request_sha256: requestHash,
+    semantic_contract_sha256: contract.semantic_contract_sha256,
+  };
+  const valid = contract.schema_version === "tsf_exact_literal_response_contract_v1"
+    && contract.validation_mode === "EXACT_LITERAL_V1"
+    && contract.normalization_version === "ASCII_TOKEN_IDENTITY_V1"
+    && typeof literal === "string"
+    && /^[A-Z][A-Z0-9_]{0,127}$/.test(literal)
+    && contract.expected_literal_sha256 === hash(literal)
+    && contract.semantic_contract_sha256 === jsonHash(semantic)
+    && contract.case_sensitive === true
+    && contract.whitespace_sensitive === true
+    && contract.executable_interpretation === false
+    && contract.source_requirement?.kind === "EXPLICIT_RETURN_EXACTLY_V1"
+    && contract.source_requirement?.request_sha256 === requestHash
+    && contract.source_requirement?.natural_request_persisted_in_preview === false
+    && contract.preview_binding?.preview_id === previewId
+    && contract.preview_binding?.preview_contract_sha256 === jsonHash(previewIdentity)
+    && contract.preview_binding?.preview_artifact_sha256 === previewArtifactSha256
+    && contract.mission_binding?.mission_id === missionId
+    && contract.mission_binding?.mission_revision === missionRevision;
+  if (!valid) throw new Error("EXACT_RESPONSE_CONTRACT_INVALID");
+  return contract;
+}
+
+function bindPreviewArtifact(contract, previewArtifactSha256) {
+  if (!contract) return null;
+  const bound = structuredClone(contract);
+  bound.preview_binding.preview_artifact_sha256 = previewArtifactSha256;
+  return bound;
+}
+
+function reviewedContractForm(contract) {
+  if (!contract) return null;
+  const reviewed = structuredClone(contract);
+  reviewed.mission_binding = { mission_id: null, mission_revision: null };
+  return reviewed;
+}
+
+function assertContractContinuation(reviewed, missionBound, missionId, missionRevision) {
+  if (!reviewed && !missionBound) return;
+  if (!reviewed || !missionBound) throw new Error("EXACT_RESPONSE_CONTRACT_SUBSTITUTED_OR_MISSING");
+  assertExactResponseContract(reviewed, {
+    requestHash: reviewed.source_requirement?.request_sha256,
+    previewId: reviewed.preview_binding?.preview_id,
+    previewArtifactSha256: reviewed.preview_binding?.preview_artifact_sha256,
+  });
+  assertExactResponseContract(missionBound, {
+    requestHash: reviewed.source_requirement.request_sha256,
+    previewId: reviewed.preview_binding.preview_id,
+    previewArtifactSha256: reviewed.preview_binding.preview_artifact_sha256,
+    missionId,
+    missionRevision,
+  });
+  for (const field of ["expected_literal", "expected_literal_sha256", "semantic_contract_sha256", "validation_mode", "normalization_version"]) {
+    if (missionBound[field] !== reviewed[field]) throw new Error("EXACT_RESPONSE_CONTRACT_SUBSTITUTED_OR_MISSING");
+  }
 }
 
 function responseContentHash(value) {
@@ -118,6 +218,11 @@ function previewProjection(preview, requestHash) {
     forbidden_actions: preview.forbidden_actions,
     stop_conditions: preview.stop_conditions,
     registry_sources: preview.registry_sources,
+    result_validation_mode: preview.result_validation_mode,
+    exact_response_contract: preview.exact_response_contract ? {
+      ...exactResponseSemantic(preview.exact_response_contract),
+      semantic_contract_sha256: preview.exact_response_contract.semantic_contract_sha256,
+    } : null,
   };
 }
 
@@ -191,9 +296,16 @@ export class HqMissionRelay {
       throw new Error("PREVIEW_ARTIFACT_OUTSIDE_APPROVED_DIRECTORY");
     }
     const previewSha256 = hash(readFileSync(artifactPath));
+    const exactResponseContract = bindPreviewArtifact(preview.exact_response_contract, previewSha256);
+    assertExactResponseContract(exactResponseContract, {
+      requestHash,
+      previewId: preview.preview_id,
+      previewArtifactSha256: previewSha256,
+    });
     const submissionId = `hq-submission-${randomUUID()}`;
     const decorated = {
       ...preview,
+      exact_response_contract: exactResponseContract,
       request_hash: requestHash,
       preview_sha256: previewSha256,
       submission_id: submissionId,
@@ -204,6 +316,7 @@ export class HqMissionRelay {
       previewSha256,
       artifactPath,
       projectionHash: jsonHash(previewProjection(preview, requestHash)),
+      exactResponseContract,
       submissionId,
       sessionKey,
     });
@@ -252,11 +365,24 @@ export class HqMissionRelay {
     if (!isPathInside(binding.artifactPath, this.previewRoot)) throw new Error("PREVIEW_ARTIFACT_OUTSIDE_APPROVED_DIRECTORY");
     const storedPreview = parseJsonFile(binding.artifactPath);
     assertNoncanonicalPreview(storedPreview);
+    const storedContract = bindPreviewArtifact(storedPreview.exact_response_contract, binding.previewSha256);
+    assertExactResponseContract(storedContract, {
+      requestHash,
+      previewId: input.preview_id,
+      previewArtifactSha256: binding.previewSha256,
+    });
+    if (jsonHash(storedContract) !== jsonHash(binding.exactResponseContract)) throw new Error("EXACT_RESPONSE_CONTRACT_STALE_OR_SUBSTITUTED");
     if (jsonHash(previewProjection(storedPreview, requestHash)) !== binding.projectionHash) {
       throw new Error("PREVIEW_ARTIFACT_PROJECTION_MISMATCH");
     }
     const recomputed = await this.invokePreview({ natural_request: input.natural_request.trim() });
     assertNoncanonicalPreview(recomputed);
+    const recomputedContract = bindPreviewArtifact(recomputed.exact_response_contract, hash(readFileSync(path.resolve(this.repositoryRoot, ...recomputed.artifact.relative_path.split("/")))));
+    if ((recomputedContract?.semantic_contract_sha256 ?? null) !== (binding.exactResponseContract?.semantic_contract_sha256 ?? null)
+        || (recomputedContract?.expected_literal_sha256 ?? null) !== (binding.exactResponseContract?.expected_literal_sha256 ?? null)
+        || (recomputedContract && recomputedContract.source_requirement?.request_sha256 !== requestHash)) {
+      throw new Error("RECOMPUTED_EXACT_RESPONSE_CONTRACT_MISMATCH");
+    }
     if (jsonHash(previewProjection(recomputed, requestHash)) !== binding.projectionHash) {
       throw new Error("RECOMPUTED_PREVIEW_MISMATCH");
     }
@@ -298,6 +424,8 @@ export class HqMissionRelay {
       requestHash,
       previewId: input.preview_id,
       naturalRequest: input.natural_request.trim(),
+      responseContract: binding.exactResponseContract,
+      reviewedResponseContract: binding.exactResponseContract,
       revision: 1,
       sessionKey,
       replayKey,
@@ -312,11 +440,16 @@ export class HqMissionRelay {
     this.#event(record, record.status);
     try {
       const outcome = this.executionAdapter
-        ? await this.executionAdapter({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest })
+        ? await this.executionAdapter({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest, exactResponseContract: record.responseContract })
         : await this.#prepareAndExecute({
           missionId,
           missionRevision: 1,
           naturalRequest: record.naturalRequest,
+          reviewedExactResponseContract: record.responseContract,
+          previewId: input.preview_id,
+          previewSha256: binding.previewSha256,
+          requestHash,
+          submissionId: input.submission_id,
           forceNoWorkerLifecycle: this.testOnlyInitialTimKind !== "NONE",
         });
       this.#applyOutcome(record, outcome);
@@ -346,6 +479,11 @@ export class HqMissionRelay {
     missionId,
     missionRevision,
     naturalRequest,
+    reviewedExactResponseContract = null,
+    previewId = null,
+    previewSha256 = null,
+    requestHash = null,
+    submissionId = null,
     revisionInput = null,
     approvalLedgerPath = "",
     forceNoWorkerLifecycle = false,
@@ -362,6 +500,11 @@ export class HqMissionRelay {
       mission_id: missionId,
       mission_revision: missionRevision,
       natural_request: naturalRequest,
+      preview_id: previewId,
+      preview_sha256: previewSha256,
+      request_hash: requestHash,
+      submission_id: submissionId,
+      reviewed_exact_response_contract: reviewedExactResponseContract,
     };
     const preparedProcess = await this.#spawnOwned(this.powershellExe, args, JSON.stringify(prepInput), 60_000);
     if (preparedProcess.code !== 0) throw new Error("CANONICAL_PREPARATION_REJECTED");
@@ -369,6 +512,7 @@ export class HqMissionRelay {
     const record = this.missions.get(missionId);
     if (record) {
       record.preparation = preparation;
+      record.responseContract = preparation.exact_response_contract ?? null;
       if (this.onMissionChange) {
         this.onMissionChange({
           mission_id: missionId,
@@ -435,12 +579,14 @@ export class HqMissionRelay {
     const verifier = existsSync(preparation.verifier_result_path) ? parseJsonFile(preparation.verifier_result_path) : null;
     const workerResult = lifecycle?.worker_result_path && existsSync(lifecycle.worker_result_path) ? parseJsonFile(lifecycle.worker_result_path) : null;
     const durableResult = queueResult?.durable_result_path && existsSync(queueResult.durable_result_path) ? parseJsonFile(queueResult.durable_result_path) : null;
-    return { preparation, processResult, queueResult, lifecycle, adapter, verifier, workerResult, durableResult };
+    const mission = preparation?.mission_path && existsSync(preparation.mission_path) ? parseJsonFile(preparation.mission_path) : null;
+    return { preparation, processResult, queueResult, lifecycle, adapter, verifier, workerResult, durableResult, mission };
   }
 
   #applyOutcome(record, outcome) {
-    const { preparation, processResult = {}, queueResult, lifecycle, adapter, verifier, workerResult, durableResult } = outcome;
+    const { preparation, processResult = {}, queueResult, lifecycle, adapter, verifier, workerResult, durableResult, mission } = outcome;
     this.#assertOutcomeIdentity(record, outcome);
+    if (mission?.exact_response_contract !== undefined) record.responseContract = mission.exact_response_contract;
     record.preparation = preparation;
     record.outcome = outcome;
     if (verifier) {
@@ -831,7 +977,7 @@ export class HqMissionRelay {
         child.kill();
       }
       if (interruptionContext && this.testOnlyInterruptionBarrier && !abortError) {
-        Promise.resolve(this.testOnlyInterruptionBarrier.onOwnedExecutor({
+        Promise.resolve(this.testOnlyInterruptionBarrier.activate(m3RealInterruptionCapabilities.get(this.testOnlyInterruptionBarrier), {
           ...interruptionContext,
           executor_child: child,
           fixture_type: this.testOnlyInterruptionBarrier.fixture_type,
@@ -869,30 +1015,42 @@ export class HqMissionRelay {
       this.#event(record, record.status);
     }
     const child = this.activeChild;
-    if (child && !child.killed) child.kill();
-    if (this.activeChildClosed) {
+    const childClosed = this.activeChildClosed;
+    let ownedProcessCleanup = null;
+    // The live ChildProcess handle is only an operational convenience.  Always
+    // enter the registered cleanup authority, including after the root close
+    // callback has cleared activeChild, so independently registered descendants
+    // remain exact cleanup obligations.
+    if (this.terminateOwnedChild) ownedProcessCleanup = await this.terminateOwnedChild(child);
+    else if (child && !child.killed) child.kill();
+    if (childClosed) {
       await Promise.race([
-        this.activeChildClosed,
-        new Promise((resolve) => setTimeout(resolve, 1500)),
+        childClosed,
+        new Promise((resolve) => setTimeout(resolve, 15_000)),
       ]);
     }
-    if (this.activeChild && this.terminateOwnedChild) {
-      await this.terminateOwnedChild(this.activeChild);
-      if (this.activeChildClosed) {
-        await Promise.race([
-          this.activeChildClosed,
-          new Promise((resolve) => setTimeout(resolve, 15_000)),
-        ]);
-      }
-    }
     if (this.activeChild) throw new Error("OWNED_CHILD_CLOSE_CONFIRMATION_TIMEOUT");
+    if (this.testOnlyInterruptionBarrier) {
+      await this.testOnlyInterruptionBarrier.cleanup(m3RealInterruptionCapabilities.get(this.testOnlyInterruptionBarrier));
+    }
     if (interruptionPending && this.onInterrupted) {
       try { record.interruption = await this.onInterrupted(record); }
       catch (error) { record.interruption_error = errorCode(error); }
     }
     this.previews.clear();
     if (!this.activeChild && this.onMissionChange) this.onMissionChange(null);
-    return { child_exited: !this.activeChild, interrupted_mission_id: record?.missionId ?? null };
+    return {
+      child_exited: !this.activeChild,
+      interrupted_mission_id: record?.missionId ?? null,
+      interruption: record?.interruption ?? null,
+      owned_process_cleanup: ownedProcessCleanup,
+      active_mission_snapshot: record ? {
+        mission_id: record.missionId,
+        mission_revision: record.revision,
+        run_id: record.preparation?.run_id ?? null,
+        result_id: record.preparation?.run_id ?? null,
+      } : null,
+    };
   }
 
   async retryInterrupted({ item, interruption = null, sessionGeneration = "" }) {
@@ -1076,7 +1234,7 @@ export class HqMissionRelay {
   }
 
   #assertOutcomeIdentity(record, outcome) {
-    const { preparation, queueResult, lifecycle, adapter, verifier, workerResult, durableResult } = outcome;
+    const { preparation, queueResult, lifecycle, adapter, verifier, workerResult, durableResult, mission } = outcome;
     if (!preparation || preparation.mission_id !== record.missionId || Number(preparation.mission_revision) !== record.revision) {
       throw new Error("CANONICAL_MISSION_IDENTITY_MISMATCH");
     }
@@ -1111,6 +1269,16 @@ export class HqMissionRelay {
         if (claim?.run_id !== expectedResultId) throw new Error("CROSS_RUN_OBSERVATION_CLAIM_REJECTED");
       }
     }
+    if (mission) {
+      assertContractContinuation(record.reviewedResponseContract ?? reviewedContractForm(record.responseContract), mission.exact_response_contract ?? null, record.missionId, record.revision);
+      if (preparation.exact_response_contract !== undefined && jsonHash(preparation.exact_response_contract) !== jsonHash(mission.exact_response_contract ?? null)) {
+        throw new Error("EXACT_RESPONSE_CONTRACT_PREPARATION_MISMATCH");
+      }
+      const semanticHash = mission.exact_response_contract?.semantic_contract_sha256 ?? null;
+      for (const evidence of [workerResult?.exact_response_evidence, verifier?.exact_response_evidence]) {
+        if (evidence && evidence.semantic_contract_sha256 !== semanticHash) throw new Error("EXACT_RESPONSE_CONTRACT_RESULT_MISMATCH");
+      }
+    }
   }
 
   #status(state, missionId, revision, fields = {}) {
@@ -1135,6 +1303,8 @@ export class HqMissionRelay {
       preservation: fields.preservation ?? null,
       admission: fields.admission ?? null,
       result: fields.result ?? null,
+      requested_response: record ? { natural_request: record.naturalRequest, request_sha256: record.requestHash } : null,
+      response_contract: fields.response_contract ?? record?.responseContract ?? null,
       tim_request: fields.tim_request ?? null,
       response: fields.response ?? record?.responseOutcome ?? null,
       prior_terminal: fields.prior_terminal ?? record?.originalTimStatus ?? null,
@@ -1151,6 +1321,7 @@ export class HqMissionRelay {
       status: lifecycle?.worker_status ?? "NOT_OBSERVED",
       thread_id: adapter?.thread_id ?? null,
       turn_id: adapter?.turn_id ?? null,
+      process_id: adapter?.child_process_id ?? null,
       model: adapter?.observed_model ?? null,
       effort: adapter?.effective_effort ?? adapter?.canonical_resolved_effort ?? null,
       child_exited: adapter?.child_exited ?? null,

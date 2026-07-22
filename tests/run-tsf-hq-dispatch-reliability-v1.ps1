@@ -67,7 +67,8 @@ $powerShellFiles = @(
     'tests/run-tsf-v1-final-acceptance-v1.ps1',
     'tests/run-tsf-hq-chokepoint-tests.ps1',
     'tests/run-tsf-final-static-integrity-tests.ps1',
-    'tests/run-tsf-canonical-runtime-app-server-tests.ps1'
+    'tests/run-tsf-canonical-runtime-app-server-tests.ps1',
+    'tests/run-tsf-native-fast-fail-diagnostic-v1.ps1'
 )
 foreach ($relative in $powerShellFiles) {
     $tokens=$null;$errors=$null
@@ -84,13 +85,32 @@ $nodeFiles = @(
     'tools/hq-dispatch/v1/reliability-cli.mjs',
     'tools/hq-dispatch/v1/demo.mjs',
     'tools/hq-dispatch/v1/demo-fixtures.mjs',
+    'tools/tsf-codex-app-server-adapter.mjs',
     'tools/hq-dispatch/v1/public/app.js',
     'tests/test-tsf-hq-dispatch-reliability-v1.mjs',
     'tests/test-tsf-hq-dispatch-start-stop-v1.mjs',
     'tests/test-tsf-hq-dispatch-demo-v1.mjs',
     'tests/test-tsf-hq-dispatch-restart-tim-v1.mjs',
     'tests/test-tsf-hq-dispatch-interruption-barrier-safety-v1.mjs',
+    'tests/test-tsf-hq-dispatch-recovery-result-contract-proof-v1.mjs',
+    'tests/test-tsf-stop-receipt-contract-v1.mjs',
+    'tests/test-tsf-proof-fetch-trace-v1.mjs',
+    'tests/test-tsf-proof-fetch-native-ladder-v1.mjs',
+    'tests/test-tsf-process-action-ledger-v1.mjs',
+    'tests/test-tsf-hq-dispatch-shutdown-coordinator-v1.mjs',
+    'tests/test-tsf-owned-process-registry-v1.mjs',
+    'tests/test-tsf-owned-process-registration-synchronization-v1.mjs',
+    'tests/test-tsf-hq-dispatch-responsive-layout-v1.mjs',
+    'tests/test-tsf-hq-dispatch-initial-doctor-isolation-v1.mjs',
+    'tests/test-tsf-response-runtime-hotfix-packet-hash-v1.mjs',
+    'tests/run-tsf-response-runtime-hotfix-packet-hash-v1.mjs',
+    'tests/support/tsf-canonical-packet-hash.mjs',
+    'tests/support/tsf-hq-dispatch-initial-doctor-isolation.mjs',
     'tests/support/tsf-hq-dispatch-m3-real-interruption-barrier.mjs',
+    'tests/support/tsf-hq-dispatch-recovery-result-contract-proof.mjs',
+    'tests/support/tsf-stop-receipt-contract.mjs',
+    'tests/support/tsf-proof-fetch-trace.mjs',
+    'tests/support/tsf-process-action-ledger.mjs',
     'tests/test-tsf-hq-dispatch-real-reliability-v1.mjs'
 )
 foreach ($relative in $nodeFiles) { Invoke-Checked "node_syntax:$relative" 'node' @('--check',(Join-Path $repoRoot $relative)) }
@@ -117,6 +137,16 @@ Invoke-Checked 'start_doctor_stop_fixture_proof' 'node' @('tests/test-tsf-hq-dis
 Invoke-Checked 'deterministic_demo_m1_m2a_m2b' 'node' @('tests/test-tsf-hq-dispatch-demo-v1.mjs')
 Invoke-Checked 'restart_tim_required_reconciliation' 'node' @('tests/test-tsf-hq-dispatch-restart-tim-v1.mjs')
 Invoke-Checked 'fixture_only_interruption_barrier_safety' 'node' @('tests/test-tsf-hq-dispatch-interruption-barrier-safety-v1.mjs')
+Invoke-Checked 'recovery_result_contract_modes' 'node' @('tests/test-tsf-hq-dispatch-recovery-result-contract-proof-v1.mjs')
+Invoke-Checked 'stop_receipt_contract_adversarial' 'node' @('tests/test-tsf-stop-receipt-contract-v1.mjs')
+Invoke-Checked 'proof_fetch_trace_and_durable_projection' 'node' @('tests/test-tsf-proof-fetch-trace-v1.mjs')
+Invoke-Checked 'causal_process_action_ledger' 'node' @('tests/test-tsf-process-action-ledger-v1.mjs')
+Invoke-Checked 'authoritative_shutdown_coordinator' 'node' @('tests/test-tsf-hq-dispatch-shutdown-coordinator-v1.mjs')
+Invoke-Checked 'root_independent_owned_process_registry' 'node' @('tests/test-tsf-owned-process-registry-v1.mjs')
+Invoke-Checked 'atomic_owned_process_registration_and_ledger_synchronization' 'node' @('tests/test-tsf-owned-process-registration-synchronization-v1.mjs')
+Invoke-Checked 'initial_doctor_isolation' 'node' @('tests/test-tsf-hq-dispatch-initial-doctor-isolation-v1.mjs')
+Invoke-Checked 'canonical_packet_hash_adversarial' 'node' @('tests/test-tsf-response-runtime-hotfix-packet-hash-v1.mjs')
+Invoke-Checked 'responsive_operator_ui' 'node' @('tests/test-tsf-hq-dispatch-responsive-layout-v1.mjs', '--evidence-root', (Join-Path $EvidenceRoot 'responsive-layout'))
 Invoke-Checked 'milestone_2a_regression' 'node' @('tests/test-tsf-hq-dispatch-request-result-relay-v1.mjs')
 Invoke-Checked 'milestone_2b_http_regression' 'node' @('tests/test-tsf-hq-dispatch-tim-relay-http-v1.mjs')
 Invoke-Checked 'milestone_2b_canonical_regression' 'node' @('tests/test-tsf-hq-dispatch-tim-relay-canonical-v1.mjs')

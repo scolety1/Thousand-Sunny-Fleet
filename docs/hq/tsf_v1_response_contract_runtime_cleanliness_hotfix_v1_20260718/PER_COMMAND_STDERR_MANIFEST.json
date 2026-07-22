@@ -1,0 +1,326 @@
+{
+    "schema_version":  "tsf_per_command_stderr_manifest_v1",
+    "suite_id":  "detached-full-acceptance-working-tree",
+    "evidence_class":  "MULTI_FILE_CHILD_STDERR_MANIFEST",
+    "candidate_head":  "0f53ec6f945a1e03c4a9962296548e311c4d2496",
+    "candidate_tree":  "4ba7a5794f32dbfaea4011d03d2b822b01d3da1f",
+    "aggregate_command":  "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-v1-final-acceptance-v1.ps1 -EvidenceRoot C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2",
+    "aggregate_started_utc":  "2026-07-20T21:47:53.8203599+00:00",
+    "aggregate_finished_utc":  "2026-07-20T22:04:04.8614056+00:00",
+    "aggregate_exit":  0,
+    "status":  "PASS",
+    "evidence_root":  "C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2",
+    "entry_count":  31,
+    "entries":  [
+                    {
+                        "child_id":  "final_acceptance_git_state",
+                        "command":  "IN_PROCESS_ASSERTION",
+                        "started_utc":  "2026-07-20T21:47:53.8203599+00:00",
+                        "finished_utc":  "2026-07-20T21:47:53.8203599+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "final_acceptance_git_state.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "origin_main_identity_available",
+                        "command":  "IN_PROCESS_ASSERTION",
+                        "started_utc":  "2026-07-20T21:47:53.8979691+00:00",
+                        "finished_utc":  "2026-07-20T21:47:53.8979691+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "origin_main_identity_available.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "required_baseline_ancestry",
+                        "command":  "IN_PROCESS_ASSERTION",
+                        "started_utc":  "2026-07-20T21:47:53.9259686+00:00",
+                        "finished_utc":  "2026-07-20T21:47:53.9259686+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "required_baseline_ancestry.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "protected_path_scope",
+                        "command":  "IN_PROCESS_ASSERTION",
+                        "started_utc":  "2026-07-20T21:47:53.9954839+00:00",
+                        "finished_utc":  "2026-07-20T21:47:53.9954839+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "protected_path_scope.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "m4_localized_corrections",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\test-tsf-v1-m4-acceptance-corrections-v1.ps1",
+                        "started_utc":  "2026-07-20T21:47:54.0074786+00:00",
+                        "finished_utc":  "2026-07-20T21:47:59.0697493+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "m4_localized_corrections.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "m3_reliability_aggregate",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-hq-dispatch-reliability-v1.ps1 -EvidenceRoot C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2\\m3-aggregate -Milestone4Acceptance",
+                        "started_utc":  "2026-07-20T21:47:59.0827543+00:00",
+                        "finished_utc":  "2026-07-20T21:54:38.9755802+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "m3_reliability_aggregate.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "m1_route_preview",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-hq-dispatch-route-preview-v1.mjs",
+                        "started_utc":  "2026-07-20T21:54:38.9825789+00:00",
+                        "finished_utc":  "2026-07-20T21:54:44.0424168+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "m1_route_preview.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "m2a_exact_result",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-hq-dispatch-exact-result-evidence-tests.ps1",
+                        "started_utc":  "2026-07-20T21:54:44.0454177+00:00",
+                        "finished_utc":  "2026-07-20T21:54:46.0814261+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "m2a_exact_result.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "exact_response_contract_propagation",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-hq-dispatch-exact-response-contract-v1.mjs",
+                        "started_utc":  "2026-07-20T21:54:46.0834218+00:00",
+                        "finished_utc":  "2026-07-20T21:55:07.3199055+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "exact_response_contract_propagation.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "doctor_canonical_runtime_cleanliness",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-runtime-queue-cleanliness-v1.mjs",
+                        "started_utc":  "2026-07-20T21:55:07.3229068+00:00",
+                        "finished_utc":  "2026-07-20T21:55:57.8042594+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "doctor_canonical_runtime_cleanliness.stderr.txt",
+                        "stderr_sha256":  "877675458e747776a4c46ba39ffd03b696bb5fe4483377941723e260799a61f2"
+                    },
+                    {
+                        "child_id":  "recovery_result_contract_modes",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-hq-dispatch-recovery-result-contract-proof-v1.mjs",
+                        "started_utc":  "2026-07-20T21:55:57.8072479+00:00",
+                        "finished_utc":  "2026-07-20T21:55:58.8132069+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "recovery_result_contract_modes.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "initial_doctor_isolation",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-hq-dispatch-initial-doctor-isolation-v1.mjs",
+                        "started_utc":  "2026-07-20T21:55:58.8162091+00:00",
+                        "finished_utc":  "2026-07-20T21:56:13.9494393+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "initial_doctor_isolation.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "final_acceptance_git_state_contract",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\test-tsf-v1-final-acceptance-git-state-v1.ps1",
+                        "started_utc":  "2026-07-20T21:56:13.9534382+00:00",
+                        "finished_utc":  "2026-07-20T21:56:15.9788506+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "final_acceptance_git_state_contract.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "canonical_packet_git_blob_hashes",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\run-tsf-response-runtime-hotfix-packet-hash-v1.mjs --treeish HEAD",
+                        "started_utc":  "2026-07-20T21:56:15.9838510+00:00",
+                        "finished_utc":  "2026-07-20T21:56:24.0511953+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "canonical_packet_git_blob_hashes.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "responsive_operator_ui",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-hq-dispatch-responsive-layout-v1.mjs --evidence-root C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2\\responsive-layout",
+                        "started_utc":  "2026-07-20T21:56:24.0562013+00:00",
+                        "finished_utc":  "2026-07-20T21:56:29.1127617+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "responsive_operator_ui.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "wrong_result_integrated_lifecycle",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-hq-dispatch-wrong-result-lifecycle-proof-v1.ps1 -TestOnlyIsolatedQueue",
+                        "started_utc":  "2026-07-20T21:56:29.1187616+00:00",
+                        "finished_utc":  "2026-07-20T21:56:59.3916331+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "wrong_result_integrated_lifecycle.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "project_main_bot_routing",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-project-main-bot-role-foundation-tests.ps1",
+                        "started_utc":  "2026-07-20T21:56:59.3991465+00:00",
+                        "finished_utc":  "2026-07-20T21:57:01.4625224+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "project_main_bot_routing.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "durable_contracts",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-durable-contract-tests.ps1 -EvidenceRoot C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2\\durable-contracts",
+                        "started_utc":  "2026-07-20T21:57:01.4685280+00:00",
+                        "finished_utc":  "2026-07-20T21:57:14.5995632+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "durable_contracts.stderr.txt",
+                        "stderr_sha256":  "35665065f2aab782dc21ce6c207fe00154bfa7ad39070e23f8f10491f9c63b4a"
+                    },
+                    {
+                        "child_id":  "canonical_mission_queue",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-mission-queue-tests.ps1",
+                        "started_utc":  "2026-07-20T21:57:14.6035636+00:00",
+                        "finished_utc":  "2026-07-20T21:57:22.6938536+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "canonical_mission_queue.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "verifier_preservation_admission",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-final-three-authority-tests.ps1",
+                        "started_utc":  "2026-07-20T21:57:22.6978587+00:00",
+                        "finished_utc":  "2026-07-20T21:57:51.0401719+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "verifier_preservation_admission.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "role_aware_lifecycle",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-role-aware-lifecycle-integration-tests.ps1",
+                        "started_utc":  "2026-07-20T21:57:51.0441768+00:00",
+                        "finished_utc":  "2026-07-20T21:58:02.1606421+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "role_aware_lifecycle.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "minimum_kernel",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-minimum-viable-kernel-tests.ps1",
+                        "started_utc":  "2026-07-20T21:58:02.1636413+00:00",
+                        "finished_utc":  "2026-07-20T21:58:07.2210635+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "minimum_kernel.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "kernel_v2",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-kernel-v2-tests.ps1",
+                        "started_utc":  "2026-07-20T21:58:07.2240885+00:00",
+                        "finished_utc":  "2026-07-20T21:58:14.2900342+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "kernel_v2.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "hq_chokepoint",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-hq-chokepoint-tests.ps1 -EvidenceRoot C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2\\hq-chokepoint",
+                        "started_utc":  "2026-07-20T21:58:14.2945434+00:00",
+                        "finished_utc":  "2026-07-20T21:58:15.3093396+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "hq_chokepoint.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "canonical_app_server_matrix",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-canonical-runtime-app-server-tests.ps1 -EvidenceRoot C:\\TSFDA4\\.codex-local\\evidence\\working-tree-full-acceptance-v2\\canonical-app-server",
+                        "started_utc":  "2026-07-20T21:58:15.3123401+00:00",
+                        "finished_utc":  "2026-07-20T22:01:19.0036798+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "canonical_app_server_matrix.stderr.txt",
+                        "stderr_sha256":  "35665065f2aab782dc21ce6c207fe00154bfa7ad39070e23f8f10491f9c63b4a"
+                    },
+                    {
+                        "child_id":  "final_static_integrity",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tests\\run-tsf-final-static-integrity-tests.ps1",
+                        "started_utc":  "2026-07-20T22:01:19.0117959+00:00",
+                        "finished_utc":  "2026-07-20T22:01:20.0358946+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "final_static_integrity.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "committed_candidate_diff_check",
+                        "command":  "C:\\Program Files\\Git\\cmd\\git.exe -C C:\\TSFDA4 diff --check refs/remotes/origin/main...HEAD",
+                        "started_utc":  "2026-07-20T22:01:20.0418950+00:00",
+                        "finished_utc":  "2026-07-20T22:01:21.0603431+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "committed_candidate_diff_check.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "real_app_server_interruption_recovery",
+                        "command":  "C:\\Program Files\\nodejs\\node.exe C:\\TSFDA4\\tests\\test-tsf-hq-dispatch-real-reliability-v1.mjs",
+                        "started_utc":  "2026-07-20T22:01:21.0673429+00:00",
+                        "finished_utc":  "2026-07-20T22:04:01.6219937+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "real_app_server_interruption_recovery.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "final_doctor_json",
+                        "command":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\TSFDA4\\tools\\hq-dispatch\\v1\\Test-TsfHqDispatchDoctorV1.ps1 -Json",
+                        "started_utc":  "2026-07-20T22:04:01.6269947+00:00",
+                        "finished_utc":  "2026-07-20T22:04:04.6710574+00:00",
+                        "exit_code":  3,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "final_doctor_json.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "final_no_owner_listener_or_owned_child",
+                        "command":  "IN_PROCESS_ASSERTION",
+                        "started_utc":  "2026-07-20T22:04:04.7981251+00:00",
+                        "finished_utc":  "2026-07-20T22:04:04.7981251+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "final_no_owner_listener_or_owned_child.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    },
+                    {
+                        "child_id":  "final_tracked_worktree_clean",
+                        "command":  "IN_PROCESS_ASSERTION",
+                        "started_utc":  "2026-07-20T22:04:04.8614056+00:00",
+                        "finished_utc":  "2026-07-20T22:04:04.8614056+00:00",
+                        "exit_code":  0,
+                        "evidence_class":  "CHILD_PROCESS_OR_IN_PROCESS_STDERR",
+                        "stderr_path":  "final_tracked_worktree_clean.stderr.txt",
+                        "stderr_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    }
+                ]
+}

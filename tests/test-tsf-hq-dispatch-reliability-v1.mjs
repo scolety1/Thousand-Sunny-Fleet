@@ -41,7 +41,7 @@ function scenario(number) {
 }
 
 function scan(context, ownership = { disposition: "ABSENT", owner: null }) {
-  return reconcileCanonicalState({ runtimeRoot: context.runtimeRoot, queueRoot: context.queueRoot, ownership });
+  return reconcileCanonicalState({ runtimeRoot: context.runtimeRoot, queueRoot: context.queueRoot, ownership, testOnlyAllowAlternateQueueRoot: true });
 }
 
 function one(context, classification, ownership) {
@@ -84,7 +84,7 @@ await new Promise((resolve) => occupiedServer.listen(0, "127.0.0.1", resolve));
 {
   const c = scenario(3);
   const port = occupiedServer.address().port;
-  const report = runDoctor({ runtimeRoot: c.runtimeRoot, queueRoot: c.queueRoot, ownerPath: path.join(c.localRoot, "owner.json"), port, allowDirtyForTest: true });
+  const report = runDoctor({ runtimeRoot: c.runtimeRoot, queueRoot: c.queueRoot, ownerPath: path.join(c.localRoot, "owner.json"), port, allowDirtyForTest: true, testOnlyAllowAlternateQueueRoot: true });
   equal(report.safe_to_start, false, "occupied port blocks Start");
   equal(report.checks.find((item) => item.id === "process_owner_and_listener").status, "UNSAFE_TO_START", "unowned listener is unsafe");
   record(3, "Occupied port", 2);
@@ -101,7 +101,7 @@ let staleOwnerPath;
   const child = spawnSync(process.execPath, ["--input-type=module", "-e", code], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true, timeout: 15000 });
   equal(child.status, 0, "stale owner fixture process exited");
   equal(readOwnership(staleOwnerPath).disposition, "STALE_PROCESS_GONE", "stale owner is explicit");
-  const report = runDoctor({ runtimeRoot: c.runtimeRoot, queueRoot: c.queueRoot, ownerPath: staleOwnerPath, port: 49304, allowDirtyForTest: true });
+  const report = runDoctor({ runtimeRoot: c.runtimeRoot, queueRoot: c.queueRoot, ownerPath: staleOwnerPath, port: 49304, allowDirtyForTest: true, testOnlyAllowAlternateQueueRoot: true });
   equal(report.safe_to_start, false, "stale owner requires explicit recovery");
   check(report.exact_next_action.includes("RecoverVerifiedStaleOwnership"), "Doctor gives exact stale action");
   record(4, "Stale ownership record with no process", 4);
@@ -256,8 +256,7 @@ let interruptedContext;
 {
   const c = scenario(16);
   const outcome = c.adapters.completedOutcome("hq-fixture-conflict-replay-0016", 1);
-  const changed = JSON.parse(readFileSync(outcome.queuePath, "utf8"));
-  changed.durable_mission.original_request = "changed replay content";
+  const changed = c.adapters.queueDocument("hq-fixture-conflict-replay-0016", 1, "changed replay content");
   const duplicate = path.join(c.queueRoot, "archived", path.basename(outcome.queuePath));
   json(duplicate, changed);
   const item = one(c, "CONFLICTING_REPLAY");
@@ -294,7 +293,7 @@ const orphanServer = net.createServer();
 await new Promise((resolve) => orphanServer.listen(0, "127.0.0.1", resolve));
 {
   const c = scenario(19);
-  const report = runDoctor({ runtimeRoot: c.runtimeRoot, queueRoot: c.queueRoot, ownerPath: path.join(c.localRoot, "owner.json"), port: orphanServer.address().port, allowDirtyForTest: true });
+  const report = runDoctor({ runtimeRoot: c.runtimeRoot, queueRoot: c.queueRoot, ownerPath: path.join(c.localRoot, "owner.json"), port: orphanServer.address().port, allowDirtyForTest: true, testOnlyAllowAlternateQueueRoot: true });
   equal(report.checks.find((item) => item.id === "process_owner_and_listener").status, "UNSAFE_TO_START", "unowned listener is never adopted");
   equal(inspectProcess(process.pid).process_id, process.pid, "Doctor does not kill listener owner");
   record(19, "Orphan-listener check", 2);

@@ -200,6 +200,7 @@ $approvalLedgerConsumed = [bool]($approvalRequirements.Count -gt 0 -and ![string
 $missionRevision = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { [int]$inputDocument.source_binding.durable_mission_revision } elseif (Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission') { [int]$inputDocument.durable_mission.mission_revision } else { 1 }
 $runId = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { "canonical-result-$missionId-$missionRevision" } else { Get-TsfRuntimeSha256Text "$missionId|$missionRevision|$((Get-FileHash -LiteralPath $MissionPath -Algorithm SHA256).Hash.ToLowerInvariant())" }
 $responseContractMission = if (Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission') { $inputDocument.durable_mission } else { $mission }
+$exactResponseContract = if (Test-LifecycleProperty -Value $responseContractMission -Name 'exact_response_contract') { $responseContractMission.exact_response_contract } else { $null }
 $expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission -TestId 'hq-dispatch-read-only-exact-response'
 $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
 if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) { $RuntimeRoot = $canonicalRuntimeRoot }
@@ -508,6 +509,9 @@ if ($null -ne $adapterResult) {
 $exactResponseEvidence = if ($null -ne $adapterResult -and ![string]::IsNullOrWhiteSpace($expectedResponseSha256)) { [pscustomobject][ordered]@{
     mission_id=$missionId;mission_revision=$missionRevision;run_id=$runId;result_id=$runId;thread_id=[string]$adapterResult.thread_id;turn_id=[string]$adapterResult.turn_id
     adapter_result_path=$adapterResultPath;adapter_result_sha256=(Get-FileHash $adapterResultPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    validation_mode=if($null-ne$exactResponseContract){[string]$exactResponseContract.validation_mode}else{'LEGACY_EXACT_HASH'};normalization_version=if($null-ne$exactResponseContract){[string]$exactResponseContract.normalization_version}else{'LEGACY_RAW_UTF8'}
+    expected_literal=if($null-ne$exactResponseContract){[string]$exactResponseContract.expected_literal}else{$null};observed_literal=if([string]$adapterResult.final_response-cmatch'^[A-Z][A-Z0-9_]{0,127}$'){[string]$adapterResult.final_response}else{$null};observed_representation=if([string]$adapterResult.final_response-cmatch'^[A-Z][A-Z0-9_]{0,127}$'){'SAFE_LITERAL'}else{'SHA256_ONLY_UNSAFE_OR_OUT_OF_POLICY'}
+    semantic_contract_sha256=if($null-ne$exactResponseContract){[string]$exactResponseContract.semantic_contract_sha256}else{$null}
     expected_response_sha256=$expectedResponseSha256;observed_response_sha256=[string]$adapterResult.observed_response_sha256
     transport_success=[bool]$adapterResult.transport_success;exact_match=[bool]$adapterResult.response_exact_match;semantic_success=[bool]$adapterResult.semantic_response_success
 } } else { $null }

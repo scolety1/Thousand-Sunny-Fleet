@@ -5,9 +5,139 @@ $script:PolicyManifestVersion = "tsf_policy_manifest_v1"
 $script:TranslatorVersion = "tsf_durable_to_operational_v1"
 $script:ResultMapperVersion = "tsf_runtime_evidence_to_result_v1"
 $script:EvidenceClasses = @("NATIVE_OBSERVED", "ADAPTER_OBSERVED", "KERNEL_OBSERVED", "FILESYSTEM_OBSERVED", "VERIFIER_OBSERVED", "AGENT_REPORTED", "UNVERIFIED")
+$script:ExactResponseContractSchema = Join-Path $script:TsfRoot 'fleet\control\exact-literal-response-contract.schema.v1.json'
+
+function Get-TsfExactResponseLiteralSha256 {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($Text)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $sha.Dispose() }
+}
+
+function Get-TsfExactResponseLiteralFromRequest {
+    param([Parameter(Mandatory)][string]$NaturalRequest)
+
+    $patterns = @(
+        '(?im)\b(?:return|respond\s+with)\s+exactly\s+([A-Z][A-Z0-9_]{0,127})(?=$|[\r\n]|[.!?])',
+        '(?im)\b(?:required\s+)?exact\s+(?:response|literal)\s*:\s*([A-Z][A-Z0-9_]{0,127})(?=$|[\r\n]|[.!?])'
+    )
+    $literalMatches = [Collections.Generic.List[string]]::new()
+    foreach ($pattern in $patterns) {
+        foreach ($match in [regex]::Matches($NaturalRequest, $pattern)) {
+            $literalMatches.Add([string]$match.Groups[1].Value) | Out-Null
+        }
+    }
+    $explicitMarker = $NaturalRequest -match '(?im)\b(?:return|respond\s+with)\s+exactly\b|\b(?:required\s+)?exact\s+(?:response|literal)\s*:'
+    if ($literalMatches.Count -eq 0) {
+        if ($explicitMarker) { throw 'EXACT_LITERAL_UNSAFE_OR_AMBIGUOUS' }
+        return $null
+    }
+    $unique = @($literalMatches | Sort-Object -Unique -CaseSensitive)
+    if ($unique.Count -ne 1) { throw 'CONFLICTING_EXACT_LITERAL_REQUIREMENTS' }
+    $literal = [string]$unique[0]
+    if ($literal.Length -gt 128 -or $literal -cnotmatch '^[A-Z][A-Z0-9_]{0,127}$') { throw 'EXACT_LITERAL_SAFE_GRAMMAR_REJECTED' }
+    return $literal
+}
+
+function New-TsfExactResponseContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$NaturalRequest,
+        [Parameter(Mandatory)][string]$PreviewId,
+        [string]$PreviewArtifactSha256 = '',
+        [string]$MissionId = '',
+        [int]$MissionRevision = 0
+    )
+
+    $literal = Get-TsfExactResponseLiteralFromRequest -NaturalRequest $NaturalRequest
+    if ($null -eq $literal) { return $null }
+    if ($PreviewId -notmatch '^hq-preview-[a-f0-9]{32}$') { throw 'EXACT_LITERAL_PREVIEW_IDENTITY_INVALID' }
+    if ($PreviewArtifactSha256 -and $PreviewArtifactSha256 -notmatch '^[a-f0-9]{64}$') { throw 'EXACT_LITERAL_PREVIEW_ARTIFACT_HASH_INVALID' }
+    if (($MissionId -and ($MissionId -notmatch '^[A-Za-z0-9._:-]{8,160}$' -or $MissionRevision -lt 1)) -or (!$MissionId -and $MissionRevision -ne 0)) { throw 'EXACT_LITERAL_MISSION_BINDING_INVALID' }
+
+    $sourceRequestSha256 = Get-TsfExactResponseLiteralSha256 $NaturalRequest
+    $literalSha256 = Get-TsfExactResponseLiteralSha256 $literal
+    $semantic = [pscustomobject][ordered]@{
+        validation_mode = 'EXACT_LITERAL_V1'
+        normalization_version = 'ASCII_TOKEN_IDENTITY_V1'
+        expected_literal = $literal
+        expected_literal_sha256 = $literalSha256
+        case_sensitive = $true
+        whitespace_sensitive = $true
+        executable_interpretation = $false
+        source_requirement_kind = 'EXPLICIT_RETURN_EXACTLY_V1'
+        source_request_sha256 = $sourceRequestSha256
+    }
+    $semanticSha256 = Get-TsfContractJsonHash $semantic
+    $previewIdentity = [pscustomobject][ordered]@{
+        preview_id = $PreviewId
+        source_request_sha256 = $sourceRequestSha256
+        semantic_contract_sha256 = $semanticSha256
+    }
+    [pscustomobject][ordered]@{
+        schema_version = 'tsf_exact_literal_response_contract_v1'
+        validation_mode = 'EXACT_LITERAL_V1'
+        normalization_version = 'ASCII_TOKEN_IDENTITY_V1'
+        expected_literal = $literal
+        expected_literal_sha256 = $literalSha256
+        semantic_contract_sha256 = $semanticSha256
+        case_sensitive = $true
+        whitespace_sensitive = $true
+        executable_interpretation = $false
+        source_requirement = [pscustomobject][ordered]@{
+            kind = 'EXPLICIT_RETURN_EXACTLY_V1'
+            request_sha256 = $sourceRequestSha256
+            natural_request_persisted_in_preview = $false
+        }
+        preview_binding = [pscustomobject][ordered]@{
+            preview_id = $PreviewId
+            preview_contract_sha256 = Get-TsfContractJsonHash $previewIdentity
+            preview_artifact_sha256 = $(if ($PreviewArtifactSha256) { $PreviewArtifactSha256 } else { $null })
+        }
+        mission_binding = [pscustomobject][ordered]@{
+            mission_id = $(if ($MissionId) { $MissionId } else { $null })
+            mission_revision = $(if ($MissionId) { $MissionRevision } else { $null })
+        }
+    }
+}
+
+function Test-TsfExactResponseContract {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object]$Contract,
+        [Parameter(Mandatory)][string]$NaturalRequest,
+        [Parameter(Mandatory)][string]$PreviewId,
+        [string]$PreviewArtifactSha256 = '',
+        [string]$MissionId = '',
+        [int]$MissionRevision = 0
+    )
+    $errors = [Collections.Generic.List[string]]::new()
+    $schema = Test-TsfJsonContract $Contract $script:ExactResponseContractSchema
+    foreach ($error in @($schema.errors)) { $errors.Add([string]$error) | Out-Null }
+    try {
+        $expected = New-TsfExactResponseContract -NaturalRequest $NaturalRequest -PreviewId $PreviewId -PreviewArtifactSha256 $PreviewArtifactSha256 -MissionId $MissionId -MissionRevision $MissionRevision
+        if ($null -eq $expected) { $errors.Add('Natural request does not require an exact literal.') | Out-Null }
+        elseif ((Get-TsfContractJsonHash $Contract) -ne (Get-TsfContractJsonHash $expected)) { $errors.Add('Exact-response contract differs from independent recomputation.') | Out-Null }
+    } catch { $errors.Add($_.Exception.Message) | Out-Null }
+    [pscustomobject]@{ valid = $errors.Count -eq 0; errors = @($errors) }
+}
 
 . (Join-Path $script:TsfRoot 'tools\TsfJsonContract.ps1')
-function Test-TsfMissionEnvelope { [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[string]$SchemaPath=(Join-Path $script:TsfRoot 'fleet\control\mission-envelope.schema.v1.json')) $r=Test-TsfJsonContract $Mission $SchemaPath; [pscustomobject]@{schema_version='tsf_mission_envelope_validation_v1';valid=$r.valid;errors=$r.errors;coverage=$r.coverage} }
+function Test-TsfMissionEnvelope {
+    [CmdletBinding()] param([Parameter(Mandatory)][object]$Mission,[string]$SchemaPath=(Join-Path $script:TsfRoot 'fleet\control\mission-envelope.schema.v1.json'))
+    $r=Test-TsfJsonContract $Mission $SchemaPath
+    $errors=[Collections.Generic.List[string]]::new()
+    foreach($error in @($r.errors)){$errors.Add([string]$error)|Out-Null}
+    if($Mission.PSObject.Properties.Name-contains'exact_response_contract'-and$null-ne$Mission.exact_response_contract){
+        $contract=$Mission.exact_response_contract
+        $contractCheck=Test-TsfExactResponseContract -Contract $contract -NaturalRequest ([string]$Mission.original_request) -PreviewId ([string]$contract.preview_binding.preview_id) -PreviewArtifactSha256 ([string]$contract.preview_binding.preview_artifact_sha256) -MissionId ([string]$Mission.mission_id) -MissionRevision ([int]$Mission.mission_revision)
+        foreach($error in @($contractCheck.errors)){$errors.Add([string]$error)|Out-Null}
+        $testHashes=@($Mission.required_tests|Where-Object{[string]$_.command-match'^exact-response-sha256:([a-f0-9]{64})$'}|ForEach-Object{([string]$_.command).Substring('exact-response-sha256:'.Length)})
+        if($testHashes.Count-ne1-or[string]$testHashes[0]-ne[string]$contract.expected_literal_sha256){$errors.Add('Mission exact-response required test differs from the canonical response contract.')|Out-Null}
+    }
+    [pscustomobject]@{schema_version='tsf_mission_envelope_validation_v1';valid=$errors.Count-eq0;errors=@($errors);coverage=$r.coverage}
+}
 function Test-TsfResultEnvelope { [CmdletBinding()] param([Parameter(Mandatory)][object]$Result,[string]$SchemaPath=(Join-Path $script:TsfRoot 'fleet\control\result-envelope.schema.v1.json')) $r=Test-TsfJsonContract $Result $SchemaPath; [pscustomobject]@{schema_version='tsf_result_envelope_validation_v1';valid=$r.valid;errors=$r.errors;coverage=$r.coverage} }
 
 function Invoke-TsfContractGit { param([string]$Root,[string[]]$Arguments) $safe=$Root.Replace('\','/'); $output=@(& git -c "safe.directory=$safe" -C $Root @Arguments 2>&1); if($LASTEXITCODE -ne 0){throw "git $($Arguments -join ' ') failed: $($output -join ' ')"}; return @($output) }
@@ -24,7 +154,7 @@ function Get-TsfPolicyFingerprint {
         'tools/codex-fleet-runtime.ps1','tools/Test-TsfWorkerRolePermission.ps1','tools/Invoke-TsfCodexAppServerForeground.ps1',
         'tools/tsf-codex-app-server-adapter.mjs','tools/Get-TsfAdmissionDecision.ps1','tools/Repair-TsfSyntheticAdmissionFixture.ps1','tools/New-TsfCanonicalQueueMission.ps1',
         'projects.json','fleet/control/mission-envelope.schema.v1.json','fleet/control/canonical-queue-document.schema.v1.json',
-        'fleet/control/result-envelope.schema.v1.json','fleet/control/lifecycle-terminal-result.schema.v1.json','fleet/control/tim-required-request.schema.v1.json','fleet/control/tim-required-response.schema.v1.json','fleet/control/executor-invocation-failure-result.schema.v1.json','fleet/control/mission-preparation-result.schema.v1.json','fleet/control/self-hosted-audit-recovery-policy.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/canonical-recovery-envelope.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
+        'fleet/control/result-envelope.schema.v1.json','fleet/control/exact-literal-response-contract.schema.v1.json','fleet/control/lifecycle-terminal-result.schema.v1.json','fleet/control/tim-required-request.schema.v1.json','fleet/control/tim-required-response.schema.v1.json','fleet/control/executor-invocation-failure-result.schema.v1.json','fleet/control/mission-preparation-result.schema.v1.json','fleet/control/self-hosted-audit-recovery-policy.v1.json','fleet/control/runtime-artifact-manifest.schema.v1.json','fleet/control/producer-evidence-registry.schema.v1.json','fleet/control/canonical-recovery-envelope.schema.v1.json','fleet/control/admission-decision.schema.v1.json',
         'fleet/control/model-routing-alias-policy.v1.json','fleet/control/worker-role-registry.v1.json',
         'fleet/control/worker-permission-profiles.v1.json','fleet/control/mission-queue-state-policy.v1.json',
         'fleet/control/mission-queue-foreground-executor-policy.v1.json','fleet/control/role-aware-mission-extension.v1.json',
@@ -215,7 +345,7 @@ function ConvertTo-TsfCanonicalExecutionArtifacts {
         [pscustomobject]$item
     })
     $clarifications=@();if($Mission.PSObject.Properties.Name-contains'clarification_requirements'){$clarifications=@($Mission.clarification_requirements)}
-    $packetFields=[ordered]@{mission_id=[string]$Mission.mission_id;project_id=[string]$Mission.project_id;repo_path=$repo;lane='MASTER_TSF_CONTROL_PLANE';mission_type='tsf_infrastructure'}
+    $packetFields=[ordered]@{mission_id=[string]$Mission.mission_id;project_id=[string]$Mission.project_id;repo_path=$repo;lane='MASTER_TSF_CONTROL_PLANE';mission_type='tsf_infrastructure';exact_response_contract=if($Mission.PSObject.Properties.Name-contains'exact_response_contract'){$Mission.exact_response_contract}else{$null}}
     if([bool]$Mission.branch_worktree_policy.branch_required){$packetFields.required_branch=[string]$Mission.branch_worktree_policy.expected_branch}
     $packetFields.required_worktree=[string]$Mission.branch_worktree_policy.expected_worktree
     $packetFields.control_plane_service_network_policy=[string]$Mission.control_plane_service_network_policy
@@ -225,13 +355,13 @@ function ConvertTo-TsfCanonicalExecutionArtifacts {
     $packetFields.stop_conditions=$stops;$packetFields.approval_requirements=@($approvals);$packetFields.clarification_requirements=@($clarifications);$packetFields.hq_escalation_policy=[pscustomobject]@{default='local_only_no_api';escalate_on=@('RED','TIM_REQUIRED','approval_gap','scope_conflict');notes='Generated from canonical durable mission.'};$packetFields.created_by='TSF_DURABLE_TRANSLATOR';$packetFields.created_at=[string]$Mission.created_at
     $packet=[pscustomobject]$packetFields
     $roleExt=[pscustomobject][ordered]@{requested_by='TSF_DURABLE_MISSION';project_main_bot_id=[string]$Mission.project_id;worker_role=[string]$Mission.worker_role;translator_used=$true;lane_id='MASTER_TSF_CONTROL_PLANE';parent_mission_id=if($null -eq $Mission.parent_mission_id){''}else{[string]$Mission.parent_mission_id};sibling_lane_ids=@();role_permission_profile_id=[string]$profile.profile_id;role_output_contract=[string]$role[0].output_contract;verifier_role=if([bool]$profile.requires_verifier){'verifier_worker'}else{'NONE'};escalation_policy_id='canonical_durable_v1'}
-    $worker=[pscustomobject][ordered]@{mission_id=[string]$Mission.mission_id;worker_role=[string]$Mission.worker_role;allowed_reads=@($Mission.allowed_reads);allowed_writes=@($Mission.allowed_writes);forbidden_actions=$forbidden;exact_task=[string]$Mission.normalized_goal;expected_artifacts=@($packet.expected_artifacts);stop_conditions=$stops;verifier_contract=[string]$Mission.required_verifier_independence;escalation_triggers=@('approval_gap','scope_conflict','validation_failure');do_not_exceed_role_authority=$true}
+    $worker=[pscustomobject][ordered]@{mission_id=[string]$Mission.mission_id;worker_role=[string]$Mission.worker_role;allowed_reads=@($Mission.allowed_reads);allowed_writes=@($Mission.allowed_writes);forbidden_actions=$forbidden;exact_task=[string]$Mission.normalized_goal;exact_response_contract=if($Mission.PSObject.Properties.Name-contains'exact_response_contract'){$Mission.exact_response_contract}else{$null};expected_artifacts=@($packet.expected_artifacts);stop_conditions=$stops;verifier_contract=[string]$Mission.required_verifier_independence;escalation_triggers=@('approval_gap','scope_conflict','validation_failure');do_not_exceed_role_authority=$true}
     foreach($contract in @(
         [pscustomobject]@{value=$packet;schema=(Join-Path $contractRoot 'docs\hq\enforcement_kernel\minimum_viable_local_tsf_enforcement_kernel_v1\mission_schema_v1.json');name='mission_packet'},
         [pscustomobject]@{value=$roleExt;schema=(Join-Path $contractRoot 'fleet\control\role-aware-mission-extension.v1.json');name='role_extension'},
         [pscustomobject]@{value=$worker;schema=(Join-Path $contractRoot 'fleet\control\worker-instruction-packet.schema.v1.json');name='worker_instruction_packet'}
     )){$check=Test-TsfJsonContract $contract.value $contract.schema;if(!$check.valid){throw "Generated $($contract.name) violates its canonical schema: $($check.errors -join '; ')"}}
-    $hash=Get-TsfContractJsonHash $Mission; $binding=[pscustomobject][ordered]@{durable_mission_id=[string]$Mission.mission_id;durable_mission_revision=[int]$Mission.mission_revision;policy_fingerprint=[string]$Mission.policy.fingerprint;durable_mission_content_hash=$hash;translator_version=$translatorVersion;generated_at=[string]$Mission.created_at;mission_packet_sha256=Get-TsfContractJsonHash $packet;role_extension_sha256=Get-TsfContractJsonHash $roleExt;worker_instruction_sha256=Get-TsfContractJsonHash $worker;expected_repository=$repo;expected_branch=$Mission.branch_worktree_policy.expected_branch;expected_worktree=$Mission.branch_worktree_policy.expected_worktree;expected_role=[string]$Mission.worker_role;expected_permission_mode=[string]$Mission.permission_mode;expected_network_policy=[string]$Mission.network_policy;expected_control_plane_service_network_policy=[string]$Mission.control_plane_service_network_policy;expected_worker_tool_network_policy=[string]$Mission.worker_tool_network_policy;expected_surface=[string]$Mission.recommended_surface;expected_model=$Mission.resolved_model}
+    $hash=Get-TsfContractJsonHash $Mission; $binding=[pscustomobject][ordered]@{durable_mission_id=[string]$Mission.mission_id;durable_mission_revision=[int]$Mission.mission_revision;policy_fingerprint=[string]$Mission.policy.fingerprint;durable_mission_content_hash=$hash;translator_version=$translatorVersion;generated_at=[string]$Mission.created_at;mission_packet_sha256=Get-TsfContractJsonHash $packet;role_extension_sha256=Get-TsfContractJsonHash $roleExt;worker_instruction_sha256=Get-TsfContractJsonHash $worker;exact_response_contract_sha256=if($null-ne$packet.exact_response_contract){Get-TsfContractJsonHash $packet.exact_response_contract}else{$null};expected_repository=$repo;expected_branch=$Mission.branch_worktree_policy.expected_branch;expected_worktree=$Mission.branch_worktree_policy.expected_worktree;expected_role=[string]$Mission.worker_role;expected_permission_mode=[string]$Mission.permission_mode;expected_network_policy=[string]$Mission.network_policy;expected_control_plane_service_network_policy=[string]$Mission.control_plane_service_network_policy;expected_worker_tool_network_policy=[string]$Mission.worker_tool_network_policy;expected_surface=[string]$Mission.recommended_surface;expected_model=$Mission.resolved_model}
     $document=[pscustomobject][ordered]@{schema_version='tsf_canonical_queue_document_v1';compatibility_status='GENERATED_EXECUTION_PACKET';durable_mission=$Mission;source_binding=$binding;model_resolution=$routing;mission_packet=$packet;role_extension=$roleExt;worker_instruction_packet=$worker}
     $queueCheck=Test-TsfJsonContract $document (Join-Path $contractRoot 'fleet\control\canonical-queue-document.schema.v1.json');if(!$queueCheck.valid){throw "Generated canonical queue document is invalid: $($queueCheck.errors -join '; ')"};return $document
 }
@@ -249,6 +379,91 @@ function Test-TsfCanonicalQueueDocument {
     }
     $effective=$null;if($errors.Count -eq 0){$effective=$QueueDocument.mission_packet|ConvertTo-Json -Depth 100|ConvertFrom-Json;$effective|Add-Member -NotePropertyName role_extension -NotePropertyValue $QueueDocument.role_extension -Force;$effective|Add-Member -NotePropertyName durable_source_binding -NotePropertyValue $QueueDocument.source_binding -Force;$effective|Add-Member -NotePropertyName model_resolution -NotePropertyValue $QueueDocument.model_resolution -Force;$effective|Add-Member -NotePropertyName worker_instruction_contract -NotePropertyValue $QueueDocument.worker_instruction_packet -Force}
     [pscustomobject]@{valid=$errors.Count -eq 0;errors=@($errors);mission_id=if($null-ne$QueueDocument.source_binding){[string]$QueueDocument.source_binding.durable_mission_id}else{''};queue_document_sha256=Get-TsfContractJsonHash $QueueDocument;effective_mission=$effective}
+}
+
+function Test-TsfCanonicalQueueRecordFile {
+    [CmdletBinding()] param(
+        [Parameter(Mandatory)][string]$QueueRecordPath,
+        [Parameter(Mandatory)][string]$QueueRoot,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$ExpectedQueueState,
+        [Parameter(Mandatory)][string]$ExpectedMissionId,
+        [Parameter(Mandatory)][int]$ExpectedMissionRevision,
+        [string]$RepositoryRoot=$script:TsfRoot,
+        [switch]$TestOnlyAllowAlternateQueueRoot
+    )
+
+    $errors=[Collections.Generic.List[string]]::new()
+    $document=$null
+    $queueCheck=$null
+    $recordPath=$null
+    $queueRootPath=$null
+    $expectedStatePath=$null
+    try {
+        $repositoryPath=Get-TsfKernelFullPath $RepositoryRoot
+        $recordPath=Get-TsfKernelFullPath $QueueRecordPath
+        $queueRootPath=Get-TsfKernelFullPath $QueueRoot
+        $canonicalQueueRoot=Get-TsfCanonicalProductionQueueRoot
+        if(![string]::Equals($repositoryPath,(Get-TsfKernelFullPath $script:TsfRoot),[StringComparison]::OrdinalIgnoreCase)){$errors.Add('QUEUE_RECORD_REPOSITORY_ROOT_MISMATCH')|Out-Null}
+        if(![string]::Equals($queueRootPath,$canonicalQueueRoot,[StringComparison]::OrdinalIgnoreCase)){
+            $fixtureRoot=Get-TsfKernelFullPath (Join-Path $repositoryPath '.codex-local\fixtures')
+            if(!$TestOnlyAllowAlternateQueueRoot){$errors.Add('QUEUE_RECORD_NONCANONICAL_QUEUE_ROOT')|Out-Null}
+            elseif(!(Test-TsfKernelPathInside $queueRootPath $fixtureRoot)){$errors.Add('QUEUE_RECORD_TEST_ONLY_ROOT_OUTSIDE_FIXTURES')|Out-Null}
+        }
+        if(!(Test-TsfKernelPathInside $recordPath $queueRootPath)){$errors.Add('QUEUE_RECORD_PATH_OUTSIDE_CANONICAL_ROOT')|Out-Null}
+
+        $statePolicy=Read-TsfKernelJson (Join-Path $repositoryPath 'fleet\control\mission-queue-state-policy.v1.json')
+        if([string]$statePolicy.schema_version-ne'mission_queue_state_policy_v1'-or@($statePolicy.states|Where-Object{[string]$_-ceq$ExpectedQueueState}).Count-ne1){$errors.Add('QUEUE_RECORD_STATE_NOT_CANONICAL')|Out-Null}
+        $expectedStatePath=Get-TsfKernelFullPath (Join-Path $queueRootPath $ExpectedQueueState)
+        if(![string]::Equals((Split-Path -Parent $recordPath),$expectedStatePath,[StringComparison]::OrdinalIgnoreCase)){$errors.Add('QUEUE_RECORD_DIRECTORY_STATE_MISMATCH')|Out-Null}
+
+        $leaf=Split-Path -Leaf $recordPath
+        if($leaf-cnotmatch'^(?<mission>[A-Za-z0-9_-][A-Za-z0-9._-]{6,158})\.r(?<revision>[1-9][0-9]*)\.json$'){
+            $errors.Add('QUEUE_RECORD_FILENAME_INVALID')|Out-Null
+        } else {
+            if(![string]::Equals([string]$Matches.mission,$ExpectedMissionId,[StringComparison]::Ordinal)){$errors.Add('QUEUE_RECORD_FILENAME_MISSION_ID_MISMATCH')|Out-Null}
+            if([int]$Matches.revision-ne$ExpectedMissionRevision){$errors.Add('QUEUE_RECORD_FILENAME_REVISION_MISMATCH')|Out-Null}
+        }
+    } catch {
+        $errors.Add("QUEUE_RECORD_PATH_VALIDATION_FAILED: $($_.Exception.Message)")|Out-Null
+    }
+
+    if($null-ne$recordPath-and$null-ne$queueRootPath-and(Test-TsfKernelPathInside $recordPath $queueRootPath)){
+        $cursor=$recordPath
+        while($true){
+            try{$item=Get-Item -LiteralPath $cursor -Force -ErrorAction Stop}catch{$errors.Add("QUEUE_RECORD_UNREADABLE_ENTRY: $cursor")|Out-Null;break}
+            if(($item.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){$errors.Add("QUEUE_RECORD_REPARSE_POINT_REJECTED: $cursor")|Out-Null;break}
+            if([string]::Equals($cursor,$recordPath,[StringComparison]::OrdinalIgnoreCase)-and[bool]$item.PSIsContainer){$errors.Add('QUEUE_RECORD_NOT_REGULAR_FILE')|Out-Null;break}
+            if([string]::Equals($cursor,$queueRootPath,[StringComparison]::OrdinalIgnoreCase)){break}
+            $next=Split-Path -Parent $cursor
+            if([string]::IsNullOrWhiteSpace($next)-or[string]::Equals($next,$cursor,[StringComparison]::OrdinalIgnoreCase)){$errors.Add('QUEUE_RECORD_PATH_ANCESTRY_INVALID')|Out-Null;break}
+            $cursor=$next
+        }
+    }
+
+    if($errors.Count-eq0){
+        try{$document=Read-TsfKernelJson $recordPath}catch{$errors.Add("QUEUE_RECORD_JSON_INVALID: $($_.Exception.Message)")|Out-Null}
+    }
+    if($errors.Count-eq0){
+        try{$queueCheck=Test-TsfCanonicalQueueDocument -QueueDocument $document -ExpectedMission $document.durable_mission -RepositoryRoot $RepositoryRoot}catch{$errors.Add("QUEUE_RECORD_CANONICAL_VALIDATOR_FAILED: $($_.Exception.Message)")|Out-Null}
+        if($null-ne$queueCheck-and![bool]$queueCheck.valid){foreach($error in @($queueCheck.errors)){$errors.Add("QUEUE_RECORD_CANONICAL_DOCUMENT_INVALID: $error")|Out-Null}}
+    }
+    if($errors.Count-eq0){
+        if(![string]::Equals([string]$document.durable_mission.mission_id,$ExpectedMissionId,[StringComparison]::Ordinal)-or[int]$document.durable_mission.mission_revision-ne$ExpectedMissionRevision){$errors.Add('QUEUE_RECORD_DURABLE_MISSION_IDENTITY_MISMATCH')|Out-Null}
+        if(![string]::Equals([string]$document.source_binding.durable_mission_id,$ExpectedMissionId,[StringComparison]::Ordinal)-or[int]$document.source_binding.durable_mission_revision-ne$ExpectedMissionRevision){$errors.Add('QUEUE_RECORD_SOURCE_BINDING_IDENTITY_MISMATCH')|Out-Null}
+    }
+
+    [pscustomobject][ordered]@{
+        valid=$errors.Count-eq0
+        errors=@($errors)
+        path=$recordPath
+        queue_root=$queueRootPath
+        queue_state=$ExpectedQueueState
+        queue_state_authority='CANONICAL_PARENT_DIRECTORY_V1'
+        mission_id=$ExpectedMissionId
+        mission_revision=$ExpectedMissionRevision
+        canonical_validator='Test-TsfCanonicalQueueDocument'
+        queue_document_sha256=if($null-ne$queueCheck){[string]$queueCheck.queue_document_sha256}else{$null}
+    }
 }
 
 function Test-TsfCanonicalVerifierIdentity {
@@ -309,6 +524,7 @@ function ConvertTo-TsfDurableResultEnvelope {
     if([string]$adapter.control_plane_service_network_policy -ne 'CODEX_SERVICE_ONLY' -or [string]$adapter.worker_tool_network_policy -ne 'DISABLED' -or ![bool]$adapter.codex_service_connection_used -or [bool]$adapter.direct_openai_api_called_by_tsf -or [bool]$adapter.external_api_called -or [bool]$adapter.worker_network_used){throw 'Adapter network-policy evidence is invalid.'}
     if(![bool]$adapter.child_exited -or ![bool]$adapter.no_orphan_process -or [string]::IsNullOrWhiteSpace([string]$adapter.thread_id) -or [string]::IsNullOrWhiteSpace([string]$adapter.turn_id)){throw 'Adapter native identity or cleanup evidence is incomplete.'}
     $expectedResponseSha256=Get-TsfExpectedResponseSha256 -Mission $Mission
+    $boundExactResponseContract=if($Mission.PSObject.Properties.Name-contains'exact_response_contract'){$Mission.exact_response_contract}else{$null}
     if(![string]::IsNullOrWhiteSpace($expectedResponseSha256)){
         $canonicalResultId=[string]$RuntimeEvidence.result_id
         if([string]$adapter.run_id-ne$canonicalResultId-or[string]$adapter.result_id-ne$canonicalResultId){throw 'Adapter exact-response run or result identity mismatch.'}
@@ -319,6 +535,7 @@ function ConvertTo-TsfDurableResultEnvelope {
         if($null-eq$workerExact-or$null-eq$verifierExact-or![bool]$verifierExact.independently_recomputed-or![bool]$verifierExact.exact_match){throw 'Independent exact-response verifier evidence is missing.'}
         foreach($evidence in @($workerExact,$verifierExact)){
             if([string]$evidence.mission_id-ne[string]$Mission.mission_id-or[int]$evidence.mission_revision-ne[int]$Mission.mission_revision-or[string]$evidence.run_id-ne$canonicalResultId-or[string]$evidence.result_id-ne$canonicalResultId-or[string]$evidence.thread_id-ne[string]$adapter.thread_id-or[string]$evidence.turn_id-ne[string]$adapter.turn_id-or[string]$evidence.expected_response_sha256-ne$expectedResponseSha256-or[string]$evidence.observed_response_sha256-ne$observedResponseSha256){throw 'Exact-response producer identity binding mismatch.'}
+            if($null-ne$boundExactResponseContract-and([string]$evidence.semantic_contract_sha256-ne[string]$boundExactResponseContract.semantic_contract_sha256-or[string]$evidence.validation_mode-ne'EXACT_LITERAL_V1'-or[string]$evidence.expected_literal-ne[string]$boundExactResponseContract.expected_literal)){throw 'Exact-response semantic contract binding mismatch.'}
         }
         $exactTest=@($worker.tests|Where-Object{[string]$_.test_id-eq'hq-dispatch-read-only-exact-response'})
         if($exactTest.Count-ne1-or[string]$exactTest[0].status-ne'PASS'-or[string]$exactTest[0].evidence-ne$observedResponseSha256){throw 'Worker required-test PASS is not bound to exact observed response evidence.'}

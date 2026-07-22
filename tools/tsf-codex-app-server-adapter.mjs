@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { createWriteStream, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline";
+import { inspectAuthoritativeSpawnIdentity } from "./hq-dispatch/v1/reliability.mjs";
 
 function parseArgs(argv) {
   const values = {};
@@ -67,6 +68,12 @@ const nativeRerouteOrOverrideEvents = [];
 const nativeUsageEvents = [];
 
 function hashText(text) { return createHash("sha256").update(text, "utf8").digest("hex"); }
+function encodedPowerShell(source) { return Buffer.from(source, "utf16le").toString("base64"); }
+function gitText(cwd, gitArgs) {
+  const result = spawnSync("git.exe", ["-C", cwd, ...gitArgs], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
+  if (result.status !== 0 || !String(result.stdout ?? "").trim()) throw new Error(`APP_SERVER_SPAWN_GIT_IDENTITY_UNAVAILABLE:${gitArgs.join("_")}`);
+  return String(result.stdout).trim();
+}
 function normalizeEffort(value) {
   if (value === null || value === undefined || String(value).trim() === "") return "UNKNOWN";
   const normalized = String(value).trim().toUpperCase().replaceAll("-", "_");
@@ -121,6 +128,13 @@ function recordNativeUsageEvent(params) {
 function journalMessage(direction, message) {
   sequence += 1;
   journal.write(`${JSON.stringify({ sequence, observed_at: new Date().toISOString(), direction, message })}\n`);
+}
+function journalMessageFlushed(direction, message) {
+  sequence += 1;
+  const line = `${JSON.stringify({ sequence, observed_at: new Date().toISOString(), direction, message })}\n`;
+  return new Promise((resolveWrite, rejectWrite) => {
+    journal.write(line, "utf8", (error) => { if (error) rejectWrite(error); else resolveWrite(); });
+  });
 }
 function send(message) {
   journalMessage("client_to_server", message);
@@ -184,6 +198,10 @@ const child = spawn(childExecutable, childArguments, {
   stdio: ["pipe", "pipe", "pipe"],
   env: { ...process.env },
 });
+const authoritativeSpawn = new Promise((resolveSpawn, rejectSpawn) => {
+  child.once("spawn", resolveSpawn);
+  child.once("error", rejectSpawn);
+});
 child.stderr.pipe(stderrLog);
 child.on("exit", (code) => {
   childExited = true; childExitCode = code;
@@ -192,6 +210,71 @@ child.on("exit", (code) => {
     pending.clear();
   }
 });
+let authoritativeSpawnEvidence = null;
+let failure = "";
+let failureClassification = null;
+let failureStage = null;
+try {
+  await authoritativeSpawn;
+  const inspectedSpawn = inspectAuthoritativeSpawnIdentity(child.pid, process.pid, childExecutable);
+  if (!inspectedSpawn.valid) {
+    throw new Error(`APP_SERVER_SPAWN_IDENTITY_INVALID:${JSON.stringify(inspectedSpawn)}`);
+  }
+  const processIdentity = inspectedSpawn.observed;
+  const repositoryWorktree = gitText(resolve(args.cwd), ["rev-parse", "--show-toplevel"]);
+  const candidateCommit = gitText(resolve(args.cwd), ["rev-parse", "HEAD"]);
+  const candidateTree = gitText(resolve(args.cwd), ["rev-parse", "HEAD^{tree}"]);
+  const creationEventTimestamp = new Date().toISOString();
+  const launchIdentitySha256 = hashText(JSON.stringify({
+    executable: resolve(childExecutable),
+    arguments: childArguments,
+    cwd: resolve(args.cwd),
+  }));
+  const spawnBody = {
+    schema_version: "tsf_codex_app_server_authoritative_spawn_v1",
+    event_type: "AUTHORITATIVE_APP_SERVER_SPAWN",
+    mission_id: args["mission-id"],
+    mission_revision: Number(args["mission-revision"]),
+    run_id: runId,
+    result_id: resultId,
+    child_process_instance_id: childInstanceId,
+    app_server_process_id: processIdentity.process_id,
+    app_server_process_start_time: processIdentity.process_start_time,
+    app_server_executable: processIdentity.executable,
+    app_server_parent_process_id: processIdentity.parent_process_id,
+    app_server_parent_process_start_time: processIdentity.parent_process_start_time,
+    app_server_parent_executable: processIdentity.parent_executable,
+    repository_worktree: repositoryWorktree,
+    candidate_commit: candidateCommit,
+    candidate_tree: candidateTree,
+    creation_event_timestamp: creationEventTimestamp,
+    launch_identity_sha256: launchIdentitySha256,
+  };
+  authoritativeSpawnEvidence = { ...spawnBody, ownership_source_sha256: hashText(JSON.stringify(spawnBody)) };
+  await journalMessageFlushed("adapter_internal", authoritativeSpawnEvidence);
+} catch (error) {
+  if (!child.killed) child.kill();
+  failure = error instanceof Error ? error.message : String(error);
+  failureClassification = "AUTHORITATIVE_APP_SERVER_SPAWN_OR_INSPECTION_FAILED";
+  failureStage = "AUTHORITATIVE_APP_SERVER_SPAWN_INSPECTION";
+  await journalMessageFlushed("adapter_internal", {
+    schema_version: "tsf_codex_app_server_early_failure_v1",
+    event_type: "AUTHORITATIVE_APP_SERVER_SPAWN_FAILURE",
+    mission_id: args["mission-id"],
+    mission_revision: Number(args["mission-revision"]),
+    run_id: runId,
+    result_id: resultId,
+    child_process_id: child.pid ?? null,
+    child_exited: childExited,
+    child_exit_code: childExitCode,
+    failure_classification: failureClassification,
+    failure_stage: failureStage,
+    error_class: error?.constructor?.name ?? typeof error,
+    error_code: error?.code ?? null,
+    error_message: failure,
+    recorded_at: new Date().toISOString(),
+  });
+}
 const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
 lines.on("line", (line) => {
   let message;
@@ -230,8 +313,8 @@ const overallTimer = setTimeout(() => {
   pending.clear();
   child.kill();
 }, timeoutMs);
-let failure = "";
 try {
+  if (failure) throw new Error(failure);
   const initialize = await request("initialize", { clientInfo: { name: "tsf-canonical-adapter", title: "TSF Canonical Adapter", version: "1.0.0" }, capabilities: { experimentalApi: false } });
   initialized = Boolean(initialize?.userAgent);
   if (!initialized) throw new Error("Stable initialize response missing userAgent");
@@ -281,7 +364,11 @@ try {
   if (!completedTurn || completedTurn.status !== "completed") throw new Error(`Turn did not complete: ${completedTurn?.status ?? "missing"}`);
   if (!expectedResponseSha256 && !finalResponse.trim()) throw new Error("Final response was not observed");
 } catch (error) {
-  failure = error.message;
+  if (!failure) {
+    failure = error.message;
+    failureClassification = "APP_SERVER_PROTOCOL_OR_TURN_FAILED";
+    failureStage = initialized ? "APP_SERVER_TURN" : "APP_SERVER_INITIALIZATION";
+  }
 } finally {
   clearTimeout(overallTimer);
   for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(new Error("adapter stopping")); }
@@ -349,6 +436,13 @@ const result = {
   result_id: resultId,
   child_process_instance_id: childInstanceId,
   child_process_id: child.pid,
+  child_process_start_time: authoritativeSpawnEvidence?.app_server_process_start_time ?? null,
+  child_process_executable: authoritativeSpawnEvidence?.app_server_executable ?? null,
+  child_parent_process_id: authoritativeSpawnEvidence?.app_server_parent_process_id ?? null,
+  child_parent_process_start_time: authoritativeSpawnEvidence?.app_server_parent_process_start_time ?? null,
+  child_parent_executable: authoritativeSpawnEvidence?.app_server_parent_executable ?? null,
+  child_launch_identity_sha256: authoritativeSpawnEvidence?.launch_identity_sha256 ?? null,
+  child_ownership_source_sha256: authoritativeSpawnEvidence?.ownership_source_sha256 ?? null,
   cwd: resolve(args.cwd),
   expected_repository: resolve(args.cwd),
   capability_hash: capabilityHash,
@@ -412,6 +506,8 @@ const result = {
   transport_success: transportSuccess,
   success: transportSuccess,
   failure,
+  failure_classification: failureClassification,
+  failure_stage: failureStage,
   started_at: startedAt,
   completed_at: new Date().toISOString(),
 };

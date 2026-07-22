@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync, readFileSync, mkdirSync, statSync } from "node:fs";
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -219,6 +219,48 @@ function sendJson(res, statusCode, body, extraHeaders = {}) {
     "application/json; charset=utf-8",
     extraHeaders,
   );
+}
+
+function stableHash(value) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function durableAppendJson(filePath, value) {
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  const handle = openSync(filePath, "a");
+  try {
+    writeSync(handle, `${JSON.stringify(value)}\n`, null, "utf8");
+    fsyncSync(handle);
+  } finally { closeSync(handle); }
+}
+
+function createShutdownPhaseTrace(lifecycle, stopRequestIdentity) {
+  const identity = stopRequestIdentity ?? {
+    server_instance_id: lifecycle?.serverInstanceId ?? null,
+    reason: "NON_HTTP_SHUTDOWN",
+  };
+  const identitySha256 = stableHash(identity);
+  const tracePath = path.join(lifecycle?.localRoot ?? LOCAL_LIFECYCLE_ROOT, "shutdown-traces", `shutdown-${identitySha256.slice(0, 32)}.jsonl`);
+  let sequence = 0;
+  return {
+    path: tracePath,
+    identity_sha256: identitySha256,
+    record(stage, detail = {}) {
+      sequence += 1;
+      const event = {
+        schema_version: "tsf_hq_dispatch_shutdown_phase_event_v1",
+        sequence,
+        stage,
+        utc_timestamp: new Date().toISOString(),
+        server_instance_id: lifecycle?.serverInstanceId ?? null,
+        stop_request_identity_sha256: identitySha256,
+        ...detail,
+      };
+      event.evidence_sha256 = stableHash(event);
+      durableAppendJson(tracePath, event);
+      return event;
+    },
+  };
 }
 
 function readBody(req) {
@@ -615,9 +657,7 @@ async function handleRequest(req, res, context) {
       sendJson(res, 403, errorPayload("EXACT_OWNER_STOP_AUTHENTICATION_FAILED", "Stop rejected because process, instance, evidence, or local capability identity did not match."));
       return;
     }
-    context.acceptingMissions = false;
-    context.sessions.invalidate();
-    sendJson(res, 202, {
+    const acceptedSnapshot = {
       schema_version: "tsf_hq_dispatch_stop_accepted_v1",
       server_instance_id: context.lifecycle.serverInstanceId,
       active_mission: context.lifecycle.owner.owner?.active_mission ?? null,
@@ -625,8 +665,17 @@ async function handleRequest(req, res, context) {
       behavior: "STOP_ACCEPTING_THEN_COOPERATIVE_DRAIN_OR_EXACT_OWNED_TREE_TERMINATION",
       canonical_records_preserved: true,
       operator_session_invalidated: true,
-    });
-    setImmediate(() => { void context.lifecycle.requestStop("EXACT_OPERATOR_STOP"); });
+    };
+    try {
+      const shutdown = await context.requestShutdown("EXACT_OPERATOR_STOP", {
+        stop_request: parsed.value,
+        accepted_snapshot: acceptedSnapshot,
+      });
+      res.once("finish", () => context.finalizeShutdownResponse("HTTP_STOP_RESPONSE_FINISHED"));
+      sendJson(res, 202, { ...acceptedSnapshot, shutdown });
+    } catch (error) {
+      sendJson(res, 503, errorPayload("EXACT_OWNER_CLEANUP_UNCONFIRMED", error instanceof Error ? error.message : "Exact owned cleanup failed closed."));
+    }
     return;
   }
 
@@ -851,10 +900,13 @@ export function createHqDispatchServer(options = {}) {
     onChildExit: lifecycle ? (processId) => lifecycle.owner.childExited(processId) : null,
     onMissionChange: lifecycle ? (mission) => lifecycle.owner.missionChanged(mission) : null,
     onInterrupted: lifecycle ? (record) => lifecycle.recordInterruption(record) : null,
-    terminateOwnedChild: lifecycle ? (child) => lifecycle.owner.terminateOwnedChildTree(child) : null,
+    terminateOwnedChild: lifecycle ? (child) => lifecycle.owner.cleanupRegisteredOwnedProcesses({
+      liveRootChild: child,
+      reason: "EXACT_OPERATOR_STOP",
+    }) : null,
     testOnlyInterruptionBarrier: options.testOnlyInterruptionBarrier ?? null,
   });
-  const context = { sessions, relay, lifecycle, acceptingMissions: true };
+  const context = { sessions, relay, lifecycle, acceptingMissions: true, shutdownInProgress: false, requestShutdown: null, finalizeShutdownResponse: null };
   const server = createServer((req, res) => {
     handleRequest(req, res, context).catch((error) => {
       const code =
@@ -880,19 +932,98 @@ export function createHqDispatchServer(options = {}) {
   });
   server.hqDispatchRelay = relay;
   let shutdownPromise = null;
-  server.hqDispatchShutdown = (reason = "SERVER_CLOSE") => {
+  let shutdownTrace = null;
+  let responseFinalized = false;
+  server.hqDispatchShutdown = (reason = "SERVER_CLOSE", requestContext = null) => {
     if (!shutdownPromise) {
-      context.acceptingMissions = false;
-      sessions.invalidate();
-      if (lifecycle?.owner?.owner) {
-        try { lifecycle.owner.stopping(); } catch { /* Preserve mismatched owner evidence for Doctor. */ }
-      }
-      shutdownPromise = relay.shutdown(reason);
+      const ownerSnapshot = lifecycle?.owner?.owner ? JSON.parse(JSON.stringify(lifecycle.owner.owner)) : null;
+      const stopIdentity = requestContext?.stop_request ?? { server_instance_id: lifecycle?.serverInstanceId ?? null, reason };
+      shutdownTrace = createShutdownPhaseTrace(lifecycle, stopIdentity);
+      shutdownPromise = (async () => {
+        shutdownTrace.record("STOP_REQUEST_RECEIVED", { reason });
+        context.acceptingMissions = false;
+        context.shutdownInProgress = true;
+        shutdownTrace.record("NEW_SUBMISSIONS_BLOCKED");
+        shutdownTrace.record("ACTIVE_MISSION_SNAPSHOTTED", { mission: ownerSnapshot?.active_mission ?? null });
+        const registrySnapshot = typeof lifecycle?.owner?.beginOwnedProcessShutdown === "function"
+          ? lifecycle.owner.beginOwnedProcessShutdown(reason)
+          : null;
+        shutdownTrace.record("OWNED_PROCESS_SET_SNAPSHOTTED", {
+          owned_processes: registrySnapshot?.entries ?? ownerSnapshot?.owned_children ?? [],
+          registry_path: registrySnapshot?.registry_path ?? null,
+          registry_generation: registrySnapshot?.generation ?? null,
+          registry_closing: registrySnapshot?.closing ?? null,
+        });
+        if (lifecycle?.owner?.owner) {
+          try { lifecycle.owner.stopping(); } catch { /* Preserve mismatched owner evidence for Doctor. */ }
+        }
+        shutdownTrace.record("COOPERATIVE_STOP_REQUESTED", { reason });
+        shutdownTrace.record("COOPERATIVE_WAIT_STARTED");
+        const relayResult = await relay.shutdown(reason);
+        shutdownTrace.record("CHILD_EXIT_OBSERVED", { child_exited: relayResult.child_exited });
+        const evidence = typeof lifecycle?.shutdownEvidence === "function" ? lifecycle.shutdownEvidence() : {};
+        shutdownTrace.record("TERMINAL_PROCESS_DISPOSITION_RECORDED", {
+          terminal_dispositions: evidence?.cleanup_summary?.terminal_dispositions ?? relayResult.owned_process_cleanup?.terminal_dispositions ?? [],
+          registry_path: relayResult.owned_process_cleanup?.registry_path ?? null,
+          registry_generation: relayResult.owned_process_cleanup?.registry_generation ?? null,
+          registry_evidence_sha256: relayResult.owned_process_cleanup?.registry_evidence_sha256 ?? null,
+        });
+        shutdownTrace.record("PROCESS_LEDGER_FLUSHED", { process_action_ledger_path: evidence?.cleanup_summary?.process_action_ledger_path ?? null, process_action_ledger_sha256: evidence?.cleanup_summary?.process_action_ledger_sha256 ?? null });
+        shutdownTrace.record("STOP_RECORD_DURABLE", { stop_record_path: relayResult.interruption?.stop_record_path ?? null, interruption_identity_sha256: relayResult.interruption?.interruption_identity_sha256 ?? null });
+        if (typeof lifecycle?.finalizeOwnedCleanup === "function") await lifecycle.finalizeOwnedCleanup(relayResult);
+        shutdownTrace.record("BARRIER_READY_CLEANED", { disposition: lifecycle?.finalizeOwnedCleanup ? "CONFIRMED" : "NOT_APPLICABLE_NO_TEST_BARRIER" });
+        const archiveRoot = path.join(lifecycle?.localRoot ?? LOCAL_LIFECYCLE_ROOT, "shutdown-traces", "archived-owner");
+        mkdirSync(archiveRoot, { recursive: true });
+        const archivedOwnerPath = path.join(archiveRoot, `owner-${shutdownTrace.identity_sha256.slice(0, 32)}.json`);
+        if (ownerSnapshot && !existsSync(archivedOwnerPath)) writeFileSync(archivedOwnerPath, `${JSON.stringify(ownerSnapshot, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+        shutdownTrace.record("OWNER_EVIDENCE_ARCHIVED", { archived_owner_path: ownerSnapshot ? archivedOwnerPath : null, archived_owner_sha256: ownerSnapshot ? createHash("sha256").update(readFileSync(archivedOwnerPath)).digest("hex") : null });
+        if (lifecycle?.owner) lifecycle.owner.release();
+        shutdownTrace.record("LIVE_OWNER_REMOVED", { owner_absent: !lifecycle?.owner?.owner || !existsSync(lifecycle.owner.ownerPath) });
+        sessions.invalidate();
+        shutdownTrace.record("SESSION_INVALIDATED");
+        shutdownTrace.record("LISTENER_CLOSE_STARTED");
+        if (server.listening) server.close();
+        await new Promise((resolve) => {
+          const deadline = Date.now() + 5_000;
+          const check = () => {
+            if (!server.listening || Date.now() >= deadline) resolve();
+            else setImmediate(check);
+          };
+          check();
+        });
+        if (server.listening) throw new Error("LISTENER_CLOSE_NOT_CONFIRMED");
+        shutdownTrace.record("LISTENER_CLOSED");
+        return {
+          schema_version: "tsf_hq_dispatch_authoritative_shutdown_result_v1",
+          status: "CLEANUP_CONFIRMED",
+          child_exited: relayResult.child_exited,
+          interrupted_mission_id: relayResult.interrupted_mission_id,
+          stop_request_identity_sha256: shutdownTrace.identity_sha256,
+          shutdown_trace_path: shutdownTrace.path,
+          relay: relayResult,
+          archived_owner_path: ownerSnapshot ? archivedOwnerPath : null,
+          listener_closed: true,
+          owner_removed: true,
+          session_invalidated: true,
+        };
+      })();
     }
     return shutdownPromise;
   };
+  server.hqDispatchFinalizeResponse = (disposition = "NO_HTTP_RESPONSE") => {
+    if (!shutdownTrace || responseFinalized) return;
+    responseFinalized = true;
+    shutdownTrace.record("STOP_RESPONSE_FINALIZED", { disposition });
+    shutdownTrace.record("SERVER_EXIT_PERMITTED", { disposition });
+  };
+  context.requestShutdown = server.hqDispatchShutdown;
+  context.finalizeShutdownResponse = server.hqDispatchFinalizeResponse;
   server.hqDispatchContext = context;
-  server.once("close", () => { void server.hqDispatchShutdown(); });
+  server.once("close", () => {
+    void server.hqDispatchShutdown()
+      .then(() => server.hqDispatchFinalizeResponse("LISTENER_CLOSE_WITHOUT_HTTP_RESPONSE"))
+      .catch(() => { /* The awaited initiating path owns failure serialization. */ });
+  });
   return server;
 }
 
@@ -980,12 +1111,8 @@ async function main() {
       if (!closing) {
         closing = (async () => {
           await server.hqDispatchShutdown(reason);
-          await new Promise((resolve) => {
-            if (!server.listening) { resolve(); return; }
-            server.close(resolve);
-          });
           if (server.hqDispatchRelay.activeChild) throw new Error("OWNED_CHILD_REMAINS_AFTER_SHUTDOWN");
-          owner.release();
+          server.hqDispatchFinalizeResponse("FOREGROUND_SIGNAL_OR_INTERNAL_SHUTDOWN");
         })().catch((error) => {
           process.stderr.write(`HQ Dispatch cleanup failed closed: ${error instanceof Error ? error.message : "UNKNOWN"}\n`);
           process.exitCode = 1;

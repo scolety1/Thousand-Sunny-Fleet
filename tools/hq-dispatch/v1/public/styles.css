@@ -29,7 +29,7 @@
 }
 
 html {
-  min-width: 320px;
+  min-width: 0;
   background: var(--night);
 }
 
@@ -60,9 +60,11 @@ input {
   font-size: 0.72rem;
   font-weight: 850;
   letter-spacing: 0.15em;
+  overflow-wrap: anywhere;
 }
 
 .authority-dot {
+  flex: 0 0 0.48rem;
   width: 0.48rem;
   height: 0.48rem;
   border: 2px solid #211707;
@@ -77,6 +79,7 @@ footer {
 }
 
 .lifecycle-shell {
+  min-width: 0;
   margin-bottom: 3rem;
   padding: clamp(1.25rem, 3vw, 2rem);
   border: 1px solid var(--line);
@@ -91,6 +94,54 @@ footer {
   margin: 1rem 0;
 }
 
+.lifecycle-grid > *,
+.hero-grid > *,
+.route-strip > *,
+.detail-grid > *,
+.registry-grid > *,
+.artifact-line > *,
+.source-list li > *,
+.stop-list li > *,
+.section-heading > *,
+.recovery-heading > *,
+.recovery-card-header > *,
+.recovery-actions > *,
+.response-actions > *,
+.brand-lockup,
+.brand-lockup > div,
+.hero-copy,
+.request-card,
+.result-shell,
+.registry-section,
+.recovery-card,
+.startup-block,
+.stop-view {
+  min-width: 0;
+}
+
+.lifecycle-grid strong,
+.lifecycle-grid span,
+.recovery-card-header,
+.recovery-card code,
+.recovery-card p,
+.route-strip strong,
+.route-strip small,
+.token-list li,
+.signal-list li,
+.stop-list strong,
+.artifact-line code,
+.registry-card > strong,
+.registry-card > span,
+.source-list code,
+.source-list span,
+.request-status,
+.boundary-note,
+.classification-pill,
+.freshness-pill,
+.eyebrow {
+  overflow-wrap: anywhere;
+}
+
 .startup-block {
   margin: 1rem 0;
   padding: 1rem;
@@ -102,9 +153,11 @@ footer {
 .startup-block pre,
 .stop-view pre,
 .recovery-card pre {
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .recovery-heading {
@@ -160,7 +213,7 @@ footer {
 }
 
 @media (max-width: 560px) {
-  .lifecycle-grid { grid-template-columns: 1fr; }
+  .lifecycle-grid { grid-template-columns: minmax(0, 1fr); }
   .recovery-heading { align-items: stretch; flex-direction: column; }
 }
 
@@ -487,6 +540,7 @@ button:disabled {
 .route-strip article {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 7rem;
   padding: 0.85rem;
 }
@@ -657,6 +711,9 @@ button:disabled {
 }
 
 .detail-card pre {
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: 0.78rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -808,7 +865,7 @@ button:disabled {
 
 .source-list li {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
   padding: 0.7rem 0;
   border-top: 1px solid var(--line);
@@ -844,7 +901,7 @@ footer {
 
 @media (max-width: 900px) {
   .hero-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 0;
   }
 
@@ -853,7 +910,7 @@ footer {
   }
 
   .route-strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .route-arrow {
@@ -863,7 +920,7 @@ footer {
   }
 
   .registry-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .registry-sources-card {
@@ -918,7 +975,7 @@ footer {
 
   .detail-grid,
   .registry-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .wide-card,
@@ -933,12 +990,45 @@ footer {
   }
 
   .artifact-line {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .artifact-line code {
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+
+  .response-actions,
+  .source-list li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .recovery-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recovery-actions button {
+    width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .brand-lockup {
+    width: 100%;
+  }
+
+  .header-posture {
+    align-items: flex-start;
+    max-width: none;
+    text-align: left;
   }
 }
 

@@ -35,6 +35,7 @@
     "fleet/control/research-registry.v1.json",
     "fleet/control/model-routing-alias-policy.v1.json",
     "fleet/control/mission-envelope.schema.v1.json",
+    "fleet/control/exact-literal-response-contract.schema.v1.json",
     "fleet/control/canonical-queue-document.schema.v1.json",
     "fleet/control/lifecycle-terminal-result.schema.v1.json",
     "fleet/control/tim-required-request.schema.v1.json",
@@ -53,6 +54,7 @@
   ],
   "schema_versions": {
     "mission_envelope": "tsf_mission_envelope_v1",
+    "exact_literal_response_contract": "tsf_exact_literal_response_contract_v1",
     "result_envelope": "tsf_result_envelope_v1",
     "admission_decision": "tsf_admission_decision_v1",
     "runtime_artifact_manifest": "tsf_runtime_artifact_manifest_v1",

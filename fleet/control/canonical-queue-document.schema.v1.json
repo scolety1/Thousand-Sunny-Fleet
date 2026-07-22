@@ -31,6 +31,7 @@
         "mission_packet_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "role_extension_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "worker_instruction_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "exact_response_contract_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
         "expected_repository": { "type": "string", "minLength": 1 },
         "expected_branch": { "type": ["string", "null"] },
         "expected_worktree": { "type": ["string", "null"] },

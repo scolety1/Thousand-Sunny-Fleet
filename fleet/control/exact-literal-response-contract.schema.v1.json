@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/exact-literal-response-contract.schema.v1.json",
+  "title": "TSF Exact Literal Response Contract V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "validation_mode", "normalization_version", "expected_literal",
+    "expected_literal_sha256", "semantic_contract_sha256", "case_sensitive",
+    "whitespace_sensitive", "executable_interpretation", "source_requirement",
+    "preview_binding", "mission_binding"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_exact_literal_response_contract_v1" },
+    "validation_mode": { "const": "EXACT_LITERAL_V1" },
+    "normalization_version": { "const": "ASCII_TOKEN_IDENTITY_V1" },
+    "expected_literal": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Z][A-Z0-9_]{0,127}$" },
+    "expected_literal_sha256": { "$ref": "#/$defs/sha256" },
+    "semantic_contract_sha256": { "$ref": "#/$defs/sha256" },
+    "case_sensitive": { "const": true },
+    "whitespace_sensitive": { "const": true },
+    "executable_interpretation": { "const": false },
+    "source_requirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "request_sha256", "natural_request_persisted_in_preview"],
+      "properties": {
+        "kind": { "const": "EXPLICIT_RETURN_EXACTLY_V1" },
+        "request_sha256": { "$ref": "#/$defs/sha256" },
+        "natural_request_persisted_in_preview": { "const": false }
+      }
+    },
+    "preview_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["preview_id", "preview_contract_sha256", "preview_artifact_sha256"],
+      "properties": {
+        "preview_id": { "type": "string", "pattern": "^hq-preview-[a-f0-9]{32}$" },
+        "preview_contract_sha256": { "$ref": "#/$defs/sha256" },
+        "preview_artifact_sha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
+      }
+    },
+    "mission_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mission_id", "mission_revision"],
+      "anyOf": [
+        {
+          "properties": {
+            "mission_id": { "type": "string", "minLength": 8, "maxLength": 160, "pattern": "^[A-Za-z0-9._:-]+$" },
+            "mission_revision": { "type": "integer", "minimum": 1 }
+          }
+        },
+        {
+          "properties": {
+            "mission_id": { "type": "null" },
+            "mission_revision": { "type": "null" }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

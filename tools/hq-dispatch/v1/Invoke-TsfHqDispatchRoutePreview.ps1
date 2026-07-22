@@ -386,6 +386,7 @@ $writtenResponse = $null
 for ($attempt = 1; $attempt -le 8; $attempt++) {
     $previewToken = [Guid]::NewGuid().ToString("N")
     $previewId = "hq-preview-$previewToken"
+    $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId $previewId
     $artifactName = "$previewId.route-preview.json"
     $artifactPath = [System.IO.Path]::GetFullPath((Join-Path $previewRoot $artifactName))
     if (!$artifactPath.StartsWith($previewPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -399,6 +400,8 @@ for ($attempt = 1; $attempt -le 8; $attempt++) {
         banner = "PREVIEW_ONLY_NOT_AUTHORITY"
         record_kind = "hq_dispatch_route_preview"
         preview_id = $previewId
+        result_validation_mode = $(if ($null -ne $exactResponseContract) { 'EXACT_LITERAL_V1' } else { 'GENERAL_RESULT_V1' })
+        exact_response_contract = $exactResponseContract
         proposed_project = [pscustomobject]@{
             project_id = [string]$draft.mission_packet.project_id
             lane = [string]$draft.mission_packet.lane

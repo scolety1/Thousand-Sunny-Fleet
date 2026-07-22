@@ -254,6 +254,14 @@ function renderPreview(preview) {
   renderStops(preview.stop_conditions);
   renderExplanations(preview.route_explanation);
   setText("#artifact-path", preview.artifact.relative_path);
+  setText("#response-contract-preview", pretty({
+    validation_mode: preview.result_validation_mode,
+    contract: preview.exact_response_contract,
+    worker_success_is_sufficient: false,
+    verifier_requires_same_contract: preview.result_validation_mode === "EXACT_LITERAL_V1",
+    admission_requires_same_contract: preview.result_validation_mode === "EXACT_LITERAL_V1",
+    sensitivity: "Case and every byte of whitespace are significant; no normalization is performed.",
+  }));
 
   previewResult.hidden = false;
   previewResult.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -274,6 +282,13 @@ function renderMission(status) {
   setText("#mission-route", JSON.stringify({ route: status.route, access: status.access, queue_state: status.queue_state }, null, 2));
   setText("#mission-worker", JSON.stringify({ worker: status.worker, verifier: status.verifier, result: status.result }, null, 2));
   setText("#mission-admission", JSON.stringify({ response: status.response, prior_terminal: status.prior_terminal ? { mission_id: status.prior_terminal.mission_id, mission_revision: status.prior_terminal.mission_revision, run_id: status.prior_terminal.run_id, result_id: status.prior_terminal.result_id, state: status.prior_terminal.state, source_path: status.prior_terminal.source_path } : null, preservation: status.preservation, admission: status.admission, caveats: status.caveats }, null, 2));
+  setText("#mission-response-contract", JSON.stringify({
+    requested: status.requested_response,
+    expected_contract: status.response_contract,
+    observed: status.worker?.exact_response ?? null,
+    verifier: status.verifier?.exact_response ?? null,
+    admission: status.admission ? { verdict: status.admission.verdict, receipt_id: status.admission.receipt_id, decision_sha256: status.admission.admission_decision_sha256 } : null,
+  }, null, 2));
   setText("#mission-authority", JSON.stringify({ authority: status.authority, duplicate_replay: status.duplicate_replay, next_action: status.next_action }, null, 2));
   const tim = document.querySelector("#tim-required");
   tim.hidden = !status.tim_request;

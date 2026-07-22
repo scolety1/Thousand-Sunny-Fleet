@@ -194,6 +194,8 @@ try {
   };
   const preview = await getPreview(natural);
   equal(preview.status, 200, "reviewed preview succeeds");
+  equal(preview.json.result_validation_mode, "GENERAL_RESULT_V1", "unrelated request retains the general result contract");
+  equal(preview.json.exact_response_contract, null, "unrelated request receives no fabricated exact literal");
   check(/^[a-f0-9]{64}$/.test(preview.json.preview_sha256), "preview artifact hash returned");
   check(/^[a-f0-9]{64}$/.test(preview.json.request_hash), "request hash returned");
   check(preview.json.submission_id.startsWith("hq-submission-"), "submission id is server generated");
@@ -234,6 +236,25 @@ try {
   equal((await tamperPreview("role", (value) => { value.proposed_worker_role.role_id = "auditor_worker"; })).status, 422, "altered role preview rejected");
   equal((await tamperPreview("model", (value) => { value.model_routing.resolved_model = "caller-model"; })).status, 422, "altered model preview rejected");
   equal((await tamperPreview("authority", (value) => { value.authority.preview_only = false; })).status, 422, "promoted preview classification rejected");
+
+  const exactNatural = "Read only the TSF policy fixture and return exactly TSF_V1_CANONICAL_FIRST_LAUNCH_GREEN.";
+  const exactPreview = await getPreview(exactNatural);
+  equal(exactPreview.status, 200, "exact-literal reviewed preview succeeds");
+  equal(exactPreview.json.result_validation_mode, "EXACT_LITERAL_V1", "exact-literal validation mode is visible");
+  equal(exactPreview.json.exact_response_contract.expected_literal, "TSF_V1_CANONICAL_FIRST_LAUNCH_GREEN", "reviewed exact literal is visible");
+  equal(exactPreview.json.exact_response_contract.expected_literal_sha256, "192168669db5ba0e1e6eb6877f2ce775defd0654a0fe4e124621aa7b9607c627", "reviewed exact literal hash is canonical");
+  equal(exactPreview.json.exact_response_contract.case_sensitive, true, "case sensitivity is explicit");
+  equal(exactPreview.json.exact_response_contract.whitespace_sensitive, true, "whitespace sensitivity is explicit");
+  const exactArtifactPath = path.resolve(root, ...exactPreview.json.artifact.relative_path.split("/"));
+  const exactArtifactBytes = readFileSync(exactArtifactPath);
+  try {
+    const altered = JSON.parse(exactArtifactBytes.toString("utf8"));
+    altered.exact_response_contract.expected_literal = "TSF_HQ_DISPATCH_READ_ONLY_GREEN";
+    writeFileSync(exactArtifactPath, JSON.stringify(altered));
+    equal((await post(port, "/api/v1/missions", token, origin, submissionFor(exactNatural, exactPreview))).status, 422, "stored exact-response substitution is rejected before mission preparation");
+  } finally {
+    writeFileSync(exactArtifactPath, exactArtifactBytes);
+  }
 
   const [admitted, doubleClick] = await Promise.all([
     post(port, "/api/v1/missions", token, origin, submission),
@@ -361,10 +382,12 @@ try {
   const issued = await session(port, origin);
   const cleanup = await shutdownServer.hqDispatchShutdown();
   equal(cleanup.child_exited, true, "shutdown reports no owned foreground child remains");
-  equal((await post(port, "/api/v1/route-preview", issued.json.session_token, origin, { natural_request: "Old session must fail." })).status, 403, "shutdown invalidates session token");
-  equal((await session(port, origin)).status, 503, "shutdown refuses new sessions");
+  assertions += 1;
+  await assert.rejects(post(port, "/api/v1/route-preview", issued.json.session_token, origin, { natural_request: "Old session must fail." }), "shutdown closes the listener after invalidating the old session");
+  assertions += 1;
+  await assert.rejects(session(port, origin), "shutdown refuses new sessions because the authoritative listener is closed");
 } finally {
-  await new Promise((resolve) => shutdownServer.close(resolve));
+  if (shutdownServer.listening) await new Promise((resolve) => shutdownServer.close(resolve));
 }
 
 rmSync(fixtureRoot, { recursive: true, force: true });

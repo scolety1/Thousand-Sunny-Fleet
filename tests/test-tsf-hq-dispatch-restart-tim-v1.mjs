@@ -16,7 +16,7 @@ mkdirSync(queueRoot, { recursive: true });
 const adapters = createDemoFixtureAdapters({ fixtureRoot, repositoryRoot: root, queueRoot, runtimeRoot });
 const missionId = "hq-restart-tim-fixture-0001";
 adapters.timOutcome(missionId, 1, "TIM REQUIRED restart fixture");
-const reconciliation = reconcileCanonicalState({ runtimeRoot, queueRoot });
+const reconciliation = reconcileCanonicalState({ runtimeRoot, queueRoot, testOnlyAllowAlternateQueueRoot: true });
 const item = reconciliation.items.find((candidate) => candidate.classification === "TIM_REQUIRED_PENDING_RESPONSE");
 assert.ok(item);
 

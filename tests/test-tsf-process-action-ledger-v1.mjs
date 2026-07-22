@@ -1,0 +1,84 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { ProcessActionLedger, readProcessActionLedger, validateCausalProcessSafety, validateProcessActionLedgerIntegrity } from "./support/tsf-process-action-ledger.mjs";
+
+let assertions = 0;
+const check = (value, message) => { assertions += 1; assert.ok(value, message); };
+const equal = (actual, expected, message) => { assertions += 1; assert.equal(actual, expected, message); };
+const fails = (events, classification) => {
+  let error = null;
+  try { validateCausalProcessSafety(events); } catch (caught) { error = caught; }
+  check(error, `${classification} fails closed`); equal(error.classification, classification, `${classification} is exact`);
+};
+const hash = "a".repeat(64);
+const commit = "b".repeat(40);
+const start = "2026-07-19T04:00:00.000Z";
+const root = mkdtempSync(path.join(os.tmpdir(), "tsf-process-ledger-"));
+const ledger = new ProcessActionLedger({ filePath: path.join(root, "PROCESS_ACTION_LEDGER.jsonl"), writerIdentity: "focused-test" });
+const base = { proof_stage: "STOP", target_process_id: 41001, target_process_start_time: start, target_executable_identity: "node.exe", ownership_classification: "PROOF_OWNED", ownership_evidence_sha256: hash, server_instance_id: "instance-1", proof_identity: "proof-1", candidate_worktree: "C:\\TSF_HOTFIX2", candidate_commit: commit };
+ledger.record({ ...base, action_type: "REGISTER_PROOF_OWNERSHIP", requested_operation: "REGISTER", os_api_result: { status: "REGISTERED" } });
+ledger.record({ ...base, action_type: "REQUEST_COOPERATIVE_STOP", requested_operation: "POST_EXACT_STOP", os_api_result: { http_status: 202 } });
+ledger.record({ ...base, action_type: "TERMINATE_OWNED_PROCESS", requested_operation: "TASKKILL_EXACT_OWNED_TREE", affected_processes: [], os_api_result: { exit_code: 0 } });
+ledger.record({ ...base, action_type: "CONFIRM_PROCESS_EXIT", requested_operation: "OBSERVE", os_api_result: { status: "OBSERVED" }, post_action_observation: { alive: false }, terminal_disposition: "FORCED_TERMINATION_CONFIRMED", observed_exit_or_close_at: new Date().toISOString(), exit_code_disposition: "EXIT_CODE_NOT_EXPOSED", pid_reuse_check: "PID_ABSENT_NO_REUSE_OBSERVED" });
+let result = validateCausalProcessSafety(readProcessActionLedger(ledger.filePath));
+equal(result.status, "PASS", "exact owned cleanup passes"); equal(result.terminating_actions, 2, "cooperative and exact tree operations are counted");
+equal(validateProcessActionLedgerIntegrity(readProcessActionLedger(ledger.filePath)).status, "PASS", "durable action ledger hashes reproduce");
+const registration = readProcessActionLedger(ledger.filePath)[0];
+const cooperative = [registration, { ...registration, action_id: `coop-request-${randomUUID()}`, action_type: "REQUEST_COOPERATIVE_STOP", requested_operation: "COOPERATIVE_STOP", os_api_result: { status: "REQUESTED" } }, { ...registration, action_id: `coop-confirm-${randomUUID()}`, action_type: "CONFIRM_PROCESS_EXIT", requested_operation: "OBSERVE", os_api_result: { status: "CLOSE_EVENT" }, post_action_observation: { alive: false }, terminal_disposition: "COOPERATIVE_EXIT_CONFIRMED", observed_exit_or_close_at: new Date().toISOString(), exit_code_disposition: "EXIT_CODE_NOT_EXPOSED", pid_reuse_check: "PID_ABSENT_NO_REUSE_OBSERVED" }];
+equal(validateCausalProcessSafety(cooperative).status, "PASS", "cooperative exit needs no forced termination event");
+const alreadyGone = [registration, { ...registration, action_id: `gone-request-${randomUUID()}`, action_type: "REQUEST_COOPERATIVE_STOP", requested_operation: "COOPERATIVE_STOP", os_api_result: { status: "REQUESTED" } }, { ...registration, action_id: `gone-confirm-${randomUUID()}`, action_type: "CONFIRM_PROCESS_EXIT", requested_operation: "RECONCILE_ABSENT_IDENTITY", os_api_result: { status: "ALREADY_ABSENT" }, post_action_observation: { alive: false }, terminal_disposition: "ALREADY_GONE_WITH_IDENTITY_CONFIRMED", observed_exit_or_close_at: new Date().toISOString(), exit_code_disposition: "EXIT_NOT_RELIABLY_OBSERVED", pid_reuse_check: "PID_ABSENT_NO_REUSE_OBSERVED" }];
+equal(validateCausalProcessSafety(alreadyGone).status, "PASS", "already-gone exact identity is confirmed without a signal");
+check(readProcessActionLedger(ledger.filePath).every((event) => /^[a-f0-9]{64}$/.test(event.evidence_sha256)), "every action ledger evidence hash is reproducible-format SHA-256");
+const childRegistration = { ...registration, action_id: `child-${randomUUID()}`, target_process_id: 41002, target_process_start_time: "2026-07-19T04:00:01.000Z", parent_identity: { process_id: 41001, process_start_time: start } };
+const grandchildRegistration = { ...registration, action_id: `grandchild-${randomUUID()}`, target_process_id: 41003, target_process_start_time: "2026-07-19T04:00:02.000Z", parent_identity: { process_id: 41002, process_start_time: childRegistration.target_process_start_time } };
+const treeTermination = { ...registration, action_id: `tree-stop-${randomUUID()}`, action_type: "TERMINATE_OWNED_PROCESS", requested_operation: "TASKKILL_EXACT_OWNED_TREE", os_api_result: { exit_code: 0 }, affected_processes: [{ process_id: 41002, process_start_time: childRegistration.target_process_start_time }, { process_id: 41003, process_start_time: grandchildRegistration.target_process_start_time }] };
+const treeConfirmations = [registration, childRegistration, grandchildRegistration].map((item) => ({ ...item, action_id: `tree-confirm-${item.target_process_id}-${randomUUID()}`, action_type: "CONFIRM_PROCESS_EXIT", requested_operation: "OBSERVE", os_api_result: { status: "ABSENT" }, post_action_observation: { alive: false }, terminal_disposition: "FORCED_TERMINATION_CONFIRMED", observed_exit_or_close_at: new Date().toISOString(), exit_code_disposition: "EXIT_CODE_NOT_EXPOSED", pid_reuse_check: "PID_ABSENT_NO_REUSE_OBSERVED" }));
+equal(validateCausalProcessSafety([registration, childRegistration, grandchildRegistration, treeTermination, ...treeConfirmations]).status, "PASS", "transitive owned descendants remain rooted in the exact registered tree");
+
+const natural = spawn(process.execPath, ["-e", "setTimeout(()=>{},60)"], { windowsHide: true });
+const naturalStart = new Date().toISOString();
+ledger.record({ proof_stage: "BASELINE", action_type: "OBSERVE_PROCESS", target_process_id: natural.pid, target_process_start_time: naturalStart, target_executable_identity: process.execPath, ownership_classification: "UNATTRIBUTED", requested_operation: "OBSERVE_ONLY", os_api_result: { status: "OBSERVED" }, post_action_observation: { alive: true } });
+await once(natural, "exit");
+ledger.record({ proof_stage: "POST_STOP", action_type: "LEAVE_UNATTRIBUTED_PROCESS_UNTOUCHED", target_process_id: natural.pid, target_process_start_time: naturalStart, target_executable_identity: process.execPath, ownership_classification: "UNATTRIBUTED", requested_operation: "NO_ACTION", os_api_result: { status: "NO_TSF_ACTION_ISSUED" }, post_action_observation: { alive: false } });
+result = validateCausalProcessSafety(readProcessActionLedger(ledger.filePath));
+check(result.unattributed_processes.some((entry) => entry.disposition === "UNATTRIBUTED_PROCESS_EXITED_WITHOUT_TSF_CAUSAL_TERMINATION_EVIDENCE"), "natural unattributed exit is honest and nonblocking");
+
+const liveStart = new Date(Date.now() + 1000).toISOString();
+ledger.record({ proof_stage: "POST_STOP", action_type: "LEAVE_UNATTRIBUTED_PROCESS_UNTOUCHED", target_process_id: process.pid, target_process_start_time: liveStart, target_executable_identity: process.execPath, ownership_classification: "UNATTRIBUTED", requested_operation: "NO_ACTION", os_api_result: { status: "NO_TSF_ACTION_ISSUED" }, post_action_observation: { alive: true } });
+result = validateCausalProcessSafety(readProcessActionLedger(ledger.filePath));
+check(result.unattributed_processes.some((entry) => entry.disposition === "UNATTRIBUTED_PROCESS_OBSERVED_AND_NOT_TARGETED"), "live unattributed process is observed without becoming a target");
+
+const unknownStart = new Date(Date.now() + 2000).toISOString();
+ledger.record({ proof_stage: "POST_STOP", action_type: "LEAVE_UNATTRIBUTED_PROCESS_UNTOUCHED", target_process_id: 51999, target_process_start_time: unknownStart, target_executable_identity: process.execPath, ownership_classification: "UNATTRIBUTED", requested_operation: "NO_ACTION", os_api_result: { status: "NO_TSF_ACTION_ISSUED" }, post_action_observation: { alive: null } });
+result = validateCausalProcessSafety(readProcessActionLedger(ledger.filePath));
+check(result.unattributed_processes.some((entry) => entry.disposition === "UNATTRIBUTED_PROCESS_FINAL_LIVENESS_UNKNOWN_BUT_NOT_TARGETED"), "unknown final liveness remains honest and nonblocking when no TSF action targeted the identity");
+equal(result.unattributed_process_safety_v2.targeted_count, 0, "v2 causal summary has zero unattributed targets");
+equal(result.unattributed_process_safety_v2.observed_count, result.unattributed_process_safety_v2.non_targeted_count, "every unattributed observation is accounted for as non-targeted");
+check(/^[a-f0-9]{64}$/.test(result.unattributed_process_safety_v2.evidence_sha256), "v2 causal summary is hash-bound");
+
+const canonical = readProcessActionLedger(ledger.filePath);
+fails([...canonical, { ...canonical[1], ownership_classification: "UNATTRIBUTED" }], "UNATTRIBUTED_PROCESS_TARGETED");
+fails([...canonical, { ...canonical[1], selection_method: "EXECUTABLE_NAME_ONLY" }], "BROAD_PROCESS_NAME_TERMINATION_FORBIDDEN");
+fails([...canonical, { ...canonical[1], target_process_start_time: "2026-07-19T04:00:01.000Z" }], "TERMINATION_TARGET_OWNERSHIP_REGISTRATION_MISSING");
+fails([...canonical, { ...canonical[2], affected_processes: [{ process_id: 49999, process_start_time: start }] }], "PROCESS_TREE_CONTAINS_UNREGISTERED_TARGET");
+fails([...canonical, { ...canonical[2], requested_operation: "FALLBACK_BROAD_KILL", selection_method: "PROCESS_NAME_ONLY" }], "BROAD_PROCESS_NAME_TERMINATION_FORBIDDEN");
+fails(canonical.filter((event) => event.action_type !== "REGISTER_PROOF_OWNERSHIP"), "TERMINATION_TARGET_OWNERSHIP_REGISTRATION_MISSING");
+fails([], "PROCESS_ACTION_LEDGER_MISSING_OR_EMPTY");
+fails([...canonical, { ...canonical[2], target_process_start_time: "2026-07-20T04:00:00.000Z" }], "TERMINATION_TARGET_OWNERSHIP_REGISTRATION_MISSING");
+fails([...canonical, { ...canonical[2], os_api_result: null }], "TERMINATION_TARGET_RESULT_MISSING");
+const unrelatedRegistration = { ...canonical[0], action_id: `unrelated-${randomUUID()}`, target_process_id: 42002, target_process_start_time: "2026-07-19T04:00:02.000Z", parent_identity: { process_id: 99999, process_start_time: "2026-07-19T03:00:00.000Z" } };
+fails([...canonical, unrelatedRegistration, { ...canonical[2], affected_processes: [{ process_id: unrelatedRegistration.target_process_id, process_start_time: unrelatedRegistration.target_process_start_time }] }], "PROCESS_TREE_ESCAPES_PROVEN_OWNED_ROOT");
+fails(canonical.filter((event) => !["REQUEST_COOPERATIVE_STOP", "TERMINATE_OWNED_PROCESS"].includes(event.action_type)), "PROCESS_ACTION_TERMINATION_TARGET_LEDGER_MISSING");
+fails(canonical.filter((event) => event.action_type !== "CONFIRM_PROCESS_EXIT"), "TERMINATION_TARGET_EXIT_CONFIRMATION_MISSING");
+fails([...canonical, { ...canonical.find((event) => event.action_type === "CONFIRM_PROCESS_EXIT"), action_id: `duplicate-${randomUUID()}`, terminal_disposition: "COOPERATIVE_EXIT_CONFIRMED" }], "DUPLICATE_OR_CONFLICTING_TERMINAL_CLEANUP_DISPOSITION");
+fails(canonical.map((event) => event.action_type === "CONFIRM_PROCESS_EXIT" ? { ...event, terminal_disposition: "CLEANUP_UNCONFIRMED" } : event), "CLEANUP_UNCONFIRMED");
+fails([...canonical, { ...canonical[0], action_id: `unattributed-terminal-${randomUUID()}`, action_type: "CONFIRM_PROCESS_EXIT", ownership_classification: "UNATTRIBUTED", terminal_disposition: "ALREADY_GONE_WITH_IDENTITY_CONFIRMED", post_action_observation: { alive: false } }], "UNATTRIBUTED_PROCESS_RECEIVED_OWNED_TERMINAL_DISPOSITION");
+assertions += 1;
+assert.throws(() => validateProcessActionLedgerIntegrity([{ ...canonical[0], evidence_sha256: "0".repeat(64) }]), (error) => error.classification === "PROCESS_ACTION_LEDGER_EVIDENCE_HASH_MISMATCH");
+check(!readFileSync(ledger.filePath, "utf8").match(/token|credential|capability_value/i), "ledger contains no token, credential, or capability value");
+process.stdout.write(`${JSON.stringify({ schema_version: "tsf_process_action_ledger_tests_v1", status: "PASS", assertions, evidence_path: ledger.filePath }, null, 2)}\n`);

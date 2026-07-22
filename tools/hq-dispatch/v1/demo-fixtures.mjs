@@ -1,14 +1,37 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 function hash(value) { return createHash("sha256").update(value).digest("hex"); }
 function json(filePath, value) { mkdirSync(path.dirname(filePath), { recursive: true }); writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8"); }
 function fileHash(filePath) { return hash(readFileSync(filePath)); }
 
+function loadCanonicalQueueTemplate({ repositoryRoot, queueRoot }) {
+  const missionId = "synthetic-demo-fixture-template";
+  const queuePath = path.join(queueRoot, "queued", `${missionId}.r1.json`);
+  const generator = path.join(repositoryRoot, "tests", "support", "New-TsfCanonicalQueueTestRecords.ps1");
+  const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const descriptor = [{ path: queuePath, state: "queued", mission_id: missionId, mission_revision: 1, outcome: "demo template" }];
+  const result = spawnSync(powershell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", generator, "-RepositoryRoot", repositoryRoot], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 120_000,
+    input: JSON.stringify(descriptor),
+  });
+  if (result.error || result.status !== 0 || !existsSync(queuePath)) {
+    throw new Error(`HQ_DEMO_CANONICAL_QUEUE_TEMPLATE_FAILED:${result.error?.message ?? String(result.stderr ?? "").trim() ?? result.status}`);
+  }
+  const template = JSON.parse(readFileSync(queuePath, "utf8"));
+  rmSync(queuePath, { force: true });
+  return template;
+}
+
 export function createDemoFixtureAdapters({ fixtureRoot, repositoryRoot, queueRoot, runtimeRoot }) {
   const route = { worker_role: "researcher_source_tracer_worker", resolved_model: "gpt-5.6-terra", effort: "MEDIUM" };
   const access = { permission_mode: "READ_ONLY", network_policy: "PROHIBITED", control_plane_service_network_policy: "CODEX_SERVICE_ONLY", worker_tool_network_policy: "DISABLED", allowed_reads: ["fleet/control/policy-manifest.v1.json"], allowed_writes: [] };
+  const canonicalQueueTemplate = loadCanonicalQueueTemplate({ repositoryRoot, queueRoot });
 
   function pathsFor(missionId, revision) {
     const runId = `canonical-result-${missionId}-${revision}`;
@@ -32,17 +55,22 @@ export function createDemoFixtureAdapters({ fixtureRoot, repositoryRoot, queueRo
     };
   }
 
-  function queueDocument(missionId, revision) {
-    return {
-      schema_version: "tsf_canonical_queue_document_v1",
-      compatibility_status: "GENERATED_EXECUTION_PACKET",
-      durable_mission: { schema_version: "tsf_mission_envelope_v1", mission_id: missionId, mission_revision: revision, original_request: "DEMO FIXTURE" },
-      source_binding: { durable_mission_id: missionId, durable_mission_revision: revision },
-      model_resolution: route,
-      mission_packet: {},
-      role_extension: {},
-      worker_instruction_packet: {},
-    };
+  function queueDocument(missionId, revision, originalRequest = "DEMO FIXTURE") {
+    const document = JSON.parse(JSON.stringify(canonicalQueueTemplate));
+    document.durable_mission.mission_id = missionId;
+    document.durable_mission.mission_revision = revision;
+    document.durable_mission.parent_mission_id = revision > 1 ? missionId : null;
+    document.durable_mission.original_request = originalRequest;
+    document.source_binding.durable_mission_id = missionId;
+    document.source_binding.durable_mission_revision = revision;
+    document.mission_packet.mission_id = missionId;
+    document.role_extension.parent_mission_id = revision > 1 ? missionId : "";
+    document.worker_instruction_packet.mission_id = missionId;
+    document.source_binding.durable_mission_content_hash = hash(JSON.stringify(document.durable_mission));
+    document.source_binding.mission_packet_sha256 = hash(JSON.stringify(document.mission_packet));
+    document.source_binding.role_extension_sha256 = hash(JSON.stringify(document.role_extension));
+    document.source_binding.worker_instruction_sha256 = hash(JSON.stringify(document.worker_instruction_packet));
+    return document;
   }
 
   function preparation(missionId, revision, p, queuePath) {
@@ -160,7 +188,7 @@ export function createDemoFixtureAdapters({ fixtureRoot, repositoryRoot, queueRo
 
   const manifestPath = path.join(fixtureRoot, "DEMO_MANIFEST.json");
   if (!existsSync(manifestPath)) json(manifestPath, { schema_version: "tsf_hq_dispatch_demo_manifest_v1", fixture_only: true, real_app_server_behavior: false, product_repository_required: false, plugin_required: false, credential_required: false, external_network_required: false, scenarios: ["MILESTONE_1_ROUTE_PREVIEW", "MILESTONE_2A_DETERMINISTIC_EXECUTION", "MILESTONE_2B_TIM_REQUIRED_RESPONSE"] });
-  return { executionAdapter, responseAdapter, completedOutcome, timOutcome };
+  return { executionAdapter, responseAdapter, completedOutcome, timOutcome, queueDocument };
 }
 
 export function resetDemoFixtureRoot({ fixtureRoot, repositoryRoot }) {

@@ -4,6 +4,7 @@ import {
   constants as fsConstants,
   copyFileSync,
   existsSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -29,6 +30,7 @@ export const CANONICAL_RUNTIME_ROOT = path.join(REPOSITORY_ROOT, ".codex-local",
 export const CANONICAL_QUEUE_ROOT = path.join(REPOSITORY_ROOT, "fleet", "missions");
 export const LOCAL_LIFECYCLE_ROOT = path.join(REPOSITORY_ROOT, ".codex-local", "hq-dispatch", "v1");
 export const OWNER_PATH = path.join(LOCAL_LIFECYCLE_ROOT, "owner.json");
+const CANONICAL_QUEUE_VALIDATOR = path.join(REPOSITORY_ROOT, "tools", "hq-dispatch", "v1", "Test-TsfHqDispatchCanonicalQueueRecordsV1.ps1");
 export const STOP_TOKEN_PATH = path.join(LOCAL_LIFECYCLE_ROOT, "stop-token");
 
 const OWNER_SCHEMA = "tsf_hq_dispatch_process_owner_v1";
@@ -36,6 +38,13 @@ const DOCTOR_SCHEMA = "tsf_hq_dispatch_doctor_v1";
 const RECONCILIATION_SCHEMA = "tsf_hq_dispatch_restart_reconciliation_v1";
 const RECOVERY_RECEIPT_SCHEMA = "tsf_hq_dispatch_recovery_receipt_v1";
 const INTERRUPTION_SCHEMA = "tsf_hq_dispatch_interruption_evidence_v1";
+const OWNED_PROCESS_REGISTRY_SCHEMA = "tsf_hq_dispatch_owned_process_registry_event_v1";
+const OWNED_PROCESS_TERMINAL_DISPOSITIONS = new Set([
+  "COOPERATIVE_EXIT_CONFIRMED",
+  "FORCED_TERMINATION_CONFIRMED",
+  "ALREADY_GONE_WITH_IDENTITY_CONFIRMED",
+  "CLEANUP_UNCONFIRMED",
+]);
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_SCAN_FILES = 10000;
 
@@ -152,6 +161,29 @@ function withOwnerHash(body) {
   return { ...body, evidence_hash: hashObject(body) };
 }
 
+export function stopAuthenticationHash(owner) {
+  const identity = {
+    schema_version: "tsf_hq_dispatch_stop_authentication_identity_v1",
+    process_id: Number(owner?.process_id),
+    process_start_time: String(owner?.process_start_time ?? ""),
+    executable: String(owner?.executable ?? ""),
+    host: String(owner?.host ?? ""),
+    port: Number(owner?.port),
+    server_instance_id: String(owner?.server_instance_id ?? ""),
+    operator_session_generation: String(owner?.operator_session_generation ?? ""),
+    control_token_sha256: String(owner?.control_token_sha256 ?? ""),
+    created_at: String(owner?.created_at ?? ""),
+  };
+  if (!Number.isInteger(identity.process_id) || identity.process_id <= 0
+      || !Number.isInteger(identity.port) || identity.port <= 0 || identity.port > 65535
+      || !identity.process_start_time || !identity.executable || !identity.host
+      || !identity.server_instance_id || !identity.operator_session_generation
+      || !/^[a-f0-9]{64}$/.test(identity.control_token_sha256) || !identity.created_at) {
+    throw new Error("STOP_AUTHENTICATION_IDENTITY_INVALID");
+  }
+  return hashObject(identity);
+}
+
 function validateOwnerShape(owner) {
   const errors = [];
   if (!owner || owner.schema_version !== OWNER_SCHEMA) errors.push("OWNER_SCHEMA_INVALID");
@@ -182,6 +214,101 @@ export function inspectProcess(processId) {
   const command = `$p=Get-Process -Id ${pid} -ErrorAction SilentlyContinue;if($null-ne$p){[pscustomobject]@{process_id=$p.Id;process_start_time=$p.StartTime.ToUniversalTime().ToString('o');executable=$p.Path;process_name=$p.ProcessName}|ConvertTo-Json -Compress}`;
   const observed = powerShellJson(command);
   return observed && Number(observed.process_id) === pid ? observed : null;
+}
+
+export function inspectProcessWithParent(processId) {
+  if (!Number.isInteger(Number(processId)) || Number(processId) <= 0) return null;
+  const pid = Number(processId);
+  const command = `$p=Get-Process -Id ${pid} -ErrorAction SilentlyContinue;if($null-ne$p){$c=Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" -ErrorAction SilentlyContinue;[pscustomobject]@{process_id=$p.Id;process_start_time=$p.StartTime.ToUniversalTime().ToString('o');executable=$p.Path;process_name=$p.ProcessName;parent_process_id=if($null-ne$c){[int]$c.ParentProcessId}else{$null}}|ConvertTo-Json -Compress}`;
+  const observed = powerShellJson(command);
+  return observed && Number(observed.process_id) === pid ? observed : null;
+}
+
+export function validateAuthoritativeSpawnIdentity(observed, {
+  processId,
+  expectedParentProcessId,
+  expectedExecutable = null,
+} = {}) {
+  const errors = [];
+  const expectedPid = Number(processId);
+  const expectedParentPid = Number(expectedParentProcessId);
+  if (!observed || typeof observed !== "object") errors.push("SPAWN_IDENTITY_OBSERVATION_MISSING");
+  else {
+    if (!Number.isInteger(expectedPid) || expectedPid <= 0 || Number(observed.process_id) !== expectedPid) errors.push("SPAWN_PROCESS_ID_MISMATCH");
+    if (!Number.isInteger(expectedParentPid) || expectedParentPid <= 0 || Number(observed.parent_process_id) !== expectedParentPid) errors.push("SPAWN_PARENT_PROCESS_ID_MISMATCH");
+    if (!Number.isFinite(Date.parse(observed.process_start_time))) errors.push("SPAWN_PROCESS_START_TIME_MISSING_OR_INVALID");
+    if (!Number.isFinite(Date.parse(observed.parent_process_start_time))) errors.push("SPAWN_PARENT_START_TIME_MISSING_OR_INVALID");
+    if (!observed.executable) errors.push("SPAWN_PROCESS_EXECUTABLE_MISSING");
+    if (!observed.parent_executable) errors.push("SPAWN_PARENT_EXECUTABLE_MISSING");
+    if (expectedExecutable && observed.executable
+        && path.resolve(observed.executable).toLowerCase() !== path.resolve(expectedExecutable).toLowerCase()) {
+      errors.push("SPAWN_PROCESS_EXECUTABLE_MISMATCH");
+    }
+    if (observed.cim_executable && observed.executable
+        && path.resolve(observed.cim_executable).toLowerCase() !== path.resolve(observed.executable).toLowerCase()) {
+      errors.push("SPAWN_PROCESS_EXECUTABLE_SOURCE_MISMATCH");
+    }
+    if (observed.parent_cim_executable && observed.parent_executable
+        && path.resolve(observed.parent_cim_executable).toLowerCase() !== path.resolve(observed.parent_executable).toLowerCase()) {
+      errors.push("SPAWN_PARENT_EXECUTABLE_SOURCE_MISMATCH");
+    }
+  }
+  return {
+    valid: errors.length === 0,
+    errors,
+    expected: {
+      process_id: Number.isInteger(expectedPid) && expectedPid > 0 ? expectedPid : null,
+      parent_process_id: Number.isInteger(expectedParentPid) && expectedParentPid > 0 ? expectedParentPid : null,
+      executable: expectedExecutable ? path.resolve(expectedExecutable) : null,
+    },
+    observed: observed ?? null,
+  };
+}
+
+export function inspectAuthoritativeSpawnIdentity(processId, expectedParentProcessId, expectedExecutable = null) {
+  const pid = Number(processId);
+  const parentPid = Number(expectedParentProcessId);
+  if (!Number.isInteger(pid) || pid <= 0 || !Number.isInteger(parentPid) || parentPid <= 0) {
+    return validateAuthoritativeSpawnIdentity(null, { processId, expectedParentProcessId, expectedExecutable });
+  }
+  const command = `
+$ErrorActionPreference='Stop'
+$childProcess=Get-Process -Id ${pid} -ErrorAction Stop
+$childCim=Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" -ErrorAction Stop
+$parentProcess=Get-Process -Id ${parentPid} -ErrorAction Stop
+$parentCim=Get-CimInstance Win32_Process -Filter "ProcessId=${parentPid}" -ErrorAction Stop
+[pscustomobject]@{
+  process_id=[int]$childProcess.Id
+  process_start_time=$childProcess.StartTime.ToUniversalTime().ToString('o')
+  executable=[string]$childProcess.Path
+  cim_executable=[string]$childCim.ExecutablePath
+  parent_process_id=[int]$childCim.ParentProcessId
+  parent_process_start_time=$parentProcess.StartTime.ToUniversalTime().ToString('o')
+  parent_executable=[string]$parentProcess.Path
+  parent_cim_executable=[string]$parentCim.ExecutablePath
+}|ConvertTo-Json -Compress
+`;
+  const result = spawnSync(POWERSHELL_EXE, [
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand",
+    Buffer.from(command, "utf16le").toString("base64"),
+  ], { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 1024 * 1024 });
+  let observed = null;
+  let inspectionError = null;
+  try {
+    const text = String(result.stdout ?? "").trim();
+    if (!result.error && result.status === 0 && text) observed = JSON.parse(text.split(/\r?\n/).at(-1));
+    else inspectionError = result.error?.message ?? `SPAWN_IDENTITY_INSPECTION_EXIT_${result.status ?? "UNKNOWN"}`;
+  } catch (error) {
+    inspectionError = `SPAWN_IDENTITY_OUTPUT_PARSE_FAILED:${error instanceof Error ? error.message : String(error)}`;
+  }
+  const validation = validateAuthoritativeSpawnIdentity(observed, { processId: pid, expectedParentProcessId: parentPid, expectedExecutable });
+  if (inspectionError) validation.errors.unshift(inspectionError);
+  validation.valid = validation.errors.length === 0;
+  validation.inspection = {
+    exit_code: Number.isInteger(result.status) ? result.status : null,
+    error_classification: inspectionError,
+  };
+  return validation;
 }
 
 export function inspectListeners(port = HQ_PORT) {
@@ -265,6 +392,124 @@ function walkFiles(root, predicate = () => true) {
     }
   }
   return files;
+}
+
+function validateCanonicalQueueRecords(queueRoot, descriptors, { testOnlyAllowAlternateQueueRoot = false } = {}) {
+  if (descriptors.length === 0) return [];
+  const result = spawnSync(POWERSHELL_EXE, [
+    "-NoLogo",
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    CANONICAL_QUEUE_VALIDATOR,
+    "-RepositoryRoot",
+    REPOSITORY_ROOT,
+    "-QueueRoot",
+    path.resolve(queueRoot),
+    ...(testOnlyAllowAlternateQueueRoot ? ["-TestOnlyAllowAlternateQueueRoot"] : []),
+  ], {
+    cwd: REPOSITORY_ROOT,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 120000,
+    maxBuffer: 16 * 1024 * 1024,
+    input: JSON.stringify(descriptors),
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error(`CANONICAL_QUEUE_VALIDATOR_FAILED:${result.error?.message ?? String(result.stderr ?? "").trim() ?? result.status}`);
+  }
+  const output = String(result.stdout ?? "").trim().replace(/^\uFEFF/, "");
+  const parsed = JSON.parse(output);
+  return Array.isArray(parsed) ? parsed : [parsed];
+}
+
+function queueInventory(queueRoot, { testOnlyAllowAlternateQueueRoot = false } = {}) {
+  const root = path.resolve(queueRoot);
+  const errors = [];
+  const records = [];
+  const placeholders = [];
+  const identities = new Map();
+  const candidates = [];
+  const fixtureRoot = path.resolve(REPOSITORY_ROOT, ".codex-local", "fixtures");
+  const productionRoot = samePath(root, CANONICAL_QUEUE_ROOT);
+  const isolatedTestRoot = testOnlyAllowAlternateQueueRoot && pathInside(root, fixtureRoot);
+  if (!productionRoot && !isolatedTestRoot) {
+    errors.push({ path: root, error: testOnlyAllowAlternateQueueRoot ? "TEST_QUEUE_ROOT_OUTSIDE_ISOLATED_FIXTURES" : "NONCANONICAL_QUEUE_ROOT_REJECTED" });
+    return { root, generated_record_count: 0, placeholder_count: 0, unknown_or_invalid_count: 1, records, errors };
+  }
+  if (!existsSync(root)) return { root, generated_record_count: 0, placeholder_count: 0, unknown_or_invalid_count: 0, records, errors };
+  let rootStats;
+  try { rootStats = lstatSync(root); }
+  catch (error) { return { root, generated_record_count: 0, placeholder_count: 0, unknown_or_invalid_count: 1, records, errors: [{ path: root, error: `CANONICAL_QUEUE_ROOT_UNREADABLE:${String(error.message)}` }] }; }
+  if (rootStats.isSymbolicLink() || !rootStats.isDirectory()) {
+    return { root, generated_record_count: 0, placeholder_count: 0, unknown_or_invalid_count: 1, records, errors: [{ path: root, error: "CANONICAL_QUEUE_ROOT_REPARSE_OR_TYPE_REJECTED" }] };
+  }
+
+  let stateEntries;
+  try { stateEntries = readdirSync(root, { withFileTypes: true }); }
+  catch (error) { return { root, generated_record_count: 0, placeholder_count: 0, unknown_or_invalid_count: 1, records, errors: [{ path: root, error: `CANONICAL_QUEUE_ROOT_ENUMERATION_FAILED:${String(error.message)}` }] }; }
+  for (const stateEntry of stateEntries) {
+    const statePath = path.join(root, stateEntry.name);
+    let stateStats;
+    try { stateStats = lstatSync(statePath); }
+    catch (error) { errors.push({ path: statePath, error: `QUEUE_STATE_ENTRY_UNREADABLE:${String(error.message)}` }); continue; }
+    if (stateStats.isSymbolicLink()) { errors.push({ path: statePath, error: "QUEUE_STATE_REPARSE_POINT_REJECTED" }); continue; }
+    if (!stateStats.isDirectory()) { errors.push({ path: statePath, error: "UNKNOWN_QUEUE_ROOT_ENTRY" }); continue; }
+
+    let entries;
+    try { entries = readdirSync(statePath, { withFileTypes: true }); }
+    catch (error) { errors.push({ path: statePath, error: `QUEUE_STATE_ENUMERATION_FAILED:${String(error.message)}` }); continue; }
+    for (const entry of entries) {
+      const filePath = path.join(statePath, entry.name);
+      let stats;
+      try { stats = lstatSync(filePath); }
+      catch (error) { errors.push({ path: filePath, error: `QUEUE_ENTRY_UNREADABLE:${String(error.message)}` }); continue; }
+      if (stats.isSymbolicLink()) { errors.push({ path: filePath, error: "QUEUE_RECORD_REPARSE_POINT_REJECTED" }); continue; }
+      if (entry.name === ".gitkeep" && stats.isFile()) { placeholders.push(filePath); continue; }
+      if (!QUEUE_STATES.has(stateEntry.name)) { errors.push({ path: filePath, error: "UNKNOWN_OR_LEGACY_QUEUE_STATE_FILE" }); continue; }
+      if (!stats.isFile()) { errors.push({ path: filePath, error: "UNKNOWN_OR_NESTED_QUEUE_ENTRY" }); continue; }
+      const match = entry.name.match(/^([A-Za-z0-9_-][A-Za-z0-9._-]{6,158})\.r([1-9][0-9]*)\.json$/);
+      if (!match) { errors.push({ path: filePath, error: "UNKNOWN_GENERATED_QUEUE_FILENAME" }); continue; }
+      candidates.push({ path: filePath, state: stateEntry.name, mission_id: match[1], mission_revision: Number(match[2]) });
+    }
+  }
+
+  let validations = [];
+  try { validations = validateCanonicalQueueRecords(root, candidates, { testOnlyAllowAlternateQueueRoot }); }
+  catch (error) {
+    for (const candidate of candidates) errors.push({ path: candidate.path, error: String(error.message) });
+  }
+  const validationByPath = new Map(validations.map((validation) => [path.resolve(String(validation.path ?? "")).toLowerCase(), validation]));
+  for (const candidate of candidates) {
+    const validation = validationByPath.get(path.resolve(candidate.path).toLowerCase());
+    if (!validation?.valid) {
+      errors.push({ path: candidate.path, error: "CANONICAL_QUEUE_DOCUMENT_REJECTED", validation_errors: Array.isArray(validation?.errors) ? validation.errors : ["CANONICAL_QUEUE_VALIDATION_RESULT_MISSING"] });
+      continue;
+    }
+    let value;
+    try { value = readJson(candidate.path); }
+    catch (error) { errors.push({ path: candidate.path, error: `VALIDATED_QUEUE_RECORD_BECAME_UNREADABLE:${String(error.message)}` }); continue; }
+    const identity = queueIdentity(value);
+    if (!identity || identity.mission_id !== candidate.mission_id || identity.mission_revision !== candidate.mission_revision) {
+      errors.push({ path: candidate.path, error: "QUEUE_FILENAME_DOCUMENT_IDENTITY_MISMATCH" });
+      continue;
+    }
+    const key = `${identity.mission_id}:${identity.mission_revision}`;
+    const prior = identities.get(key);
+    if (prior) errors.push({ path: candidate.path, error: `DUPLICATE_QUEUE_MISSION_REVISION:${prior}` });
+    else identities.set(key, candidate.path);
+    records.push({ path: candidate.path, state: candidate.state, value, identity, validation: { canonical_validator: validation.canonical_validator, queue_document_sha256: validation.queue_document_sha256, queue_state_authority: validation.queue_state_authority } });
+  }
+  return {
+    root,
+    generated_record_count: records.length,
+    placeholder_count: placeholders.length,
+    unknown_or_invalid_count: errors.length,
+    records,
+    errors,
+  };
 }
 
 function canonicalIdentity(value) {
@@ -440,9 +685,10 @@ function classifyGroup(group, ownership, allGroups = null) {
   };
 }
 
-export function reconcileCanonicalState({ runtimeRoot = CANONICAL_RUNTIME_ROOT, queueRoot = CANONICAL_QUEUE_ROOT, ownership = readOwnership(), includeAll = true } = {}) {
+export function reconcileCanonicalState({ runtimeRoot = CANONICAL_RUNTIME_ROOT, queueRoot = CANONICAL_QUEUE_ROOT, ownership = readOwnership(), includeAll = true, testOnlyAllowAlternateQueueRoot = false } = {}) {
   const groups = new Map();
-  const parseErrors = [];
+  const inventory = queueInventory(queueRoot, { testOnlyAllowAlternateQueueRoot });
+  const parseErrors = [...inventory.errors];
   const ensure = (identity) => {
     const key = groupKey(identity);
     if (!groups.has(key)) groups.set(key, { identity, artifacts: {}, queue_documents: [] });
@@ -458,16 +704,8 @@ export function reconcileCanonicalState({ runtimeRoot = CANONICAL_RUNTIME_ROOT, 
       if (!identity || !role) continue;
       addArtifact(ensure(identity), role, filePath, value, statSync(filePath));
     }
-    for (const filePath of walkFiles(queueRoot, (candidate) => candidate.toLowerCase().endsWith(".json"))) {
-      let value;
-      try { value = readJson(filePath); } catch (error) { parseErrors.push({ path: filePath, error: String(error.message) }); continue; }
-      const identity = queueIdentity(value);
-      if (!identity) continue;
-      const state = path.basename(path.dirname(filePath));
-      if (!QUEUE_STATES.has(state)) {
-        parseErrors.push({ path: filePath, error: `UNKNOWN_QUEUE_STATE:${state}` });
-      }
-      ensure(identity).queue_documents.push({ path: filePath, state, sha256: sha256(readFileSync(filePath)), modified_at: statSync(filePath).mtime.toISOString(), value });
+    for (const record of inventory.records) {
+      ensure(record.identity).queue_documents.push({ path: record.path, state: record.state, sha256: sha256(readFileSync(record.path)), modified_at: statSync(record.path).mtime.toISOString(), value: record.value });
     }
   } catch (error) {
     parseErrors.push({ path: runtimeRoot, error: String(error.message) });
@@ -488,6 +726,12 @@ export function reconcileCanonicalState({ runtimeRoot = CANONICAL_RUNTIME_ROOT, 
     old_thread_or_turn_resumed: false,
     safe_to_reconcile: !unsafe,
     parse_errors: parseErrors,
+    queue_inventory: {
+      root: inventory.root,
+      generated_record_count: inventory.generated_record_count,
+      placeholder_count: inventory.placeholder_count,
+      unknown_or_invalid_count: inventory.unknown_or_invalid_count,
+    },
     counts,
     items: visible,
   };
@@ -560,13 +804,14 @@ export function runDoctor({
   expectedBaseline = REQUIRED_BASELINE,
   allowDirtyForTest = false,
   demoMode = false,
+  testOnlyAllowAlternateQueueRoot = false,
 } = {}) {
   const checks = [];
   const repo = repositoryEvidence(repositoryRoot, expectedBaseline);
   const repoValid = repo.available && samePath(repo.top, repositoryRoot) && repo.head_descends_from_required_baseline && repo.origin_main_descends_from_required_baseline;
   checks.push(check("repository", repoValid ? "GREEN" : "UNSAFE_TO_START", repo, repoValid ? "Continue with this exact worktree and commit ancestry." : "Restore the exact TSF repository/worktree and required ancestry; do not start HQ Dispatch."));
   const cleanEnough = repo.clean || allowDirtyForTest || demoMode;
-  checks.push(check("worktree_cleanliness", cleanEnough ? (repo.clean ? "GREEN" : "GREEN_WITH_CAVEATS") : "UNSAFE_TO_START", { clean: repo.clean, status_lines: repo.status_lines, test_or_demo_override: allowDirtyForTest || demoMode }, cleanEnough ? "No cleanup is required by Doctor." : "Review and intentionally commit or remove only Milestone 3 changes; Doctor will not reset the worktree."));
+  checks.push(check("worktree_cleanliness", cleanEnough ? (repo.clean ? "GREEN" : "GREEN_WITH_CAVEATS") : "UNSAFE_TO_START", { clean: repo.clean, status_lines: repo.status_lines, test_or_demo_override: allowDirtyForTest || demoMode, policy: "Git status excludes only canonical ignored generated queue records; tracked changes and unrelated untracked files remain visible." }, cleanEnough ? "No source cleanup is required by Doctor." : "Review and intentionally commit or remove only genuine source changes; Doctor will not reset the worktree or delete runtime evidence."));
 
   const node = { available: existsSync(process.execPath), executable: process.execPath, version: process.version };
   const powerShell = { available: existsSync(POWERSHELL_EXE), executable: POWERSHELL_EXE };
@@ -605,7 +850,9 @@ export function runDoctor({
   const budget = pathBudget(repositoryRoot, runtimeRoot);
   checks.push(check("windows_path_budget", budget.valid ? "GREEN" : "UNSAFE_TO_START", budget, budget.valid ? "Use compact canonical and lifecycle paths shown in evidence." : "Move the worktree to the required short path before creating runtime artifacts."));
 
-  const reconciliation = reconcileCanonicalState({ runtimeRoot, queueRoot, ownership });
+  const reconciliation = reconcileCanonicalState({ runtimeRoot, queueRoot, ownership, testOnlyAllowAlternateQueueRoot: testOnlyAllowAlternateQueueRoot || demoMode });
+  const queueInventoryStatus = reconciliation.queue_inventory.unknown_or_invalid_count === 0 ? "GREEN" : "UNSAFE_TO_START";
+  checks.push(check("runtime_queue_evidence_policy", queueInventoryStatus, reconciliation.queue_inventory, queueInventoryStatus === "GREEN" ? "Preserve the canonical generated queue records; they are durable local evidence and are not source dirtiness." : "Inspect the unknown, invalid, nested, or duplicate protected queue file; Doctor will not hide or delete it."));
   const conflictCount = reconciliation.items.filter((item) => item.classification === "CONFLICTING_REPLAY").length;
   const timCount = reconciliation.items.filter((item) => item.classification === "TIM_REQUIRED_PENDING_RESPONSE").length;
   const interruptedCount = reconciliation.items.filter((item) => ["INTERRUPTED_PROCESS_GONE", "DISPATCHING_WITHOUT_OWNER"].includes(item.classification)).length;
@@ -698,6 +945,379 @@ export class ProcessOwnership {
     this.sessionGeneration = `hq-session-generation-${randomUUID()}`;
     this.stopToken = randomBytes(32).toString("base64url");
     this.owner = null;
+    this.ownedProcessRegistryPath = path.join(
+      path.dirname(this.ownerPath),
+      "owned-process-registry",
+      `${this.serverInstanceId}.jsonl`,
+    );
+    this.ownedProcessRegistry = new Map();
+    this.ownedProcessRegistrySequence = 0;
+    this.ownedProcessRegistrationSequence = 0;
+    this.ownedProcessRegistryGeneration = 0;
+    this.ownedProcessRegistryPreviousHash = null;
+    this.ownedProcessRegistryClosing = null;
+    this.pendingOwnedProcessExitObservations = new Map();
+    this.ownedProcessProjectedActions = [];
+    this.defaultProcessActionSequence = 0;
+    this.defaultProcessActionPreviousHash = null;
+    this.processActionLedgerPath = path.join(
+      path.dirname(this.ownerPath),
+      "process-action-ledger",
+      `${this.serverInstanceId}.jsonl`,
+    );
+    this.processActionRecorder = (action) => this.#appendDefaultProcessActionEvent(action);
+  }
+
+  setProcessActionRecorder(recorder, { ledgerPath = null } = {}) {
+    if (recorder !== null && typeof recorder !== "function") throw new Error("OWNED_PROCESS_ACTION_RECORDER_INVALID");
+    this.processActionRecorder = recorder ?? ((action) => this.#appendDefaultProcessActionEvent(action));
+    if (ledgerPath) this.processActionLedgerPath = path.resolve(ledgerPath);
+  }
+
+  #appendDefaultProcessActionEvent(action) {
+    const body = {
+      schema_version: "tsf_process_action_v1",
+      action_id: `process-action-${randomUUID()}`,
+      writer_identity: `${this.mode}:${this.serverInstanceId}`,
+      causal_ledger_sequence: ++this.defaultProcessActionSequence,
+      utc_timestamp: nowIso(),
+      previous_evidence_sha256: this.defaultProcessActionPreviousHash,
+      ...action,
+    };
+    const event = { ...body, evidence_sha256: hashObject(body) };
+    mkdirSync(path.dirname(this.processActionLedgerPath), { recursive: true });
+    const descriptor = openSync(this.processActionLedgerPath, "a", 0o600);
+    try {
+      writeFileSync(descriptor, `${JSON.stringify(event)}\n`, "utf8");
+      fsyncSync(descriptor);
+    } finally {
+      closeSync(descriptor);
+    }
+    this.defaultProcessActionPreviousHash = event.evidence_sha256;
+    return event;
+  }
+
+  #appendOwnedProcessRegistryEvent(eventType, values = {}) {
+    const body = {
+      schema_version: OWNED_PROCESS_REGISTRY_SCHEMA,
+      sequence: ++this.ownedProcessRegistrySequence,
+      event_type: eventType,
+      registry_generation: this.ownedProcessRegistryGeneration,
+      server_instance_id: this.serverInstanceId,
+      recorded_at: nowIso(),
+      previous_evidence_sha256: this.ownedProcessRegistryPreviousHash,
+      ...values,
+    };
+    const event = { ...body, evidence_sha256: hashObject(body) };
+    mkdirSync(path.dirname(this.ownedProcessRegistryPath), { recursive: true });
+    const descriptor = openSync(this.ownedProcessRegistryPath, "a", 0o600);
+    try {
+      writeFileSync(descriptor, `${JSON.stringify(event)}\n`, "utf8");
+      fsyncSync(descriptor);
+    } finally {
+      closeSync(descriptor);
+    }
+    this.ownedProcessRegistryPreviousHash = event.evidence_sha256;
+    return event;
+  }
+
+  #registryIdentityKey(identity) {
+    return `${Number(identity?.process_id)}|${Date.parse(identity?.process_start_time)}`;
+  }
+
+  #registryEntryByProcessId(processId) {
+    return [...this.ownedProcessRegistry.values()].find((entry) => Number(entry.process_id) === Number(processId)) ?? null;
+  }
+
+  #registerOwnedProcessAndLedgerEvent(identity, metadata = {}) {
+    if (!identity || !Number.isInteger(Number(identity.process_id)) || !Number.isFinite(Date.parse(identity.process_start_time)) || !identity.executable) {
+      throw new Error("OWNED_PROCESS_REGISTRY_IDENTITY_INVALID");
+    }
+    const key = this.#registryIdentityKey(identity);
+    const existing = this.ownedProcessRegistry.get(key);
+    if (existing) {
+      if (existing.registration_status !== "COMMITTED") throw new Error("OWNED_PROCESS_REGISTRATION_INCOMPLETE");
+      return existing;
+    }
+    const causalRegistrationAt = metadata.causal_registration_at ?? nowIso();
+    if (this.ownedProcessRegistryClosing
+        && (!Number.isFinite(Date.parse(causalRegistrationAt))
+          || Date.parse(causalRegistrationAt) > Date.parse(this.ownedProcessRegistryClosing.cutoff_at))) {
+      this.#appendOwnedProcessRegistryEvent("LATE_REGISTRATION_REJECTED", {
+        process_id: Number(identity.process_id),
+        process_start_time: identity.process_start_time,
+        failure_classification: "OWNED_PROCESS_LATE_REGISTRATION_UNVERIFIED",
+      });
+      throw new Error("OWNED_PROCESS_LATE_REGISTRATION_UNVERIFIED");
+    }
+    this.ownedProcessRegistryGeneration += 1;
+    const parentEntry = this.#registryEntryByProcessId(identity.parent_process_id);
+    if (parentEntry && parentEntry.registration_status !== "COMMITTED") throw new Error("OWNED_PROCESS_PARENT_REGISTRATION_INCOMPLETE");
+    const rootEntry = metadata.root_process_registration_id
+      ? [...this.ownedProcessRegistry.values()].find((entry) => entry.process_registration_id === metadata.root_process_registration_id)
+      : null;
+    if (rootEntry && rootEntry.registration_status !== "COMMITTED") throw new Error("OWNED_PROCESS_ROOT_REGISTRATION_INCOMPLETE");
+    const registrationBody = {
+      process_registration_id: `owned-process-${randomUUID()}`,
+      registration_sequence: ++this.ownedProcessRegistrationSequence,
+      server_instance_id: this.serverInstanceId,
+      process_id: Number(identity.process_id),
+      process_start_time: identity.process_start_time,
+      executable: identity.executable,
+      process_name: identity.process_name ?? path.basename(identity.executable),
+      parent_process_id: Number.isInteger(Number(identity.parent_process_id)) ? Number(identity.parent_process_id) : null,
+      parent_process_start_time: identity.parent_process_start_time ?? null,
+      parent_executable: identity.parent_executable ?? null,
+      parent_process_registration_id: parentEntry?.process_registration_id ?? null,
+      root_process_registration_id: rootEntry?.process_registration_id ?? metadata.root_process_registration_id ?? null,
+      mission_identity: metadata.mission_identity ?? this.owner?.active_mission ?? null,
+      worktree: metadata.worktree ?? this.owner?.worktree ?? this.repositoryRoot,
+      candidate_commit: metadata.candidate_commit ?? this.owner?.commit ?? null,
+      proof_capability_identity_sha256: metadata.capability_identity_sha256 ?? null,
+      launch_event_identity_sha256: metadata.launch_identity_sha256 ?? hashObject({
+        process_id: Number(identity.process_id),
+        process_start_time: identity.process_start_time,
+        executable: identity.executable,
+        server_instance_id: this.serverInstanceId,
+      }),
+      ownership_evidence_sha256: metadata.ownership_evidence_sha256 ?? this.owner?.evidence_hash ?? null,
+      causal_registration_at: causalRegistrationAt,
+      registration_generation: this.ownedProcessRegistryGeneration,
+      registration_status: "PENDING",
+      immutable_registry_event_sha256: null,
+      ownership_ledger_event_sha256: null,
+      current_observation_status: "REGISTERED_ALIVE",
+      terminal_cleanup_disposition: null,
+      terminal_evidence_sha256: null,
+    };
+    if (!registrationBody.root_process_registration_id) registrationBody.root_process_registration_id = registrationBody.process_registration_id;
+    let entry = { ...registrationBody };
+    this.ownedProcessRegistry.set(key, entry);
+    let registryEvent;
+    try {
+      registryEvent = this.#appendOwnedProcessRegistryEvent(this.ownedProcessRegistryClosing ? "LATE_PROCESS_REGISTERED" : "IMMUTABLE_REGISTRY_REGISTRATION", {
+        ...registrationBody,
+        late_registration: Boolean(this.ownedProcessRegistryClosing),
+      });
+      entry = { ...entry, immutable_registry_event_sha256: registryEvent.evidence_sha256 };
+      this.ownedProcessRegistry.set(key, entry);
+      const ledgerEvent = this.#recordProcessAction({
+        proof_stage: "IMMUTABLE_OWNED_PROCESS_REGISTRATION",
+        action_type: "REGISTER_PROOF_OWNERSHIP",
+        reason: this.ownedProcessRegistryClosing ? "CAUSALLY_VALID_LATE_REGISTRATION" : "AUTHORITATIVE_OWNED_PROCESS_REGISTRATION",
+        requested_operation: "REGISTER_EXACT_OWNED_PROCESS",
+        os_api_result: { status: "REGISTRATION_PROJECTED_DURABLY" },
+        registration_status: "COMMITTING",
+        immutable_registry_event_sha256: registryEvent.evidence_sha256,
+      }, entry);
+      if (!ledgerEvent?.evidence_sha256) throw new Error("OWNED_PROCESS_LEDGER_DURABLE_EVENT_REQUIRED");
+      const committedEvent = this.#appendOwnedProcessRegistryEvent("OWNED_PROCESS_REGISTRATION_COMMITTED", {
+        process_registration_id: entry.process_registration_id,
+        registration_sequence: entry.registration_sequence,
+        process_id: entry.process_id,
+        process_start_time: entry.process_start_time,
+        immutable_registry_event_sha256: registryEvent.evidence_sha256,
+        ownership_ledger_event_sha256: ledgerEvent.evidence_sha256,
+      });
+      entry = {
+        ...entry,
+        registration_status: "COMMITTED",
+        ownership_ledger_event_sha256: ledgerEvent.evidence_sha256,
+        registration_commit_event_sha256: committedEvent.evidence_sha256,
+      };
+      this.ownedProcessRegistry.set(key, entry);
+    } catch (error) {
+      const incomplete = { ...entry, registration_status: "INCOMPLETE_LEDGER_WRITE_FAILED", registration_failure: String(error?.message ?? error) };
+      this.ownedProcessRegistry.set(key, incomplete);
+      try {
+        this.#appendOwnedProcessRegistryEvent("OWNED_PROCESS_REGISTRATION_COMMIT_FAILED", {
+          process_registration_id: incomplete.process_registration_id,
+          registration_sequence: incomplete.registration_sequence,
+          process_id: incomplete.process_id,
+          process_start_time: incomplete.process_start_time,
+          immutable_registry_event_sha256: registryEvent?.evidence_sha256 ?? null,
+          failure_classification: "OWNED_PROCESS_LEDGER_REGISTRATION_WRITE_FAILED",
+        });
+      } catch {}
+      throw Object.assign(new Error(`OWNED_PROCESS_REGISTRATION_COMMIT_FAILED:${error?.message ?? error}`), { cause: error });
+    }
+    const bufferedExit = this.pendingOwnedProcessExitObservations.get(key);
+    if (bufferedExit) {
+      this.pendingOwnedProcessExitObservations.delete(key);
+      this.#recordTerminalOwnedProcess(entry, bufferedExit.disposition, bufferedExit.observation, bufferedExit.values);
+      entry = this.ownedProcessRegistry.get(key);
+    }
+    return entry;
+  }
+
+  #enrichOwnedProcessRegistration(entry, metadata) {
+    if (!entry) throw new Error("OWNED_PROCESS_REGISTRY_ENTRY_MISSING");
+    if (entry.terminal_cleanup_disposition) throw new Error("OWNED_PROCESS_REGISTRY_TERMINAL_ENTRY_CANNOT_BE_REBOUND");
+    const next = {
+      ...entry,
+      proof_mission_identity: metadata.mission_identity ?? entry.proof_mission_identity ?? entry.mission_identity,
+      proof_capability_identity_sha256: metadata.capability_identity_sha256 ?? entry.proof_capability_identity_sha256,
+      proof_launch_event_identity_sha256: metadata.launch_identity_sha256 ?? entry.proof_launch_event_identity_sha256 ?? entry.launch_event_identity_sha256,
+      proof_ownership_evidence_sha256: metadata.ownership_evidence_sha256 ?? entry.proof_ownership_evidence_sha256 ?? entry.ownership_evidence_sha256,
+    };
+    this.ownedProcessRegistry.set(this.#registryIdentityKey(entry), next);
+    this.#appendOwnedProcessRegistryEvent("PROCESS_REGISTRATION_ENRICHED", {
+      process_registration_id: next.process_registration_id,
+      process_id: next.process_id,
+      process_start_time: next.process_start_time,
+      mission_identity: next.proof_mission_identity,
+      proof_capability_identity_sha256: next.proof_capability_identity_sha256,
+      launch_event_identity_sha256: next.proof_launch_event_identity_sha256,
+      ownership_evidence_sha256: next.proof_ownership_evidence_sha256,
+    });
+    return next;
+  }
+
+  #recordProcessAction(action, entry) {
+    const event = this.processActionRecorder({
+      process_registration_id: entry.process_registration_id,
+      registration_sequence: entry.registration_sequence,
+      root_process_registration_id: entry.root_process_registration_id,
+      parent_process_registration_id: entry.parent_process_registration_id,
+      target_process_id: entry.process_id,
+      target_process_start_time: entry.process_start_time,
+      target_executable_identity: entry.executable,
+      ownership_classification: "PROOF_OWNED",
+      ownership_evidence_sha256: entry.ownership_evidence_sha256,
+      parent_identity: entry.parent_process_id ? {
+        process_id: entry.parent_process_id,
+        process_start_time: entry.parent_process_start_time,
+        executable: entry.parent_executable,
+      } : null,
+      server_instance_id: this.serverInstanceId,
+      mission_identity: entry.mission_identity,
+      candidate_worktree: entry.worktree,
+      candidate_commit: entry.candidate_commit,
+      launch_identity_sha256: entry.launch_event_identity_sha256,
+      selection_method: "EXACT_REGISTERED_PID_START_TIME_EXECUTABLE",
+      ...action,
+    });
+    if (!event || typeof event !== "object") throw new Error("OWNED_PROCESS_ACTION_LEDGER_EVENT_REQUIRED");
+    this.ownedProcessProjectedActions.push(event);
+    return event;
+  }
+
+  #recordTerminalOwnedProcess(entry, disposition, observation, values = {}) {
+    if (!OWNED_PROCESS_TERMINAL_DISPOSITIONS.has(disposition)) throw new Error("OWNED_PROCESS_TERMINAL_DISPOSITION_INVALID");
+    const current = this.ownedProcessRegistry.get(this.#registryIdentityKey(entry));
+    if (!current) throw new Error("OWNED_PROCESS_REGISTRY_ENTRY_MISSING");
+    if (current.registration_status !== "COMMITTED") throw new Error("OWNED_PROCESS_TERMINAL_BEFORE_COMMITTED_REGISTRATION");
+    if (current.terminal_cleanup_disposition) {
+      if (current.terminal_cleanup_disposition !== disposition) throw new Error("OWNED_PROCESS_CONFLICTING_TERMINAL_DISPOSITION");
+      return current;
+    }
+    const observedAt = values.observed_exit_or_close_at ?? nowIso();
+    const observationEvent = this.#appendOwnedProcessRegistryEvent("EXIT_OBSERVATION_RECORDED", {
+      process_registration_id: current.process_registration_id,
+      registration_sequence: current.registration_sequence,
+      process_id: current.process_id,
+      process_start_time: current.process_start_time,
+      observed_exit_or_close_at: observedAt,
+      final_liveness_observation: observation,
+    });
+    this.#recordProcessAction({
+      proof_stage: "EXACT_OWNED_EXIT_OBSERVATION",
+      action_type: "OBSERVE_PROCESS",
+      reason: values.reason ?? "EXACT_REGISTERED_EXIT_OBSERVED",
+      requested_operation: "OBSERVE_EXACT_REGISTERED_IDENTITY",
+      os_api_result: { status: "EXIT_OBSERVATION_RECORDED", registry_evidence_sha256: observationEvent.evidence_sha256 },
+      post_action_observation: { alive: disposition === "CLEANUP_UNCONFIRMED" ? Boolean(observation?.same_identity_alive) : false },
+      observed_exit_or_close_at: observedAt,
+    }, current);
+    const event = this.#appendOwnedProcessRegistryEvent("TERMINAL_PROCESS_DISPOSITION_RECORDED", {
+      process_registration_id: current.process_registration_id,
+      registration_sequence: current.registration_sequence,
+      process_id: current.process_id,
+      process_start_time: current.process_start_time,
+      terminal_cleanup_disposition: disposition,
+      final_liveness_observation: observation,
+      ...values,
+    });
+    const terminal = {
+      ...current,
+      current_observation_status: disposition === "CLEANUP_UNCONFIRMED" ? "CLEANUP_UNCONFIRMED" : "TERMINAL_EXIT_CONFIRMED",
+      terminal_cleanup_disposition: disposition,
+      terminal_evidence_sha256: event.evidence_sha256,
+    };
+    this.ownedProcessRegistry.set(this.#registryIdentityKey(current), terminal);
+    this.#recordProcessAction({
+      proof_stage: "EXACT_OWNED_REGISTRY_EXIT_CONFIRMATION",
+      action_type: "CONFIRM_PROCESS_EXIT",
+      reason: values.reason ?? "ROOT_INDEPENDENT_REGISTRY_RECONCILIATION",
+      requested_operation: "OBSERVE_EXACT_REGISTERED_IDENTITY",
+      os_api_result: values.os_api_result ?? { status: disposition },
+      post_action_observation: { alive: disposition === "CLEANUP_UNCONFIRMED" ? Boolean(observation?.same_identity_alive) : false },
+      terminal_disposition: disposition,
+      cooperative_request_identity: this.ownedProcessRegistryClosing?.cooperative_request_identity ?? null,
+      forced_termination_identity: values.forced_termination_identity ?? null,
+      observed_exit_or_close_at: observedAt,
+      exit_code: Number.isInteger(values.exit_code) ? values.exit_code : null,
+      exit_code_disposition: Number.isInteger(values.exit_code) ? "NUMERIC_EXIT_OBSERVED" : (values.exit_code_disposition ?? "EXIT_CODE_NOT_EXPOSED_BY_PLATFORM"),
+      pid_reuse_check: observation?.pid_reused ? "PID_REUSED_BY_UNRELATED_IDENTITY" : (observation?.same_identity_alive ? "OWNED_IDENTITY_STILL_ALIVE" : "PID_ABSENT_NO_REUSE_OBSERVED"),
+    }, terminal);
+    return terminal;
+  }
+
+  beginOwnedProcessShutdown(reason = "SERVER_SHUTDOWN") {
+    this.reconcileOwnedProcessRegistryAndLedger();
+    if (!this.ownedProcessRegistryClosing) {
+      this.ownedProcessRegistryClosing = {
+        cutoff_at: nowIso(),
+        reason,
+        cooperative_request_identity: `${this.serverInstanceId}:${reason}`,
+      };
+      this.#appendOwnedProcessRegistryEvent("REGISTRY_CLOSING", {
+        cutoff_at: this.ownedProcessRegistryClosing.cutoff_at,
+        reason,
+        captured_generation: this.ownedProcessRegistryGeneration,
+      });
+    }
+    return this.ownedProcessRegistrySnapshot();
+  }
+
+  ownedProcessRegistrySnapshot() {
+    return {
+      schema_version: "tsf_hq_dispatch_owned_process_registry_snapshot_v1",
+      registry_path: this.ownedProcessRegistryPath,
+      server_instance_id: this.serverInstanceId,
+      generation: this.ownedProcessRegistryGeneration,
+      closing: Boolean(this.ownedProcessRegistryClosing),
+      cutoff_at: this.ownedProcessRegistryClosing?.cutoff_at ?? null,
+      entries: [...this.ownedProcessRegistry.values()].map((entry) => ({ ...entry })),
+      causal_ledger_path: this.processActionLedgerPath,
+      evidence_sha256: this.ownedProcessRegistryPreviousHash,
+    };
+  }
+
+  reconcileOwnedProcessRegistryAndLedger() {
+    const entries = [...this.ownedProcessRegistry.values()];
+    const registrations = this.ownedProcessProjectedActions.filter((event) => event.action_type === "REGISTER_PROOF_OWNERSHIP" && event.process_registration_id);
+    for (const entry of entries) {
+      if (entry.registration_status !== "COMMITTED") throw new Error("OWNED_PROCESS_REGISTRY_LEDGER_REGISTRATION_INCOMPLETE");
+      const matches = registrations.filter((event) => event.process_registration_id === entry.process_registration_id);
+      if (matches.length !== 1) throw new Error(matches.length === 0 ? "OWNED_PROCESS_REGISTRY_WITHOUT_LEDGER_REGISTRATION" : "OWNED_PROCESS_DUPLICATE_LEDGER_REGISTRATION");
+      const event = matches[0];
+      if (Number(event.registration_sequence) !== Number(entry.registration_sequence)
+          || Number(event.target_process_id) !== Number(entry.process_id)
+          || Date.parse(event.target_process_start_time) !== Date.parse(entry.process_start_time)
+          || event.ownership_evidence_sha256 !== entry.ownership_evidence_sha256
+          || event.server_instance_id !== this.serverInstanceId
+          || event.root_process_registration_id !== entry.root_process_registration_id
+          || JSON.stringify(event.mission_identity ?? null) !== JSON.stringify(entry.mission_identity ?? null)) {
+        throw new Error("OWNED_PROCESS_REGISTRY_LEDGER_IDENTITY_MISMATCH");
+      }
+      const registrationIndex = this.ownedProcessProjectedActions.indexOf(event);
+      const terminalIndex = this.ownedProcessProjectedActions.findIndex((candidate) => candidate.action_type === "CONFIRM_PROCESS_EXIT" && candidate.process_registration_id === entry.process_registration_id);
+      if (terminalIndex >= 0 && terminalIndex <= registrationIndex) throw new Error("OWNED_PROCESS_TERMINAL_BEFORE_LEDGER_REGISTRATION");
+    }
+    const registryIds = new Set(entries.map((entry) => entry.process_registration_id));
+    if (registrations.some((event) => !registryIds.has(event.process_registration_id))) throw new Error("OWNED_PROCESS_LEDGER_WITHOUT_REGISTRY_REGISTRATION");
+    return { status: "PASS", registry_entries: entries.length, ownership_ledger_events: registrations.length, registry_generation: this.ownedProcessRegistryGeneration };
   }
 
   claim() {
@@ -729,13 +1349,51 @@ export class ProcessOwnership {
   stopping() { return this.update({ lifecycle_state: "STOPPING" }); }
 
   childStarted(child) {
-    const observed = inspectProcess(child.pid);
+    const observed = inspectProcessWithParent(child.pid) ?? inspectProcess(child.pid);
     if (!observed) throw new Error("OWNED_CHILD_IDENTITY_UNAVAILABLE");
+    const registration = this.#registerOwnedProcessAndLedgerEvent(observed, {
+      mission_identity: this.owner?.active_mission ?? null,
+      worktree: this.owner?.worktree,
+      candidate_commit: this.owner?.commit,
+      ownership_evidence_sha256: this.owner?.evidence_hash,
+      causal_registration_at: nowIso(),
+    });
+    if (registration.terminal_cleanup_disposition) return this.owner;
     const children = [...(this.owner?.owned_children ?? []).filter((item) => item.process_id !== child.pid), observed];
     return this.update({ owned_child_process_ids: children.map((item) => item.process_id), owned_children: children });
   }
 
   childExited(processId) {
+    const registration = this.#registryEntryByProcessId(processId);
+    if (registration && !registration.terminal_cleanup_disposition) {
+      const observed = inspectProcess(registration.process_id);
+      const sameIdentityAlive = processMatchesOwner(registration, observed);
+      if (!sameIdentityAlive) {
+        const buffered = {
+          disposition: this.ownedProcessRegistryClosing ? "COOPERATIVE_EXIT_CONFIRMED" : "ALREADY_GONE_WITH_IDENTITY_CONFIRMED",
+          observation: { same_identity_alive: false, pid_reused: Boolean(observed) },
+          values: {
+            reason: this.ownedProcessRegistryClosing ? "ROOT_CLOSE_AFTER_COOPERATIVE_STOP" : "ROOT_CLOSE_OBSERVED",
+            observed_exit_or_close_at: nowIso(),
+            exit_code_disposition: "EXIT_CODE_NOT_EXPOSED_BY_CHILD_EXIT_CALLBACK",
+          },
+        };
+        if (registration.registration_status === "PENDING") {
+          this.pendingOwnedProcessExitObservations.set(this.#registryIdentityKey(registration), buffered);
+        } else if (registration.registration_status === "COMMITTED") {
+          this.#recordTerminalOwnedProcess(registration, buffered.disposition, buffered.observation, buffered.values);
+        } else {
+          this.#appendOwnedProcessRegistryEvent("INCOMPLETE_REGISTRATION_EXIT_OBSERVED", {
+            process_registration_id: registration.process_registration_id,
+            registration_sequence: registration.registration_sequence,
+            process_id: registration.process_id,
+            process_start_time: registration.process_start_time,
+            observed_exit_or_close_at: buffered.values.observed_exit_or_close_at,
+            failure_classification: "EXIT_OBSERVED_WITHOUT_COMMITTED_OWNERSHIP",
+          });
+        }
+      }
+    }
     const children = (this.owner?.owned_children ?? []).filter((item) => item.process_id !== Number(processId));
     return this.update({ owned_child_process_ids: children.map((item) => item.process_id), owned_children: children });
   }
@@ -747,18 +1405,273 @@ export class ProcessOwnership {
     return Boolean(child && processMatchesOwner(child, inspectProcess(child.process_id)));
   }
 
-  terminateOwnedChildTree(childProcess) {
-    const processId = Number(childProcess?.pid);
-    const recorded = (this.owner?.owned_children ?? []).find((child) => child.process_id === processId);
-    if (!recorded) throw new Error("OWNED_CHILD_PROCESS_IDENTITY_MISMATCH");
-    const observed = inspectProcess(processId);
-    if (!observed) {
-      return { process_id: processId, exited: true, already_exited: true, unrelated_processes_targeted: false };
+  childrenStartedFromEvidence({
+    rootProcessId,
+    processes,
+    serverInstanceId,
+    capabilityIdentitySha256,
+    ownershipEvidenceSha256,
+    launchIdentitySha256 = null,
+    registrationCreatedAt = null,
+  }) {
+    const rootId = Number(rootProcessId);
+    const root = (this.owner?.owned_children ?? []).find((item) => item.process_id === rootId);
+    if (!root || !processMatchesOwner(root, inspectProcess(rootId))) throw new Error("OWNED_DESCENDANT_ROOT_IDENTITY_MISMATCH");
+    if (serverInstanceId !== this.serverInstanceId) throw new Error("OWNED_DESCENDANT_SERVER_INSTANCE_MISMATCH");
+    for (const [name, value] of [["CAPABILITY", capabilityIdentitySha256], ["EVIDENCE", ownershipEvidenceSha256]]) {
+      if (!/^[a-f0-9]{64}$/.test(String(value ?? ""))) throw new Error(`OWNED_DESCENDANT_${name}_HASH_INVALID`);
     }
-    if (!processMatchesOwner(recorded, observed)) throw new Error("OWNED_CHILD_PROCESS_IDENTITY_MISMATCH");
-    const result = spawnSync("C:\\Windows\\System32\\taskkill.exe", ["/PID", String(processId), "/T", "/F"], { encoding: "utf8", windowsHide: true, timeout: 10000 });
-    if (inspectProcess(processId)) throw new Error(`OWNED_CHILD_TREE_TERMINATION_FAILED:${result.status}`);
-    return { process_id: processId, exited: true, already_exited: false, unrelated_processes_targeted: false };
+    if (!Array.isArray(processes) || processes.length === 0) throw new Error("OWNED_DESCENDANT_PROCESS_CHAIN_REQUIRED");
+    const byId = new Map([[rootId, root]]);
+    for (const processIdentity of processes) {
+      const processId = Number(processIdentity?.process_id);
+      if (!Number.isInteger(processId) || processId <= 0 || processId === rootId || byId.has(processId)) {
+        throw new Error("OWNED_DESCENDANT_PROCESS_CHAIN_DUPLICATE_OR_INVALID");
+      }
+      byId.set(processId, processIdentity);
+    }
+    for (const processIdentity of processes) {
+      const parentId = Number(processIdentity.parent_process_id);
+      if (!byId.has(parentId)) throw new Error("OWNED_DESCENDANT_PARENT_OUTSIDE_EXACT_CHAIN");
+      const observed = inspectProcessWithParent(Number(processIdentity.process_id));
+      if (!processMatchesOwner(processIdentity, observed) || Number(observed.parent_process_id) !== parentId) {
+        throw new Error("OWNED_DESCENDANT_PROCESS_IDENTITY_MISMATCH");
+      }
+      const parent = byId.get(parentId);
+      if (processIdentity.parent_process_start_time
+          && Date.parse(processIdentity.parent_process_start_time) !== Date.parse(parent.process_start_time)) {
+        throw new Error("OWNED_DESCENDANT_PARENT_START_TIME_MISMATCH");
+      }
+      if (processIdentity.parent_executable && !samePath(processIdentity.parent_executable, parent.executable)) {
+        throw new Error("OWNED_DESCENDANT_PARENT_EXECUTABLE_MISMATCH");
+      }
+      const visited = new Set([Number(processIdentity.process_id)]);
+      let cursor = parentId;
+      while (cursor !== rootId) {
+        if (visited.has(cursor) || !byId.has(cursor)) throw new Error("OWNED_DESCENDANT_PROCESS_CHAIN_NOT_ROOTED");
+        visited.add(cursor);
+        cursor = Number(byId.get(cursor).parent_process_id);
+      }
+    }
+    const additions = processes.map((processIdentity) => ({
+      ...processIdentity,
+      owned_tree_root_process_id: rootId,
+      server_instance_id: this.serverInstanceId,
+      capability_identity_sha256: capabilityIdentitySha256,
+      ownership_evidence_sha256: ownershipEvidenceSha256,
+    }));
+    const rootRegistration = this.#registryEntryByProcessId(rootId);
+    if (!rootRegistration) throw new Error("OWNED_DESCENDANT_ROOT_REGISTRY_MISSING");
+    const enrichedRoot = this.#enrichOwnedProcessRegistration(rootRegistration, {
+      mission_identity: this.owner?.active_mission ?? null,
+      capability_identity_sha256: capabilityIdentitySha256,
+      launch_identity_sha256: launchIdentitySha256,
+      ownership_evidence_sha256: ownershipEvidenceSha256,
+    });
+    const pending = [...additions];
+    for (let pass = 0; pending.length && pass <= additions.length; pass += 1) {
+      for (let index = pending.length - 1; index >= 0; index -= 1) {
+        const identity = pending[index];
+        const parentRegistration = Number(identity.parent_process_id) === rootId
+          ? enrichedRoot
+          : this.#registryEntryByProcessId(identity.parent_process_id);
+        if (!parentRegistration) continue;
+        this.#registerOwnedProcessAndLedgerEvent(identity, {
+          root_process_registration_id: enrichedRoot.process_registration_id,
+          mission_identity: this.owner?.active_mission ?? null,
+          worktree: this.owner?.worktree,
+          candidate_commit: this.owner?.commit,
+          capability_identity_sha256: capabilityIdentitySha256,
+          launch_identity_sha256: launchIdentitySha256,
+          ownership_evidence_sha256: ownershipEvidenceSha256,
+          causal_registration_at: registrationCreatedAt ?? nowIso(),
+        });
+        pending.splice(index, 1);
+      }
+    }
+    if (pending.length) throw new Error("OWNED_DESCENDANT_REGISTRY_PARENT_MISSING");
+    this.reconcileOwnedProcessRegistryAndLedger();
+    const additionIds = new Set(additions.map((item) => item.process_id));
+    const children = [...(this.owner?.owned_children ?? []).filter((item) => !additionIds.has(item.process_id)), ...additions];
+    return this.update({ owned_child_process_ids: children.map((item) => item.process_id), owned_children: children });
+  }
+
+  childrenExitedFromEvidence({ rootProcessId, processes, capabilityIdentitySha256, ownershipEvidenceSha256 }) {
+    const rootId = Number(rootProcessId);
+    const removals = new Set();
+    const dispositions = [];
+    for (const processIdentity of processes ?? []) {
+      const recorded = (this.owner?.owned_children ?? []).find((item) => item.process_id === Number(processIdentity.process_id));
+      if (!recorded || recorded.owned_tree_root_process_id !== rootId
+          || recorded.capability_identity_sha256 !== capabilityIdentitySha256
+          || recorded.ownership_evidence_sha256 !== ownershipEvidenceSha256) {
+        throw new Error("OWNED_DESCENDANT_CLEANUP_EVIDENCE_MISMATCH");
+      }
+      const registryEntry = this.ownedProcessRegistry.get(this.#registryIdentityKey(recorded));
+      if (!registryEntry || (registryEntry.proof_ownership_evidence_sha256 ?? registryEntry.ownership_evidence_sha256) !== ownershipEvidenceSha256
+          || !OWNED_PROCESS_TERMINAL_DISPOSITIONS.has(registryEntry.terminal_cleanup_disposition)
+          || registryEntry.terminal_cleanup_disposition === "CLEANUP_UNCONFIRMED") {
+        throw new Error("OWNED_DESCENDANT_REGISTRY_CLEANUP_UNCONFIRMED");
+      }
+      const observed = inspectProcess(recorded.process_id);
+      if (processMatchesOwner(recorded, observed)) throw new Error("OWNED_DESCENDANT_STILL_RUNNING_AFTER_CLEANUP");
+      removals.add(recorded.process_id);
+      dispositions.push({
+        process_id: recorded.process_id,
+        disposition: registryEntry.terminal_cleanup_disposition,
+        terminal_evidence_sha256: registryEntry.terminal_evidence_sha256,
+      });
+    }
+    const children = (this.owner?.owned_children ?? []).filter((item) => !removals.has(item.process_id));
+    this.update({ owned_child_process_ids: children.map((item) => item.process_id), owned_children: children });
+    return dispositions;
+  }
+
+  async cleanupRegisteredOwnedProcesses({ liveRootChild = null, reason = "EXACT_OPERATOR_STOP", cooperativeWaitMs = 500 } = {}) {
+    this.beginOwnedProcessShutdown(reason);
+    this.reconcileOwnedProcessRegistryAndLedger();
+    const rootEntry = liveRootChild?.pid ? this.#registryEntryByProcessId(liveRootChild.pid) : null;
+    if (liveRootChild && rootEntry) {
+      const observed = inspectProcess(rootEntry.process_id);
+      if (processMatchesOwner(rootEntry, observed) && !liveRootChild.killed) {
+        this.#recordProcessAction({
+          proof_stage: "EXACT_OWNED_REGISTRY_COOPERATIVE_STOP",
+          action_type: "REQUEST_COOPERATIVE_STOP",
+          reason,
+          requested_operation: "CHILD_PROCESS_EXACT_COOPERATIVE_STOP",
+          os_api_result: { status: "REQUEST_ISSUED" },
+          post_action_observation: { alive: true },
+        }, rootEntry);
+        liveRootChild.kill();
+      }
+    }
+    const cooperativeDeadline = Date.now() + Math.max(0, Math.min(Number(cooperativeWaitMs) || 0, 5_000));
+    while (Date.now() < cooperativeDeadline) {
+      if ([...this.ownedProcessRegistry.values()].every((entry) => entry.terminal_cleanup_disposition || !processMatchesOwner(entry, inspectProcess(entry.process_id)))) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    let stableGeneration = null;
+    for (let pass = 0; pass < 8; pass += 1) {
+      const generation = this.ownedProcessRegistryGeneration;
+      const registrations = [...this.ownedProcessRegistry.values()];
+      const byRegistrationId = new Map(registrations.map((entry) => [entry.process_registration_id, entry]));
+      for (const entry of registrations) {
+        if (!byRegistrationId.has(entry.root_process_registration_id)
+            || (entry.parent_process_registration_id && !byRegistrationId.has(entry.parent_process_registration_id))) {
+          this.#recordTerminalOwnedProcess(entry, "CLEANUP_UNCONFIRMED", { same_identity_alive: Boolean(inspectProcess(entry.process_id)), pid_reused: false }, {
+            reason: "OWNED_PROCESS_REGISTRY_RELATIONSHIP_UNCONFIRMED",
+            exit_code_disposition: "EXIT_NOT_RELIABLY_OBSERVED",
+          });
+          throw new Error("OWNED_PROCESS_REGISTRY_RELATIONSHIP_UNCONFIRMED");
+        }
+      }
+      const depth = (entry) => {
+        let current = entry;
+        let value = 0;
+        const visited = new Set();
+        while (current.parent_process_registration_id) {
+          if (visited.has(current.process_registration_id)) throw new Error("OWNED_PROCESS_REGISTRY_PARENT_CYCLE");
+          visited.add(current.process_registration_id);
+          current = byRegistrationId.get(current.parent_process_registration_id);
+          if (!current) break;
+          value += 1;
+        }
+        return value;
+      };
+      const pending = registrations.filter((entry) => !entry.terminal_cleanup_disposition).sort((left, right) => depth(right) - depth(left));
+      for (const entry of pending) {
+        let observed = inspectProcess(entry.process_id);
+        if (!processMatchesOwner(entry, observed)) {
+          this.#recordTerminalOwnedProcess(entry, "ALREADY_GONE_WITH_IDENTITY_CONFIRMED", {
+            same_identity_alive: false,
+            pid_reused: Boolean(observed),
+          }, {
+            reason: observed ? "REGISTERED_PID_REUSED_UNRELATED_PROCESS_PRESERVED" : "REGISTERED_PROCESS_ALREADY_ABSENT",
+            exit_code_disposition: "EXIT_CODE_NOT_EXPOSED_BY_PLATFORM",
+          });
+          continue;
+        }
+        this.#recordProcessAction({
+          proof_stage: "EXACT_OWNED_REGISTRY_FORCED_TERMINATION",
+          action_type: "TERMINATE_OWNED_PROCESS",
+          reason: "PROCESS_REMAINED_AFTER_BOUNDED_COOPERATIVE_WAIT",
+          requested_operation: "TASKKILL_EXACT_PID_FORCE_NO_TREE",
+          os_api_result: { status: "REQUEST_ISSUED" },
+          post_action_observation: { alive: true },
+        }, entry);
+        const result = spawnSync("C:\\Windows\\System32\\taskkill.exe", ["/PID", String(entry.process_id), "/F"], {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10_000,
+        });
+        const exitDeadline = Date.now() + 5_000;
+        do {
+          observed = inspectProcess(entry.process_id);
+          if (!processMatchesOwner(entry, observed)) break;
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        } while (Date.now() < exitDeadline);
+        if (processMatchesOwner(entry, observed)) {
+          this.#recordTerminalOwnedProcess(entry, "CLEANUP_UNCONFIRMED", { same_identity_alive: true, pid_reused: false }, {
+            reason: "EXACT_REGISTERED_PROCESS_EXIT_NOT_CONFIRMED",
+            os_api_result: { status: result.status, stderr: String(result.stderr ?? "").slice(0, 1024) },
+            forced_termination_identity: `taskkill-exact-pid:${entry.process_id}:${entry.process_start_time}`,
+            exit_code_disposition: "EXIT_NOT_RELIABLY_OBSERVED",
+          });
+          throw new Error("EXACT_REGISTERED_PROCESS_EXIT_NOT_CONFIRMED");
+        }
+        this.#recordTerminalOwnedProcess(entry, "FORCED_TERMINATION_CONFIRMED", {
+          same_identity_alive: false,
+          pid_reused: Boolean(observed),
+        }, {
+          reason: "EXACT_REGISTERED_PROCESS_FORCED_EXIT_CONFIRMED",
+          os_api_result: { status: result.status, stderr_sha256: sha256(String(result.stderr ?? "")) },
+          forced_termination_identity: `taskkill-exact-pid:${entry.process_id}:${entry.process_start_time}`,
+          exit_code_disposition: "EXIT_CODE_NOT_EXPOSED_BY_TASKKILL",
+        });
+      }
+      await new Promise((resolve) => setImmediate(resolve));
+      if (generation === this.ownedProcessRegistryGeneration
+          && [...this.ownedProcessRegistry.values()].every((entry) => entry.terminal_cleanup_disposition && entry.terminal_cleanup_disposition !== "CLEANUP_UNCONFIRMED")) {
+        this.reconcileOwnedProcessRegistryAndLedger();
+        stableGeneration = generation;
+        break;
+      }
+    }
+    if (stableGeneration === null) {
+      this.#appendOwnedProcessRegistryEvent("REGISTRY_STABILITY_FAILED", { failure_classification: "OWNED_PROCESS_REGISTRY_GENERATION_UNSTABLE" });
+      throw new Error("OWNED_PROCESS_REGISTRY_GENERATION_UNSTABLE");
+    }
+    const terminalEntries = [...this.ownedProcessRegistry.values()];
+    const stableEvent = this.#appendOwnedProcessRegistryEvent("REGISTRY_GENERATION_STABLE", {
+      stable_generation: stableGeneration,
+      terminal_process_count: terminalEntries.length,
+      terminal_dispositions: terminalEntries.map((entry) => ({
+        process_registration_id: entry.process_registration_id,
+        process_id: entry.process_id,
+        process_start_time: entry.process_start_time,
+        terminal_disposition: entry.terminal_cleanup_disposition,
+        terminal_evidence_sha256: entry.terminal_evidence_sha256,
+      })),
+    });
+    return {
+      status: "CLEANUP_CONFIRMED",
+      registry_path: this.ownedProcessRegistryPath,
+      registry_generation: stableGeneration,
+      registry_evidence_sha256: stableEvent.evidence_sha256,
+      terminal_dispositions: terminalEntries.map((entry) => ({
+        process_registration_id: entry.process_registration_id,
+        process_id: entry.process_id,
+        process_start_time: entry.process_start_time,
+        terminal_disposition: entry.terminal_cleanup_disposition,
+        terminal_evidence_sha256: entry.terminal_evidence_sha256,
+      })),
+      unrelated_processes_targeted: false,
+      root_handle_required: false,
+    };
+  }
+
+  terminateOwnedChildTree(childProcess) {
+    return this.cleanupRegisteredOwnedProcesses({ liveRootChild: childProcess, reason: "EXACT_OPERATOR_STOP" });
   }
 
   authenticateStop(token, body) {
@@ -766,7 +1679,9 @@ export class ProcessOwnership {
     const supplied = Buffer.from(token, "utf8");
     const expected = Buffer.from(this.stopToken, "utf8");
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return false;
-    return body.server_instance_id === this.serverInstanceId && body.evidence_hash === this.owner?.evidence_hash && body.process_id === process.pid;
+    return body.server_instance_id === this.serverInstanceId
+      && body.evidence_hash === stopAuthenticationHash(this.owner)
+      && body.process_id === process.pid;
   }
 
   release() {
@@ -844,7 +1759,7 @@ function firstPath(item, role) {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
-export function writeInterruptionEvidence({ item, reason, serverInstanceId = null, operatorInitiated = false }) {
+export function writeInterruptionEvidence({ item, reason, serverInstanceId = null, operatorInitiated = false, cleanupSummary = null }) {
   const queuePath = firstPath(item, "queue_documents") ?? firstPath(item, "runtime_queue_document") ?? item?.last_canonical_event?.path;
   if (!queuePath || !existsSync(queuePath)) throw new Error("INTERRUPTION_QUEUE_EVIDENCE_MISSING");
   const runtimeQueuePath = firstPath(item, "runtime_queue_document");
@@ -858,7 +1773,19 @@ export function writeInterruptionEvidence({ item, reason, serverInstanceId = nul
     mkdirSync(evidenceDirectory, { recursive: true });
     copyFileSync(queuePath, snapshotPath, fsConstants.COPYFILE_EXCL);
   }
-  const stopIdentity = { mission_id: item.mission_id, mission_revision: item.mission_revision, run_id: item.run_id, source_evidence_hash: item.evidence_hash, queue_document_sha256: queueHash, reason };
+  if (cleanupSummary !== null) {
+    if (cleanupSummary?.schema_version !== "tsf_hq_dispatch_exact_cleanup_summary_v1"
+        || cleanupSummary?.status !== "CLEANUP_CONFIRMED"
+        || !Array.isArray(cleanupSummary?.terminal_dispositions)
+        || cleanupSummary.terminal_dispositions.length === 0
+        || !/^[a-f0-9]{64}$/.test(String(cleanupSummary?.cleanup_summary_sha256 ?? ""))) {
+      throw new Error("INTERRUPTION_CLEANUP_SUMMARY_INVALID");
+    }
+    const unsigned = { ...cleanupSummary };
+    delete unsigned.cleanup_summary_sha256;
+    if (sha256(JSON.stringify(unsigned)) !== cleanupSummary.cleanup_summary_sha256) throw new Error("INTERRUPTION_CLEANUP_SUMMARY_HASH_MISMATCH");
+  }
+  const stopIdentity = { mission_id: item.mission_id, mission_revision: item.mission_revision, run_id: item.run_id, source_evidence_hash: item.evidence_hash, queue_document_sha256: queueHash, reason, cleanup_summary_sha256: cleanupSummary?.cleanup_summary_sha256 ?? null };
   const record = {
     schema_version: INTERRUPTION_SCHEMA,
     mission_id: item.mission_id,
@@ -878,6 +1805,7 @@ export function writeInterruptionEvidence({ item, reason, serverInstanceId = nul
     queue_snapshot_path: path.resolve(snapshotPath),
     queue_snapshot_sha256: queueHash,
     source_evidence_hash: item.evidence_hash,
+    cleanup_summary: cleanupSummary,
     interruption_identity_sha256: hashObject(stopIdentity),
   };
   const existing = existsSync(stopPath) ? readJson(stopPath) : null;
@@ -911,7 +1839,7 @@ export function stopRequestEvidence({ ownerPath = OWNER_PATH, tokenPath = STOP_T
   if (!listeners.some((listener) => Number(listener.process_id) === owner.process_id && [owner.host, "::ffff:127.0.0.1"].includes(String(listener.host)))) throw new Error("ACTIVE_OWNER_LISTENER_NOT_CONFIRMED");
   const token = readFileSync(tokenPath, "utf8").trim();
   if (sha256(token) !== owner.control_token_sha256) throw new Error("STOP_TOKEN_OWNER_BINDING_MISMATCH");
-  return { owner, token, listeners };
+  return { owner, token, listeners, stop_authentication_hash: stopAuthenticationHash(owner) };
 }
 
 export function recoveryActionDescription(action) {
