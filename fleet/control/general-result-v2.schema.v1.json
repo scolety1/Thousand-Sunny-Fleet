@@ -1,0 +1,21 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"tsf://fleet/control/general-result-v2.schema.v1.json","title":"TSF General Result V2","type":"object","additionalProperties":false,
+  "required":["schema_version","compatibility_mode","mission_id","mission_revision","run_id","result_id","original_intent_identity_sha256","scope_transformation_identity_sha256","task_completion_contract_identity_sha256","raw_worker_response_sha256","worker_claim","observed_deliverables","missing_deliverables","outcome_disposition","outcome_evidence","transport_status","semantic_status","semantic_success","admissible"],
+  "properties":{
+    "schema_version":{"const":"tsf_general_result_v2"},"compatibility_mode":{"enum":["STRUCTURED_GENERAL_RESULT_V2","LEGACY_FAIL_CLOSED_V1"]},"mission_id":{"type":"string","minLength":8},"mission_revision":{"type":"integer","minimum":1},"run_id":{"type":"string","minLength":8},"result_id":{"type":"string","minLength":8},
+    "original_intent_identity_sha256":{"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},"scope_transformation_identity_sha256":{"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},"task_completion_contract_identity_sha256":{"type":["string","null"],"pattern":"^[a-f0-9]{64}$"},"raw_worker_response_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"worker_claim":{"anyOf":[{"type":"null"},{"$ref":"#/$defs/workerClaim"}]},
+    "observed_deliverables":{"type":"array","items":{"type":"string"}},"missing_deliverables":{"type":"array","items":{"type":"string"}},"outcome_disposition":{"enum":["FULFILLED","FULFILLED_WITH_CAVEATS","PARTIAL","UNABLE_TO_PERFORM","REFUSED","BLOCKED_BY_POLICY","NEEDS_CLARIFICATION","REQUIRED_DELIVERABLE_MISSING","WRONG_TASK_PERFORMED","FAILED","UNCLASSIFIED_RESULT"]},"outcome_evidence":{"type":"array","items":{"type":"string"}},"transport_status":{"enum":["SUCCEEDED","FAILED"]},"semantic_status":{"enum":["FULFILLED","NOT_FULFILLED"]},"semantic_success":{"type":"boolean"},"admissible":{"type":"boolean"}
+  },
+  "$defs":{
+    "workerClaim":{
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","mission_id","mission_revision","run_id","task_completion_contract_identity_sha256","original_intent_identity_sha256","scope_transformation_identity_sha256","attempted_task_sha256","outcome_disposition","completed_deliverables","missing_deliverables","answer","evidence","caveats"],
+      "properties":{
+        "schema_version":{"const":"tsf_worker_outcome_claim_v1"},"mission_id":{"type":"string","minLength":8},"mission_revision":{"type":"integer","minimum":1},"run_id":{"type":"string","minLength":8},
+        "task_completion_contract_identity_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"original_intent_identity_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"scope_transformation_identity_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"attempted_task_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+        "outcome_disposition":{"enum":["FULFILLED","FULFILLED_WITH_CAVEATS","PARTIAL","UNABLE_TO_PERFORM","REFUSED","BLOCKED_BY_POLICY","NEEDS_CLARIFICATION","REQUIRED_DELIVERABLE_MISSING","WRONG_TASK_PERFORMED","FAILED","UNCLASSIFIED_RESULT"]},
+        "completed_deliverables":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},"missing_deliverables":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},"answer":{"type":"string"},"evidence":{"type":"array","items":{"type":"string"}},"caveats":{"type":"array","items":{"type":"string"}}
+      }
+    }
+  }
+}

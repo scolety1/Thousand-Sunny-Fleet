@@ -106,6 +106,7 @@ footer {
 .recovery-heading > *,
 .recovery-card-header > *,
 .recovery-actions > *,
+.status-pill-group > *,
 .response-actions > *,
 .brand-lockup,
 .brand-lockup > div,
@@ -140,6 +141,10 @@ footer {
 .freshness-pill,
 .eyebrow {
   overflow-wrap: anywhere;
+}
+
+.status-pill-group {
+  min-width: 0;
 }
 
 .startup-block {
@@ -466,7 +471,7 @@ button:focus-visible {
 }
 
 button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   filter: saturate(0.4);
   opacity: 0.7;
 }
@@ -489,6 +494,11 @@ button:disabled {
 
 .result-shell {
   scroll-margin-top: 2rem;
+}
+
+#mission-result {
+  padding-left: clamp(0.75rem, 2vw, 1.25rem);
+  border-left: 4px solid var(--line-bright);
 }
 
 .section-heading {
@@ -521,9 +531,63 @@ button:disabled {
   text-align: center;
 }
 
+.status-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  max-width: min(100%, 46rem);
+}
+
 .classification-pill.is-gated {
   color: var(--danger);
   background: rgb(255 134 109 / 8%);
+}
+
+.classification-pill.outcome-success,
+.result-shell.outcome-success {
+  border-color: rgb(145 214 183 / 62%);
+}
+
+.classification-pill.outcome-success {
+  color: var(--mint);
+  background: rgb(145 214 183 / 12%);
+}
+
+.classification-pill.outcome-caveat,
+.result-shell.outcome-caveat {
+  border-color: rgb(255 215 133 / 62%);
+}
+
+.classification-pill.outcome-caveat,
+.classification-pill.outcome-partial {
+  color: var(--sun-soft);
+  background: rgb(255 184 62 / 12%);
+}
+
+.classification-pill.outcome-partial,
+.result-shell.outcome-partial {
+  border-color: rgb(255 184 62 / 72%);
+}
+
+.classification-pill.outcome-blocked,
+.result-shell.outcome-blocked {
+  border-color: rgb(255 134 109 / 54%);
+}
+
+.classification-pill.outcome-blocked {
+  color: var(--danger);
+  background: rgb(77 41 36 / 42%);
+}
+
+.classification-pill.outcome-failed,
+.result-shell.outcome-failed {
+  border-color: rgb(255 134 109 / 78%);
+}
+
+.classification-pill.outcome-failed {
+  color: #ffd1c7;
+  background: rgb(77 41 36 / 58%);
 }
 
 .route-strip {
@@ -704,6 +768,13 @@ button:disabled {
   gap: 0.8rem;
 }
 
+.governed-submit.is-gated {
+  padding: 1rem;
+  border: 1px solid rgb(255 134 109 / 48%);
+  border-radius: 0.8rem;
+  background: rgb(77 41 36 / 22%);
+}
+
 .governed-submit label {
   display: flex;
   gap: 0.6rem;
@@ -791,10 +862,9 @@ button:disabled {
 }
 
 .artifact-line code {
-  overflow: hidden;
   color: var(--sun-soft);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .artifact-line strong {
@@ -965,6 +1035,10 @@ footer {
   footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .status-pill-group {
+    justify-content: flex-start;
   }
 
   .request-meta {

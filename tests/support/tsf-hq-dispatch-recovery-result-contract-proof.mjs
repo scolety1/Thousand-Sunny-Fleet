@@ -136,7 +136,7 @@ function requireAdmission(checks, admission, expected) {
 function requireNormalVerifierContract(checks, workerResult, verifier) {
   const workerTests = Array.isArray(workerResult?.tests) ? workerResult.tests : [workerResult?.tests].filter(Boolean);
   requireInvariant(checks, workerResult?.role_output_contract_satisfied === true, "GENERAL_WORKER_ROLE_CONTRACT_NOT_SATISFIED");
-  requireInvariant(checks, workerTests.some((test) => test?.test_id === "hq-dispatch-read-only-general-result" && test?.status === "PASS"), "GENERAL_WORKER_RESULT_TEST_NOT_PASS");
+  requireInvariant(checks, workerTests.some((test) => test?.test_id === "hq-dispatch-general-result-v2" && test?.status === "PASS"), "GENERAL_WORKER_RESULT_TEST_NOT_PASS");
   requireInvariant(checks, verifier?.verdict === "GREEN" && verifier?.verified === true, "GENERAL_VERIFIER_NOT_GREEN");
   requireInvariant(checks, Array.isArray(verifier?.checks) && verifier.checks.length > 0 && verifier.checks.every((item) => item?.status === "PASS" && item?.passed === true), "GENERAL_VERIFIER_CHECKS_NOT_PASS");
 }

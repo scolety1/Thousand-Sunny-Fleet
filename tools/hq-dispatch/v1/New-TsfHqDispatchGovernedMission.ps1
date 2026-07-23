@@ -8,6 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath)))
 . (Join-Path $repoRoot 'tools\codex-fleet-enforcement-kernel.ps1')
+. (Join-Path $repoRoot 'tools\TsfSemanticIntegrity.ps1')
 Import-Module (Join-Path $repoRoot 'tools\TsfDurableContract.psm1') -Force
 
 function Get-ClosedInput {
@@ -97,6 +98,11 @@ $responseRecordHash = ''
 $sourceMission = $null
 $recoverySourceMission = $null
 $sourceRequest = $null
+$originalIntent = $null
+$scopeTransformation = $null
+$taskCompletionContract = $null
+$resultValidationMode = 'GENERAL_RESULT_V2'
+$storedPreview = $null
 if ($isRevision) {
     $parentRevision = [int]$inputValue.parent_mission_revision
     $sourcePlan = New-TsfCompleteRuntimePathPlan -MissionId $missionId -MissionRevision $parentRevision -RunId ([string]$inputValue.source_result_id)
@@ -124,6 +130,10 @@ if ($isRevision) {
         $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId ([string]$sourceContract.preview_binding.preview_id) -PreviewArtifactSha256 ([string]$sourceContract.preview_binding.preview_artifact_sha256) -MissionId $missionId -MissionRevision $revision
         if ([string]$exactResponseContract.semantic_contract_sha256 -ne [string]$sourceContract.semantic_contract_sha256) { throw 'HQ_REVISION_EXACT_RESPONSE_CONTRACT_CHANGED' }
     }
+    $originalIntent = $sourceMission.original_operator_intent
+    $scopeTransformation = $sourceMission.scope_transformation
+    $taskCompletionContract = $sourceMission.task_completion_contract
+    $resultValidationMode = [string]$sourceMission.result_validation_mode
 } elseif ($isRecovery) {
     $recoverySourceMission = Read-TsfKernelJson ([string]$sourcePlan.registry_mission_path)
     if ($recoverySourceMission.PSObject.Properties.Name -contains 'exact_response_contract' -and $null -ne $recoverySourceMission.exact_response_contract) {
@@ -131,6 +141,10 @@ if ($isRevision) {
         $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId ([string]$sourceContract.preview_binding.preview_id) -PreviewArtifactSha256 ([string]$sourceContract.preview_binding.preview_artifact_sha256) -MissionId $missionId -MissionRevision $revision
         if ([string]$exactResponseContract.semantic_contract_sha256 -ne [string]$sourceContract.semantic_contract_sha256) { throw 'HQ_RECOVERY_EXACT_RESPONSE_CONTRACT_CHANGED' }
     }
+    $originalIntent = $recoverySourceMission.original_operator_intent
+    $scopeTransformation = $recoverySourceMission.scope_transformation
+    $taskCompletionContract = $recoverySourceMission.task_completion_contract
+    $resultValidationMode = [string]$recoverySourceMission.result_validation_mode
 } else {
     $previewFields = @('preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract')
     $presentPreviewFieldCount = @($previewFields | Where-Object { $inputValue.PSObject.Properties.Name -contains $_ }).Count
@@ -152,12 +166,24 @@ if ($isRevision) {
         if (($null -eq $storedContract) -ne ($null -eq $recomputedUnbound)) { throw 'HQ_SUBMISSION_STORED_RESPONSE_CONTRACT_MISMATCH' }
         if ($null -ne $storedContract -and (Get-TsfContractJsonHash $storedContract) -ne (Get-TsfContractJsonHash $recomputedUnbound)) { throw 'HQ_SUBMISSION_STORED_RESPONSE_CONTRACT_MISMATCH' }
         if ($null -eq $recomputedUnbound) {
-            if ($null -ne $inputValue.reviewed_exact_response_contract -or [string]$storedPreview.result_validation_mode -ne 'GENERAL_RESULT_V1') { throw 'HQ_SUBMISSION_GENERAL_RESPONSE_CONTRACT_CHANGED' }
+            if ($null -ne $inputValue.reviewed_exact_response_contract -or [string]$storedPreview.result_validation_mode -ne 'GENERAL_RESULT_V2') { throw 'HQ_SUBMISSION_GENERAL_RESPONSE_CONTRACT_CHANGED' }
+            $resultValidationMode = 'GENERAL_RESULT_V2'
         } else {
             $reviewedCheck = Test-TsfExactResponseContract -Contract $inputValue.reviewed_exact_response_contract -NaturalRequest $naturalRequest -PreviewId $previewId -PreviewArtifactSha256 $previewSha256
             if (!$reviewedCheck.valid) { throw "HQ_SUBMISSION_REVIEWED_RESPONSE_CONTRACT_INVALID: $($reviewedCheck.errors -join '; ')" }
             $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId $previewId -PreviewArtifactSha256 $previewSha256 -MissionId $missionId -MissionRevision $revision
+            $resultValidationMode = 'EXACT_LITERAL_V1'
         }
+        foreach ($contractSpec in @(
+            [pscustomobject]@{value=$storedPreview.original_operator_intent;schema='fleet\control\original-operator-intent.schema.v1.json';name='ORIGINAL_INTENT'},
+            [pscustomobject]@{value=$storedPreview.scope_transformation;schema='fleet\control\scope-transformation.schema.v1.json';name='SCOPE_TRANSFORMATION'}
+        )) { $contractValidation=Test-TsfJsonContract $contractSpec.value (Join-Path $repoRoot $contractSpec.schema);if(!$contractValidation.valid){throw "HQ_SUBMISSION_$($contractSpec.name)_INVALID: $($contractValidation.errors -join '; ')"} }
+        $intentCheck = Test-TsfOriginalOperatorIntentContract -Contract $storedPreview.original_operator_intent -NaturalRequest $naturalRequest -PreviewId $previewId -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -ProhibitedOperations @($storedPreview.forbidden_actions)
+        if (!$intentCheck.valid) { throw 'HQ_SUBMISSION_ORIGINAL_INTENT_CHANGED' }
+        $originalIntent = $storedPreview.original_operator_intent
+        $scopeTransformation = $storedPreview.scope_transformation
+        $taskCompletionContract = $storedPreview.task_completion_contract
+        if ([string]$storedPreview.submission_gate -ne 'SUBMITTABLE_AFTER_REVALIDATION' -or ![bool]$scopeTransformation.queue_allowed -or [bool]$scopeTransformation.operator_confirmation_required) { throw 'HQ_SUBMISSION_SCOPE_REDUCTION_REQUIRES_OPERATOR_DECISION_NO_QUEUE' }
     } elseif ($null -ne (Get-TsfExactResponseLiteralFromRequest -NaturalRequest $naturalRequest)) {
         throw 'HQ_TEST_EXACT_RESPONSE_REQUIRES_REVIEWED_PREVIEW'
     }
@@ -185,6 +211,16 @@ $git = Get-TsfKernelGitState $repoRoot
 if (!$git.can_capture) { throw 'HQ_SUBMISSION_GIT_STATE_UNAVAILABLE' }
 if (![bool]$git.branch_identity_available) { throw 'HQ_SUBMISSION_BRANCH_IDENTITY_UNAVAILABLE' }
 if (![bool]$git.detached_head -and [string]::IsNullOrWhiteSpace([string]$git.branch)) { throw 'HQ_SUBMISSION_ATTACHED_BRANCH_IDENTITY_UNAVAILABLE' }
+if ($null -ne $storedPreview) {
+    $expectedScope = New-TsfScopeTransformationContract -OriginalIntent $originalIntent -AuthorizedMissionGoal $naturalRequest -ProposedOperations @($storedPreview.proposed_operations) -ProposedAccess 'READ_ONLY' -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -DetachedHead:([bool]$git.detached_head)
+    if ((Get-TsfContractJsonHash $expectedScope) -ne (Get-TsfContractJsonHash $scopeTransformation)) { throw 'HQ_SUBMISSION_SCOPE_TRANSFORMATION_CHANGED' }
+    if ($resultValidationMode -eq 'GENERAL_RESULT_V2') {
+        $expectedCompletion = New-TsfTaskCompletionContract -RequiredTask $naturalRequest -OriginalIntent $originalIntent -ScopeTransformation $scopeTransformation
+        if ($null -eq $taskCompletionContract -or (Get-TsfContractJsonHash $expectedCompletion) -ne (Get-TsfContractJsonHash $taskCompletionContract)) { throw 'HQ_SUBMISSION_TASK_COMPLETION_CONTRACT_CHANGED' }
+        $completionValidation=Test-TsfJsonContract $taskCompletionContract (Join-Path $repoRoot 'fleet\control\task-completion-contract.schema.v1.json')
+        if(!$completionValidation.valid){throw "HQ_SUBMISSION_TASK_COMPLETION_CONTRACT_INVALID: $($completionValidation.errors -join '; ')"}
+    } elseif ($null -ne $taskCompletionContract) { throw 'HQ_SUBMISSION_EXACT_LITERAL_TASK_CONTRACT_SUBSTITUTED' }
+}
 $policy = Get-TsfPolicyFingerprint (Join-Path $repoRoot 'fleet\control\policy-manifest.v1.json') $repoRoot -UnsupportedDevelopmentMode:$UnsupportedDevelopmentMode
 $route = Resolve-TsfModelRouting 'BALANCED' 'CODEX'
 $created = if($isRevision){[datetimeoffset]::Parse([string]$responseRecord.recorded_at)}else{[datetimeoffset]::UtcNow}
@@ -194,6 +230,16 @@ $forbidden = @(
     'normal_nwr_packet_read','background_runner','persistent_runner','all_fleet','secrets','credential_change',
     'privatelens','proof_run','app_wiring','ranking_formula_source_truth_promotion','hidden_sort','recommendation_behavior'
 ) | Sort-Object -Unique
+if (!$isRevision -and !$isRecovery -and $null -eq $storedPreview -and $TestOnlyQueueRoot -and $resultValidationMode -eq 'GENERAL_RESULT_V2') {
+    # Isolated TIM fixtures predate reviewed-preview submission. Keep them on
+    # the same closed semantic contracts as production without granting them
+    # a production submission bypass.
+    $syntheticPreviewId = 'hq-preview-' + (Get-TsfContractJsonHash ([pscustomobject]@{ fixture_mission_id = $missionId })).Substring(0, 32)
+    $originalIntent = New-TsfOriginalOperatorIntentContract -NaturalRequest $naturalRequest -PreviewId $syntheticPreviewId -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -ProhibitedOperations $forbidden
+    $scopeTransformation = New-TsfScopeTransformationContract -OriginalIntent $originalIntent -AuthorizedMissionGoal $naturalRequest -ProposedOperations @($originalIntent.explicitly_requested_operations) -ProposedAccess 'READ_ONLY' -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -DetachedHead:([bool]$git.detached_head)
+    if (![bool]$scopeTransformation.queue_allowed) { throw 'HQ_TEST_FIXTURE_SCOPE_TRANSFORMATION_NOT_QUEUEABLE' }
+    $taskCompletionContract = New-TsfTaskCompletionContract -RequiredTask $naturalRequest -OriginalIntent $originalIntent -ScopeTransformation $scopeTransformation
+}
 $approvalRequirements = @()
 $approvalReferences = @()
 $clarificationRequirements = @()
@@ -232,7 +278,7 @@ if ($isRevision) {
         }
     }
 }
-$requiredResultTests = [object[]]$(if ($null -ne $exactResponseContract) { @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-exact-response'; required = $true; command = "exact-response-sha256:$([string]$exactResponseContract.expected_literal_sha256)" }) } else { @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-general-result'; required = $true; command = 'app-server-transport-result-v1' }) })
+$requiredResultTests = [object[]]$(if ($null -ne $exactResponseContract) { @([pscustomobject]@{ test_id = 'hq-dispatch-read-only-exact-response'; required = $true; command = "exact-response-sha256:$([string]$exactResponseContract.expected_literal_sha256)" }) } elseif ($null -ne $taskCompletionContract) { @([pscustomobject]@{ test_id = 'hq-dispatch-general-result-v2'; required = $true; command = "general-result-v2:$([string]$taskCompletionContract.task_completion_contract_identity_sha256)" }) } else { @([pscustomobject]@{ test_id = 'hq-dispatch-legacy-general-result-fail-closed'; required = $true; command = 'legacy-general-result-fail-closed-v1' }) })
 $mission = [pscustomobject][ordered]@{
     schema_version = 'tsf_mission_envelope_v1'
     mission_id = $missionId
@@ -240,9 +286,13 @@ $mission = [pscustomobject][ordered]@{
     parent_mission_id = if($isRevision){$missionId}elseif($isRecovery){$recoveryParentId}else{$null}
     project_id = 'TSF_CONTROL_PLANE'
     original_request = $naturalRequest
-    normalized_goal = $(if ($null -ne $exactResponseContract) { "Read the TSF-local fleet/control/policy-manifest.v1.json fixture and return exactly $([string]$exactResponseContract.expected_literal). Do not use tools, modify files, access another repository, or use worker-tool network." } else { 'Read the TSF-local fleet/control/policy-manifest.v1.json fixture and return a concise factual completion result. Do not use tools, modify files, access another repository, or use worker-tool network.' })
+    normalized_goal = $naturalRequest
     exact_response_contract = $exactResponseContract
-    mission_type = 'hq_dispatch_read_only_vertical_slice'
+    result_validation_mode = $resultValidationMode
+    original_operator_intent = $originalIntent
+    scope_transformation = $scopeTransformation
+    task_completion_contract = $taskCompletionContract
+    mission_type = $(if($resultValidationMode -eq 'GENERAL_RESULT_V2'){'hq_dispatch_general_result_v2'}else{'hq_dispatch_read_only_vertical_slice'})
     worker_role = [string]$draft.normalized_intent.proposed_worker_role
     recommended_surface = 'CODEX'
     model_policy_alias = [string]$route.stable_alias
@@ -268,7 +318,7 @@ $mission = [pscustomobject][ordered]@{
     allowed_reads = @('fleet/control/policy-manifest.v1.json')
     allowed_writes = @()
     forbidden_actions = @($forbidden)
-    completion_criteria = @('Bound foreground app-server read-only turn completes.','Independent canonical verifier passes.','Canonical admission receipt is written.')
+    completion_criteria = $(if($null-ne$taskCompletionContract){@($taskCompletionContract.success_criteria)}else{@('The exact mission-bound literal is returned.','Independent canonical verifier passes.','Canonical admission receipt is written.')})
     required_tests = $requiredResultTests
     required_artifacts = @([pscustomobject]@{ path = 'fleet/control/policy-manifest.v1.json'; hash_required = $true })
     required_verifier_independence = 'SEPARATE_ROLE'
@@ -340,6 +390,13 @@ if ([string]$preparation.status -ne 'PREPARED' -or [string]::IsNullOrWhiteSpace(
     mission_path = $missionPath
     mission_sha256 = (Get-FileHash $missionPath -Algorithm SHA256).Hash.ToLowerInvariant()
     exact_response_contract = $exactResponseContract
+    result_validation_mode = $resultValidationMode
+    original_operator_intent = $originalIntent
+    scope_transformation = $scopeTransformation
+    task_completion_contract = $taskCompletionContract
+    original_intent_identity_sha256 = if($null-ne$originalIntent){[string]$originalIntent.original_intent_identity_sha256}else{$null}
+    scope_transformation_identity_sha256 = if($null-ne$scopeTransformation){[string]$scopeTransformation.scope_transformation_identity_sha256}else{$null}
+    task_completion_contract_identity_sha256 = if($null-ne$taskCompletionContract){[string]$taskCompletionContract.task_completion_contract_identity_sha256}else{$null}
     queue_record_path = [string]$preparation.queue_record_path
     queue_document_sha256 = [string]$preparation.queue_document_sha256
     queue_state = 'inbox'

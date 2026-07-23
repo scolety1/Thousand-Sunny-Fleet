@@ -150,9 +150,9 @@ Assert-True -Condition (($outsideAllowedVerifier.blocked_reasons -join "`n") -ma
 $validWorkerResultPath = Join-Path $testRoot "worker-result.valid.json"
 Copy-Item -LiteralPath (Join-Path $fixtureDir "worker-result.valid.json") -Destination $validWorkerResultPath -Force
 $greenVerifier = Invoke-TsfKernelPostRunVerify -MissionPath $validMissionPath -WorkerResultPath $validWorkerResultPath -OutFile $greenVerifierPath -StateRoot $stateRoot
-Assert-Equal -Actual $greenVerifier.verdict -Expected "GREEN" -Message "Verifier passes when required artifact exists"
-Assert-True -Condition ([bool]$greenVerifier.verified) -Message "Green verifier marks result verified"
-Assert-Equal -Actual $greenVerifier.final_state -Expected "complete_green" -Message "Verifier writes deterministic final state"
+Assert-Equal -Actual $greenVerifier.verdict -Expected "RED" -Message "Legacy general mission fails closed without a task-completion contract"
+Assert-True -Condition (!([bool]$greenVerifier.verified)) -Message "Legacy general result is not promoted to verified"
+Assert-Equal -Actual $greenVerifier.final_state -Expected "blocked_red" -Message "Legacy general result writes deterministic blocked state"
 
 $preserveOut = Get-TsfCanonicalRuntimeRoot
 $preservation = Write-TsfKernelPreservationPacket -MissionPath $validMissionPath -PreflightResultPath $preflightPath -WorkerResultPath $validWorkerResultPath -VerifierResultPath $greenVerifierPath -OutputDirectory $preserveOut -ExactNextAction "Fixture preservation complete." -TestOnlyAllowSyntheticProducerRegistry

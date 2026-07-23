@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/original-operator-intent.schema.v1.json",
+  "title": "TSF Original Operator Intent V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","contract_version","original_request_text_sha256","normalized_request_evidence_sha256","requested_goal","requested_output_or_deliverable","explicitly_requested_operations","authority_bearing_operations","repository_target","worktree_target","requested_access","requested_network","prohibited_operations","ambiguity_status","source_preview_identity","original_intent_identity_sha256"],
+  "properties": {
+    "schema_version": {"const":"tsf_original_operator_intent_v1"},
+    "contract_version": {"const":"ORIGINAL_OPERATOR_INTENT_V1"},
+    "original_request_text_sha256": {"$ref":"#/$defs/sha256"},
+    "normalized_request_evidence_sha256": {"$ref":"#/$defs/sha256"},
+    "requested_goal": {"type":"string","minLength":1,"maxLength":4000},
+    "requested_output_or_deliverable": {"type":"string","minLength":1},
+    "explicitly_requested_operations": {"$ref":"#/$defs/stringArray"},
+    "authority_bearing_operations": {"$ref":"#/$defs/stringArray"},
+    "repository_target": {"type":"string","minLength":1},
+    "worktree_target": {"type":"string","minLength":1},
+    "requested_access": {"enum":["READ_ONLY","WORKSPACE_WRITE","EXACT_ELEVATED_ACTION"]},
+    "requested_network": {"enum":["NO_NETWORK_REQUESTED","EXTERNAL_NETWORK_REQUESTED"]},
+    "prohibited_operations": {"$ref":"#/$defs/stringArray"},
+    "ambiguity_status": {"enum":["UNAMBIGUOUS","AMBIGUOUS_AUTHORITY_INTENT","AMBIGUOUS_REQUESTED_OPERATION"]},
+    "source_preview_identity": {"type":"object","additionalProperties":false,"required":["preview_id","record_kind"],"properties":{"preview_id":{"type":"string","pattern":"^hq-preview-[a-f0-9]{32}$"},"record_kind":{"const":"hq_dispatch_route_preview"}}},
+    "original_intent_identity_sha256": {"$ref":"#/$defs/sha256"}
+  },
+  "$defs": {"sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"stringArray":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true}}
+}

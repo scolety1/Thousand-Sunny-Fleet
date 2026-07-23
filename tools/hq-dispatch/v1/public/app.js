@@ -15,6 +15,7 @@ const timClarify = document.querySelector("#tim-clarify");
 let operatorSessionToken = null;
 let reviewedPreview = null;
 let activeMissionStatus = null;
+let reviewedPreviewCanSubmit = false;
 
 function setText(selector, value) {
   const element = document.querySelector(selector);
@@ -208,14 +209,65 @@ function renderExplanations(explanation) {
   list.replaceChildren(fragment);
 }
 
+function previewIsSubmittable(preview) {
+  return preview?.classification === "SAFE_LOCAL_MISSION"
+    && preview?.submission_gate === "SUBMITTABLE_AFTER_REVALIDATION"
+    && preview?.scope_transformation?.queue_allowed === true
+    && preview?.scope_transformation?.operator_confirmation_required === false;
+}
+
+function originalRequestFulfillmentLabel(status, disposition, validationMode) {
+  if (["FULFILLED", "FULFILLED_WITH_CAVEATS"].includes(disposition)) return disposition;
+  if (disposition === "PARTIAL") return "PARTIALLY_FULFILLED";
+  if (disposition) return "UNFULFILLED";
+  if (validationMode === "EXACT_LITERAL_V1" && ["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(status.admission?.verdict)) {
+    return "FULFILLED_BY_EXACT_LITERAL_ADMISSION";
+  }
+  if (["REJECTED", "FAILED", "TIM_REQUIRED", "INTERRUPTED"].includes(status.state)) return "UNFULFILLED";
+  return "NOT_YET_PROVEN";
+}
+
+function outcomePresentation(status) {
+  const disposition = status.result?.outcome_disposition ?? status.admission?.outcome_disposition ?? null;
+  const validationMode = status.result?.result_validation_mode
+    ?? status.admission?.result_validation_mode
+    ?? status.response_contract?.validation_mode
+    ?? null;
+  const exactAdmitted = validationMode === "EXACT_LITERAL_V1"
+    && ["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(status.admission?.verdict);
+  const label = disposition ?? (exactAdmitted ? "FULFILLED (EXACT_LITERAL_V1)" : "UNCLASSIFIED_RESULT");
+  let className = "outcome-pending";
+  if (label === "FULFILLED") className = "outcome-success";
+  else if (label === "FULFILLED_WITH_CAVEATS" || exactAdmitted) className = "outcome-caveat";
+  else if (label === "PARTIAL") className = "outcome-partial";
+  else if (["BLOCKED_BY_POLICY", "NEEDS_CLARIFICATION"].includes(label) || status.state === "TIM_REQUIRED") className = "outcome-blocked";
+  else if (disposition || ["REJECTED", "FAILED", "INTERRUPTED"].includes(status.state)) className = "outcome-failed";
+  return {
+    disposition,
+    validationMode,
+    label,
+    className,
+    originalRequest: originalRequestFulfillmentLabel(status, disposition, validationMode),
+  };
+}
+
+function applyOutcomeClass(node, className) {
+  if (!node) return;
+  node.classList.remove("outcome-success", "outcome-caveat", "outcome-partial", "outcome-blocked", "outcome-failed", "outcome-pending");
+  node.classList.add(className);
+}
+
 function renderPreview(preview) {
   reviewedPreview = preview;
+  reviewedPreviewCanSubmit = previewIsSubmittable(preview);
   setText("#classification", preview.classification);
   const classification = document.querySelector("#classification");
   classification.classList.toggle(
     "is-gated",
-    preview.classification !== "SAFE_LOCAL_MISSION",
+    !reviewedPreviewCanSubmit,
   );
+  setText("#preview-submission-gate", `Submission gate: ${preview.submission_gate ?? "NOT_OBSERVED"}`);
+  document.querySelector("#preview-submission-gate")?.classList.toggle("is-gated", !reviewedPreviewCanSubmit);
   setText("#project-id", preview.proposed_project.project_id);
   setText("#lane-id", preview.proposed_project.lane);
   setText("#worker-role", preview.proposed_worker_role.role_name);
@@ -253,15 +305,68 @@ function renderPreview(preview) {
   replaceList("#forbidden-list", preview.forbidden_actions);
   renderStops(preview.stop_conditions);
   renderExplanations(preview.route_explanation);
+  setText("#preview-original-intent", pretty({
+    requested_goal: preview.original_operator_intent?.requested_goal ?? null,
+    requested_output_or_deliverable: preview.original_operator_intent?.requested_output_or_deliverable ?? null,
+    explicitly_requested_operations: preview.original_operator_intent?.explicitly_requested_operations ?? [],
+    authority_bearing_operations: preview.original_operator_intent?.authority_bearing_operations ?? [],
+    requested_access: preview.original_operator_intent?.requested_access ?? null,
+    repository_target: preview.original_operator_intent?.repository_target ?? null,
+    worktree_target: preview.original_operator_intent?.worktree_target ?? null,
+    ambiguity_status: preview.original_operator_intent?.ambiguity_status ?? null,
+    original_intent_identity_sha256: preview.original_operator_intent?.original_intent_identity_sha256 ?? null,
+  }));
+  setText("#preview-scope-transformation", pretty({
+    original_requested_goal: preview.scope_transformation?.original_requested_goal ?? null,
+    original_requested_operations: preview.scope_transformation?.original_requested_operations ?? [],
+    authorized_mission_goal: preview.scope_transformation?.actual_mission_goal ?? preview.proposed_mission_goal ?? null,
+    authorized_operations: preview.scope_transformation?.actual_operations ?? preview.proposed_operations ?? [],
+    proposed_reduced_alternative: preview.scope_transformation?.proposed_mission_goal ?? null,
+    classification: preview.scope_transformation?.classification ?? null,
+    material_scope_change: preview.scope_transformation?.material_scope_change ?? null,
+    denied_authority: preview.scope_transformation?.denied_authority ?? [],
+    what_will_not_be_performed: preview.scope_transformation?.what_will_not_be_performed ?? [],
+    operator_confirmation_required: preview.scope_transformation?.operator_confirmation_required ?? null,
+    operator_confirmation_observed: preview.scope_transformation?.operator_confirmation_observed ?? null,
+    accepting_alternative_creates_different_mission: preview.scope_transformation?.accepting_alternative_creates_different_mission ?? null,
+    queue_allowed: preview.scope_transformation?.queue_allowed ?? null,
+    detached_head: preview.scope_transformation?.detached_head ?? null,
+    exact_next_action: preview.scope_transformation?.exact_next_action ?? null,
+    scope_transformation_identity_sha256: preview.scope_transformation?.scope_transformation_identity_sha256 ?? null,
+  }));
+  setText("#preview-execution-boundary", pretty({
+    artifact_kind: preview.artifact?.record_kind ?? "hq_dispatch_route_preview",
+    submission_gate: preview.submission_gate ?? null,
+    preview_only: preview.authority?.preview_only ?? null,
+    mission_created: false,
+    queue_created: false,
+    worker_created: false,
+    verifier_created: false,
+    admission_created: false,
+    submission_is_operator_confirmation: false,
+  }));
   setText("#artifact-path", preview.artifact.relative_path);
   setText("#response-contract-preview", pretty({
     validation_mode: preview.result_validation_mode,
     contract: preview.exact_response_contract,
+    task_completion_contract: preview.task_completion_contract,
     worker_success_is_sufficient: false,
-    verifier_requires_same_contract: preview.result_validation_mode === "EXACT_LITERAL_V1",
-    admission_requires_same_contract: preview.result_validation_mode === "EXACT_LITERAL_V1",
-    sensitivity: "Case and every byte of whitespace are significant; no normalization is performed.",
+    verifier_requires_canonical_contract: true,
+    admission_requires_canonical_contract: true,
+    exact_literal_sensitivity: preview.result_validation_mode === "EXACT_LITERAL_V1"
+      ? "Case and every byte of whitespace are significant; no normalization is performed."
+      : "Not applicable to GENERAL_RESULT_V2.",
   }));
+  intentConfirm.checked = false;
+  intentConfirm.disabled = !reviewedPreviewCanSubmit;
+  missionSubmit.disabled = true;
+  setText(
+    "#governed-submit-status",
+    reviewedPreviewCanSubmit
+      ? "Eligible for submission revalidation. Submission grants no approval."
+      : `Blocked before execution. No queue, worker, verifier, or admission exists. ${preview.scope_transformation?.exact_next_action ?? "Operator authority decision required."}`,
+  );
+  document.querySelector(".governed-submit")?.classList.toggle("is-gated", !reviewedPreviewCanSubmit);
 
   previewResult.hidden = false;
   previewResult.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -269,7 +374,13 @@ function renderPreview(preview) {
 
 function renderMission(status) {
   activeMissionStatus = status;
-  setText("#mission-state", status.state);
+  const presentation = outcomePresentation(status);
+  setText("#mission-state", `Mission state: ${status.state}`);
+  document.querySelector("#mission-state")?.classList.toggle("is-gated", ["REJECTED", "FAILED", "TIM_REQUIRED", "INTERRUPTED"].includes(status.state));
+  setText("#mission-outcome", `Outcome: ${presentation.label}`);
+  applyOutcomeClass(document.querySelector("#mission-outcome"), presentation.className);
+  applyOutcomeClass(missionResult, presentation.className);
+  missionResult.dataset.outcome = presentation.label;
   setText("#mission-identity", JSON.stringify({
     mission_id: status.mission_id,
     mission_revision: status.mission_revision,
@@ -280,16 +391,94 @@ function renderMission(status) {
     assurance: status.assurance,
   }, null, 2));
   setText("#mission-route", JSON.stringify({ route: status.route, access: status.access, queue_state: status.queue_state }, null, 2));
-  setText("#mission-worker", JSON.stringify({ worker: status.worker, verifier: status.verifier, result: status.result }, null, 2));
-  setText("#mission-admission", JSON.stringify({ response: status.response, prior_terminal: status.prior_terminal ? { mission_id: status.prior_terminal.mission_id, mission_revision: status.prior_terminal.mission_revision, run_id: status.prior_terminal.run_id, result_id: status.prior_terminal.result_id, state: status.prior_terminal.state, source_path: status.prior_terminal.source_path } : null, preservation: status.preservation, admission: status.admission, caveats: status.caveats }, null, 2));
+  setText("#mission-original-intent", pretty({
+    requested_goal: status.original_operator_intent?.requested_goal ?? status.requested_response?.natural_request ?? null,
+    requested_output_or_deliverable: status.original_operator_intent?.requested_output_or_deliverable ?? null,
+    requested_operations: status.original_operator_intent?.explicitly_requested_operations ?? [],
+    authority_bearing_operations: status.original_operator_intent?.authority_bearing_operations ?? [],
+    requested_access: status.original_operator_intent?.requested_access ?? null,
+    repository_target: status.original_operator_intent?.repository_target ?? null,
+    worktree_target: status.original_operator_intent?.worktree_target ?? null,
+    original_intent_identity_sha256: status.original_operator_intent?.original_intent_identity_sha256 ?? status.result?.original_intent_identity_sha256 ?? null,
+  }));
+  setText("#mission-scope-transformation", pretty({
+    original_requested_goal: status.scope_transformation?.original_requested_goal ?? null,
+    original_requested_operations: status.scope_transformation?.original_requested_operations ?? [],
+    authorized_mission_goal: status.scope_transformation?.actual_mission_goal ?? status.scope_transformation?.proposed_mission_goal ?? null,
+    authorized_operations: status.scope_transformation?.actual_operations ?? status.scope_transformation?.proposed_operations ?? [],
+    material_scope_change: status.scope_transformation?.material_scope_change ?? null,
+    transformation_classification: status.scope_transformation?.classification ?? null,
+    denied_authority: status.scope_transformation?.denied_authority ?? [],
+    what_will_not_be_performed: status.scope_transformation?.what_will_not_be_performed ?? [],
+    operator_confirmation_required: status.scope_transformation?.operator_confirmation_required ?? null,
+    operator_confirmation_observed: status.scope_transformation?.operator_confirmation_observed ?? null,
+    exact_next_action: status.scope_transformation?.exact_next_action ?? status.next_action,
+    scope_transformation_identity_sha256: status.scope_transformation?.scope_transformation_identity_sha256 ?? status.result?.scope_transformation_identity_sha256 ?? null,
+  }));
+  setText("#mission-worker", pretty({
+    worker_transport_status: status.result?.transport_status ?? status.worker?.transport_status ?? null,
+    lifecycle_worker_status: status.worker?.status ?? null,
+    transport_completed_is_not_fulfillment: true,
+    child_exited: status.worker?.child_exited ?? null,
+    worker_claim: status.result?.worker_claim ?? status.worker?.claim ?? null,
+    worker_identity: status.worker ? {
+      thread_id: status.worker.thread_id,
+      turn_id: status.worker.turn_id,
+      process_id: status.worker.process_id,
+      model: status.worker.model,
+      effort: status.worker.effort,
+    } : null,
+  }));
+  setText("#mission-fulfillment", pretty({
+    canonical_validation_mode: presentation.validationMode,
+    canonical_outcome_disposition: presentation.disposition,
+    canonical_semantic_status: status.result?.semantic_status ?? null,
+    original_request_fulfillment: presentation.originalRequest,
+    observed_deliverables: status.result?.observed_deliverables ?? [],
+    missing_deliverables: status.result?.missing_deliverables ?? [],
+    outcome_evidence: status.result?.outcome_evidence ?? [],
+    worker_message_alone_is_fulfillment: false,
+    nonempty_response_alone_is_fulfillment: false,
+    source: status.result?.durable_result_path ?? null,
+  }));
+  setText("#mission-verifier", pretty({
+    verifier: status.verifier,
+    canonical_verifier_result: status.verifier?.verdict ?? "NOT_OBSERVED",
+    verifier_general_result: status.verifier?.general_result_evidence ?? null,
+  }));
+  setText("#mission-admission", pretty({
+    admission_status: status.admission?.verdict ?? "NOT_ADMITTED",
+    admission: status.admission,
+    not_admitted_reason: status.admission ? null : (status.result?.outcome_evidence?.length ? status.result.outcome_evidence : [status.explanation]),
+    preservation: status.preservation,
+    response: status.response,
+    prior_terminal: status.prior_terminal ? { mission_id: status.prior_terminal.mission_id, mission_revision: status.prior_terminal.mission_revision, run_id: status.prior_terminal.run_id, result_id: status.prior_terminal.result_id, state: status.prior_terminal.state, source_path: status.prior_terminal.source_path } : null,
+    caveats: status.caveats,
+  }));
+  setText("#mission-deliverables", pretty({
+    required_task: status.task_completion_contract?.required_task ?? null,
+    required_deliverables: status.task_completion_contract?.required_deliverables ?? [],
+    observed_deliverables: status.result?.observed_deliverables ?? [],
+    missing_deliverables: status.result?.missing_deliverables ?? [],
+    partial_completion_allowed: status.task_completion_contract?.partial_completion_allowed ?? null,
+    accepted_dispositions: status.task_completion_contract?.accepted_dispositions ?? [],
+    exact_next_action: status.next_action,
+  }));
   setText("#mission-response-contract", JSON.stringify({
     requested: status.requested_response,
     expected_contract: status.response_contract,
+    task_completion_contract: status.task_completion_contract,
     observed: status.worker?.exact_response ?? null,
     verifier: status.verifier?.exact_response ?? null,
     admission: status.admission ? { verdict: status.admission.verdict, receipt_id: status.admission.receipt_id, decision_sha256: status.admission.admission_decision_sha256 } : null,
   }, null, 2));
-  setText("#mission-authority", JSON.stringify({ authority: status.authority, duplicate_replay: status.duplicate_replay, next_action: status.next_action }, null, 2));
+  setText("#mission-authority", pretty({
+    originally_requested_authority: status.original_operator_intent?.authority_bearing_operations ?? [],
+    denied_authority: status.scope_transformation?.denied_authority ?? [],
+    authority: status.authority,
+    duplicate_replay: status.duplicate_replay,
+    exact_next_action: status.next_action,
+  }));
   const tim = document.querySelector("#tim-required");
   tim.hidden = !status.tim_request;
   const responseTypes = status.tim_request?.response_types ?? [];
@@ -422,11 +611,11 @@ async function loadRegistries() {
 }
 
 intentConfirm.addEventListener("change", () => {
-  missionSubmit.disabled = !intentConfirm.checked || !reviewedPreview;
+  missionSubmit.disabled = !intentConfirm.checked || !reviewedPreview || !reviewedPreviewCanSubmit;
 });
 
 missionSubmit.addEventListener("click", async () => {
-  if (!reviewedPreview || !operatorSessionToken || !intentConfirm.checked) return;
+  if (!reviewedPreview || !operatorSessionToken || !intentConfirm.checked || !reviewedPreviewCanSubmit) return;
   missionSubmit.disabled = true;
   setText("#mission-message", "Canonical mission preparation and foreground execution are running…");
   try {
@@ -449,7 +638,7 @@ missionSubmit.addEventListener("click", async () => {
   } catch (error) {
     setText("#mission-message", error instanceof Error ? error.message : "Mission submission failed closed.");
   } finally {
-    missionSubmit.disabled = !intentConfirm.checked || !reviewedPreview || !operatorSessionToken;
+    missionSubmit.disabled = !intentConfirm.checked || !reviewedPreview || !operatorSessionToken || !reviewedPreviewCanSubmit;
   }
 });
 
@@ -459,6 +648,11 @@ requestInput.addEventListener("input", () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  reviewedPreview = null;
+  reviewedPreviewCanSubmit = false;
+  intentConfirm.checked = false;
+  intentConfirm.disabled = true;
+  missionSubmit.disabled = true;
   requestStatus.classList.remove("is-error");
   requestStatus.textContent = "Reading canonical route sources…";
   previewButton.disabled = true;

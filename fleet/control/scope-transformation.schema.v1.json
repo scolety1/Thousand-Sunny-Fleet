@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/scope-transformation.schema.v1.json",
+  "title": "TSF Scope Transformation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","contract_version","original_intent_identity_sha256","original_requested_goal","original_requested_operations","proposed_mission_goal","proposed_operations","actual_mission_goal","actual_operations","proposed_access","repository_target","worktree_target","detached_head","classification","material_scope_change","operator_confirmation_required","operator_confirmation_observed","queue_allowed","denied_authority","what_will_not_be_performed","accepting_alternative_creates_different_mission","exact_next_action","scope_transformation_identity_sha256"],
+  "properties": {
+    "schema_version":{"const":"tsf_scope_transformation_v1"},"contract_version":{"const":"SCOPE_TRANSFORMATION_V1"},
+    "original_intent_identity_sha256":{"$ref":"#/$defs/sha256"},"original_requested_goal":{"type":"string","minLength":1},"original_requested_operations":{"$ref":"#/$defs/stringArray"},
+    "proposed_mission_goal":{"type":"string","minLength":1},"proposed_operations":{"$ref":"#/$defs/stringArray"},"actual_mission_goal":{"type":"string","minLength":1},"actual_operations":{"$ref":"#/$defs/stringArray"},
+    "proposed_access":{"enum":["READ_ONLY","WORKSPACE_WRITE","EXACT_ELEVATED_ACTION"]},"repository_target":{"type":"string","minLength":1},"worktree_target":{"type":"string","minLength":1},"detached_head":{"type":"boolean"},
+    "classification":{"enum":["NO_MATERIAL_CHANGE","SAFE_PRESENTATION_NORMALIZATION","MATERIAL_SCOPE_REDUCTION","AUTHORITY_REDUCTION_REQUIRES_OPERATOR_CONFIRMATION","GOAL_CHANGED","REQUEST_UNFULFILLABLE_UNDER_CURRENT_AUTHORITY","AMBIGUOUS_REQUIRES_TIM"]},
+    "material_scope_change":{"type":"boolean"},"operator_confirmation_required":{"type":"boolean"},"operator_confirmation_observed":{"type":"boolean"},"queue_allowed":{"type":"boolean"},
+    "denied_authority":{"$ref":"#/$defs/stringArray"},"what_will_not_be_performed":{"$ref":"#/$defs/stringArray"},"accepting_alternative_creates_different_mission":{"type":"boolean"},"exact_next_action":{"type":"string","minLength":1},"scope_transformation_identity_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{"sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"stringArray":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true}}
+}

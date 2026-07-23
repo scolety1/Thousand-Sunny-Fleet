@@ -425,7 +425,9 @@ const responseExactMatch = Boolean(expectedResponseSha256)
   && finalResponseObserved
   && observedResponseSha256 === expectedResponseSha256;
 const transportSuccess = !failure && childExited && malformedProtocolCount === 0;
-const semanticResponseSuccess = expectedResponseSha256 ? responseExactMatch : transportSuccess;
+// The adapter proves transport and exact-literal equality only. General-task
+// fulfillment is a lifecycle/verifier decision bound to GENERAL_RESULT_V2.
+const semanticResponseSuccess = expectedResponseSha256 ? responseExactMatch : false;
 const result = {
   schema_version: "tsf_codex_app_server_adapter_result_v1",
   mission_id: args["mission-id"],

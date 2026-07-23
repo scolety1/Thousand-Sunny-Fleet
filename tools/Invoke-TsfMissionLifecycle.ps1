@@ -201,6 +201,9 @@ $missionRevision = if (Test-LifecycleProperty -Value $inputDocument -Name 'sourc
 $runId = if (Test-LifecycleProperty -Value $inputDocument -Name 'source_binding') { "canonical-result-$missionId-$missionRevision" } else { Get-TsfRuntimeSha256Text "$missionId|$missionRevision|$((Get-FileHash -LiteralPath $MissionPath -Algorithm SHA256).Hash.ToLowerInvariant())" }
 $responseContractMission = if (Test-LifecycleProperty -Value $inputDocument -Name 'durable_mission') { $inputDocument.durable_mission } else { $mission }
 $exactResponseContract = if (Test-LifecycleProperty -Value $responseContractMission -Name 'exact_response_contract') { $responseContractMission.exact_response_contract } else { $null }
+$resultValidationMode = if (Test-LifecycleProperty -Value $responseContractMission -Name 'result_validation_mode') { [string]$responseContractMission.result_validation_mode } elseif ($null -ne $exactResponseContract) { 'EXACT_LITERAL_V1' } else { 'LEGACY_GENERAL_FAIL_CLOSED' }
+$taskCompletionContract = if (Test-LifecycleProperty -Value $responseContractMission -Name 'task_completion_contract') { $responseContractMission.task_completion_contract } else { $null }
+$generalResultEvidence = $null
 $expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission -TestId 'hq-dispatch-read-only-exact-response'
 $canonicalRuntimeRoot=Get-TsfCanonicalRuntimeRoot
 if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) { $RuntimeRoot = $canonicalRuntimeRoot }
@@ -376,11 +379,30 @@ if (!([bool]$preflight.preflight_approved)) {
             $sandbox = if (@(ConvertTo-TsfKernelArray -Value $mission.allowed_writes).Count -eq 0) { 'read-only' } else { 'workspace-write' }
             New-Item -ItemType Directory -Force -Path $adapterStoragePlan.directory | Out-Null
             $promptPath = Join-Path $adapterStoragePlan.directory 'q.txt'
-            $task = if ($mission.PSObject.Properties.Name -contains 'worker_instruction_contract') { [string]$mission.worker_instruction_contract.exact_task } else { 'Return exactly TSF_CANONICAL_APP_SERVER_GREEN.' }
+            $task = if ($null -ne $taskCompletionContract) { [string]$taskCompletionContract.required_task } elseif ($mission.PSObject.Properties.Name -contains 'worker_instruction_contract') { [string]$mission.worker_instruction_contract.exact_task } else { 'Return exactly TSF_CANONICAL_APP_SERVER_GREEN.' }
+            $completionInstructions = if ($resultValidationMode -eq 'GENERAL_RESULT_V2' -and $null -ne $taskCompletionContract) {
+@"
+
+Your final response is a closed, machine-validated completion claim. Return ONLY one JSON object with exactly these fields:
+schema_version, mission_id, mission_revision, run_id, task_completion_contract_identity_sha256, original_intent_identity_sha256, scope_transformation_identity_sha256, attempted_task_sha256, outcome_disposition, completed_deliverables, missing_deliverables, answer, evidence, caveats.
+Use schema_version "tsf_worker_outcome_claim_v1".
+Echo mission_id "$missionId", mission_revision $missionRevision, and run_id "$runId".
+Echo task_completion_contract_identity_sha256 "$([string]$taskCompletionContract.task_completion_contract_identity_sha256)".
+Echo original_intent_identity_sha256 "$([string]$taskCompletionContract.original_intent_identity_sha256)".
+Echo scope_transformation_identity_sha256 "$([string]$taskCompletionContract.scope_transformation_identity_sha256)".
+Echo attempted_task_sha256 "$([string]$taskCompletionContract.required_task_sha256)".
+completed_deliverables and missing_deliverables must be arrays. The required deliverable id is "requested_answer".
+answer must be a JSON string even when the requested answer is structured data; serialize any structured answer into that string.
+outcome_disposition must be one of FULFILLED, FULFILLED_WITH_CAVEATS, PARTIAL, UNABLE_TO_PERFORM, REFUSED, BLOCKED_BY_POLICY, NEEDS_CLARIFICATION, REQUIRED_DELIVERABLE_MISSING, WRONG_TASK_PERFORMED, FAILED, or UNCLASSIFIED_RESULT.
+Do not claim FULFILLED unless answer substantively performs the requested task and completed_deliverables contains "requested_answer".
+If you cannot perform it, report the truthful non-success disposition and put "requested_answer" in missing_deliverables.
+"@
+            } else { '' }
             $prompt = @"
 TSF mission id: $missionId
 Execute only this synthetic task:
 $task
+$completionInstructions
 
 Worker shell and tool network access is disabled. Do not browse or call any external service.
 Do not access secrets, authentication files, NWR, TSF-NWR, normal NWR packets, PrivateLens, product repositories, or unrelated repositories.
@@ -406,9 +428,15 @@ Use only the explicitly allowed read/write paths in the bound mission.
             $workerFilesCreated = @($workerFilesTouched | Where-Object { Test-Path -LiteralPath (Get-TsfKernelFullPath -Path $_ -BasePath $repoPath) -PathType Leaf })
             $unexpectedTouched = @($workerFilesTouched | Where-Object { $allowed=$false;foreach($scope in @(ConvertTo-TsfKernelArray -Value $mission.allowed_writes)){if(Test-TsfKernelPathContained -RelativePath $_ -RepositoryRoot $repoPath -AllowedScopes @($scope)){$allowed=$true;break}};!$allowed })
             $transportSuccess = if ($adapterResult.PSObject.Properties.Name -contains 'transport_success') { [bool]$adapterResult.transport_success } else { [bool]$adapterResult.success }
-            $semanticSuccess = if ([string]::IsNullOrWhiteSpace($expectedResponseSha256)) { $transportSuccess } else { [bool]$adapterResult.semantic_response_success -and [bool]$adapterResult.response_exact_match }
+            if ([string]::IsNullOrWhiteSpace($expectedResponseSha256)) {
+                $generalResultEvidence = Get-TsfGeneralResultV2Evidence -MissionId $missionId -MissionRevision $missionRevision -RunId $runId -Adapter $adapterResult -TaskCompletionContract $taskCompletionContract
+                $semanticSuccess = [bool]$generalResultEvidence.semantic_success
+            } else {
+                $semanticSuccess = [bool]$adapterResult.semantic_response_success -and [bool]$adapterResult.response_exact_match
+            }
             if (!$transportSuccess) { $blockedReasons.Add("App-server adapter transport failed: $($adapterResult.failure)") | Out-Null; $workerStatus='APP_SERVER_FAILED' }
-            elseif (!$semanticSuccess) { $blockedReasons.Add('App-server transport succeeded but the mission-bound exact response did not match.') | Out-Null; $workerStatus='APP_SERVER_RESPONSE_MISMATCH' }
+            elseif (!$semanticSuccess -and ![string]::IsNullOrWhiteSpace($expectedResponseSha256)) { $blockedReasons.Add('App-server transport succeeded but the mission-bound exact response did not match.') | Out-Null; $workerStatus='APP_SERVER_RESPONSE_MISMATCH' }
+            elseif (!$semanticSuccess) { $blockedReasons.Add("App-server transport succeeded but the mission-bound task was not fulfilled: $([string]$generalResultEvidence.outcome_disposition)") | Out-Null; $workerStatus='GENERAL_RESULT_NOT_FULFILLED' }
             elseif ($unexpectedTouched.Count -gt 0) { $blockedReasons.Add("App-server worker touched forbidden paths: $($unexpectedTouched -join ', ')") | Out-Null; $workerStatus='APP_SERVER_TOUCHED_FORBIDDEN_PATH' }
             else { $workerStatus='CODEX_APP_SERVER_WORKER_GREEN';$roleOutputContractSatisfied=$true }
             $events.Add((New-LifecycleEvent -Step 'app_server_worker' -Status $workerStatus -Message 'Bound foreground app-server child completed.' -Evidence $adapterResultPath)) | Out-Null
@@ -534,8 +562,9 @@ $workerResult = [pscustomobject]@{
     thread_id = if ($null -ne $adapterResult) { [string]$adapterResult.thread_id } else { "" }
     turn_id = if ($null -ne $adapterResult) { [string]$adapterResult.turn_id } else { "" }
     exact_response_evidence = $exactResponseEvidence
+    general_result_evidence = $generalResultEvidence
     observation_claims = $workerObservationClaims
-    tests = if ($null -ne $adapterResult) { @($inputDocument.durable_mission.required_tests | ForEach-Object { $isExact=([string]$_.command -match '^exact-response-sha256:');$passed=if($isExact){[bool]$adapterResult.semantic_response_success-and[bool]$adapterResult.response_exact_match}else{$transportSuccess};[pscustomobject]@{test_id=[string]$_.test_id;status=if($passed){'PASS'}else{'FAIL'};observed=if($isExact){'Exact response hash comparison'}else{'Bound app-server automatic round trip'};evidence=if($isExact){[string]$adapterResult.observed_response_sha256}else{[string]$adapterResult.event_journal_sha256}} }) } else { @() }
+    tests = if ($null -ne $adapterResult) { @($inputDocument.durable_mission.required_tests | ForEach-Object { $isExact=([string]$_.command -match '^exact-response-sha256:');$isGeneral=([string]$_.command -match '^general-result-v2:');$passed=if($isExact){[bool]$adapterResult.semantic_response_success-and[bool]$adapterResult.response_exact_match}elseif($isGeneral){$null-ne$generalResultEvidence-and[bool]$generalResultEvidence.semantic_success}else{$false};[pscustomobject]@{test_id=[string]$_.test_id;status=if($passed){'PASS'}else{'FAIL'};observed=if($isExact){'Exact response hash comparison'}elseif($isGeneral){"General result disposition: $([string]$generalResultEvidence.outcome_disposition)"}else{'Unsupported required-test contract'};evidence=if($isExact){[string]$adapterResult.observed_response_sha256}elseif($isGeneral){[string]$generalResultEvidence.task_completion_contract_identity_sha256}else{''}} }) } else { @() }
     approval_use = @($approvalUse)
 }
 Write-TsfKernelJson -Value $workerResult -Path $workerResultPath

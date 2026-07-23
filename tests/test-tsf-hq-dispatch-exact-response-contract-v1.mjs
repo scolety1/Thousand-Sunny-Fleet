@@ -119,13 +119,13 @@ try {
   const generalRequest = "Review bounded TSF local documentation.";
   const generalPreview = preview(generalRequest);
   equal(generalPreview.result.status, 0, "general request still previews");
-  equal(generalPreview.value.result_validation_mode, "GENERAL_RESULT_V1", "general request retains general validation");
+  equal(generalPreview.value.result_validation_mode, "GENERAL_RESULT_V2", "general request uses mission-bound general validation");
   equal(generalPreview.value.exact_response_contract, null, "general request fabricates no exact literal");
   const generalPrepared = lastJson(prepare(generalRequest, generalPreview.value), "general result mission preparation");
   const generalMission = json(generalPrepared.mission_path);
   equal(generalMission.exact_response_contract, null, "general mission contains no exact-literal contract");
   check(!generalMission.normalized_goal.includes(oldLiteral), "general mission no longer receives the M2A fixture default");
-  equal(generalMission.required_tests[0].test_id, "hq-dispatch-read-only-general-result", "general mission uses its general result test");
+  equal(generalMission.required_tests[0].test_id, "hq-dispatch-general-result-v2", "general mission uses its task-bound general result test");
 
   const uiHtml = readFileSync(path.join(root, "tools", "hq-dispatch", "v1", "public", "index.html"), "utf8");
   const uiScript = readFileSync(path.join(root, "tools", "hq-dispatch", "v1", "public", "app.js"), "utf8");

@@ -75,7 +75,7 @@ $arguments = @(
 if (![string]::IsNullOrWhiteSpace($ExpectedResponseSha256)) {
     $arguments += @('--expected-response-sha256', $ExpectedResponseSha256)
 }
-& $node @arguments
+& $node @arguments | Out-Null
 $exitCode = $LASTEXITCODE
 if (!(Test-Path -LiteralPath $ResultPath -PathType Leaf)) { throw 'App-server adapter did not write its result.' }
 $result = Get-Content -LiteralPath $ResultPath -Raw | ConvertFrom-Json

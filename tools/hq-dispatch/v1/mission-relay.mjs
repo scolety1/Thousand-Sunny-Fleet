@@ -198,8 +198,29 @@ function assertNoncanonicalPreview(preview) {
     && preview?.authority?.preview_only === true
     && preview?.authority?.mission_submission_enabled === false
     && preview?.authority?.mission_execution_enabled === false
-    && preview?.authority?.queue_mutation_enabled === false;
+    && preview?.authority?.queue_mutation_enabled === false
+    && preview?.authority?.request_text_persisted === true
+    && preview?.original_operator_intent?.schema_version === "tsf_original_operator_intent_v1"
+    && preview?.scope_transformation?.schema_version === "tsf_scope_transformation_v1"
+    && ["SUBMITTABLE_AFTER_REVALIDATION", "TIM_REQUIRED_NO_QUEUE"].includes(preview?.submission_gate);
   if (!valid) throw new Error("PREVIEW_ARTIFACT_NOT_NONCANONICAL_PREVIEW");
+}
+
+function stableSemanticContractProjection(contract, kind) {
+  if (!contract) return null;
+  const projected = structuredClone(contract);
+  if (kind === "intent") {
+    delete projected.source_preview_identity;
+    delete projected.original_intent_identity_sha256;
+  } else if (kind === "scope") {
+    delete projected.original_intent_identity_sha256;
+    delete projected.scope_transformation_identity_sha256;
+  } else if (kind === "task") {
+    delete projected.original_intent_identity_sha256;
+    delete projected.scope_transformation_identity_sha256;
+    delete projected.task_completion_contract_identity_sha256;
+  }
+  return projected;
 }
 
 function previewProjection(preview, requestHash) {
@@ -219,6 +240,13 @@ function previewProjection(preview, requestHash) {
     stop_conditions: preview.stop_conditions,
     registry_sources: preview.registry_sources,
     result_validation_mode: preview.result_validation_mode,
+    original_operator_intent: stableSemanticContractProjection(preview.original_operator_intent, "intent"),
+    scope_transformation: stableSemanticContractProjection(preview.scope_transformation, "scope"),
+    task_completion_contract: stableSemanticContractProjection(preview.task_completion_contract, "task"),
+    canonical_classification: preview.canonical_classification,
+    proposed_mission_goal: preview.proposed_mission_goal,
+    proposed_operations: preview.proposed_operations,
+    submission_gate: preview.submission_gate,
     exact_response_contract: preview.exact_response_contract ? {
       ...exactResponseSemantic(preview.exact_response_contract),
       semantic_contract_sha256: preview.exact_response_contract.semantic_contract_sha256,
@@ -386,7 +414,12 @@ export class HqMissionRelay {
     if (jsonHash(previewProjection(recomputed, requestHash)) !== binding.projectionHash) {
       throw new Error("RECOMPUTED_PREVIEW_MISMATCH");
     }
-    if (storedPreview.classification !== "SAFE_LOCAL_MISSION") throw new Error("PREVIEW_NOT_SUBMITTABLE");
+    if (storedPreview.classification !== "SAFE_LOCAL_MISSION"
+        || storedPreview.submission_gate !== "SUBMITTABLE_AFTER_REVALIDATION"
+        || storedPreview.scope_transformation?.queue_allowed !== true
+        || storedPreview.scope_transformation?.operator_confirmation_required !== false) {
+      throw new Error("PREVIEW_REQUIRES_OPERATOR_DECISION_NO_QUEUE");
+    }
 
     const replayKey = jsonHash({ requestHash, projectionHash: binding.projectionHash });
     if (this.activeMissionId) {
@@ -426,6 +459,9 @@ export class HqMissionRelay {
       naturalRequest: input.natural_request.trim(),
       responseContract: binding.exactResponseContract,
       reviewedResponseContract: binding.exactResponseContract,
+      originalOperatorIntent: storedPreview.original_operator_intent,
+      scopeTransformation: storedPreview.scope_transformation,
+      taskCompletionContract: storedPreview.task_completion_contract,
       revision: 1,
       sessionKey,
       replayKey,
@@ -434,13 +470,24 @@ export class HqMissionRelay {
       status: this.#status("PREPARING", missionId, 1, {
         explanation: "Canonical Project Main Bot and durable mission preparation are running.",
         assurance: "CANONICAL_PREPARATION_PENDING",
+        original_intent: storedPreview.original_operator_intent,
+        scope_transformation: storedPreview.scope_transformation,
+        task_completion_contract: storedPreview.task_completion_contract,
       }),
     };
     this.missions.set(missionId, record);
     this.#event(record, record.status);
     try {
       const outcome = this.executionAdapter
-        ? await this.executionAdapter({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest, exactResponseContract: record.responseContract })
+        ? await this.executionAdapter({
+          missionId,
+          missionRevision: 1,
+          naturalRequest: record.naturalRequest,
+          exactResponseContract: record.responseContract,
+          originalOperatorIntent: record.originalOperatorIntent,
+          scopeTransformation: record.scopeTransformation,
+          taskCompletionContract: record.taskCompletionContract,
+        })
         : await this.#prepareAndExecute({
           missionId,
           missionRevision: 1,
@@ -1078,6 +1125,11 @@ export class HqMissionRelay {
       requestHash: hash(String(sourceMission.original_request ?? "")),
       previewId: null,
       naturalRequest: String(sourceMission.original_request ?? ""),
+      responseContract: sourceMission.exact_response_contract ?? null,
+      reviewedResponseContract: sourceMission.exact_response_contract ?? null,
+      originalOperatorIntent: sourceMission.original_operator_intent ?? null,
+      scopeTransformation: sourceMission.scope_transformation ?? null,
+      taskCompletionContract: sourceMission.task_completion_contract ?? null,
       revision: 1,
       sessionKey: sessionGeneration,
       replayKey: recoveryKey,
@@ -1088,6 +1140,9 @@ export class HqMissionRelay {
         runId,
         explanation: "A new run is being prepared through canonical routing and queue controls; the interrupted source run remains immutable.",
         assurance: "CANONICAL_NEW_RUN_RECOVERY_PENDING",
+        original_operator_intent: sourceMission.original_operator_intent ?? null,
+        scope_transformation: sourceMission.scope_transformation ?? null,
+        task_completion_contract: sourceMission.task_completion_contract ?? null,
       }),
     };
     this.activeMissionId = missionId;
@@ -1096,7 +1151,16 @@ export class HqMissionRelay {
     const promise = (async () => {
       try {
         const outcome = this.executionAdapter
-          ? await this.executionAdapter({ missionId, missionRevision: 1, naturalRequest: record.naturalRequest, recoveryParent: record.recoveryParent })
+          ? await this.executionAdapter({
+            missionId,
+            missionRevision: 1,
+            naturalRequest: record.naturalRequest,
+            recoveryParent: record.recoveryParent,
+            exactResponseContract: record.responseContract,
+            originalOperatorIntent: record.originalOperatorIntent,
+            scopeTransformation: record.scopeTransformation,
+            taskCompletionContract: record.taskCompletionContract,
+          })
           : await this.#prepareAndExecute({
             missionId,
             missionRevision: 1,
@@ -1246,6 +1310,7 @@ export class HqMissionRelay {
       ["queue admission", queueResult?.admission_receipt?.result_id],
       ["lifecycle run", lifecycle?.run_id],
       ["adapter run", adapter?.run_id],
+      ["general result run", durableResult?.result_id],
       ["adapter result", adapter?.result_id],
       ["worker run", workerResult?.exact_response_evidence?.run_id],
       ["worker result", workerResult?.exact_response_evidence?.result_id],
@@ -1267,6 +1332,51 @@ export class HqMissionRelay {
       if (!claims) continue;
       for (const claim of Object.values(claims)) {
         if (claim?.run_id !== expectedResultId) throw new Error("CROSS_RUN_OBSERVATION_CLAIM_REJECTED");
+      }
+    }
+    const semanticSources = [
+      workerResult?.general_result_evidence,
+      verifier?.general_result_evidence,
+      durableResult,
+    ];
+    const semanticIdentityBindings = {
+      original_intent_identity_sha256: record.originalOperatorIntent?.original_intent_identity_sha256 ?? null,
+      scope_transformation_identity_sha256: record.scopeTransformation?.scope_transformation_identity_sha256 ?? null,
+      task_completion_contract_identity_sha256: record.taskCompletionContract?.task_completion_contract_identity_sha256 ?? null,
+    };
+    for (const source of semanticSources) {
+      if (!source || source.result_validation_mode === "EXACT_LITERAL_V1") continue;
+      if (source.mission_id !== undefined && source.mission_id !== record.missionId) throw new Error("GENERAL_RESULT_MISSION_IDENTITY_MISMATCH");
+      if (source.mission_revision !== undefined && Number(source.mission_revision) !== record.revision) throw new Error("GENERAL_RESULT_REVISION_IDENTITY_MISMATCH");
+      if (source.run_id !== undefined && source.run_id !== expectedResultId) throw new Error("GENERAL_RESULT_RUN_IDENTITY_MISMATCH");
+      if (source.result_id !== undefined && source.result_id !== expectedResultId) throw new Error("GENERAL_RESULT_RESULT_IDENTITY_MISMATCH");
+      for (const [field, expected] of Object.entries(semanticIdentityBindings)) {
+        if (expected && source[field] !== undefined && source[field] !== expected) {
+          throw new Error(`GENERAL_RESULT_CONTRACT_IDENTITY_MISMATCH:${field}`);
+        }
+      }
+      const claim = source.worker_claim;
+      if (claim && (claim.mission_id !== record.missionId
+          || Number(claim.mission_revision) !== record.revision
+          || claim.run_id !== expectedResultId)) {
+        throw new Error("GENERAL_RESULT_WORKER_CLAIM_IDENTITY_MISMATCH");
+      }
+    }
+    const admission = queueResult?.admission_receipt ?? null;
+    if (admission && durableResult?.result_validation_mode === "GENERAL_RESULT_V2") {
+      for (const field of [
+        "original_intent_identity_sha256",
+        "scope_transformation_identity_sha256",
+        "task_completion_contract_identity_sha256",
+        "outcome_disposition",
+      ]) {
+        if (admission[field] !== undefined && admission[field] !== durableResult[field]) {
+          throw new Error(`GENERAL_RESULT_ADMISSION_BINDING_MISMATCH:${field}`);
+        }
+      }
+      if (["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(admission.status)
+          && (durableResult.semantic_status !== "FULFILLED" || durableResult.missing_deliverables?.length > 0)) {
+        throw new Error("GENERAL_RESULT_ADMISSION_SEMANTIC_CONTRADICTION");
       }
     }
     if (mission) {
@@ -1302,6 +1412,9 @@ export class HqMissionRelay {
       verifier: fields.verifier ?? null,
       preservation: fields.preservation ?? null,
       admission: fields.admission ?? null,
+      original_operator_intent: fields.original_operator_intent ?? fields.original_intent ?? record?.originalOperatorIntent ?? null,
+      scope_transformation: fields.scope_transformation ?? record?.scopeTransformation ?? null,
+      task_completion_contract: fields.task_completion_contract ?? record?.taskCompletionContract ?? null,
       result: fields.result ?? null,
       requested_response: record ? { natural_request: record.naturalRequest, request_sha256: record.requestHash } : null,
       response_contract: fields.response_contract ?? record?.responseContract ?? null,
@@ -1331,11 +1444,14 @@ export class HqMissionRelay {
       tests: durableResult?.tests ?? workerResult?.tests ?? [],
       exact_response: workerResult?.exact_response_evidence ?? null,
       observation_claims: durableResult?.observation_claims ?? workerResult?.observation_claims ?? adapter?.observation_claims ?? null,
+      transport_status: durableResult?.transport_status ?? workerResult?.general_result_evidence?.transport_status ?? null,
+      claim: durableResult?.worker_claim ?? workerResult?.general_result_evidence?.worker_claim ?? null,
+      general_result_evidence: workerResult?.general_result_evidence ?? null,
     };
   }
 
   #verifierProjection(verifier, lifecycle, verifierPath) {
-    return { identity: "canonical-kernel-postrun", verdict: verifier?.verdict ?? lifecycle?.verifier_verdict ?? "NOT_OBSERVED", verified: verifier?.verified ?? false, exact_response: verifier?.exact_response_evidence ?? null, result_path: verifierPath ?? null, result_sha256: this.#safeFileHash(verifierPath) };
+    return { identity: "canonical-kernel-postrun", verdict: verifier?.verdict ?? lifecycle?.verifier_verdict ?? "NOT_OBSERVED", verified: verifier?.verified ?? false, exact_response: verifier?.exact_response_evidence ?? null, general_result_evidence: verifier?.general_result_evidence ?? null, result_path: verifierPath ?? null, result_sha256: this.#safeFileHash(verifierPath) };
   }
 
   #preservationProjection(lifecycle) {
@@ -1346,6 +1462,11 @@ export class HqMissionRelay {
     const receiptPath = admission.receipt_file ?? admission.admission_receipt_path ?? null;
     return {
       verdict: admission.status,
+      result_validation_mode: admission.result_validation_mode ?? null,
+      original_intent_identity_sha256: admission.original_intent_identity_sha256 ?? null,
+      scope_transformation_identity_sha256: admission.scope_transformation_identity_sha256 ?? null,
+      task_completion_contract_identity_sha256: admission.task_completion_contract_identity_sha256 ?? null,
+      outcome_disposition: admission.outcome_disposition ?? null,
       reasons: admission.reasons ?? [],
       caveats: admission.caveats ?? [],
       receipt_id: admission.receipt_id ?? null,
@@ -1369,6 +1490,18 @@ export class HqMissionRelay {
       durable_result_sha256: this.#safeFileHash(queueResult?.durable_result_path),
       tests: durableResult?.tests ?? [],
       observation_claims: durableResult?.observation_claims ?? null,
+      result_validation_mode: durableResult?.result_validation_mode ?? null,
+      original_intent_identity_sha256: durableResult?.original_intent_identity_sha256 ?? null,
+      scope_transformation_identity_sha256: durableResult?.scope_transformation_identity_sha256 ?? null,
+      task_completion_contract_identity_sha256: durableResult?.task_completion_contract_identity_sha256 ?? null,
+      transport_status: durableResult?.transport_status ?? null,
+      semantic_status: durableResult?.semantic_status ?? null,
+      outcome_disposition: durableResult?.outcome_disposition ?? null,
+      worker_claim: durableResult?.worker_claim ?? null,
+      observed_deliverables: durableResult?.observed_deliverables ?? [],
+      missing_deliverables: durableResult?.missing_deliverables ?? [],
+      outcome_evidence: durableResult?.outcome_evidence ?? [],
+      raw_worker_response_sha256: durableResult?.raw_worker_response_sha256 ?? null,
     };
   }
 

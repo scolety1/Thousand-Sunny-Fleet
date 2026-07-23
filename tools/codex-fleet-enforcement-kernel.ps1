@@ -3,6 +3,7 @@ $script:TsfKernelRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $script:TsfKernelRoot "tools\TsfRuntimeArtifactAddressing.ps1")
 . (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleTerminalResult.ps1")
 . (Join-Path $script:TsfKernelRoot "tools\TsfLifecycleInvocationArguments.ps1")
+. (Join-Path $script:TsfKernelRoot "tools\TsfSemanticIntegrity.ps1")
 
 $script:TsfKernelRestrictedActions = @(
     "push",
@@ -1367,8 +1368,13 @@ function Invoke-TsfKernelPostRunVerify {
     }
     $expectedResponseSha256 = Get-TsfExpectedResponseSha256 -Mission $responseContractMission
     $boundExactResponseContract = if ($responseContractMission.PSObject.Properties.Name -contains 'exact_response_contract') { $responseContractMission.exact_response_contract } else { $null }
-    $canonicalVerifierResultId = if (![string]::IsNullOrWhiteSpace($CanonicalQueueDocumentPath)) { "canonical-result-$([string]$responseContractMission.mission_id)-$([int]$responseContractMission.mission_revision)" } else { $null }
+    $resultValidationMode = if ($responseContractMission.PSObject.Properties.Name -contains 'result_validation_mode') { [string]$responseContractMission.result_validation_mode } elseif ($null -ne $boundExactResponseContract) { 'EXACT_LITERAL_V1' } else { 'LEGACY_GENERAL_FAIL_CLOSED' }
+    $boundTaskCompletionContract = if ($responseContractMission.PSObject.Properties.Name -contains 'task_completion_contract') { $responseContractMission.task_completion_contract } else { $null }
+    $workerGeneralEvidence = if ($worker.PSObject.Properties.Name -contains 'general_result_evidence') { $worker.general_result_evidence } else { $null }
+    $workerExactEvidence = if ($worker.PSObject.Properties.Name -contains 'exact_response_evidence') { $worker.exact_response_evidence } else { $null }
+    $canonicalVerifierResultId = if (![string]::IsNullOrWhiteSpace($CanonicalQueueDocumentPath)) { "canonical-result-$([string]$responseContractMission.mission_id)-$([int]$responseContractMission.mission_revision)" } elseif ($null -ne $workerGeneralEvidence) { [string]$workerGeneralEvidence.run_id } elseif ($null -ne $workerExactEvidence) { [string]$workerExactEvidence.run_id } else { $null }
     $exactResponseVerification = $null
+    $generalResultVerification = $null
 
     if ([string]$worker.mission_id -eq [string]$mission.mission_id) {
         $checks.Add((New-TsfKernelCheck -Name "postrun.mission_id" -Status "PASS" -Message "Worker result mission_id matches mission packet.")) | Out-Null
@@ -1533,6 +1539,43 @@ function Invoke-TsfKernelPostRunVerify {
             $checks.Add((New-TsfKernelCheck -Name 'postrun.exact_response' -Status 'FAIL' -Message 'Exact mission-bound response verification failed.' -Evidence ($exactErrors -join '; '))) | Out-Null
             foreach ($reason in $exactErrors) { $blockedReasons.Add($reason) | Out-Null }
         }
+    } elseif ($resultValidationMode -eq 'GENERAL_RESULT_V2') {
+        $generalErrors = [System.Collections.Generic.List[string]]::new()
+        $adapterPath = [string]$worker.adapter_result_path
+        $adapter = $null
+        if ($null -eq $boundTaskCompletionContract) { $generalErrors.Add('GENERAL_RESULT_V2 task-completion contract is missing.') | Out-Null }
+        if ([string]::IsNullOrWhiteSpace($adapterPath) -or !(Test-TsfKernelPathInside (Get-TsfKernelFullPath $adapterPath) $repoPath) -or !(Test-Path -LiteralPath $adapterPath -PathType Leaf)) {
+            $generalErrors.Add('Bound adapter response artifact is missing or outside the mission repository.') | Out-Null
+        } else {
+            $adapterFileSha256 = (Get-FileHash -LiteralPath $adapterPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($adapterFileSha256 -ne [string]$worker.adapter_result_sha256) { $generalErrors.Add('Adapter response artifact hash differs from worker binding.') | Out-Null }
+            try { $adapter = Read-TsfKernelJson $adapterPath } catch { $generalErrors.Add('Adapter response artifact is not valid JSON.') | Out-Null }
+        }
+        if ($null -ne $adapter -and $null -ne $boundTaskCompletionContract) {
+            if ([string]$adapter.mission_id -ne [string]$responseContractMission.mission_id -or [int]$adapter.mission_revision -ne [int]$responseContractMission.mission_revision) { $generalErrors.Add('Adapter mission identity mismatch.') | Out-Null }
+            if ([string]$adapter.run_id -ne $canonicalVerifierResultId -or [string]$adapter.result_id -ne $canonicalVerifierResultId) { $generalErrors.Add('Adapter run or result identity mismatch.') | Out-Null }
+            if (![bool]$adapter.final_response_observed) { $generalErrors.Add('Final response was not observed.') | Out-Null }
+            $generalResultVerification = Get-TsfGeneralResultV2Evidence -MissionId ([string]$responseContractMission.mission_id) -MissionRevision ([int]$responseContractMission.mission_revision) -RunId $canonicalVerifierResultId -Adapter $adapter -TaskCompletionContract $boundTaskCompletionContract
+            $schemaCheck = Test-TsfJsonContract -Value $generalResultVerification -SchemaPath (Join-Path $script:TsfKernelRoot 'fleet\control\general-result-v2.schema.v1.json')
+            if (![bool]$schemaCheck.valid) { $generalErrors.Add("Verifier general-result evidence violates schema: $($schemaCheck.errors -join '; ')") | Out-Null }
+            if ($null -eq $worker.general_result_evidence) { $generalErrors.Add('Worker general-result evidence is missing.') | Out-Null }
+            elseif ((Get-TsfContractJsonHash $worker.general_result_evidence) -ne (Get-TsfContractJsonHash $generalResultVerification)) { $generalErrors.Add('Worker general-result evidence was not independently reproducible.') | Out-Null }
+            if (![bool]$generalResultVerification.semantic_success -or ![bool]$generalResultVerification.admissible) { $generalErrors.Add("Mission-bound task was not fulfilled: $([string]$generalResultVerification.outcome_disposition)") | Out-Null }
+            $requiredTest = @($worker.tests | Where-Object { [string]$_.test_id -eq 'hq-dispatch-general-result-v2' })
+            if ($requiredTest.Count -ne 1 -or [string]$requiredTest[0].status -ne 'PASS' -or [string]$requiredTest[0].evidence -ne [string]$boundTaskCompletionContract.task_completion_contract_identity_sha256) { $generalErrors.Add('Required general-result test is not bound to the task-completion contract.') | Out-Null }
+        }
+        if ($generalErrors.Count -eq 0) {
+            $checks.Add((New-TsfKernelCheck -Name 'postrun.general_result_v2' -Status 'PASS' -Message 'Verifier independently reproduced mission-bound task fulfillment.' -Evidence ([string]$generalResultVerification.raw_worker_response_sha256))) | Out-Null
+        } else {
+            $checks.Add((New-TsfKernelCheck -Name 'postrun.general_result_v2' -Status 'FAIL' -Message 'General mission-bound result verification failed.' -Evidence ($generalErrors -join '; '))) | Out-Null
+            foreach ($reason in $generalErrors) { $blockedReasons.Add($reason) | Out-Null }
+        }
+    } else {
+        $legacyAdapter = $null
+        if (![string]::IsNullOrWhiteSpace([string]$worker.adapter_result_path) -and (Test-Path -LiteralPath ([string]$worker.adapter_result_path) -PathType Leaf)) { try { $legacyAdapter = Read-TsfKernelJson ([string]$worker.adapter_result_path) } catch {} }
+        if ($null -ne $legacyAdapter) { $generalResultVerification = Get-TsfGeneralResultV2Evidence -MissionId ([string]$responseContractMission.mission_id) -MissionRevision ([int]$responseContractMission.mission_revision) -RunId $canonicalVerifierResultId -Adapter $legacyAdapter -TaskCompletionContract $null }
+        $checks.Add((New-TsfKernelCheck -Name 'postrun.legacy_general_result' -Status 'FAIL' -Message 'Legacy general output has no mission-bound completion contract and fails closed.' -Evidence $(if($null-ne$generalResultVerification){[string]$generalResultVerification.outcome_disposition}else{'NO_ADAPTER_EVIDENCE'}))) | Out-Null
+        $blockedReasons.Add('Legacy general result is not admissible without GENERAL_RESULT_V2.') | Out-Null
     }
 
     if ($mission.PSObject.Properties.Name -contains "role_extension" -and $null -ne $mission.role_extension) {
@@ -1545,8 +1588,9 @@ function Invoke-TsfKernelPostRunVerify {
             $blockedReasons.Add("Worker role mismatch or missing.") | Out-Null
         }
 
-        if ($worker.PSObject.Properties.Name -contains "role_output_contract_satisfied" -and [bool]$worker.role_output_contract_satisfied -and ([string]::IsNullOrWhiteSpace($expectedResponseSha256) -or [bool]$exactResponseVerification.exact_match)) {
-            $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "PASS" -Message $(if ([string]::IsNullOrWhiteSpace($expectedResponseSha256)) { 'Worker result claims role output contract was satisfied.' } else { 'Independent exact-response verification satisfies the role output contract.' }) -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
+        $semanticOutputVerified = if (![string]::IsNullOrWhiteSpace($expectedResponseSha256)) { $null -ne $exactResponseVerification -and [bool]$exactResponseVerification.exact_match } elseif ($resultValidationMode -eq 'GENERAL_RESULT_V2') { $null -ne $generalResultVerification -and [bool]$generalResultVerification.semantic_success } else { $false }
+        if ($worker.PSObject.Properties.Name -contains "role_output_contract_satisfied" -and [bool]$worker.role_output_contract_satisfied -and $semanticOutputVerified) {
+            $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "PASS" -Message $(if (![string]::IsNullOrWhiteSpace($expectedResponseSha256)) { 'Independent exact-response verification satisfies the role output contract.' } else { 'Independent general-result verification satisfies the role output contract.' }) -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
         } else {
             $checks.Add((New-TsfKernelCheck -Name "postrun.role_output_contract" -Status "FAIL" -Message "Worker result does not satisfy the role output contract." -Evidence ([string]$mission.role_extension.role_output_contract))) | Out-Null
             $blockedReasons.Add("Role output contract was not satisfied.") | Out-Null
@@ -1584,9 +1628,10 @@ function Invoke-TsfKernelPostRunVerify {
         generated_at = (Get-Date).ToString("o")
         mission_id = [string]$responseContractMission.mission_id
         mission_revision = [int]$responseContractMission.mission_revision
-        run_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.run_id } else { $canonicalVerifierResultId }
-        result_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.result_id } else { $canonicalVerifierResultId }
+        run_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.run_id } elseif ($null -ne $generalResultVerification) { [string]$generalResultVerification.run_id } else { $canonicalVerifierResultId }
+        result_id = if ($null -ne $exactResponseVerification) { [string]$exactResponseVerification.result_id } elseif ($null -ne $generalResultVerification) { [string]$generalResultVerification.result_id } else { $canonicalVerifierResultId }
         exact_response_evidence = $exactResponseVerification
+        general_result_evidence = $generalResultVerification
         verdict = $verdict
         final_state = $finalState
         verified = $verified

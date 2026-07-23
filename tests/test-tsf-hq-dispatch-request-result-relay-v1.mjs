@@ -71,7 +71,13 @@ function preparation(missionId, revision, evidencePath) {
   };
 }
 
-async function syntheticOutcome({ missionId, missionRevision }) {
+async function syntheticOutcome({
+  missionId,
+  missionRevision,
+  originalOperatorIntent,
+  scopeTransformation,
+  taskCompletionContract,
+}) {
   executionCount += 1;
   const dir = path.join(fixtureRoot, `${missionId}-r${missionRevision}`);
   mkdirSync(dir, { recursive: true });
@@ -79,13 +85,62 @@ async function syntheticOutcome({ missionId, missionRevision }) {
   writeFileSync(paths.mission, JSON.stringify({ expires_at: "2099-01-01T00:00:00Z" }));
   writeFileSync(paths.queue, "{}");
   const prep = preparation(missionId, missionRevision, paths);
+  const semanticIdentity = {
+    original_intent_identity_sha256: originalOperatorIntent?.original_intent_identity_sha256 ?? "1".repeat(64),
+    scope_transformation_identity_sha256: scopeTransformation?.scope_transformation_identity_sha256 ?? "2".repeat(64),
+    task_completion_contract_identity_sha256: taskCompletionContract?.task_completion_contract_identity_sha256 ?? "3".repeat(64),
+  };
+  const taskHash = taskCompletionContract?.required_task_sha256 ?? "4".repeat(64);
+  const generalEvidence = (disposition, {
+    answer,
+    completed = [],
+    missing = [],
+    errors = [],
+    semantic = false,
+  }) => ({
+    schema_version: "tsf_general_result_v2",
+    compatibility_mode: "STRUCTURED_GENERAL_RESULT_V2",
+    mission_id: missionId,
+    mission_revision: missionRevision,
+    run_id: prep.run_id,
+    result_id: prep.run_id,
+    ...semanticIdentity,
+    raw_worker_response_sha256: hashFileText(answer),
+    worker_claim: {
+      schema_version: "tsf_worker_outcome_claim_v1",
+      mission_id: missionId,
+      mission_revision: missionRevision,
+      run_id: prep.run_id,
+      ...semanticIdentity,
+      attempted_task_sha256: taskHash,
+      outcome_disposition: disposition,
+      completed_deliverables: completed,
+      missing_deliverables: missing,
+      answer,
+      evidence: ["synthetic mission-bound UI projection fixture"],
+      caveats: [],
+    },
+    observed_deliverables: completed,
+    missing_deliverables: missing,
+    outcome_disposition: disposition,
+    outcome_evidence: errors,
+    transport_status: "SUCCEEDED",
+    semantic_status: semantic ? "FULFILLED" : "NOT_FULFILLED",
+    semantic_success: semantic,
+    admissible: semantic,
+  });
   if (executionCount === 1) {
     await new Promise((resolve) => setTimeout(resolve, 75));
-    const workerResult = { files_touched: [], files_created: [], tests: [{ test_id: "hq-dispatch-read-only-exact-response", status: "PASS", evidence: "fixture-event-hash" }] };
-    const durableResult = { files_changed: [], tests: [{ test_id: "hq-dispatch-read-only-exact-response", status: "PASS", evidence_classification: "KERNEL_OBSERVED" }] };
+    const evidence = generalEvidence("FULFILLED", {
+      answer: "The bounded TSF documentation review is complete with the required substantive analysis.",
+      completed: ["requested_answer"],
+      semantic: true,
+    });
+    const workerResult = { files_touched: [], files_created: [], general_result_evidence: evidence, tests: [{ test_id: "hq-dispatch-general-result-v2", status: "PASS", evidence: semanticIdentity.task_completion_contract_identity_sha256 }] };
+    const durableResult = { mission_id: missionId, mission_revision: missionRevision, result_id: prep.run_id, result_validation_mode: "GENERAL_RESULT_V2", ...semanticIdentity, transport_status: evidence.transport_status, semantic_status: evidence.semantic_status, outcome_disposition: evidence.outcome_disposition, worker_claim: evidence.worker_claim, observed_deliverables: evidence.observed_deliverables, missing_deliverables: evidence.missing_deliverables, outcome_evidence: evidence.outcome_evidence, raw_worker_response_sha256: evidence.raw_worker_response_sha256, files_changed: [], tests: [{ test_id: "hq-dispatch-general-result-v2", status: "PASS", evidence_classification: "KERNEL_OBSERVED" }] };
     const adapter = { thread_id: "thread-synthetic-1", turn_id: "turn-synthetic-1", observed_model: "gpt-5.6-terra", canonical_resolved_effort: "MEDIUM", child_exited: true, no_orphan_process: true };
-    const verifier = { verdict: "GREEN", verified: true };
-    const admission = { status: "ADMITTED_WITH_CAVEATS", result_id: prep.run_id, admission_receipt_path: paths.admission, reasons: ["Canonical fixture admitted."], caveats: ["Synthetic adapter fixture."] };
+    const verifier = { verdict: "GREEN", verified: true, general_result_evidence: evidence };
+    const admission = { status: "ADMITTED_WITH_CAVEATS", mission_id: missionId, mission_revision: missionRevision, result_id: prep.run_id, result_validation_mode: "GENERAL_RESULT_V2", ...semanticIdentity, outcome_disposition: "FULFILLED", admission_receipt_path: paths.admission, reasons: ["Canonical fixture admitted."], caveats: ["Synthetic adapter fixture."] };
     const lifecycle = { worker_status: "CODEX_APP_SERVER_WORKER_GREEN", worker_result_path: paths.worker, verifier_verdict: "GREEN", preservation_status: "PRESERVED", preservation_packet_file: paths.packet, preservation_manifest_path: paths.manifest, evidence_preserved: true };
     writeFileSync(paths.worker, JSON.stringify(workerResult));
     writeFileSync(paths.result, JSON.stringify(durableResult));
@@ -117,12 +172,23 @@ async function syntheticOutcome({ missionId, missionRevision }) {
     writeFileSync(paths.queueResult, JSON.stringify({ final_decision: "TIM_REQUIRED_QUEUE_PREFLIGHT_BLOCKED" }));
     return { preparation: prep, processResult: { code: 1, child_exited: true, no_orphan_process: true }, queueResult: { final_decision: "TIM_REQUIRED_QUEUE_PREFLIGHT_BLOCKED", blocked_reasons: [] }, lifecycle, adapter: null, verifier: null };
   }
-  const lifecycle = { terminal_status: "COMPLETED_WITH_CAVEATS", worker_status: "CODEX_APP_SERVER_WORKER_GREEN", preservation_status: "PRESERVED", preservation_packet_file: paths.packet, preservation_manifest_path: paths.manifest, evidence_preserved: true };
+  const evidence = generalEvidence("UNABLE_TO_PERFORM", {
+    answer: "The worker could not perform the requested task under the observed runtime conditions.",
+    missing: ["requested_answer"],
+    errors: ["WORKER_REPORTED_INABILITY"],
+  });
+  const workerResult = { files_touched: [], files_created: [], general_result_evidence: evidence, tests: [] };
+  const durableResult = { mission_id: missionId, mission_revision: missionRevision, result_id: prep.run_id, result_validation_mode: "GENERAL_RESULT_V2", ...semanticIdentity, transport_status: evidence.transport_status, semantic_status: evidence.semantic_status, outcome_disposition: evidence.outcome_disposition, worker_claim: evidence.worker_claim, observed_deliverables: evidence.observed_deliverables, missing_deliverables: evidence.missing_deliverables, outcome_evidence: evidence.outcome_evidence, raw_worker_response_sha256: evidence.raw_worker_response_sha256, files_changed: [], tests: [] };
+  const verifier = { verdict: "RED", verified: false, general_result_evidence: evidence };
+  const lifecycle = { terminal_status: "COMPLETED_WITH_CAVEATS", worker_status: "CODEX_APP_SERVER_WORKER_RETURNED", worker_result_path: paths.worker, verifier_verdict: "RED", preservation_status: "PRESERVED", preservation_packet_file: paths.packet, preservation_manifest_path: paths.manifest, evidence_preserved: true };
+  writeFileSync(paths.worker, JSON.stringify(workerResult));
+  writeFileSync(paths.result, JSON.stringify(durableResult));
+  writeFileSync(paths.verifier, JSON.stringify(verifier));
   writeFileSync(paths.packet, JSON.stringify({ final_decision: "GREEN" }));
   writeFileSync(paths.manifest, JSON.stringify({ evidence: "fixture" }));
   writeFileSync(paths.lifecycle, JSON.stringify(lifecycle));
-  writeFileSync(paths.queueResult, JSON.stringify({ final_queue_state: "completed", final_decision: "WORKER_GREEN_WITHOUT_ADMISSION" }));
-  return { preparation: prep, processResult: { code: 0, child_exited: true, no_orphan_process: true }, queueResult: { final_queue_state: "completed", final_decision: "WORKER_GREEN_WITHOUT_ADMISSION" }, lifecycle, adapter: { child_exited: true, no_orphan_process: true }, verifier: null };
+  writeFileSync(paths.queueResult, JSON.stringify({ final_queue_state: "completed", final_decision: "WORKER_RETURNED_UNABLE_WITHOUT_ADMISSION", durable_result_path: paths.result }));
+  return { preparation: prep, processResult: { code: 0, child_exited: true, no_orphan_process: true }, queueResult: { final_queue_state: "completed", final_decision: "WORKER_RETURNED_UNABLE_WITHOUT_ADMISSION", durable_result_path: paths.result }, lifecycle, adapter: { child_exited: true, no_orphan_process: true }, verifier, workerResult, durableResult };
 }
 
 async function mismatchedIdentityOutcome({ missionId, missionRevision }, { crossRunClaim = false } = {}) {
@@ -194,7 +260,7 @@ try {
   };
   const preview = await getPreview(natural);
   equal(preview.status, 200, "reviewed preview succeeds");
-  equal(preview.json.result_validation_mode, "GENERAL_RESULT_V1", "unrelated request retains the general result contract");
+  equal(preview.json.result_validation_mode, "GENERAL_RESULT_V2", "unrelated request uses mission-bound general validation");
   equal(preview.json.exact_response_contract, null, "unrelated request receives no fabricated exact literal");
   check(/^[a-f0-9]{64}$/.test(preview.json.preview_sha256), "preview artifact hash returned");
   check(/^[a-f0-9]{64}$/.test(preview.json.request_hash), "request hash returned");
@@ -269,6 +335,16 @@ try {
   equal(admitted.json.worker.changed_paths.length, 0, "read-only changed paths projected exactly");
   equal(admitted.json.worker.created_paths.length, 0, "read-only created paths projected exactly");
   equal(admitted.json.worker.tests[0].status, "PASS", "worker test evidence projected");
+  equal(admitted.json.worker.transport_status, "SUCCEEDED", "worker transport completion is projected independently");
+  equal(admitted.json.result.semantic_status, "FULFILLED", "canonical semantic fulfillment is projected");
+  equal(admitted.json.result.outcome_disposition, "FULFILLED", "GENERAL_RESULT_V2 disposition is projected");
+  equal(admitted.json.result.worker_claim.outcome_disposition, "FULFILLED", "worker claim remains visibly distinct from admission");
+  equal(admitted.json.result.missing_deliverables.length, 0, "fulfilled result has no missing deliverable");
+  equal(admitted.json.verifier.general_result_evidence.outcome_disposition, "FULFILLED", "verifier projects the same bound general result");
+  equal(admitted.json.admission.outcome_disposition, "FULFILLED", "admission projects its independently recorded outcome binding");
+  equal(admitted.json.original_operator_intent.requested_goal, natural, "original requested goal remains visible in terminal status");
+  equal(admitted.json.scope_transformation.actual_mission_goal, natural, "authorized mission goal remains visible separately");
+  equal(admitted.json.task_completion_contract.required_deliverables[0].deliverable_id, "requested_answer", "required deliverable remains visible");
   check(/^[a-f0-9]{64}$/.test(admitted.json.result.durable_result_sha256), "durable result hash projected");
   check(/^[a-f0-9]{64}$/.test(admitted.json.verifier.result_sha256), "verifier result hash projected");
   check(/^[a-f0-9]{64}$/.test(admitted.json.preservation.packet_sha256), "preservation hash projected");
@@ -309,10 +385,16 @@ try {
   const unacceptedNatural = `${natural} worker-only result`;
   const unacceptedPreview = await getPreview(unacceptedNatural);
   const unaccepted = await post(port, "/api/v1/missions", token, origin, submissionFor(unacceptedNatural, unacceptedPreview));
-  equal(unaccepted.json.state, "REJECTED", "worker success without admission remains unaccepted");
+  equal(unaccepted.json.state, "REJECTED", "transport-completed worker inability remains unaccepted");
   equal(unaccepted.json.admission, null, "missing admission receipt is visible and never fabricated");
   equal(unaccepted.json.result_id, null, "rejected status does not invent terminal result identity");
-  equal(unaccepted.json.result.result_id, null, "rejected nested result does not inherit run identity");
+  equal(unaccepted.json.result.result_id, unaccepted.json.run_id, "rejected canonical general result retains its exact run identity");
+  equal(unaccepted.json.result.transport_status, "SUCCEEDED", "worker transport may complete for an unable result");
+  equal(unaccepted.json.result.semantic_status, "NOT_FULFILLED", "worker inability is not semantic fulfillment");
+  equal(unaccepted.json.result.outcome_disposition, "UNABLE_TO_PERFORM", "worker inability disposition remains explicit");
+  equal(unaccepted.json.result.missing_deliverables[0], "requested_answer", "worker inability exposes the missing required deliverable");
+  equal(unaccepted.json.verifier.verdict, "RED", "worker inability exposes verifier rejection");
+  equal(unaccepted.json.original_operator_intent.requested_goal, unacceptedNatural, "worker inability retains the original requested goal");
 } finally {
   await closeServer(server);
 }
@@ -350,6 +432,10 @@ check(browserText.includes("Arbitrary repositories and general commands") && bro
 check(browserText.includes("APPROVE EXACT REQUEST") && browserText.includes("PROVIDE CLARIFICATION"), "UI exposes only bounded Milestone 2B decision controls");
 check(browserText.includes("Submission is not approval") && browserText.includes("worker completion is not admission"), "UI separates submission, worker completion, and admission");
 check(browserText.includes("canonical admission receipt is terminal truth"), "UI names the canonical admission receipt as terminal truth");
+check(browserSource.includes("transport_completed_is_not_fulfillment: true"), "UI explicitly separates transport completion from fulfillment");
+check(browserSource.includes("worker_message_alone_is_fulfillment: false") && browserSource.includes("nonempty_response_alone_is_fulfillment: false"), "UI rejects response-presence false success");
+check(browserSource.includes("reviewedPreviewCanSubmit") && browserSource.includes("TIM_REQUIRED_NO_QUEUE") === false, "UI uses canonical preview gate fields rather than a parallel TIM classifier");
+check(browserHtml.includes('id="mission-outcome"') && browserHtml.includes('aria-live="polite"'), "outcome changes have a labeled live region");
 check(!browserText.includes("mission submission, and mission execution are unavailable"), "obsolete Milestone 1-only wording is absent");
 
 let testNow = 1000;

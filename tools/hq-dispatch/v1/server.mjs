@@ -525,7 +525,15 @@ function invokeRoutePreview(requestBody) {
           response.authority?.live_ai_service_access_enabled !== false ||
           response.authority?.plugin_access_enabled !== false ||
           response.authority?.external_repository_access_enabled !== false ||
-          response.authority?.request_text_persisted !== false
+          response.authority?.request_text_persisted !== true ||
+          !["GENERAL_RESULT_V2", "EXACT_LITERAL_V1"].includes(response.result_validation_mode) ||
+          response.original_operator_intent?.schema_version !== "tsf_original_operator_intent_v1" ||
+          response.scope_transformation?.schema_version !== "tsf_scope_transformation_v1" ||
+          typeof response.scope_transformation?.queue_allowed !== "boolean" ||
+          !["SUBMITTABLE_AFTER_REVALIDATION", "TIM_REQUIRED_NO_QUEUE"].includes(response.submission_gate) ||
+          (response.result_validation_mode === "GENERAL_RESULT_V2"
+            && response.scope_transformation.queue_allowed
+            && response.task_completion_contract?.schema_version !== "tsf_task_completion_contract_v1")
         ) {
           rejectOnce("ROUTE_PREVIEW_RESPONSE_BOUNDARY_INVALID");
           return;
@@ -760,7 +768,7 @@ async function handleRequest(req, res, context) {
       live_ai_service_access_enabled: false,
       plugin_access_enabled: false,
       external_repository_access_enabled: false,
-      request_text_persisted: false,
+      request_text_persisted: true,
     });
     return;
   }
