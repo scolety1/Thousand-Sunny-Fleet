@@ -113,7 +113,7 @@ function generalFixture() {
     mission_id: identity.mission_id,
     role_output_contract_satisfied: true,
     exact_response_evidence: null,
-    tests: { test_id: "hq-dispatch-read-only-general-result", status: "PASS" },
+    tests: { test_id: "hq-dispatch-general-result-v2", status: "PASS" },
   };
   const verifier = {
     ...identity,

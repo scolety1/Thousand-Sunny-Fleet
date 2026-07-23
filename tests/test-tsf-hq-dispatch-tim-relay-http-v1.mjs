@@ -150,7 +150,7 @@ async function close(server) { await server.hqDispatchShutdown(); await new Prom
 
 const approvalServer = await startHqDispatchServerForTest({ executionAdapter: initialOutcome("APPROVAL_REQUIRED"), responseAdapter });
 try {
-  const context = await createTim(approvalServer, "HTTP exact approval relay fixture.");
+  const context = await createTim(approvalServer, "Return the bounded HTTP approval-relay fixture result.");
   const { port, origin, token, tim } = context;
   const endpoint = `/api/v1/missions/${tim.mission_id}/tim-response`;
   equal(tim.tim_request.request_kind, "APPROVAL_REQUIRED", "approval kind rendered exactly");
@@ -197,7 +197,7 @@ try {
 
 const denialServer = await startHqDispatchServerForTest({ executionAdapter: initialOutcome("APPROVAL_REQUIRED"), responseAdapter });
 try {
-  const { port, origin, token, tim } = await createTim(denialServer, "HTTP explicit denial fixture.");
+  const { port, origin, token, tim } = await createTim(denialServer, "Return the bounded HTTP denial fixture result.");
   const endpoint = `/api/v1/missions/${tim.mission_id}/tim-response`;
   const body = responseBody(tim, "DENY_REQUEST", "Bounded operator reason.");
   const before = responseAdapterCalls;
@@ -212,7 +212,7 @@ try {
 
 const clarificationServer = await startHqDispatchServerForTest({ executionAdapter: initialOutcome("CLARIFICATION_REQUIRED"), responseAdapter });
 try {
-  const { port, origin, token, tim } = await createTim(clarificationServer, "HTTP bounded clarification fixture.");
+  const { port, origin, token, tim } = await createTim(clarificationServer, "Return the bounded HTTP clarification fixture result.");
   const endpoint = `/api/v1/missions/${tim.mission_id}/tim-response`;
   equal(tim.tim_request.request_kind, "CLARIFICATION_REQUIRED", "clarification kind rendered exactly");
   equal(tim.tim_request.response_types.join("|"), "PROVIDE_CLARIFICATION", "only clarification control is compatible");
@@ -231,13 +231,13 @@ try {
 
 const expiredServer = await startHqDispatchServerForTest({ executionAdapter: initialOutcome("CLARIFICATION_REQUIRED", { expired: true }), responseAdapter });
 try {
-  const { port, origin, token, tim } = await createTim(expiredServer, "Expired request fixture.");
+  const { port, origin, token, tim } = await createTim(expiredServer, "Return the bounded expired-request fixture result.");
   equal((await post(port, `/api/v1/missions/${tim.mission_id}/tim-response`, token, origin, responseBody(tim, "PROVIDE_CLARIFICATION", "Bounded response."))).status, 422, "response after request expiry rejects");
 } finally { await close(expiredServer); }
 
 const supersededServer = await startHqDispatchServerForTest({ executionAdapter: initialOutcome("CLARIFICATION_REQUIRED", { superseded: true }), responseAdapter });
 try {
-  const { port, origin, token, tim } = await createTim(supersededServer, "Superseded request fixture.");
+  const { port, origin, token, tim } = await createTim(supersededServer, "Return the bounded superseded-request fixture result.");
   equal((await post(port, `/api/v1/missions/${tim.mission_id}/tim-response`, token, origin, responseBody(tim, "PROVIDE_CLARIFICATION", "Bounded response."))).status, 422, "response after supersession rejects");
 } finally { await close(supersededServer); }
 

@@ -61,8 +61,10 @@ try {
   equal(executed.json.worker.model, "DETERMINISTIC_FIXTURE_NO_MODEL", "real model/app-server behavior is not claimed");
   equal(executed.json.admission.caveats[0].includes("Fixture behavior"), true, "admission labels fixture behavior");
 
-  const timRequest = "TIM REQUIRED deterministic response fixture.";
+  const timRequest = "Demonstrate deterministic fixture execution without plugins, credentials, or external network and return a bounded clarification packet.";
   const timPreview = await preview(port, origin, token, timRequest);
+  equal(timPreview.classification, "SAFE_LOCAL_MISSION", "runtime TIM fixture first passes the canonical pre-execution gate");
+  equal(timPreview.submission_gate, "SUBMITTABLE_AFTER_REVALIDATION", "runtime TIM fixture does not bypass a TIM_REQUIRED_NO_QUEUE preview");
   const tim = await request(port, { method: "POST", pathname: "/api/v1/missions", token, origin, body: submission(timRequest, timPreview) });
   equal(tim.status, 200, "Milestone 2B fixture reaches canonical request projection");
   equal(tim.json.state, "TIM_REQUIRED", "TIM_REQUIRED is explicit");

@@ -50,6 +50,10 @@
                        "exact_response_contract":  {
                                                           "type":  ["object", "null"]
                                                       },
+                       "result_validation_mode": { "type": ["string", "null"], "enum": ["GENERAL_RESULT_V2", "EXACT_LITERAL_V1", null] },
+                       "original_operator_intent": { "type": ["object", "null"] },
+                       "scope_transformation": { "type": ["object", "null"] },
+                       "task_completion_contract": { "type": ["object", "null"] },
                        "expected_artifacts":  {
                                                   "type":  "array",
                                                   "items":  {

@@ -264,8 +264,8 @@ try {
   );
   equal(
     health.json.request_text_persisted,
-    false,
-    "health declares that request text is not persisted",
+    true,
+    "health declares that request text is retained in the intent contract",
   );
   equal(
     health.headers["access-control-allow-origin"],
@@ -377,7 +377,7 @@ try {
     "browser UI visibly includes access and source-bound explanation sections",
   );
   check(
-    index.text.includes("Raw request text is not persisted") &&
+    index.text.includes("Request text is retained in the hashed original-intent contract") &&
       index.text.includes("never become canonical evidence"),
     "browser UI discloses preview persistence and retention behavior",
   );
@@ -530,7 +530,7 @@ try {
   const workerRegistry = parseJsonFile("fleet/control/worker-role-registry.v1.json");
   const modelPolicy = parseJsonFile("fleet/control/model-routing-alias-policy.v1.json");
   const safePreview = await jsonRequest(port, {
-    natural_request: "Review a bounded TSF-local documentation change.",
+    natural_request: "Return a concise summary: the fleet is idle.",
   });
   equal(safePreview.status, 200, "safe canonical route preview succeeds");
   equal(
@@ -594,8 +594,8 @@ try {
   );
   equal(
     safePreview.json.authority.request_text_persisted,
-    false,
-    "route preview declares that request text is not persisted",
+    true,
+    "route preview declares that request text is retained in the intent contract",
   );
   equal(
     safePreview.json.access_proposal.access_level,
@@ -627,7 +627,7 @@ try {
   equal(
     Object.hasOwn(safePreview.json, "natural_request"),
     false,
-    "route response and artifact do not echo or persist natural request text",
+    "route response does not duplicate natural_request outside the intent contract",
   );
   equal(
     safePreview.json.route_explanation.schema_version,
@@ -770,7 +770,7 @@ try {
     equal(
       Object.hasOwn(inertPreview.json, "natural_request"),
       false,
-      "inert request variants are not echoed or persisted in the response",
+      "inert request variants are not duplicated outside the intent contract",
     );
     check(!existsSync(markerPath), "inert request variant cannot create the marker");
   }

@@ -13,7 +13,9 @@ function ConvertTo-TsfContractArray {
 function Get-TsfContractJsonHash {
     [CmdletBinding()]
     param([Parameter(Mandatory)][object]$Value)
-    $json = $Value | ConvertTo-Json -Depth 100 -Compress
+    # -InputObject preserves an empty array as [] instead of allowing the
+    # pipeline to enumerate it into no output (and therefore a null hash).
+    $json = ConvertTo-Json -InputObject $Value -Depth 100 -Compress
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes($json)
     $sha = [Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }

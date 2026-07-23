@@ -3,6 +3,29 @@ import { createInterface } from "node:readline";
 const mode = process.env.TSF_FAKE_APP_SERVER_MODE ?? "normal";
 const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
 function write(value) { process.stdout.write(`${typeof value === "string" ? value : JSON.stringify(value)}\n`); }
+function promptValue(prompt, name, fallback = "") {
+  const match = prompt.match(new RegExp(`(?:Echo\\s+)?${name}\\s+\\"?([A-Za-z0-9._:-]+)\\"?`, "i"));
+  return match?.[1] ?? fallback;
+}
+function generalResult(prompt, disposition) {
+  const fulfilled = disposition === "FULFILLED";
+  return JSON.stringify({
+    schema_version: "tsf_worker_outcome_claim_v1",
+    mission_id: promptValue(prompt, "mission_id", "missing-mission"),
+    mission_revision: Number(promptValue(prompt, "mission_revision", "0")),
+    run_id: promptValue(prompt, "run_id", "missing-run"),
+    task_completion_contract_identity_sha256: promptValue(prompt, "task_completion_contract_identity_sha256", "0".repeat(64)),
+    original_intent_identity_sha256: promptValue(prompt, "original_intent_identity_sha256", "0".repeat(64)),
+    scope_transformation_identity_sha256: promptValue(prompt, "scope_transformation_identity_sha256", "0".repeat(64)),
+    attempted_task_sha256: promptValue(prompt, "attempted_task_sha256", "0".repeat(64)),
+    outcome_disposition: disposition,
+    completed_deliverables: fulfilled ? ["requested_answer"] : [],
+    missing_deliverables: fulfilled ? [] : ["requested_answer"],
+    answer: fulfilled ? "The bounded TSF fixture analysis found schema_version tsf_policy_manifest_v1." : "",
+    evidence: fulfilled ? ["fleet/control/policy-manifest.v1.json: schema_version=tsf_policy_manifest_v1"] : ["The controlled fixture did not perform the requested analysis."],
+    caveats: [],
+  });
+}
 
 rl.on("line", (line) => {
   let request;
@@ -21,7 +44,16 @@ rl.on("line", (line) => {
     write({ id: request.id, result: { turn: { id: "fake-turn-1" } } });
     const threadId = mode === "spoof" ? "spoofed-thread" : "fake-thread-1";
     const started = { method: "turn/started", params: { threadId, turn: { id: "fake-turn-1", status: "inProgress" } } };
-    const responseText = mode === "old-substituted" ? "TSF_HQ_DISPATCH_READ_ONLY_GREEN" : "TSF_FAKE_GREEN";
+    const prompt = String(request.params?.input?.[0]?.text ?? "");
+    const responseText = mode === "old-substituted"
+      ? "TSF_HQ_DISPATCH_READ_ONLY_GREEN"
+      : mode === "general-success"
+        ? generalResult(prompt, "FULFILLED")
+        : mode === "general-unable"
+          ? generalResult(prompt, "UNABLE_TO_PERFORM")
+          : mode === "general-missing"
+            ? generalResult(prompt, "REQUIRED_DELIVERABLE_MISSING")
+            : "TSF_FAKE_GREEN";
     const item = { method: "item/completed", params: { threadId, turnId: "fake-turn-1", item: { id: "fake-item-1", type: "agentMessage", text: responseText } } };
     const completed = { method: "turn/completed", params: { threadId, turn: { id: "fake-turn-1", status: "completed", usage: { inputTokens: 1, outputTokens: 1 } } } };
     const usage = (totalTokens, inputTokens = totalTokens - 2) => ({ method: "thread/tokenUsage/updated", params: { threadId, turnId: "fake-turn-1", tokenUsage: { total: { totalTokens, inputTokens, cachedInputTokens: 1, outputTokens: 2, reasoningOutputTokens: 0 }, last: { totalTokens, inputTokens, cachedInputTokens: 1, outputTokens: 2, reasoningOutputTokens: 0 }, modelContextWindow: 1000 } } });

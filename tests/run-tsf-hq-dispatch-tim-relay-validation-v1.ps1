@@ -118,7 +118,7 @@ function Confirm-Static {
 
 $changed = @(& git -c core.autocrlf=false -c core.safecrlf=false -C $repositoryRoot diff --name-only HEAD; & git -C $repositoryRoot ls-files --others --exclude-standard)
 $changed = @($changed | Where-Object { $_ } | Sort-Object -Unique)
-$allowedPrefixes = @('docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/', 'docs/hq/tsf_hq_dispatch_tim_relay_v1_20260715/', 'fleet/control/', 'tests/', 'tools/')
+$allowedPrefixes = @('docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/', 'docs/hq/tsf_hq_dispatch_tim_relay_v1_20260715/', 'docs/hq/tsf_v1_general_result_intent_fidelity_hotfix_v1_20260722/', 'fleet/control/', 'tests/', 'tools/')
 foreach ($relative in $changed) {
     Confirm-Static -Condition (@($allowedPrefixes | Where-Object { $relative.Replace('\', '/').StartsWith($_) }).Count -gt 0) -Message "protected-path diff permits $relative"
     Confirm-Static -Condition ((Join-Path $repositoryRoot $relative).Length -lt 240) -Message "source path remains below 240 characters: $relative"

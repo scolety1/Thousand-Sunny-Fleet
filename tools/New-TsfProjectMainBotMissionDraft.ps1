@@ -28,6 +28,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'TsfSemanticIntegrity.ps1')
 
 function ConvertTo-TsfDraftArray {
     param([object]$Value)
@@ -83,11 +84,19 @@ function Resolve-TsfDraftClassification {
         [string]$Request,
         [string]$WorkerRole,
         [string[]]$Actions,
-        [string[]]$Writes
+        [string[]]$Writes,
+        [string[]]$RequestedOperations,
+        [string[]]$AuthorityBearingOperations,
+        [string]$AmbiguityStatus
     )
     $allText = (($Request, $WorkerRole) + $Actions + $Writes) -join " "
     if ($allText -match "(?i)\b(bypass|ignore guardrails|force push|force merge|disable checks|delete safety|drop approval)\b") {
         return "BLOCKED_UNSAFE"
+    }
+    $boundedWorkspaceOperations = @('WORKSPACE_WRITE','FILE_CREATE','FILE_EDIT','FILE_DELETE','PATH_RENAME_MOVE')
+    $unboundedAuthority = @($AuthorityBearingOperations | Where-Object { $_ -notin $boundedWorkspaceOperations })
+    if ($unboundedAuthority.Count -gt 0 -or (@($AuthorityBearingOperations).Count -gt 0 -and @($Writes).Count -eq 0)) {
+        return "NEEDS_TIM_APPROVAL"
     }
     if ($allText -match "(?i)\b(push|merge|deploy|install|migration|migrate|secret|auth|payment|credential|privatelens|proof run|all-fleet|background|daemon|scheduler|watchdog|persistent|codex cli|codex exec|api|open network|canonical nwr|normal nwr|product repo)\b") {
         return "NEEDS_TIM_APPROVAL"
@@ -99,6 +108,12 @@ function Resolve-TsfDraftClassification {
         return "NEEDS_MAIN_BOT_REVIEW"
     }
     if ([string]::IsNullOrWhiteSpace($WorkerRole) -or [string]::IsNullOrWhiteSpace($Request)) {
+        return "NEEDS_MAIN_BOT_REVIEW"
+    }
+    if ($AmbiguityStatus -eq 'AMBIGUOUS_AUTHORITY_INTENT') {
+        return "NEEDS_TIM_APPROVAL"
+    }
+    if ($AmbiguityStatus -ne 'UNAMBIGUOUS') {
         return "NEEDS_MAIN_BOT_REVIEW"
     }
     return "SAFE_LOCAL_MISSION"
@@ -120,7 +135,8 @@ $defaultForbidden = @(
 
 $explicitForbiddenActions = @(ConvertTo-TsfDraftArray $ForbiddenActions)
 $forbidden = @($explicitForbiddenActions + $defaultForbidden | Sort-Object -Unique)
-$classification = Resolve-TsfDraftClassification -Request $NaturalRequest -WorkerRole $ProposedWorkerRole -Actions $explicitForbiddenActions -Writes $AllowedWrites
+$operationAnalysis = Get-TsfOriginalOperationAnalysis -NaturalRequest $NaturalRequest
+$classification = Resolve-TsfDraftClassification -Request $NaturalRequest -WorkerRole $ProposedWorkerRole -Actions $explicitForbiddenActions -Writes $AllowedWrites -RequestedOperations @($operationAnalysis.requested_operations) -AuthorityBearingOperations @($operationAnalysis.authority_bearing_operations) -AmbiguityStatus ([string]$operationAnalysis.ambiguity_status)
 $missionId = "$(ConvertTo-TsfDraftSlug -Value $ProjectId)-$(Get-Date -Format 'yyyyMMddHHmmss')"
 $goal = if ([string]::IsNullOrWhiteSpace($RequestedGoal)) { $NaturalRequest } else { $RequestedGoal }
 
@@ -180,6 +196,11 @@ $draft = [pscustomobject]@{
         proposed_worker_role = $ProposedWorkerRole
         lane = $Lane
         hard_gate_detected = ($classification -in @("NEEDS_TIM_APPROVAL", "BLOCKED_UNSAFE"))
+        requested_operations = @($operationAnalysis.requested_operations)
+        authority_bearing_operations = @($operationAnalysis.authority_bearing_operations)
+        requested_access = [string]$operationAnalysis.requested_access
+        requested_network = [string]$operationAnalysis.requested_network
+        ambiguity_status = [string]$operationAnalysis.ambiguity_status
     }
     mission_packet = $missionPacket
     role_extension = $roleExtension

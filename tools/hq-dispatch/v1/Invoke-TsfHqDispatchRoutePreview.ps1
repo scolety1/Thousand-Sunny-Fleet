@@ -15,6 +15,10 @@ $missionDraftPath = Join-Path $repoRoot "tools\New-TsfProjectMainBotMissionDraft
 $durableContractPath = Join-Path $repoRoot "tools\TsfDurableContract.Canonical.ps1"
 $roleRegistryPath = Join-Path $repoRoot "fleet\control\worker-role-registry.v1.json"
 $modelPolicyPath = Join-Path $repoRoot "fleet\control\model-routing-alias-policy.v1.json"
+$semanticIntegrityPath = Join-Path $repoRoot "tools\TsfSemanticIntegrity.ps1"
+$originalIntentSchemaPath = Join-Path $repoRoot "fleet\control\original-operator-intent.schema.v1.json"
+$scopeTransformationSchemaPath = Join-Path $repoRoot "fleet\control\scope-transformation.schema.v1.json"
+$taskCompletionSchemaPath = Join-Path $repoRoot "fleet\control\task-completion-contract.schema.v1.json"
 
 foreach ($requiredPath in @(
     $requestSchemaPath,
@@ -22,7 +26,11 @@ foreach ($requiredPath in @(
     $missionDraftPath,
     $durableContractPath,
     $roleRegistryPath,
-    $modelPolicyPath
+    $modelPolicyPath,
+    $semanticIntegrityPath,
+    $originalIntentSchemaPath,
+    $scopeTransformationSchemaPath,
+    $taskCompletionSchemaPath
 )) {
     if (!(Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "A hardcoded route-preview source is missing."
@@ -42,6 +50,7 @@ function Read-TsfKernelJson {
 
 $script:TsfRoot = $repoRoot
 . $durableContractPath
+. $semanticIntegrityPath
 
 function New-TsfHqObservedBinding {
     param(
@@ -176,6 +185,7 @@ $draft = & $missionDraftPath `
     -NaturalRequest $naturalRequest `
     -Lane "MASTER_TSF_CONTROL_PLANE" `
     -RequestedGoal $naturalRequest `
+    -AllowedWrites @() `
     -ExpectedArtifacts @("hq-dispatch-route-preview") `
     -StopConditions @(
         "scope-gate|approval_required|Stop if the request crosses a hard TSF gate.",
@@ -185,7 +195,8 @@ $draft = & $missionDraftPath `
     -CreatedBy "tsf_hq_dispatch_route_preview_v1"
 Set-StrictMode -Version Latest
 
-$classification = [string]$draft.classification
+$canonicalClassification = [string]$draft.classification
+$classification = $canonicalClassification
 $knownClassifications = @(
     "SAFE_LOCAL_MISSION",
     "NEEDS_TIM_APPROVAL",
@@ -195,6 +206,33 @@ $knownClassifications = @(
 )
 if ($knownClassifications -notcontains $classification) {
     throw "Canonical mission-draft classification was not recognized."
+}
+
+function Test-TsfHqDetachedHead {
+    param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+    $dotGit = Join-Path $RepositoryRoot '.git'
+    $gitDirectory = $dotGit
+    if (Test-Path -LiteralPath $dotGit -PathType Leaf) {
+        $pointer = (Get-Content -LiteralPath $dotGit -Raw).Trim()
+        if ($pointer -notmatch '^gitdir:\s*(.+)$') { throw 'ROUTE_PREVIEW_GIT_IDENTITY_UNAVAILABLE' }
+        $gitPointerPath = [string]$Matches[1]
+        $gitDirectory = if ([System.IO.Path]::IsPathRooted($gitPointerPath)) { [System.IO.Path]::GetFullPath($gitPointerPath) } else { [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $gitPointerPath)) }
+    }
+    $headPath = Join-Path $gitDirectory 'HEAD'
+    if (!(Test-Path -LiteralPath $headPath -PathType Leaf)) { throw 'ROUTE_PREVIEW_GIT_IDENTITY_UNAVAILABLE' }
+    $head = (Get-Content -LiteralPath $headPath -Raw).Trim()
+    if ($head -match '^ref:\s+refs/heads/[A-Za-z0-9._/-]+$') { return $false }
+    if ($head -match '^[a-f0-9]{40}$') { return $true }
+    throw 'ROUTE_PREVIEW_GIT_IDENTITY_UNAVAILABLE'
+}
+$detachedHead = Test-TsfHqDetachedHead -RepositoryRoot $repoRoot
+$analysisPreviewId = 'hq-preview-' + ('0' * 32)
+$analysisExactContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId $analysisPreviewId
+$analysisIntent = New-TsfOriginalOperatorIntentContract -NaturalRequest $naturalRequest -PreviewId $analysisPreviewId -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -ProhibitedOperations @($draft.mission_packet.forbidden_actions)
+$analysisProposedOperations = if ($null -ne $analysisExactContract) { @('RETURN_RESULT') } else { @('READ_ANALYSIS','RETURN_RESULT') }
+$analysisScope = New-TsfScopeTransformationContract -OriginalIntent $analysisIntent -AuthorizedMissionGoal $naturalRequest -ProposedOperations $analysisProposedOperations -ProposedAccess 'READ_ONLY' -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -DetachedHead:$detachedHead
+if (![bool]$analysisScope.queue_allowed -and $classification -eq 'SAFE_LOCAL_MISSION') {
+    $classification = if ([string]$analysisScope.classification -eq 'AUTHORITY_REDUCTION_REQUIRES_OPERATOR_CONFIRMATION') { 'NEEDS_TIM_APPROVAL' } else { 'NEEDS_MAIN_BOT_REVIEW' }
 }
 
 $classificationExplanation = switch ($classification) {
@@ -281,8 +319,12 @@ switch ($classification) {
 $sourceSpecs = @(
     [pscustomobject]@{ path = "tools/New-TsfProjectMainBotMissionDraft.ps1"; full_path = $missionDraftPath },
     [pscustomobject]@{ path = "tools/TsfDurableContract.Canonical.ps1"; full_path = $durableContractPath },
+    [pscustomobject]@{ path = "tools/TsfSemanticIntegrity.ps1"; full_path = $semanticIntegrityPath },
     [pscustomobject]@{ path = "fleet/control/worker-role-registry.v1.json"; full_path = $roleRegistryPath },
-    [pscustomobject]@{ path = "fleet/control/model-routing-alias-policy.v1.json"; full_path = $modelPolicyPath }
+    [pscustomobject]@{ path = "fleet/control/model-routing-alias-policy.v1.json"; full_path = $modelPolicyPath },
+    [pscustomobject]@{ path = "fleet/control/original-operator-intent.schema.v1.json"; full_path = $originalIntentSchemaPath },
+    [pscustomobject]@{ path = "fleet/control/scope-transformation.schema.v1.json"; full_path = $scopeTransformationSchemaPath },
+    [pscustomobject]@{ path = "fleet/control/task-completion-contract.schema.v1.json"; full_path = $taskCompletionSchemaPath }
 )
 $registrySources = @($sourceSpecs | ForEach-Object {
     [pscustomobject]@{
@@ -307,7 +349,8 @@ $projectLaneBindings = @(
     New-TsfHqObservedBinding -SourcePath "tools/New-TsfProjectMainBotMissionDraft.ps1" -SourceField "draft.mission_packet.lane" -ObservedValue ([string]$draft.mission_packet.lane) -Assurance "CANONICAL_POLICY_OUTPUT"
 )
 $classificationBindings = @(
-    New-TsfHqObservedBinding -SourcePath "tools/New-TsfProjectMainBotMissionDraft.ps1" -SourceField "draft.classification" -ObservedValue $classification -Assurance "CANONICAL_POLICY_OUTPUT"
+    New-TsfHqObservedBinding -SourcePath "tools/New-TsfProjectMainBotMissionDraft.ps1" -SourceField "draft.classification" -ObservedValue $canonicalClassification -Assurance "CANONICAL_POLICY_OUTPUT"
+    New-TsfHqObservedBinding -SourcePath $wrapperSourcePath -SourceField "scope_transformation.effective_classification" -ObservedValue $classification -Assurance "FIXED_MILESTONE_BOUNDARY"
 )
 $roleBindings = @(
     New-TsfHqObservedBinding -SourcePath "tools/New-TsfProjectMainBotMissionDraft.ps1" -SourceField "draft.normalized_intent.proposed_worker_role" -ObservedValue ([string]$draft.normalized_intent.proposed_worker_role) -Assurance "CANONICAL_POLICY_OUTPUT"
@@ -387,6 +430,15 @@ for ($attempt = 1; $attempt -le 8; $attempt++) {
     $previewToken = [Guid]::NewGuid().ToString("N")
     $previewId = "hq-preview-$previewToken"
     $exactResponseContract = New-TsfExactResponseContract -NaturalRequest $naturalRequest -PreviewId $previewId
+    $originalIntent = New-TsfOriginalOperatorIntentContract -NaturalRequest $naturalRequest -PreviewId $previewId -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -ProhibitedOperations @($forbiddenActions)
+    $proposedOperations = if ($null -ne $exactResponseContract) { @('RETURN_RESULT') } else { @('READ_ANALYSIS','RETURN_RESULT') }
+    $scopeTransformation = New-TsfScopeTransformationContract -OriginalIntent $originalIntent -AuthorizedMissionGoal $naturalRequest -ProposedOperations $proposedOperations -ProposedAccess 'READ_ONLY' -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -DetachedHead:$detachedHead
+    $taskCompletionContract = if ($null -eq $exactResponseContract -and [bool]$scopeTransformation.queue_allowed) { New-TsfTaskCompletionContract -RequiredTask $naturalRequest -OriginalIntent $originalIntent -ScopeTransformation $scopeTransformation } else { $null }
+    foreach ($contractCheck in @(
+        [pscustomobject]@{value=$originalIntent;schema=$originalIntentSchemaPath;name='original intent'},
+        [pscustomobject]@{value=$scopeTransformation;schema=$scopeTransformationSchemaPath;name='scope transformation'}
+    )) { Set-StrictMode -Off; $check=Test-TsfJsonContract -Value $contractCheck.value -SchemaPath $contractCheck.schema; Set-StrictMode -Version Latest; if(!$check.valid){throw "Route-preview $($contractCheck.name) contract invalid: $($check.errors -join '; ')"} }
+    if ($null -ne $taskCompletionContract) { Set-StrictMode -Off; $check=Test-TsfJsonContract -Value $taskCompletionContract -SchemaPath $taskCompletionSchemaPath; Set-StrictMode -Version Latest; if(!$check.valid){throw "Route-preview task completion contract invalid: $($check.errors -join '; ')"} }
     $artifactName = "$previewId.route-preview.json"
     $artifactPath = [System.IO.Path]::GetFullPath((Join-Path $previewRoot $artifactName))
     if (!$artifactPath.StartsWith($previewPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -400,8 +452,15 @@ for ($attempt = 1; $attempt -le 8; $attempt++) {
         banner = "PREVIEW_ONLY_NOT_AUTHORITY"
         record_kind = "hq_dispatch_route_preview"
         preview_id = $previewId
-        result_validation_mode = $(if ($null -ne $exactResponseContract) { 'EXACT_LITERAL_V1' } else { 'GENERAL_RESULT_V1' })
+        result_validation_mode = $(if ($null -ne $exactResponseContract) { 'EXACT_LITERAL_V1' } else { 'GENERAL_RESULT_V2' })
         exact_response_contract = $exactResponseContract
+        original_operator_intent = $originalIntent
+        scope_transformation = $scopeTransformation
+        task_completion_contract = $taskCompletionContract
+        canonical_classification = $canonicalClassification
+        proposed_mission_goal = $naturalRequest
+        proposed_operations = @($proposedOperations)
+        submission_gate = $(if ([bool]$scopeTransformation.queue_allowed -and $classification -eq 'SAFE_LOCAL_MISSION') { 'SUBMITTABLE_AFTER_REVALIDATION' } else { 'TIM_REQUIRED_NO_QUEUE' })
         proposed_project = [pscustomobject]@{
             project_id = [string]$draft.mission_packet.project_id
             lane = [string]$draft.mission_packet.lane
@@ -442,7 +501,7 @@ for ($attempt = 1; $attempt -le 8; $attempt++) {
             live_ai_service_access_enabled = $false
             plugin_access_enabled = $false
             external_repository_access_enabled = $false
-            request_text_persisted = $false
+            request_text_persisted = $true
             authority_statement = "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, credential, live-service, plugin, external-repository, app-server, merge, or deployment authority."
         }
         artifact = [pscustomobject]@{

@@ -1,0 +1,7 @@
+# Verifier and admission rules
+
+The kernel verifier reopens the bound adapter artifact, validates its file hash and mission/revision/run identity, reruns the deterministic `GENERAL_RESULT_V2` parser from the mission's task contract, validates the evidence schema, and requires byte-equivalent worker evidence. Worker transport or `role_output_contract_satisfied` alone is insufficient.
+
+The durable result mapper repeats the same recomputation and requires equal worker/verifier/mapper evidence. It projects intent, scope, task, transport, semantic status, disposition, deliverables, missing deliverables, worker claim, outcome evidence, and raw-response hash. The result schema permits only the closed worker-claim shape for a non-null claim.
+
+Admission independently checks the closed claim against the canonical result and mission contract: mission/revision/run, all three semantic identities, attempted-task hash, disposition, observed and missing deliverable sets, substantive answer, and empty canonical outcome errors must agree. It rejects any mismatch, transport failure, semantic status other than `FULFILLED`, missing deliverable, unaccepted disposition, unobserved required test, legacy general result, or absent independent verifier. The admission receipt repeats the semantic identities and disposition and remains bound to the durable-result bytes. `PARTIAL` is not accepted unless a future mission contract explicitly permits and deterministically proves it. No outcome grants approval, merge, push, deployment, or production authority.

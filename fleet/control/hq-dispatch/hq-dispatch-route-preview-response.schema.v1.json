@@ -12,6 +12,13 @@
     "preview_id",
     "result_validation_mode",
     "exact_response_contract",
+    "original_operator_intent",
+    "scope_transformation",
+    "task_completion_contract",
+    "canonical_classification",
+    "proposed_mission_goal",
+    "proposed_operations",
+    "submission_gate",
     "proposed_project",
     "proposed_worker_role",
     "model_routing",
@@ -47,11 +54,20 @@
       "pattern": "^hq-preview-[a-f0-9]{32}$"
     },
     "result_validation_mode": {
-      "enum": ["GENERAL_RESULT_V1", "EXACT_LITERAL_V1"]
+      "enum": ["GENERAL_RESULT_V2", "EXACT_LITERAL_V1"]
     },
     "exact_response_contract": {
       "type": ["object", "null"]
     },
+    "original_operator_intent": { "type": "object" },
+    "scope_transformation": { "type": "object" },
+    "task_completion_contract": { "type": ["object", "null"] },
+    "canonical_classification": {
+      "enum": ["SAFE_LOCAL_MISSION","NEEDS_TIM_APPROVAL","NEEDS_CHATGPT_HQ","BLOCKED_UNSAFE","NEEDS_MAIN_BOT_REVIEW"]
+    },
+    "proposed_mission_goal": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "proposed_operations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "submission_gate": { "enum": ["SUBMITTABLE_AFTER_REVALIDATION","TIM_REQUIRED_NO_QUEUE"] },
     "proposed_project": {
       "type": "object",
       "additionalProperties": false,
@@ -424,7 +440,7 @@
           "const": false
         },
         "request_text_persisted": {
-          "const": false
+          "const": true
         },
         "authority_statement": {
           "const": "This projection is evidence only and grants no mission, queue, approval, worker, lifecycle, credential, live-service, plugin, external-repository, app-server, merge, or deployment authority."

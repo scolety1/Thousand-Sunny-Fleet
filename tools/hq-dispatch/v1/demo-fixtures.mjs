@@ -157,7 +157,7 @@ export function createDemoFixtureAdapters({ fixtureRoot, repositoryRoot, queueRo
 
   async function executionAdapter({ missionId, missionRevision, naturalRequest, recoveryParent }) {
     if (recoveryParent) return completedOutcome(missionId, missionRevision, naturalRequest);
-    return /\bTIM(?:_|\s)REQUIRED\b/i.test(naturalRequest) ? timOutcome(missionId, missionRevision, naturalRequest) : completedOutcome(missionId, missionRevision, naturalRequest);
+    return /\bbounded clarification packet\b/i.test(naturalRequest) ? timOutcome(missionId, missionRevision, naturalRequest) : completedOutcome(missionId, missionRevision, naturalRequest);
   }
 
   async function responseAdapter({ input, record }) {

@@ -5,7 +5,8 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "result_id", "mission_id", "mission_revision", "mission_content_hash", "parent_mission_id", "policy_fingerprint",
+    "schema_version", "result_id", "mission_id", "mission_revision", "mission_content_hash", "parent_mission_id", "policy_fingerprint", "result_validation_mode",
+    "original_intent_identity_sha256", "scope_transformation_identity_sha256", "task_completion_contract_identity_sha256", "transport_status", "semantic_status", "outcome_disposition", "worker_claim", "observed_deliverables", "missing_deliverables", "outcome_evidence", "raw_worker_response_sha256",
     "surface_used", "surface_task_identity", "actual_model", "actual_reasoning_effort", "model_assurance_level", "effort_evidence",
     "actual_repository", "actual_branch_worktree", "git_facts", "files_inspected", "files_changed",
     "major_actions", "network_activity", "artifacts", "tests", "verifier_evidence", "approval_use", "preservation_evidence", "evidence_bindings",
@@ -20,6 +21,18 @@
     "mission_content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "parent_mission_id": { "type": ["string", "null"] },
     "policy_fingerprint": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "result_validation_mode": { "enum": ["EXACT_LITERAL_V1", "GENERAL_RESULT_V2"] },
+    "original_intent_identity_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "scope_transformation_identity_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "task_completion_contract_identity_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "transport_status": { "type": ["string", "null"], "enum": ["SUCCEEDED", "FAILED", null] },
+    "semantic_status": { "type": ["string", "null"], "enum": ["FULFILLED", "NOT_FULFILLED", null] },
+    "outcome_disposition": { "type": ["string", "null"], "enum": ["FULFILLED", "FULFILLED_WITH_CAVEATS", "PARTIAL", "UNABLE_TO_PERFORM", "REFUSED", "BLOCKED_BY_POLICY", "NEEDS_CLARIFICATION", "REQUIRED_DELIVERABLE_MISSING", "WRONG_TASK_PERFORMED", "FAILED", "UNCLASSIFIED_RESULT", null] },
+    "worker_claim": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/workerClaim" }] },
+    "observed_deliverables": { "type": "array", "items": { "type": "string" } },
+    "missing_deliverables": { "type": "array", "items": { "type": "string" } },
+    "outcome_evidence": { "type": "array", "items": { "type": "string" } },
+    "raw_worker_response_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
     "surface_used": { "type": "string", "minLength": 1 },
     "surface_task_identity": { "type": ["string", "null"] },
     "actual_model": { "type": ["string", "null"] },
@@ -190,6 +203,26 @@
         "value": { "type": ["boolean", "null"] },
         "source": { "type": "string", "minLength": 1 },
         "run_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "workerClaim": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "mission_id", "mission_revision", "run_id", "task_completion_contract_identity_sha256", "original_intent_identity_sha256", "scope_transformation_identity_sha256", "attempted_task_sha256", "outcome_disposition", "completed_deliverables", "missing_deliverables", "answer", "evidence", "caveats"],
+      "properties": {
+        "schema_version": { "const": "tsf_worker_outcome_claim_v1" },
+        "mission_id": { "type": "string", "minLength": 8 },
+        "mission_revision": { "type": "integer", "minimum": 1 },
+        "run_id": { "type": "string", "minLength": 8 },
+        "task_completion_contract_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "original_intent_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "scope_transformation_identity_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "attempted_task_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "outcome_disposition": { "enum": ["FULFILLED", "FULFILLED_WITH_CAVEATS", "PARTIAL", "UNABLE_TO_PERFORM", "REFUSED", "BLOCKED_BY_POLICY", "NEEDS_CLARIFICATION", "REQUIRED_DELIVERABLE_MISSING", "WRONG_TASK_PERFORMED", "FAILED", "UNCLASSIFIED_RESULT"] },
+        "completed_deliverables": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "missing_deliverables": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "answer": { "type": "string" },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "caveats": { "type": "array", "items": { "type": "string" } }
       }
     }
   }
