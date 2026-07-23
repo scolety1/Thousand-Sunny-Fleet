@@ -146,6 +146,7 @@ try {
       request_hash: preview.json.request_hash,
       intent: "CREATE_GOVERNED_MISSION",
       submission_id: preview.json.submission_id,
+      result_contract_confirmation: preview.json.result_contract_selection?.operator_confirmation_required ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE" : "NOT_REQUIRED",
     }),
   });
   equal(mission.status, 200, "governed production submission completes");

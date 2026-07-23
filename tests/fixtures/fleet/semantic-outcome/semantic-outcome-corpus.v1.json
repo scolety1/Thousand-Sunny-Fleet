@@ -1,0 +1,39 @@
+{
+  "schema_version": "tsf_semantic_outcome_corpus_v1",
+  "worker_own_non_success": [
+    {"id":"own-contraction-01","answer":"I couldn't complete the requested task.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-contraction-02","answer":"I wasn't able to perform the analysis.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-contraction-03","answer":"I couldn't access the required evidence.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"ACCESS_UNAVAILABLE"},
+    {"id":"own-contraction-04","answer":"I didn't complete the requested task.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-contraction-05","answer":"I haven't completed the requested task.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-contraction-06","answer":"I can't complete the requested analysis.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-contraction-07","answer":"I cannot complete the requested analysis.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-passive-01","answer":"The analysis couldn't be completed.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-passive-02","answer":"The requested work was not able to be performed.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-passive-03","answer":"The required files could not be inspected.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"ACCESS_UNAVAILABLE"},
+    {"id":"own-passive-04","answer":"The deliverable was unable to be produced.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-passive-05","answer":"The required evidence could not be accessed.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"ACCESS_UNAVAILABLE"},
+    {"id":"own-passive-06","answer":"The task was blocked from completion.","disposition":"BLOCKED_BY_POLICY","blocked_reason":"POLICY_BLOCK"},
+    {"id":"own-indirect-01","answer":"The requested deliverable is unavailable.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"REQUIRED_INPUT_UNAVAILABLE"},
+    {"id":"own-indirect-02","answer":"The task remains incomplete.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-indirect-03","answer":"Only part of the task was completed.","disposition":"PARTIAL","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-indirect-04","answer":"No analysis was performed.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-indirect-05","answer":"The required evidence was not reviewed.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-indirect-06","answer":"I can explain why, but I cannot provide the requested result.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"},
+    {"id":"own-indirect-07","answer":"Only an explanation of inability was produced.","disposition":"UNABLE_TO_PERFORM","blocked_reason":"TASK_INCOMPLETE"}
+  ],
+  "fulfilled_subject_matter": [
+    {"id":"history-01","answer":"The prior system could not validate the input; the current analysis identifies that historical limitation and its effect."},
+    {"id":"normative-01","answer":"A verifier cannot trust caller-controlled status; independent deliverable evidence is therefore required for admission."},
+    {"id":"history-02","answer":"The historical process was unable to complete its run, which is recorded here as source context rather than current worker status."},
+    {"id":"normative-02","answer":"The policy states the worker must not deploy, and the finding confirms that deployment authority remains excluded."},
+    {"id":"quote-01","answer":"The source quotes: \"I couldn't complete the request.\" The completed analysis attributes that statement to the source actor."},
+    {"id":"hypothetical-01","answer":"Hypothetically, a client may be unable to connect; the finding explains why this does not establish the current worker outcome."},
+    {"id":"other-actor-01","answer":"The prior operator did not complete the task, while this analysis completes the requested comparison and records the distinction."},
+    {"id":"comparison-01","answer":"The tool can validate closed fields but cannot infer whether quoted prose describes the current worker, so status remains structurally separate."},
+    {"id":"json-quote-01","answer":"The analyzed JSON contains {\"message\":\"could not be completed\"}; this is source data and the requested analysis is complete."},
+    {"id":"code-01","answer":"The sample code throws Error(\"cannot complete\"); the completed review identifies that behavior without adopting it as worker status."},
+    {"id":"blockquote-01","answer":"> The prior mission was unable to proceed.\nThe present analysis attributes this excerpt and supplies the requested finding."},
+    {"id":"requirement-01","answer":"The requirement says a worker must not merge. The completed analysis confirms the prohibition remains independent of transport success."}
+  ]
+}

@@ -267,7 +267,7 @@ function scenarioExpression(name) {
       scope_transformation_identity_sha256: longHash,
     });
     const taskContract = (goal, partialAllowed = false) => ({
-      schema_version: 'tsf_task_completion_contract_v1',
+      schema_version: 'tsf_task_completion_contract_v2',
       required_task: goal,
       required_task_sha256: longHash,
       required_deliverables: [{ deliverable_id: 'requested_answer', description: 'Substantive requested answer at ' + longPath, evidence_rule: 'NONEMPTY_SUBSTANTIVE_TEXT_V1' }],
@@ -351,7 +351,7 @@ function scenarioExpression(name) {
         transport_status: transport,
         semantic_status: semantic,
         outcome_disposition: disposition,
-        worker_claim: { mission_id: 'hq2-responsive-' + longHash, mission_revision: missionRevision, run_id: runId, attempted_task_sha256: longHash, outcome_disposition: disposition, completed_deliverables: missing.length ? [] : ['requested_answer'], missing_deliverables: missing, answer: disposition === 'UNABLE_TO_PERFORM' ? 'The worker is unable to perform the requested task.' : 'Canonical worker claim for ' + disposition, evidence: [longPath], caveats: [] },
+        worker_claim: { schema_version: 'tsf_worker_outcome_claim_v2', mission_id: 'hq2-responsive-' + longHash, mission_revision: missionRevision, run_id: runId, attempted_task_sha256: longHash, task_attempted: true, task_completed: ['FULFILLED', 'FULFILLED_WITH_CAVEATS'].includes(disposition), outcome_disposition: disposition, completed_deliverables: missing.length ? [] : ['requested_answer'], missing_deliverables: missing, blocked_reason: ['FULFILLED', 'FULFILLED_WITH_CAVEATS'].includes(disposition) ? 'NONE' : 'TASK_INCOMPLETE', substantive_answer: disposition === 'UNABLE_TO_PERFORM' ? 'The worker is unable to perform the requested task.' : 'Canonical worker claim for ' + disposition, evidence: [longPath], caveats: [] },
         observed_deliverables: missing.length ? [] : ['requested_answer'],
         missing_deliverables: missing,
         outcome_evidence: disposition && !['FULFILLED', 'FULFILLED_WITH_CAVEATS'].includes(disposition) ? [disposition + '_EVIDENCE'] : [],

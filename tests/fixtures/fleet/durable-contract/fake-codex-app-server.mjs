@@ -9,8 +9,22 @@ function promptValue(prompt, name, fallback = "") {
 }
 function generalResult(prompt, disposition) {
   const fulfilled = disposition === "FULFILLED";
+  const structured = prompt.includes('The deliverable profile is "STRUCTURED_ANALYSIS_V2"');
+  const deliverables = structured
+    ? ["evidence_references", "findings", "limitations", "summary"]
+    : ["requested_answer"];
+  const structuredAnswer = JSON.stringify({
+    summary: "The bounded TSF policy manifest fixture is structurally verified.",
+    findings: [
+      "The schema_version field is tsf_policy_manifest_v1.",
+      "The fixture is mission-bound.",
+      "The result uses deterministic structured deliverables.",
+    ],
+    evidence_references: ["fleet/control/policy-manifest.v1.json#schema_version"],
+    limitations: "This fake app-server result is limited to deterministic local fixture evidence.",
+  });
   return JSON.stringify({
-    schema_version: "tsf_worker_outcome_claim_v1",
+    schema_version: "tsf_worker_outcome_claim_v2",
     mission_id: promptValue(prompt, "mission_id", "missing-mission"),
     mission_revision: Number(promptValue(prompt, "mission_revision", "0")),
     run_id: promptValue(prompt, "run_id", "missing-run"),
@@ -18,10 +32,15 @@ function generalResult(prompt, disposition) {
     original_intent_identity_sha256: promptValue(prompt, "original_intent_identity_sha256", "0".repeat(64)),
     scope_transformation_identity_sha256: promptValue(prompt, "scope_transformation_identity_sha256", "0".repeat(64)),
     attempted_task_sha256: promptValue(prompt, "attempted_task_sha256", "0".repeat(64)),
+    task_attempted: true,
+    task_completed: fulfilled,
     outcome_disposition: disposition,
-    completed_deliverables: fulfilled ? ["requested_answer"] : [],
-    missing_deliverables: fulfilled ? [] : ["requested_answer"],
-    answer: fulfilled ? "The bounded TSF fixture analysis found schema_version tsf_policy_manifest_v1." : "",
+    completed_deliverables: fulfilled ? deliverables : [],
+    missing_deliverables: fulfilled ? [] : deliverables,
+    blocked_reason: fulfilled ? "NONE" : disposition === "REQUIRED_DELIVERABLE_MISSING" ? "REQUIRED_DELIVERABLE_MISSING" : "TASK_INCOMPLETE",
+    substantive_answer: fulfilled
+      ? (structured ? structuredAnswer : "The bounded TSF fixture analysis found schema_version tsf_policy_manifest_v1.")
+      : "",
     evidence: fulfilled ? ["fleet/control/policy-manifest.v1.json: schema_version=tsf_policy_manifest_v1"] : ["The controlled fixture did not perform the requested analysis."],
     caveats: [],
   });

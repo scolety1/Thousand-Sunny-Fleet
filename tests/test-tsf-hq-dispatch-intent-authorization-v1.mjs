@@ -76,6 +76,7 @@ try {
         request_hash: preview.json.request_hash,
         intent: "CREATE_GOVERNED_MISSION",
         submission_id: preview.json.submission_id,
+        result_contract_confirmation: "NOT_REQUIRED",
       },
     });
     equal(submission.status, 422, `blocked preview cannot create a mission or queue record: ${naturalRequest}`);

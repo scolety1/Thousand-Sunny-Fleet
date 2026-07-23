@@ -125,7 +125,7 @@ async function responseAdapter({ input }) {
 }
 
 function submission(natural, preview) {
-  return { natural_request: natural, preview_id: preview.preview_id, preview_sha256: preview.preview_sha256, request_hash: preview.request_hash, intent: "CREATE_GOVERNED_MISSION", submission_id: preview.submission_id };
+  return { natural_request: natural, preview_id: preview.preview_id, preview_sha256: preview.preview_sha256, request_hash: preview.request_hash, intent: "CREATE_GOVERNED_MISSION", submission_id: preview.submission_id, result_contract_confirmation: preview.result_contract_selection?.operator_confirmation_required ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE" : "NOT_REQUIRED" };
 }
 
 async function createTim(server, natural) {
