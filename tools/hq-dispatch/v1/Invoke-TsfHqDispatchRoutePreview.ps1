@@ -18,7 +18,7 @@ $modelPolicyPath = Join-Path $repoRoot "fleet\control\model-routing-alias-policy
 $semanticIntegrityPath = Join-Path $repoRoot "tools\TsfSemanticIntegrity.ps1"
 $originalIntentSchemaPath = Join-Path $repoRoot "fleet\control\original-operator-intent.schema.v1.json"
 $scopeTransformationSchemaPath = Join-Path $repoRoot "fleet\control\scope-transformation.schema.v1.json"
-$taskCompletionSchemaPath = Join-Path $repoRoot "fleet\control\task-completion-contract.schema.v1.json"
+$taskCompletionSchemaPath = Join-Path $repoRoot "fleet\control\task-completion-contract.schema.v2.json"
 
 foreach ($requiredPath in @(
     $requestSchemaPath,
@@ -324,7 +324,7 @@ $sourceSpecs = @(
     [pscustomobject]@{ path = "fleet/control/model-routing-alias-policy.v1.json"; full_path = $modelPolicyPath },
     [pscustomobject]@{ path = "fleet/control/original-operator-intent.schema.v1.json"; full_path = $originalIntentSchemaPath },
     [pscustomobject]@{ path = "fleet/control/scope-transformation.schema.v1.json"; full_path = $scopeTransformationSchemaPath },
-    [pscustomobject]@{ path = "fleet/control/task-completion-contract.schema.v1.json"; full_path = $taskCompletionSchemaPath }
+    [pscustomobject]@{ path = "fleet/control/task-completion-contract.schema.v2.json"; full_path = $taskCompletionSchemaPath }
 )
 $registrySources = @($sourceSpecs | ForEach-Object {
     [pscustomobject]@{
@@ -434,6 +434,33 @@ for ($attempt = 1; $attempt -le 8; $attempt++) {
     $proposedOperations = if ($null -ne $exactResponseContract) { @('RETURN_RESULT') } else { @('READ_ANALYSIS','RETURN_RESULT') }
     $scopeTransformation = New-TsfScopeTransformationContract -OriginalIntent $originalIntent -AuthorizedMissionGoal $naturalRequest -ProposedOperations $proposedOperations -ProposedAccess 'READ_ONLY' -RepositoryTarget $repoRoot -WorktreeTarget $repoRoot -DetachedHead:$detachedHead
     $taskCompletionContract = if ($null -eq $exactResponseContract -and [bool]$scopeTransformation.queue_allowed) { New-TsfTaskCompletionContract -RequiredTask $naturalRequest -OriginalIntent $originalIntent -ScopeTransformation $scopeTransformation } else { $null }
+    $resultContractSelection = if ($null -ne $exactResponseContract) {
+        [pscustomobject][ordered]@{
+            schema_version = 'tsf_result_contract_selection_v1'
+            result_validation_mode = 'EXACT_LITERAL_V1'
+            result_contract_class = 'EXACT_LITERAL_DETERMINISTIC'
+            admission_eligibility = 'ADMISSIBLE_WHEN_VERIFIED'
+            operator_confirmation_required = $false
+            non_admission_reason = $null
+            exact_next_action = 'Submit the exact-literal mission; admission still requires independent byte-for-byte verification.'
+            task_completion_contract_identity_sha256 = $null
+            exact_response_contract_identity_sha256 = [string]$exactResponseContract.semantic_contract_sha256
+        }
+    } elseif ($null -ne $taskCompletionContract) {
+        [pscustomobject][ordered]@{
+            schema_version = 'tsf_result_contract_selection_v1'
+            result_validation_mode = 'GENERAL_RESULT_V2'
+            result_contract_class = [string]$taskCompletionContract.result_contract_class
+            admission_eligibility = [string]$taskCompletionContract.admission_eligibility
+            operator_confirmation_required = [bool]$taskCompletionContract.operator_confirmation_required
+            non_admission_reason = $taskCompletionContract.non_admission_reason
+            exact_next_action = [string]$taskCompletionContract.exact_next_action
+            task_completion_contract_identity_sha256 = [string]$taskCompletionContract.task_completion_contract_identity_sha256
+            exact_response_contract_identity_sha256 = $null
+        }
+    } else {
+        $null
+    }
     foreach ($contractCheck in @(
         [pscustomobject]@{value=$originalIntent;schema=$originalIntentSchemaPath;name='original intent'},
         [pscustomobject]@{value=$scopeTransformation;schema=$scopeTransformationSchemaPath;name='scope transformation'}
@@ -453,6 +480,7 @@ for ($attempt = 1; $attempt -le 8; $attempt++) {
         record_kind = "hq_dispatch_route_preview"
         preview_id = $previewId
         result_validation_mode = $(if ($null -ne $exactResponseContract) { 'EXACT_LITERAL_V1' } else { 'GENERAL_RESULT_V2' })
+        result_contract_selection = $resultContractSelection
         exact_response_contract = $exactResponseContract
         original_operator_intent = $originalIntent
         scope_transformation = $scopeTransformation

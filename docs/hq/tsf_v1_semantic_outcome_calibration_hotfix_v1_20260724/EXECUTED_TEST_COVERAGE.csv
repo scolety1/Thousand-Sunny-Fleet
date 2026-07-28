@@ -1,0 +1,17 @@
+phase,command,status,exit_code,assertions_or_cases,evidence
+working,powershell -File tests/Test-TsfGeneralResultIntentIntegrityV1.ps1,PASS,0,140,TSF_GENERAL_RESULT_INTENT_INTEGRITY_PASS
+working,powershell -File tests/Test-TsfSemanticOutcomeCalibrationV1.ps1,PASS,0,136,TSF_SEMANTIC_OUTCOME_CALIBRATION_PASS
+working,powershell -File tests/Test-TsfGeneralResultKernelVerifierV1.ps1,PASS,0,13,TSF_GENERAL_RESULT_KERNEL_VERIFIER_PASS
+working,node tests/test-tsf-hq-dispatch-route-preview-v1.mjs,PASS,0,189,NODE_INTEGRATION_PASS
+working,node tests/test-tsf-hq-dispatch-intent-authorization-v1.mjs,PASS,0,149,TSF_HQ_DISPATCH_INTENT_AUTHORIZATION_PASS
+working,node tests/test-tsf-hq-dispatch-request-result-relay-v1.mjs,PASS,0,122,HQ_DISPATCH_M2_NODE_PASS
+working,node tests/test-tsf-hq-dispatch-responsive-layout-v1.mjs,PASS,0,1086,responsive-layout-result.json
+working,powershell -File tests/run-tsf-canonical-runtime-app-server-tests.ps1,PASS,0,154,Canonical vertical-slice tests passed
+working,powershell -File tests/run-tsf-final-three-authority-tests.ps1,PASS,0,34,tsf_final_three_authority_test_result_v1
+working,powershell -File tests/run-tsf-semantic-outcome-targeted-soak-v3.ps1,PASS,0,12,2bfe370b2c3853b7d6bf47aae92c62ad1e2eaa8e2fda2d363b944f79211ff111
+exact-db2aff8,powershell -File tests/run-tsf-semantic-outcome-targeted-soak-v3.ps1,PASS,0,12,3818748cd9c36b32df535af6406b92047591e87f18aaf42b48ad09e2ac55d14a
+exact-db2aff8,powershell -File tests/run-tsf-v1-final-acceptance-v1.ps1 -SkipRealAppServerProof,HOST_PROCESS_CRASH,1,29-of-30,"all direct gates pass; M3 child exit -1073740791 before output"
+exact-db2aff8,node tests/test-tsf-hq-dispatch-request-result-relay-v1.mjs,PASS,0,122,HQ_DISPATCH_M2_NODE_PASS
+exact-db2aff8,powershell -File tests/run-tsf-hq-dispatch-reliability-v1.ps1 -Milestone4Acceptance,PASS,0,aggregate,b62cfc9917838253775b6ac0ba939473d5a8347e63a4c2175c9d7019bec8ba58
+working-array-fix,powershell -File tests/run-tsf-canonical-runtime-app-server-tests.ps1,PASS,0,154,e2589c64ba0a3e53e3a6fd20dbd1cd1ec1f2f2d05f7f83d723654d6868c1430c
+working-array-fix,powershell -File tests/run-tsf-canonical-runtime-app-server-tests.ps1 -RunLiveReadOnly -RunLiveStructuredAnalysis,PASS,0,175,5c87daeb9db2c9a19571da71668083f57fb86db8f3f4918d4383b17177043214

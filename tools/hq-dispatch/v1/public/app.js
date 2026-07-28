@@ -216,11 +216,29 @@ function previewIsSubmittable(preview) {
     && preview?.scope_transformation?.operator_confirmation_required === false;
 }
 
+function resultContractConfirmation(preview) {
+  return preview?.result_contract_selection?.operator_confirmation_required === true
+    ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE"
+    : "NOT_REQUIRED";
+}
+
 function originalRequestFulfillmentLabel(status, disposition, validationMode) {
-  if (["FULFILLED", "FULFILLED_WITH_CAVEATS"].includes(disposition)) return disposition;
+  if (status.task_completion_contract?.result_contract_class === "STRUCTURAL_TEXT_ONLY") {
+    return "UNFULFILLED_GENERIC_TEXT_UNVERIFIED";
+  }
+  const admitted = ["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(status.admission?.verdict);
+  const verifierGreen = status.verifier?.verdict === "GREEN";
+  const semanticFulfilled = status.result?.semantic_status === "FULFILLED";
+  if (
+    validationMode === "GENERAL_RESULT_V2"
+    && ["FULFILLED", "FULFILLED_WITH_CAVEATS"].includes(disposition)
+    && admitted
+    && verifierGreen
+    && semanticFulfilled
+  ) return disposition;
   if (disposition === "PARTIAL") return "PARTIALLY_FULFILLED";
   if (disposition) return "UNFULFILLED";
-  if (validationMode === "EXACT_LITERAL_V1" && ["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(status.admission?.verdict)) {
+  if (validationMode === "EXACT_LITERAL_V1" && admitted) {
     return "FULFILLED_BY_EXACT_LITERAL_ADMISSION";
   }
   if (["REJECTED", "FAILED", "TIM_REQUIRED", "INTERRUPTED"].includes(status.state)) return "UNFULFILLED";
@@ -235,9 +253,23 @@ function outcomePresentation(status) {
     ?? null;
   const exactAdmitted = validationMode === "EXACT_LITERAL_V1"
     && ["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(status.admission?.verdict);
-  const label = disposition ?? (exactAdmitted ? "FULFILLED (EXACT_LITERAL_V1)" : "UNCLASSIFIED_RESULT");
+  const generalAdmitted = validationMode === "GENERAL_RESULT_V2"
+    && ["FULFILLED", "FULFILLED_WITH_CAVEATS"].includes(disposition)
+    && ["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(status.admission?.verdict)
+    && status.verifier?.verdict === "GREEN"
+    && status.result?.semantic_status === "FULFILLED";
+  const genericStructuralOnly = status.task_completion_contract?.result_contract_class === "STRUCTURAL_TEXT_ONLY";
+  const unadmittedAffirmativeClaim = validationMode === "GENERAL_RESULT_V2"
+    && ["FULFILLED", "FULFILLED_WITH_CAVEATS"].includes(disposition)
+    && !generalAdmitted;
+  const label = genericStructuralOnly
+    ? "GENERIC_TEXT_RECEIVED_FULFILLMENT_UNVERIFIED"
+    : unadmittedAffirmativeClaim
+    ? "FULFILLMENT_NOT_ADMITTED"
+    : disposition ?? (exactAdmitted ? "FULFILLED (EXACT_LITERAL_V1)" : "UNCLASSIFIED_RESULT");
   let className = "outcome-pending";
-  if (label === "FULFILLED") className = "outcome-success";
+  if (genericStructuralOnly) className = "outcome-caveat";
+  else if (label === "FULFILLED") className = "outcome-success";
   else if (label === "FULFILLED_WITH_CAVEATS" || exactAdmitted) className = "outcome-caveat";
   else if (label === "PARTIAL") className = "outcome-partial";
   else if (["BLOCKED_BY_POLICY", "NEEDS_CLARIFICATION"].includes(label) || status.state === "TIM_REQUIRED") className = "outcome-blocked";
@@ -348,6 +380,7 @@ function renderPreview(preview) {
   setText("#artifact-path", preview.artifact.relative_path);
   setText("#response-contract-preview", pretty({
     validation_mode: preview.result_validation_mode,
+    result_contract_selection: preview.result_contract_selection,
     contract: preview.exact_response_contract,
     task_completion_contract: preview.task_completion_contract,
     worker_success_is_sufficient: false,
@@ -360,10 +393,13 @@ function renderPreview(preview) {
   intentConfirm.checked = false;
   intentConfirm.disabled = !reviewedPreviewCanSubmit;
   missionSubmit.disabled = true;
+  const contractNotice = preview.result_contract_selection?.admission_eligibility === "INFORMATIONAL_NON_ADMISSIBLE"
+    ? ` Response received under this contract will be preserved but cannot prove fulfillment or create an admission receipt. ${preview.result_contract_selection.exact_next_action}`
+    : "";
   setText(
     "#governed-submit-status",
     reviewedPreviewCanSubmit
-      ? "Eligible for submission revalidation. Submission grants no approval."
+      ? `Eligible for submission revalidation. Submission grants no approval.${contractNotice}`
       : `Blocked before execution. No queue, worker, verifier, or admission exists. ${preview.scope_transformation?.exact_next_action ?? "Operator authority decision required."}`,
   );
   document.querySelector(".governed-submit")?.classList.toggle("is-gated", !reviewedPreviewCanSubmit);
@@ -420,7 +456,18 @@ function renderMission(status) {
     lifecycle_worker_status: status.worker?.status ?? null,
     transport_completed_is_not_fulfillment: true,
     child_exited: status.worker?.child_exited ?? null,
-    worker_claim: status.result?.worker_claim ?? status.worker?.claim ?? null,
+    structured_outcome_claim: status.result?.worker_claim ? {
+      schema_version: status.result.worker_claim.schema_version,
+      task_attempted: status.result.worker_claim.task_attempted,
+      task_completed: status.result.worker_claim.task_completed,
+      outcome_disposition: status.result.worker_claim.outcome_disposition,
+      blocked_reason: status.result.worker_claim.blocked_reason,
+      substantive_answer: status.result.worker_claim.substantive_answer,
+      completed_deliverables: status.result.worker_claim.completed_deliverables,
+      missing_deliverables: status.result.worker_claim.missing_deliverables,
+      caveats: status.result.worker_claim.caveats,
+    } : null,
+    worker_claim_is_not_verifier_or_admission_authority: true,
     worker_identity: status.worker ? {
       thread_id: status.worker.thread_id,
       turn_id: status.worker.turn_id,
@@ -439,6 +486,15 @@ function renderMission(status) {
     outcome_evidence: status.result?.outcome_evidence ?? [],
     worker_message_alone_is_fulfillment: false,
     nonempty_response_alone_is_fulfillment: false,
+    fulfilled_label_requires_verifier_green_and_admission: true,
+    generic_text_operator_message: status.task_completion_contract?.result_contract_class === "STRUCTURAL_TEXT_ONLY"
+      ? "Response received. Task fulfillment could not be independently verified from this result contract. The response was preserved but not admitted."
+      : null,
+    result_contract_class: status.task_completion_contract?.result_contract_class ?? null,
+    admission_eligibility: status.task_completion_contract?.admission_eligibility ?? null,
+    non_admission_reason: status.task_completion_contract?.non_admission_reason ?? null,
+    no_admission_receipt: status.admission == null,
+    exact_next_action: status.task_completion_contract?.exact_next_action ?? status.next_action,
     source: status.result?.durable_result_path ?? null,
   }));
   setText("#mission-verifier", pretty({
@@ -457,6 +513,10 @@ function renderMission(status) {
   }));
   setText("#mission-deliverables", pretty({
     required_task: status.task_completion_contract?.required_task ?? null,
+    deliverable_profile: status.task_completion_contract?.deliverable_profile ?? null,
+    result_contract_class: status.task_completion_contract?.result_contract_class ?? null,
+    admission_eligibility: status.task_completion_contract?.admission_eligibility ?? null,
+    non_admission_reason: status.task_completion_contract?.non_admission_reason ?? null,
     required_deliverables: status.task_completion_contract?.required_deliverables ?? [],
     observed_deliverables: status.result?.observed_deliverables ?? [],
     missing_deliverables: status.result?.missing_deliverables ?? [],
@@ -629,6 +689,7 @@ missionSubmit.addEventListener("click", async () => {
         request_hash: reviewedPreview.request_hash,
         intent: "CREATE_GOVERNED_MISSION",
         submission_id: reviewedPreview.submission_id,
+        result_contract_confirmation: resultContractConfirmation(reviewedPreview),
       }),
     });
     const payload = await response.json();

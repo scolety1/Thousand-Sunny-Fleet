@@ -16,7 +16,7 @@ function Get-ClosedInput {
     if ([Text.Encoding]::UTF8.GetByteCount($raw) -gt 16384) { throw 'HQ_SUBMISSION_INPUT_TOO_LARGE' }
     try { $value = $raw | ConvertFrom-Json -ErrorAction Stop } catch { throw 'HQ_SUBMISSION_INPUT_INVALID_JSON' }
     $allowed = @(
-        'mission_id','mission_revision','natural_request','preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract','parent_mission_revision','source_result_id','tim_required_request_id','response_id','response_record_sha256',
+        'mission_id','mission_revision','natural_request','preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract','result_contract_confirmation','parent_mission_revision','source_result_id','tim_required_request_id','response_id','response_record_sha256',
         'recovery_parent_mission_id','recovery_parent_mission_revision','recovery_parent_run_id','recovery_source_evidence_sha256','recovery_evidence_directory'
     )
     $unknown = @($value.PSObject.Properties.Name | Where-Object { $allowed -notcontains $_ })
@@ -146,7 +146,7 @@ if ($isRevision) {
     $taskCompletionContract = $recoverySourceMission.task_completion_contract
     $resultValidationMode = [string]$recoverySourceMission.result_validation_mode
 } else {
-    $previewFields = @('preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract')
+    $previewFields = @('preview_id','preview_sha256','request_hash','submission_id','reviewed_exact_response_contract','result_contract_confirmation')
     $presentPreviewFieldCount = @($previewFields | Where-Object { $inputValue.PSObject.Properties.Name -contains $_ }).Count
     if ($presentPreviewFieldCount -gt 0 -and $presentPreviewFieldCount -lt $previewFields.Count) { throw 'HQ_SUBMISSION_PARTIAL_PREVIEW_BINDING_REJECTED' }
     $hasPreviewBinding = $presentPreviewFieldCount -eq $previewFields.Count
@@ -183,6 +183,15 @@ if ($isRevision) {
         $originalIntent = $storedPreview.original_operator_intent
         $scopeTransformation = $storedPreview.scope_transformation
         $taskCompletionContract = $storedPreview.task_completion_contract
+        $resultContractSelection = $storedPreview.result_contract_selection
+        if ($null -eq $resultContractSelection -or [string]$resultContractSelection.schema_version -ne 'tsf_result_contract_selection_v1' -or [string]$resultContractSelection.result_validation_mode -ne $resultValidationMode) { throw 'HQ_SUBMISSION_RESULT_CONTRACT_SELECTION_INVALID' }
+        if ($resultValidationMode -eq 'EXACT_LITERAL_V1') {
+            if ([string]$resultContractSelection.result_contract_class -ne 'EXACT_LITERAL_DETERMINISTIC' -or [string]$resultContractSelection.admission_eligibility -ne 'ADMISSIBLE_WHEN_VERIFIED' -or [bool]$resultContractSelection.operator_confirmation_required -or [string]$resultContractSelection.exact_response_contract_identity_sha256 -ne [string]$storedContract.semantic_contract_sha256 -or $null -ne $resultContractSelection.task_completion_contract_identity_sha256) { throw 'HQ_SUBMISSION_EXACT_RESULT_CONTRACT_SELECTION_CHANGED' }
+        } else {
+            if ($null -eq $taskCompletionContract -or [string]$resultContractSelection.result_contract_class -ne [string]$taskCompletionContract.result_contract_class -or [string]$resultContractSelection.admission_eligibility -ne [string]$taskCompletionContract.admission_eligibility -or [bool]$resultContractSelection.operator_confirmation_required -ne [bool]$taskCompletionContract.operator_confirmation_required -or [string]$resultContractSelection.task_completion_contract_identity_sha256 -ne [string]$taskCompletionContract.task_completion_contract_identity_sha256 -or $null -ne $resultContractSelection.exact_response_contract_identity_sha256) { throw 'HQ_SUBMISSION_GENERAL_RESULT_CONTRACT_SELECTION_CHANGED' }
+        }
+        $expectedResultContractConfirmation = if ([bool]$resultContractSelection.operator_confirmation_required) { 'CONFIRM_INFORMATIONAL_NON_ADMISSIBLE' } else { 'NOT_REQUIRED' }
+        if ([string]$inputValue.result_contract_confirmation -cne $expectedResultContractConfirmation) { throw 'HQ_SUBMISSION_RESULT_CONTRACT_CONFIRMATION_REQUIRED_OR_CHANGED' }
         if ([string]$storedPreview.submission_gate -ne 'SUBMITTABLE_AFTER_REVALIDATION' -or ![bool]$scopeTransformation.queue_allowed -or [bool]$scopeTransformation.operator_confirmation_required) { throw 'HQ_SUBMISSION_SCOPE_REDUCTION_REQUIRES_OPERATOR_DECISION_NO_QUEUE' }
     } elseif ($null -ne (Get-TsfExactResponseLiteralFromRequest -NaturalRequest $naturalRequest)) {
         throw 'HQ_TEST_EXACT_RESPONSE_REQUIRES_REVIEWED_PREVIEW'
@@ -217,7 +226,7 @@ if ($null -ne $storedPreview) {
     if ($resultValidationMode -eq 'GENERAL_RESULT_V2') {
         $expectedCompletion = New-TsfTaskCompletionContract -RequiredTask $naturalRequest -OriginalIntent $originalIntent -ScopeTransformation $scopeTransformation
         if ($null -eq $taskCompletionContract -or (Get-TsfContractJsonHash $expectedCompletion) -ne (Get-TsfContractJsonHash $taskCompletionContract)) { throw 'HQ_SUBMISSION_TASK_COMPLETION_CONTRACT_CHANGED' }
-        $completionValidation=Test-TsfJsonContract $taskCompletionContract (Join-Path $repoRoot 'fleet\control\task-completion-contract.schema.v1.json')
+        $completionValidation=Test-TsfJsonContract $taskCompletionContract (Join-Path $repoRoot 'fleet\control\task-completion-contract.schema.v2.json')
         if(!$completionValidation.valid){throw "HQ_SUBMISSION_TASK_COMPLETION_CONTRACT_INVALID: $($completionValidation.errors -join '; ')"}
     } elseif ($null -ne $taskCompletionContract) { throw 'HQ_SUBMISSION_EXACT_LITERAL_TASK_CONTRACT_SUBSTITUTED' }
 }

@@ -2,6 +2,7 @@
 param(
     [string]$EvidenceRoot = 'docs/hq/tsf_canonical_runtime_app_server_vertical_slice_v1_20260711',
     [switch]$RunLiveReadOnly,
+    [switch]$RunLiveStructuredAnalysis,
     [switch]$RunLiveWorkspaceWrite
 )
 $ErrorActionPreference='Stop'
@@ -35,7 +36,7 @@ $head=[string]$gitState.head
 $fingerprint=Get-TsfPolicyFingerprint (Join-Path $repo 'fleet\control\policy-manifest.v1.json') $repo -UnsupportedDevelopmentMode
 
 function New-CanonicalMission {
-    param([string]$Id,[string]$Repository,[string]$ExpectedBranch,[string]$StartingHead,[switch]$WorkspaceWrite)
+    param([string]$Id,[string]$Repository,[string]$ExpectedBranch,[string]$StartingHead,[switch]$WorkspaceWrite,[string]$GeneralTask='')
     $created=[datetimeoffset]::UtcNow
     $role=if($WorkspaceWrite){'builder_worker'}else{'auditor_worker'}
     $alias=if($WorkspaceWrite){'BALANCED'}else{'FAST'}
@@ -45,7 +46,7 @@ function New-CanonicalMission {
     $reads=if($WorkspaceWrite){@('input')}else{@('fleet/control/policy-manifest.v1.json')}
     $writes=if($WorkspaceWrite){@('output')}else{@()}
     $artifact=if($WorkspaceWrite){'output/result.txt'}else{'fleet/control/policy-manifest.v1.json'}
-    $goal=if($WorkspaceWrite){'Create output/result.txt with exactly: TSF workspace-write round trip complete. Do not modify any other file.'}else{'Read fleet/control/policy-manifest.v1.json and return its schema_version as the requested answer.'}
+    $goal=if($WorkspaceWrite){'Create output/result.txt with exactly: TSF workspace-write round trip complete. Do not modify any other file.'}elseif(![string]::IsNullOrWhiteSpace($GeneralTask)){$GeneralTask}else{'Analyze fleet/control/policy-manifest.v1.json and return a summary, at least three findings, evidence references, and limitations, including its schema_version.'}
     $originalIntent=$null;$scopeTransformation=$null;$taskCompletionContract=$null;$resultValidationMode=$null
     if(!$WorkspaceWrite){
         $previewId='hq-preview-'+(Get-TsfContractJsonHash ([pscustomobject]@{mission_id=$Id})).Substring(0,32)
@@ -174,6 +175,7 @@ Echo task_completion_contract_identity_sha256 "$([string]$readMission.task_compl
 Echo original_intent_identity_sha256 "$([string]$readMission.task_completion_contract.original_intent_identity_sha256)".
 Echo scope_transformation_identity_sha256 "$([string]$readMission.task_completion_contract.scope_transformation_identity_sha256)".
 Echo attempted_task_sha256 "$([string]$readMission.task_completion_contract.required_task_sha256)".
+The deliverable profile is "$([string]$readMission.task_completion_contract.deliverable_profile)".
 "@
 Set-Content -LiteralPath $promptPath -Value $mapperPrompt -Encoding UTF8
 $mapperAdapter=Invoke-FakeAdapter general-success $readMission.mission_id $readMission.mission_revision $readMission.policy.fingerprint $mapperQueueHash $repo $readMission.model_selection_assurance
@@ -184,7 +186,7 @@ $unableEvidence=Get-TsfGeneralResultV2Evidence -MissionId $readMission.mission_i
 Assert-Case 'VS-GENERAL-002' evidence ([bool]$unableAdapter.result.transport_success-and![bool]$unableEvidence.semantic_success-and[string]$unableEvidence.outcome_disposition-eq'UNABLE_TO_PERFORM') 'transport-successful inability is not semantic fulfillment'
 $missingAdapter=Invoke-FakeAdapter general-missing $readMission.mission_id $readMission.mission_revision $readMission.policy.fingerprint $mapperQueueHash $repo $readMission.model_selection_assurance
 $missingEvidence=Get-TsfGeneralResultV2Evidence -MissionId $readMission.mission_id -MissionRevision $readMission.mission_revision -RunId $mapperRunId -Adapter $missingAdapter.result -TaskCompletionContract $readMission.task_completion_contract
-Assert-Case 'VS-GENERAL-003' evidence ([bool]$missingAdapter.result.transport_success-and![bool]$missingEvidence.semantic_success-and@($missingEvidence.missing_deliverables)-contains'requested_answer') 'missing required deliverable is not semantic fulfillment'
+Assert-Case 'VS-GENERAL-003' evidence ([bool]$missingAdapter.result.transport_success-and![bool]$missingEvidence.semantic_success-and@($missingEvidence.missing_deliverables)-contains'evidence_references') 'missing required structured deliverable is not semantic fulfillment'
 $mapperPreflightPath=Join-Path $mapperRoot 'preflight.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;preflight_approved=$true}) $mapperPreflightPath
 $mapperRolePath=Join-Path $mapperRoot 'role.json';Write-Json ([pscustomobject]@{role_id=$readMission.worker_role;role_preflight_approved=$true}) $mapperRolePath
 $mapperWorkerPath=Join-Path $mapperRoot 'worker.json';Write-Json ([pscustomobject]@{mission_id=$readMission.mission_id;mission_revision=$readMission.mission_revision;run_id=$mapperRunId;result_id=$mapperRunId;files_touched=@();general_result_evidence=$mapperGeneralEvidence;tests=@([pscustomobject]@{test_id='hq-dispatch-general-result-v2';status='PASS';observed='bound fulfilled general-result fixture';evidence=[string]$readMission.task_completion_contract.task_completion_contract_identity_sha256});approval_use=@()}) $mapperWorkerPath
@@ -435,7 +437,7 @@ function Invoke-LiveCase {
     return [pscustomobject]@{exit=$exit;output=$output;result=$result;mission=$Mission;document=$document;case_root=$caseRoot;queue_root=$queueRoot;ledger=$ledgerPath}
 }
 
-$readCase=$null;$writeCase=$null;$readGreen=$false
+$readCase=$null;$structuredCase=$null;$writeCase=$null;$readGreen=$false;$structuredGreen=$false
 if($RunLiveReadOnly){
     # The deterministic mapper fixture above deliberately occupies the canonical
     # result address for $readMission.  A real worker must have an independent
@@ -444,7 +446,7 @@ if($RunLiveReadOnly){
     $readCase=Invoke-LiveCase $readMission 'read-only';$readGreen=$readCase.exit-eq0-and$null-ne$readCase.result-and[string]$readCase.result.final_decision-eq'GREEN'
     Assert-Case 'VS-LIVE-RO-001' live_readonly $readGreen ($readCase.output -join ' ')
     if($readGreen){$lifecycle=Get-Content $readCase.result.lifecycle_result_path -Raw|ConvertFrom-Json;$adapter=Get-Content $lifecycle.adapter_result_path -Raw|ConvertFrom-Json;$durable=Get-Content $readCase.result.durable_result_path -Raw|ConvertFrom-Json;$claim=$adapter.final_response|ConvertFrom-Json
-        Assert-Case 'VS-LIVE-RO-002' live_readonly ($claim.schema_version-eq'tsf_worker_outcome_claim_v1'-and$claim.outcome_disposition-in@('FULFILLED','FULFILLED_WITH_CAVEATS')-and@($claim.completed_deliverables)-contains'requested_answer'-and@($claim.missing_deliverables).Count-eq0-and[string]$claim.answer-match'tsf_policy_manifest_v1'-and$durable.result_validation_mode-eq'GENERAL_RESULT_V2'-and$durable.transport_status-eq'SUCCEEDED'-and$durable.semantic_status-eq'FULFILLED'-and$durable.outcome_disposition-in@('FULFILLED','FULFILLED_WITH_CAVEATS')-and@($durable.missing_deliverables).Count-eq0) 'mission-bound GENERAL_RESULT_V2 answer fulfilled'
+        Assert-Case 'VS-LIVE-RO-002' live_readonly ($claim.schema_version-eq'tsf_worker_outcome_claim_v2'-and$claim.task_attempted-and$claim.task_completed-and$claim.blocked_reason-eq'NONE'-and$claim.outcome_disposition-in@('FULFILLED','FULFILLED_WITH_CAVEATS')-and@($claim.completed_deliverables)-contains'requested_answer'-and@($claim.missing_deliverables).Count-eq0-and[string]$claim.substantive_answer-match'tsf_policy_manifest_v1'-and$durable.result_validation_mode-eq'GENERAL_RESULT_V2'-and$durable.transport_status-eq'SUCCEEDED'-and$durable.semantic_status-eq'FULFILLED'-and$durable.outcome_disposition-in@('FULFILLED','FULFILLED_WITH_CAVEATS')-and@($durable.missing_deliverables).Count-eq0) 'mission-bound GENERAL_RESULT_V2 answer fulfilled'
         Assert-Case 'VS-LIVE-RO-003' live_readonly ($adapter.thread_id-and$adapter.turn_id-and$adapter.event_count-gt0) "$($adapter.thread_id):$($adapter.turn_id)"
         Assert-Case 'VS-LIVE-RO-004' live_readonly ($adapter.control_plane_service_network_policy-eq'CODEX_SERVICE_ONLY'-and$adapter.worker_tool_network_policy-eq'DISABLED'-and$adapter.codex_service_connection_used-and!$adapter.worker_network_used) 'network planes separated'
         Assert-Case 'VS-LIVE-RO-005' live_readonly ($adapter.child_exited-and$adapter.no_orphan_process) 'child cleanup'
@@ -465,6 +467,26 @@ if($RunLiveReadOnly){
     }
 }
 
+if($RunLiveStructuredAnalysis){
+    $structuredTask='Analyze these self-contained bounded statements: S1 "The prior system could not validate the input." S2 "A verifier cannot trust caller-controlled status." S3 "The policy says workers must not deploy." S4 "A prior operator may be unable to proceed without approval." Return a summary, at least three findings, evidence references to S1-S4, and limitations.'
+    $structuredMission=New-CanonicalMission "synthetic-tsf-live-structured-analysis-$testRunNonce" $repo $branch $head -GeneralTask $structuredTask
+    $structuredCase=Invoke-LiveCase $structuredMission 'structured-analysis';$structuredGreen=$structuredCase.exit-eq0-and$null-ne$structuredCase.result-and[string]$structuredCase.result.final_decision-eq'GREEN'
+    Assert-Case 'VS-LIVE-SA-001' live_structured_analysis $structuredGreen ($structuredCase.output-join' ')
+    if($structuredGreen){
+        $structuredLifecycle=Get-Content $structuredCase.result.lifecycle_result_path -Raw|ConvertFrom-Json
+        $structuredAdapter=Get-Content $structuredLifecycle.adapter_result_path -Raw|ConvertFrom-Json
+        $structuredDurable=Get-Content $structuredCase.result.durable_result_path -Raw|ConvertFrom-Json
+        $structuredClaim=$structuredAdapter.final_response|ConvertFrom-Json
+        $structuredAnswer=[string]$structuredClaim.substantive_answer|ConvertFrom-Json
+        $structuredIds=@($structuredMission.task_completion_contract.required_deliverables|ForEach-Object{[string]$_.deliverable_id}|Sort-Object)
+        Assert-Case 'VS-LIVE-SA-002' live_structured_analysis ($structuredMission.task_completion_contract.deliverable_profile-eq'STRUCTURED_ANALYSIS_V2'-and(@($structuredClaim.completed_deliverables|Sort-Object)-join'|')-eq($structuredIds-join'|')-and@($structuredDurable.observed_deliverables).Count-eq4-and@($structuredDurable.missing_deliverables).Count-eq0) 'all structured deliverables independently observed'
+        Assert-Case 'VS-LIVE-SA-003' live_structured_analysis ($structuredClaim.task_attempted-and$structuredClaim.task_completed-and$structuredClaim.blocked_reason-eq'NONE'-and$structuredClaim.outcome_disposition-in@('FULFILLED','FULFILLED_WITH_CAVEATS')-and$structuredDurable.semantic_status-eq'FULFILLED') 'closed worker status and canonical outcome agree'
+        Assert-Case 'VS-LIVE-SA-004' live_structured_analysis ($structuredAnswer.summary.Length-ge20-and@($structuredAnswer.findings).Count-ge3-and@($structuredAnswer.evidence_references).Count-ge1-and![string]::IsNullOrWhiteSpace([string]$structuredAnswer.limitations)) 'structured type and cardinality requirements hold'
+        Assert-Case 'VS-LIVE-SA-005' live_structured_analysis ($structuredCase.result.admission_status-eq'ADMITTED_WITH_CAVEATS'-and$structuredCase.result.final_queue_state-eq'complete_ready_for_gate'-and(Test-Path -LiteralPath $structuredCase.result.admission_receipt.admission_receipt_path)-and(Test-Path -LiteralPath $structuredCase.result.admission_receipt.transaction_receipt_path)) 'verifier, preservation, admission, and mandatory receipts succeed'
+        Assert-Case 'VS-LIVE-SA-006' live_structured_analysis ($structuredAdapter.control_plane_service_network_policy-eq'CODEX_SERVICE_ONLY'-and$structuredAdapter.worker_tool_network_policy-eq'DISABLED'-and$structuredAdapter.codex_service_connection_used-and!$structuredAdapter.worker_network_used-and$structuredAdapter.child_exited-and$structuredAdapter.no_orphan_process) 'network planes and cleanup remain bounded'
+    }
+}
+
 if($RunLiveWorkspaceWrite-and$readGreen){
     $writeRepo=Join-Path $runtimeRoot 'workspace-write-repo';New-Item -ItemType Directory -Force (Join-Path $writeRepo 'input'),(Join-Path $writeRepo 'output')|Out-Null;Set-Content -LiteralPath (Join-Path $writeRepo 'input\source.txt') -Value 'synthetic input';& git -C $writeRepo init -q;& git -C $writeRepo config user.email 'fixture@tsf.invalid';& git -C $writeRepo config user.name 'TSF Fixture';& git -C $writeRepo add .;& git -C $writeRepo commit -q -m fixture;$writeBranch=(& git -C $writeRepo branch --show-current).Trim();$writeHead=(& git -C $writeRepo rev-parse HEAD).Trim();$writeMission=New-CanonicalMission "synthetic-tsf-workspace-appserver-$testRunNonce" $writeRepo $writeBranch $writeHead -WorkspaceWrite
     $writeCase=Invoke-LiveCase $writeMission 'workspace-write';$writeGreen=$writeCase.exit-eq0-and$null-ne$writeCase.result-and[string]$writeCase.result.final_decision-eq'GREEN';Assert-Case 'VS-LIVE-WR-001' live_workspace_write $writeGreen ($writeCase.output-join' ')
@@ -473,8 +495,8 @@ if($RunLiveWorkspaceWrite-and$readGreen){
 
 $script:Results|Export-Csv (Join-Path $EvidenceRoot 'EXECUTED_TEST_COVERAGE.csv') -NoTypeInformation -Encoding UTF8
 $failed=@($script:Results|Where-Object status -ne 'PASS')
-$capability=[pscustomobject]@{schema_version='tsf_app_server_capability_report_v1';codex_version='0.144.1';transport='stdio://';experimental_api=$false;stable_methods=@('initialize','model/list','thread/start','turn/start');read_only_attempted=[bool]$RunLiveReadOnly;read_only_green=$readGreen;workspace_write_attempted=[bool]($RunLiveWorkspaceWrite-and$readGreen);question_relay_status='QUESTION_RELAY_DEFERRED_AFTER_AUTOMATIC_ROUND_TRIP'};Write-Json $capability (Join-Path $EvidenceRoot 'APP_SERVER_CAPABILITY_REPORT.json')
-$eventSummary=[pscustomobject]@{schema_version='tsf_app_server_event_summary_v1';read_only_thread_id=if($readGreen){[string]$readCase.result.thread_id}else{''};read_only_turn_id=if($readGreen){[string]$readCase.result.turn_id}else{''};workspace_thread_id=if($null-ne$writeCase-and$writeCase.result){[string]$writeCase.result.thread_id}else{''};workspace_turn_id=if($null-ne$writeCase-and$writeCase.result){[string]$writeCase.result.turn_id}else{''};all_children_exited=if($readGreen){[bool]$readCase.result.child_exited-and($null-eq$writeCase-or[bool]$writeCase.result.child_exited)}else{$false};no_orphan_process=if($readGreen){[bool]$readCase.result.no_orphan_process-and($null-eq$writeCase-or[bool]$writeCase.result.no_orphan_process)}else{$false}};Write-Json $eventSummary (Join-Path $EvidenceRoot 'APP_SERVER_EVENT_SUMMARY.json')
-$validation=[pscustomobject]@{schema_version='tsf_canonical_runtime_app_server_vertical_slice_validation_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');verdict=if($failed.Count){'RED'}elseif($RunLiveReadOnly-and$readGreen-and(!$RunLiveWorkspaceWrite-or$null-ne$writeCase)){'GREEN'}else{'YELLOW'};executed_assertion_count=$script:Results.Count;passed_assertion_count=@($script:Results|Where-Object status -eq 'PASS').Count;failed_assertion_count=$failed.Count;fingerprint=$fingerprint.fingerprint;fingerprint_content_source=$fingerprint.content_source;read_only_green=$readGreen;workspace_write_green=if($null-ne$writeCase-and$writeCase.result){[string]$writeCase.result.final_decision-eq'GREEN'}else{$false};control_plane_service_network_policy='CODEX_SERVICE_ONLY';worker_tool_network_policy='DISABLED';direct_openai_api_called_by_tsf=$false;external_api_called=$false;worker_network_used=$false;push_performed=$false;merge_performed=$false;package_installed=$false;listener_opened=$false;persistent_process_started=$false;work_integration_performed=$false;plugin_or_mcp_added=$false;nwr_accessed=$false;privatelens_content_accessed=$false;product_repository_mutated=$false;deployment_performed=$false};Write-Json $validation (Join-Path $EvidenceRoot 'VALIDATION.json')
+$capability=[pscustomobject]@{schema_version='tsf_app_server_capability_report_v1';codex_version='0.144.1';transport='stdio://';experimental_api=$false;stable_methods=@('initialize','model/list','thread/start','turn/start');read_only_attempted=[bool]$RunLiveReadOnly;read_only_green=$readGreen;structured_analysis_attempted=[bool]$RunLiveStructuredAnalysis;structured_analysis_green=$structuredGreen;workspace_write_attempted=[bool]($RunLiveWorkspaceWrite-and$readGreen);question_relay_status='QUESTION_RELAY_DEFERRED_AFTER_AUTOMATIC_ROUND_TRIP'};Write-Json $capability (Join-Path $EvidenceRoot 'APP_SERVER_CAPABILITY_REPORT.json')
+$eventSummary=[pscustomobject]@{schema_version='tsf_app_server_event_summary_v1';read_only_thread_id=if($readGreen){[string]$readCase.result.thread_id}else{''};read_only_turn_id=if($readGreen){[string]$readCase.result.turn_id}else{''};structured_thread_id=if($structuredGreen){[string]$structuredCase.result.thread_id}else{''};structured_turn_id=if($structuredGreen){[string]$structuredCase.result.turn_id}else{''};workspace_thread_id=if($null-ne$writeCase-and$writeCase.result){[string]$writeCase.result.thread_id}else{''};workspace_turn_id=if($null-ne$writeCase-and$writeCase.result){[string]$writeCase.result.turn_id}else{''};all_children_exited=(!$RunLiveReadOnly-or$readGreen-and[bool]$readCase.result.child_exited)-and(!$RunLiveStructuredAnalysis-or$structuredGreen-and[bool]$structuredCase.result.child_exited)-and($null-eq$writeCase-or[bool]$writeCase.result.child_exited);no_orphan_process=(!$RunLiveReadOnly-or$readGreen-and[bool]$readCase.result.no_orphan_process)-and(!$RunLiveStructuredAnalysis-or$structuredGreen-and[bool]$structuredCase.result.no_orphan_process)-and($null-eq$writeCase-or[bool]$writeCase.result.no_orphan_process)};Write-Json $eventSummary (Join-Path $EvidenceRoot 'APP_SERVER_EVENT_SUMMARY.json')
+$validation=[pscustomobject]@{schema_version='tsf_canonical_runtime_app_server_vertical_slice_validation_v1';generated_at=[datetimeoffset]::UtcNow.ToString('o');verdict=if($failed.Count){'RED'}elseif((!$RunLiveReadOnly-or$readGreen)-and(!$RunLiveStructuredAnalysis-or$structuredGreen)-and(!$RunLiveWorkspaceWrite-or$null-ne$writeCase)){'GREEN'}else{'YELLOW'};executed_assertion_count=$script:Results.Count;passed_assertion_count=@($script:Results|Where-Object status -eq 'PASS').Count;failed_assertion_count=$failed.Count;fingerprint=$fingerprint.fingerprint;fingerprint_content_source=$fingerprint.content_source;read_only_green=$readGreen;structured_analysis_green=$structuredGreen;workspace_write_green=if($null-ne$writeCase-and$writeCase.result){[string]$writeCase.result.final_decision-eq'GREEN'}else{$false};control_plane_service_network_policy='CODEX_SERVICE_ONLY';worker_tool_network_policy='DISABLED';direct_openai_api_called_by_tsf=$false;external_api_called=$false;worker_network_used=$false;push_performed=$false;merge_performed=$false;package_installed=$false;listener_opened=$false;persistent_process_started=$false;work_integration_performed=$false;plugin_or_mcp_added=$false;nwr_accessed=$false;privatelens_content_accessed=$false;product_repository_mutated=$false;deployment_performed=$false};Write-Json $validation (Join-Path $EvidenceRoot 'VALIDATION.json')
 if($failed.Count){throw "$($failed.Count) canonical vertical-slice assertions failed."}
 Write-Host "Canonical vertical-slice tests passed: $($script:Results.Count) assertions."

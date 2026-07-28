@@ -189,6 +189,24 @@ function isPathInside(candidate, root) {
 }
 
 function assertNoncanonicalPreview(preview) {
+  const selection = preview?.result_contract_selection;
+  const selectionValid = (selection === null && preview?.scope_transformation?.queue_allowed === false)
+    || (selection?.schema_version === "tsf_result_contract_selection_v1"
+      && selection?.result_validation_mode === preview?.result_validation_mode
+      && (
+      preview?.result_validation_mode === "EXACT_LITERAL_V1"
+        ? selection?.result_contract_class === "EXACT_LITERAL_DETERMINISTIC"
+          && selection?.admission_eligibility === "ADMISSIBLE_WHEN_VERIFIED"
+          && selection?.operator_confirmation_required === false
+          && selection?.exact_response_contract_identity_sha256 === preview?.exact_response_contract?.semantic_contract_sha256
+          && selection?.task_completion_contract_identity_sha256 === null
+        : preview?.task_completion_contract?.schema_version === "tsf_task_completion_contract_v2"
+          && selection?.result_contract_class === preview?.task_completion_contract?.result_contract_class
+          && selection?.admission_eligibility === preview?.task_completion_contract?.admission_eligibility
+          && selection?.operator_confirmation_required === preview?.task_completion_contract?.operator_confirmation_required
+          && selection?.task_completion_contract_identity_sha256 === preview?.task_completion_contract?.task_completion_contract_identity_sha256
+          && selection?.exact_response_contract_identity_sha256 === null
+      ));
   const valid = preview?.schema_version === "tsf_hq_dispatch_route_preview_response_v1"
     && preview?.banner === "PREVIEW_ONLY_NOT_AUTHORITY"
     && preview?.record_kind === "hq_dispatch_route_preview"
@@ -202,7 +220,8 @@ function assertNoncanonicalPreview(preview) {
     && preview?.authority?.request_text_persisted === true
     && preview?.original_operator_intent?.schema_version === "tsf_original_operator_intent_v1"
     && preview?.scope_transformation?.schema_version === "tsf_scope_transformation_v1"
-    && ["SUBMITTABLE_AFTER_REVALIDATION", "TIM_REQUIRED_NO_QUEUE"].includes(preview?.submission_gate);
+    && ["SUBMITTABLE_AFTER_REVALIDATION", "TIM_REQUIRED_NO_QUEUE"].includes(preview?.submission_gate)
+    && selectionValid;
   if (!valid) throw new Error("PREVIEW_ARTIFACT_NOT_NONCANONICAL_PREVIEW");
 }
 
@@ -240,6 +259,10 @@ function previewProjection(preview, requestHash) {
     stop_conditions: preview.stop_conditions,
     registry_sources: preview.registry_sources,
     result_validation_mode: preview.result_validation_mode,
+    result_contract_selection: preview.result_contract_selection ? {
+      ...preview.result_contract_selection,
+      task_completion_contract_identity_sha256: null,
+    } : null,
     original_operator_intent: stableSemanticContractProjection(preview.original_operator_intent, "intent"),
     scope_transformation: stableSemanticContractProjection(preview.scope_transformation, "scope"),
     task_completion_contract: stableSemanticContractProjection(preview.task_completion_contract, "task"),
@@ -354,8 +377,8 @@ export class HqMissionRelay {
   async submit(raw, sessionKey) {
     const input = closedObject(
       raw,
-      ["natural_request", "preview_id", "preview_sha256", "request_hash", "intent", "submission_id"],
-      ["natural_request", "preview_id", "preview_sha256", "request_hash", "intent", "submission_id"],
+      ["natural_request", "preview_id", "preview_sha256", "request_hash", "intent", "submission_id", "result_contract_confirmation"],
+      ["natural_request", "preview_id", "preview_sha256", "request_hash", "intent", "submission_id", "result_contract_confirmation"],
     );
     if (input.intent !== "CREATE_GOVERNED_MISSION") throw new Error("INVALID_OPERATOR_INTENT");
     if (typeof input.natural_request !== "string" || !input.natural_request.trim() || input.natural_request.length > 4000) {
@@ -363,6 +386,9 @@ export class HqMissionRelay {
     }
     for (const field of ["preview_id", "preview_sha256", "request_hash", "submission_id"]) {
       if (typeof input[field] !== "string") throw new Error("INVALID_SUBMISSION_BINDING");
+    }
+    if (!["NOT_REQUIRED", "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE"].includes(input.result_contract_confirmation)) {
+      throw new Error("INVALID_RESULT_CONTRACT_CONFIRMATION");
     }
     const contentHash = jsonHash(input);
     const prior = this.submissions.get(input.submission_id);
@@ -413,6 +439,12 @@ export class HqMissionRelay {
     }
     if (jsonHash(previewProjection(recomputed, requestHash)) !== binding.projectionHash) {
       throw new Error("RECOMPUTED_PREVIEW_MISMATCH");
+    }
+    const expectedResultContractConfirmation = storedPreview.result_contract_selection?.operator_confirmation_required === true
+      ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE"
+      : "NOT_REQUIRED";
+    if (input.result_contract_confirmation !== expectedResultContractConfirmation) {
+      throw new Error("RESULT_CONTRACT_CONFIRMATION_REQUIRED_OR_CHANGED");
     }
     if (storedPreview.classification !== "SAFE_LOCAL_MISSION"
         || storedPreview.submission_gate !== "SUBMITTABLE_AFTER_REVALIDATION"
@@ -497,6 +529,7 @@ export class HqMissionRelay {
           previewSha256: binding.previewSha256,
           requestHash,
           submissionId: input.submission_id,
+          resultContractConfirmation: input.result_contract_confirmation,
           forceNoWorkerLifecycle: this.testOnlyInitialTimKind !== "NONE",
         });
       this.#applyOutcome(record, outcome);
@@ -531,6 +564,7 @@ export class HqMissionRelay {
     previewSha256 = null,
     requestHash = null,
     submissionId = null,
+    resultContractConfirmation = "NOT_REQUIRED",
     revisionInput = null,
     approvalLedgerPath = "",
     forceNoWorkerLifecycle = false,
@@ -552,6 +586,7 @@ export class HqMissionRelay {
       request_hash: requestHash,
       submission_id: submissionId,
       reviewed_exact_response_contract: reviewedExactResponseContract,
+      result_contract_confirmation: resultContractConfirmation,
     };
     const preparedProcess = await this.#spawnOwned(this.powershellExe, args, JSON.stringify(prepInput), 60_000);
     if (preparedProcess.code !== 0) throw new Error("CANONICAL_PREPARATION_REJECTED");

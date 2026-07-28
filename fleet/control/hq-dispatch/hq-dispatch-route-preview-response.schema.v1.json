@@ -11,6 +11,7 @@
     "record_kind",
     "preview_id",
     "result_validation_mode",
+    "result_contract_selection",
     "exact_response_contract",
     "original_operator_intent",
     "scope_transformation",
@@ -55,6 +56,32 @@
     },
     "result_validation_mode": {
       "enum": ["GENERAL_RESULT_V2", "EXACT_LITERAL_V1"]
+    },
+    "result_contract_selection": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "result_validation_mode",
+        "result_contract_class",
+        "admission_eligibility",
+        "operator_confirmation_required",
+        "non_admission_reason",
+        "exact_next_action",
+        "task_completion_contract_identity_sha256",
+        "exact_response_contract_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "tsf_result_contract_selection_v1" },
+        "result_validation_mode": { "enum": ["GENERAL_RESULT_V2", "EXACT_LITERAL_V1"] },
+        "result_contract_class": { "enum": ["STRUCTURAL_TEXT_ONLY", "STRUCTURED_DETERMINISTIC", "EXACT_LITERAL_DETERMINISTIC"] },
+        "admission_eligibility": { "enum": ["INFORMATIONAL_NON_ADMISSIBLE", "ADMISSIBLE_WHEN_VERIFIED"] },
+        "operator_confirmation_required": { "type": "boolean" },
+        "non_admission_reason": { "enum": ["GENERIC_TEXT_REQUIRES_PROSE_INTERPRETATION", null] },
+        "exact_next_action": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "task_completion_contract_identity_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "exact_response_contract_identity_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+      }
     },
     "exact_response_contract": {
       "type": ["object", "null"]

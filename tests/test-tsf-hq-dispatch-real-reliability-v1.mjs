@@ -632,9 +632,14 @@ async function runProof() {
   equal(path.resolve(interruptedReady.test_interruption_barrier_root), path.resolve(fixtureRoot), "barrier is confined to the exact committed fixture root");
   const session = await issueSession(interruptedReady, "INTERRUPTION_SESSION_ISSUE");
   equal(session.generation, interruptedReady.operator_session_generation, "interruption session is bound to the exact server generation");
-  const naturalRequest = `Read only fleet/control/policy-manifest.v1.json and return the exact bounded TSF fixture response. Proof ${randomUUID()}.`;
+  const naturalRequest = `Read only fleet/control/policy-manifest.v1.json and return a structured analysis with a summary, at least three findings, evidence references, and limitations. Proof ${randomUUID()}.`;
   const preview = await httpJson("/api/v1/route-preview", { stageId: "INTERRUPTION_ROUTE_PREVIEW", method: "POST", token: session.token, origin: session.origin, body: { natural_request: naturalRequest }, server: interruptedReady, expectedSessionGeneration: session.generation });
   equal(preview.status, 200, "real proof route preview succeeds");
+  equal(preview.json.result_validation_mode, "GENERAL_RESULT_V2", "admitted recovery fixture selects GENERAL_RESULT_V2 before queueing");
+  equal(preview.json.task_completion_contract?.deliverable_profile, "STRUCTURED_ANALYSIS_V2", "admitted recovery fixture selects the structured analysis profile");
+  equal(preview.json.result_contract_selection?.result_contract_class, "STRUCTURED_DETERMINISTIC", "admitted recovery fixture selects a mechanically verifiable contract");
+  equal(preview.json.result_contract_selection?.admission_eligibility, "ADMISSIBLE_WHEN_VERIFIED", "admitted recovery fixture is eligible only after independent verification");
+  equal(preview.json.result_contract_selection?.operator_confirmation_required, false, "admitted recovery fixture never confirms an informational generic contract");
   const submission = {
     natural_request: naturalRequest,
     preview_id: preview.json.preview_id,
@@ -642,6 +647,7 @@ async function runProof() {
     request_hash: preview.json.request_hash,
     intent: "CREATE_GOVERNED_MISSION",
     submission_id: preview.json.submission_id,
+    result_contract_confirmation: preview.json.result_contract_selection?.operator_confirmation_required ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE" : "NOT_REQUIRED",
   };
   let missionTransport = null;
   const missionPromise = httpJson("/api/v1/missions", { stageId: "INTERRUPTION_MISSION_SUBMISSION", method: "POST", token: session.token, origin: session.origin, body: submission, server: interruptedReady, expectedSessionGeneration: session.generation })
@@ -841,8 +847,18 @@ async function runProof() {
   check(newRun.mission_id !== originalMissionId, "recovery creates a new mission identity");
   check(newRun.run_id !== originalRunId, "recovery creates a new run identity");
   equal(newRun.old_thread_or_turn_resumed, false, "recovery never resumes the old thread or turn");
+  equal(newRun.task_completion_contract?.deliverable_profile, "STRUCTURED_ANALYSIS_V2", "recovery preserves the selected structured result profile");
+  equal(newRun.task_completion_contract?.result_contract_class, "STRUCTURED_DETERMINISTIC", "recovery preserves the deterministic contract class");
+  equal(newRun.task_completion_contract?.admission_eligibility, "ADMISSIBLE_WHEN_VERIFIED", "recovery preserves independently verified admission eligibility");
+  check(
+    JSON.stringify([...(newRun.task_completion_contract?.required_deliverables ?? [])].map((item) => item.deliverable_id).sort())
+      === JSON.stringify(["evidence_references", "findings", "limitations", "summary"]),
+    "recovery preserves every required structured deliverable",
+  );
   check(["ADMITTED", "ADMITTED_WITH_CAVEATS"].includes(newRun.state), "new run independently reaches canonical admission");
   equal(newRun.verifier.verified, true, "new run independently verifies");
+  equal(newRun.result?.semantic_status, "FULFILLED", "structured recovery establishes semantic fulfillment only through the bound contract");
+  equal(newRun.result?.missing_deliverables?.length, 0, "structured recovery has no missing deliverables");
   equal(newRun.access.control_plane_service_network_policy, "CODEX_SERVICE_ONLY", "new run uses CODEX_SERVICE_ONLY control-plane policy");
   equal(newRun.access.worker_tool_network_policy, "DISABLED", "new run keeps worker-tool network disabled");
   equal(newRun.worker.observation_claims.worker_tool_network.value, false, "new run observes worker-tool network disabled");
@@ -911,6 +927,10 @@ async function runProof() {
   ]) check(evidencePath && existsSync(evidencePath), `${label} evidence exists for result-contract derivation`);
   const recoveryMission = activeProofTrace.readDurableJson({ stageId: "POST_STOP_RECOVERY_MISSION_READ", caller: "runProof", filePath: recoveryMissionPath, evidenceKind: "MISSION", expectedIdentity: { mission_id: newRun.mission_id, mission_revision: newRun.mission_revision } }).json;
   const recoveryQueue = activeProofTrace.readDurableJson({ stageId: "POST_STOP_RECOVERY_QUEUE_READ", caller: "runProof", filePath: recoveryQueuePath, evidenceKind: "QUEUE_DOCUMENT", identityPath: ["durable_mission"], expectedIdentity: { mission_id: newRun.mission_id, mission_revision: newRun.mission_revision } }).json;
+  equal(recoveryMission.task_completion_contract?.deliverable_profile, "STRUCTURED_ANALYSIS_V2", "canonical recovery mission records the structured profile");
+  equal(recoveryQueue.durable_mission?.task_completion_contract?.task_completion_contract_identity_sha256, recoveryMission.task_completion_contract?.task_completion_contract_identity_sha256, "queue durable mission binds the recovery task contract");
+  equal(recoveryQueue.mission_packet?.task_completion_contract?.task_completion_contract_identity_sha256, recoveryMission.task_completion_contract?.task_completion_contract_identity_sha256, "mission packet binds the recovery task contract");
+  equal(recoveryQueue.worker_instruction_packet?.task_completion_contract?.task_completion_contract_identity_sha256, recoveryMission.task_completion_contract?.task_completion_contract_identity_sha256, "worker instruction binds the recovery task contract");
   const recoveryLifecycle = activeProofTrace.readDurableJson({ stageId: "POST_STOP_RECOVERY_LIFECYCLE_READ", caller: "runProof", filePath: recoveryLifecyclePath, evidenceKind: "LIFECYCLE_RESULT", expectedIdentity: { mission_id: newRun.mission_id, mission_revision: newRun.mission_revision, run_id: newRun.run_id, result_id: newRun.result_id } }).json;
   check(recoveryLifecycle.worker_result_path && existsSync(recoveryLifecycle.worker_result_path), "recovery worker result exists for result-contract derivation");
   const recoveryWorkerResultEvidence = activeProofTrace.readDurableJson({ stageId: "POST_STOP_RECOVERY_WORKER_RESULT_READ", caller: "runProof", filePath: recoveryLifecycle.worker_result_path, evidenceKind: "WORKER_RESULT_V1_NONAUTHORITATIVE_PAYLOAD", expectedIdentity: { mission_id: newRun.mission_id } });
@@ -1024,6 +1044,7 @@ async function runProof() {
       submission_transport_after_stop: missionTransport,
     },
     recovery_server: {
+      recovery_fixture_class: "RECOVERY_PIPELINE_COMPLETED_AND_ADMITTED",
       process_id: recoveryReady.process_id,
       server_instance_id: recoveryReady.server_instance_id,
       new_mission_id: newRun.mission_id,
@@ -1048,6 +1069,10 @@ async function runProof() {
       recovery_receipt_path: recoveryResult.json.receipt.receipt_path,
       recovery_receipt_sha256: recoveryReceiptHash,
       result_contract_mode: recoveryResultContractProof.validation_mode,
+      deliverable_profile: recoveryMission.task_completion_contract.deliverable_profile,
+      result_contract_class: recoveryMission.task_completion_contract.result_contract_class,
+      admission_eligibility: recoveryMission.task_completion_contract.admission_eligibility,
+      required_deliverable_ids: recoveryMission.task_completion_contract.required_deliverables.map((item) => item.deliverable_id).sort(),
       exact_response_evidence_disposition: recoveryResultContractProof.exact_response_evidence_disposition,
       result_contract_assertions: recoveryResultContractProof.assertion_count,
       result_contract_evidence: {

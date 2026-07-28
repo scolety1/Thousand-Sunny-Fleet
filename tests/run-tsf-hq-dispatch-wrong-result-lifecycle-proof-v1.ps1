@@ -132,6 +132,7 @@ $submission = [pscustomobject][ordered]@{
     request_hash = Get-TsfKernelRawTextSha256 $naturalRequest
     submission_id = "hq-submission-$([guid]::NewGuid())"
     reviewed_exact_response_contract = $reviewedContract
+    result_contract_confirmation = 'NOT_REQUIRED'
 }
 $missionParameters = @{}
 if ($TestOnlyIsolatedQueue) {

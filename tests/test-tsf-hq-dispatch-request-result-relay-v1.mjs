@@ -99,7 +99,7 @@ async function syntheticOutcome({
     semantic = false,
   }) => ({
     schema_version: "tsf_general_result_v2",
-    compatibility_mode: "STRUCTURED_GENERAL_RESULT_V2",
+    compatibility_mode: "STRUCTURED_OUTCOME_CLAIM_V2",
     mission_id: missionId,
     mission_revision: missionRevision,
     run_id: prep.run_id,
@@ -107,16 +107,19 @@ async function syntheticOutcome({
     ...semanticIdentity,
     raw_worker_response_sha256: hashFileText(answer),
     worker_claim: {
-      schema_version: "tsf_worker_outcome_claim_v1",
+      schema_version: "tsf_worker_outcome_claim_v2",
       mission_id: missionId,
       mission_revision: missionRevision,
       run_id: prep.run_id,
       ...semanticIdentity,
       attempted_task_sha256: taskHash,
+      task_attempted: true,
+      task_completed: semantic,
       outcome_disposition: disposition,
       completed_deliverables: completed,
       missing_deliverables: missing,
-      answer,
+      blocked_reason: semantic ? "NONE" : "TASK_INCOMPLETE",
+      substantive_answer: answer,
       evidence: ["synthetic mission-bound UI projection fixture"],
       caveats: [],
     },
@@ -132,8 +135,13 @@ async function syntheticOutcome({
   if (executionCount === 1) {
     await new Promise((resolve) => setTimeout(resolve, 75));
     const evidence = generalEvidence("FULFILLED", {
-      answer: "The bounded TSF documentation review is complete with the required substantive analysis.",
-      completed: ["requested_answer"],
+      answer: JSON.stringify({
+        summary: "The bounded TSF documentation review is complete with the required structured analysis.",
+        findings: ["The request is mission-bound.", "The verifier is independent.", "Admission remains a separate authority."],
+        evidence_references: ["fixture/documentation.md"],
+        limitations: "The result is limited to the bounded local fixture.",
+      }),
+      completed: ["evidence_references", "findings", "limitations", "summary"],
       semantic: true,
     });
     const workerResult = { files_touched: [], files_created: [], general_result_evidence: evidence, tests: [{ test_id: "hq-dispatch-general-result-v2", status: "PASS", evidence: semanticIdentity.task_completion_contract_identity_sha256 }] };
@@ -226,6 +234,9 @@ function submissionFor(naturalRequest, preview) {
     request_hash: preview.json.request_hash,
     intent: "CREATE_GOVERNED_MISSION",
     submission_id: preview.json.submission_id,
+    result_contract_confirmation: preview.json.result_contract_selection?.operator_confirmation_required
+      ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE"
+      : "NOT_REQUIRED",
   };
 }
 
@@ -233,7 +244,7 @@ const server = await startHqDispatchServerForTest({ executionAdapter: syntheticO
 try {
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
-  const natural = "Review bounded TSF local documentation.";
+  const natural = "Analyze bounded TSF local documentation and return a summary, at least three findings, evidence references, and limitations.";
   const getPreview = (requestText) => post(port, "/api/v1/route-preview", token, origin, { natural_request: requestText });
 
   equal((await session(port, "http://evil.invalid")).status, 403, "cross-origin session acquisition rejected");
@@ -326,7 +337,7 @@ try {
     post(port, "/api/v1/missions", token, origin, submission),
     post(port, "/api/v1/missions", token, origin, submission),
   ]);
-  equal(admitted.status, 200, "bounded governed mission completes");
+  equal(admitted.status, 200, `bounded governed mission completes: ${JSON.stringify(admitted.json)}`);
   equal(doubleClick.json.mission_id, admitted.json.mission_id, "concurrent double-click returns one mission");
   equal(executionCount, 1, "concurrent double-click invokes one executor");
   equal(admitted.json.state, "ADMITTED_WITH_CAVEATS", "admission receipt controls final state");
@@ -344,7 +355,7 @@ try {
   equal(admitted.json.admission.outcome_disposition, "FULFILLED", "admission projects its independently recorded outcome binding");
   equal(admitted.json.original_operator_intent.requested_goal, natural, "original requested goal remains visible in terminal status");
   equal(admitted.json.scope_transformation.actual_mission_goal, natural, "authorized mission goal remains visible separately");
-  equal(admitted.json.task_completion_contract.required_deliverables[0].deliverable_id, "requested_answer", "required deliverable remains visible");
+  equal(admitted.json.task_completion_contract.required_deliverables[0].deliverable_id, "summary", "required structured deliverable remains visible");
   check(/^[a-f0-9]{64}$/.test(admitted.json.result.durable_result_sha256), "durable result hash projected");
   check(/^[a-f0-9]{64}$/.test(admitted.json.verifier.result_sha256), "verifier result hash projected");
   check(/^[a-f0-9]{64}$/.test(admitted.json.preservation.packet_sha256), "preservation hash projected");

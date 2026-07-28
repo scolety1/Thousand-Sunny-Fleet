@@ -1,0 +1,118 @@
+{
+  "schema_version": "tsf_v1_structured_fulfillment_policy_hotfix_validation_v1",
+  "status": "SCHEMA_COMPATIBILITY_FOLLOWUP_READY_FOR_EXACT_CANDIDATE_RERUN",
+  "architecture_decision": "GENERIC_TEXT_RESPONSES_ARE_STRUCTURAL_ONLY_AND_NON_ADMISSIBLE",
+  "recovery_blocker_classification": "RECOVERY_SUCCESS_FIXTURE_USES_NON_ADMISSIBLE_GENERIC_TEXT",
+  "generic_text_disposition": "UNCLASSIFIED_RESULT",
+  "generic_text_admissible": false,
+  "structured_analysis_admissible_when_verified": true,
+  "llm_semantic_verifier_added": false,
+  "whole_answer_regex_authority_added": false,
+  "starting_candidate": {
+    "head": "6982356931cf2ea1ac4a354b081e7a6060e769de",
+    "tree": "50500ba29a3461d4a16cb0d4472395e3a55ad121",
+    "parent": "ed149f0ec42439f9faa2b65d9187bf2995d96180"
+  },
+  "pre_final_documentation_candidate": {
+    "head": "d9b32aad965b454bfe033af3462f64cac01d4abf",
+    "tree": "6fbcf1911a57289654243bcc10fdb0e409973865",
+    "commit_count_over_parent": 1,
+    "subject": "fix: require structured fulfillment for TSF admission",
+    "working_tree_state": "CLEAN_DURING_TARGETED_SOAK_V5"
+  },
+  "final_candidate": {
+    "identity": "ESTABLISHED_BY_FINAL_DOCUMENTATION_AMENDMENT_AND_EXTERNAL_EXACT_ACCEPTANCE_EVIDENCE",
+    "must_be_clean": true,
+    "must_be_one_commit_over_parent": true,
+    "required_subject": "fix: require structured fulfillment for TSF admission"
+  },
+  "recovery_bundle": {
+    "path": "C:\\TSF_HOTFIX4\\.codex-local\\recovery\\structured-fulfillment-recovery-fixture-alignment\\20260728T174515128Z",
+    "manifest_sha256": "2e411defe1d69a27630b4e39a062b63b479425939448512fb1a77f16b2ba3880"
+  },
+  "preserved_blocker_manifest_sha256": "5554f8979062dfbb9ab9f44bb34ac42122e3b269bcfa9bfef39010388ea5520f",
+  "exact_candidate_tests": {
+    "policy_assertions": 72,
+    "recovery_fixture_contract_assertions": 35,
+    "semantic_calibration_assertions": 168,
+    "intent_integrity_assertions": 140,
+    "kernel_verifier_assertions": 18,
+    "route_preview_assertions": 189,
+    "relay_replay_assertions": 122,
+    "exact_literal_assertions": 43,
+    "intent_authorization_assertions": 149,
+    "final_three_authority_assertions": 34,
+    "runtime_cleanliness_assertions": 87,
+    "responsive_browser_assertions": 1086
+  },
+  "real_proofs": {
+    "status": "GREEN",
+    "proof_count": 9,
+    "path": "C:\\TSF_HOTFIX4\\.codex-local\\evidence\\structured-fulfillment-real-proofs-v1\\fixture-alignment-cycle1",
+    "result_sha256": "1edab419d26e0cb2f56e88234681e8cd6fa34b214097c791790241e07b9b388a",
+    "generic_text_admissions": 0,
+    "external_network": false
+  },
+  "targeted_soak_v4": {
+    "status": "HISTORICAL_SUPERSEDED_BY_V5",
+    "pre_final_result_path": "C:\\TSF_HOTFIX4\\.codex-local\\evidence\\structured-fulfillment-soak-v4\\candidate-789293a-pre-final-amend\\TARGETED_SOAK_V4_RESULT.json",
+    "pre_final_result_sha256": "11df45b47ed67e69ce6603c48d82399294f7862106506249df60151524902863",
+    "case_count": 21,
+    "passed_count": 20,
+    "failed_count": 1,
+    "only_deferred_case": "final-doctor",
+    "deferred_reason": "The authoritative worktree intentionally contained the two uncommitted final test-harness corrections; Doctor correctly returned dirty-worktree exit 4.",
+    "generic_text_admissions": 0,
+    "structured_valid_admissions": 2,
+    "phrase_based_false_rejections": 0
+  },
+  "targeted_soak_v5": {
+    "status": "GREEN_PRE_FINAL_EVIDENCE_AMENDMENT",
+    "candidate_head": "d9b32aad965b454bfe033af3462f64cac01d4abf",
+    "candidate_tree": "6fbcf1911a57289654243bcc10fdb0e409973865",
+    "result_path": "C:\\TSF_RECOVERY_PROOF1\\.codex-local\\evidence\\structured-fulfillment-soak-v5\\candidate-d9b32aa-exact-pass1\\TARGETED_SOAK_V5_RESULT.json",
+    "result_sha256": "cb96e767c213f194dfae5c5e6926af09c88edb6dc1026d141d7fbeac248db0a6",
+    "manifest_sha256": "d92299a158b3c6b347908b459b9bbb3089455b3408ed598fb3e72d8c7d5838de",
+    "case_count": 23,
+    "passed_count": 23,
+    "failed_count": 0,
+    "generic_text_admissions": 0,
+    "structured_valid_admissions": 3,
+    "structured_recovery_admissions_required": 1,
+    "generic_recovery_admissions_required": 0,
+    "real_structured_interruption_recovery_assertions": 201,
+    "real_structured_interruption_recovery_stdout_sha256": "d9347a194ec288ebdc3f8d77b6f6ae48fc0ec662548f8447745ddeda5c525258"
+  },
+  "recovery_fixture_alignment": {
+    "architect_decision": "GO_LOCALIZED_FIXTURE_AND_ACCEPTANCE_ALIGNMENT",
+    "architect_evidence_manifest_sha256": "972c1688b2c6808b4e3d51f8fcb49f7f647e7d2bdda976fb0abd12492ae8351b",
+    "structured_recovery_criterion": "RECOVERY_PIPELINE_COMPLETED_AND_ADMITTED",
+    "generic_recovery_criterion": "GENERIC_RECOVERY_RESPONSE_PRESERVED_NON_ADMISSIBLE",
+    "runtime_authority_change": false
+  },
+  "source_worktree_real_recovery_attempt": {
+    "status": "DEFERRED_TO_FRESH_DETACHED_EXACT_CANDIDATE",
+    "reason": "Recovery start was correctly blocked by preserved historical canonical reconciliation evidence in the authoritative source worktree.",
+    "evidence_manifest_sha256": "a65021383dd910270f406398c4043ab4b7213e56eec80149901d2b3cc2f3da3d",
+    "listener_remaining": false,
+    "owned_child_remaining": false
+  },
+  "schema_compatibility_followup": {
+    "classification": "GENERIC_RESULT_COMPATIBILITY_MODE_SCHEMA_ENUM_OMISSION",
+    "prechange_reproduction": "$.compatibility_mode is not an allowed enum value.",
+    "correction": "ALLOW_EXISTING_STRUCTURAL_TEXT_ONLY_V2_REPRESENTATION",
+    "generic_semantic_success": false,
+    "generic_admissible": false,
+    "policy_assertions": 72,
+    "kernel_verifier_assertions": 18,
+    "runtime_authority_change": false,
+    "exact_candidate_rerun_required": true
+  },
+  "full_v1_acceptance": {
+    "status": "PENDING_FINAL_CLEAN_EXACT_CANDIDATE"
+  },
+  "fresh_tester": null,
+  "fresh_auditor": null,
+  "publication": null,
+  "merge_performed": false
+}

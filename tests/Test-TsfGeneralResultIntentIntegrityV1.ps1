@@ -15,7 +15,7 @@ function Assert-Tsf {
 }
 
 function New-TestContracts {
-    param([string]$Request = 'Return a concise summary: the fleet is idle.')
+    param([string]$Request = 'Analyze the bounded fleet fixture and return summary, at least three findings, evidence references, and limitations.')
     $intent = New-TsfOriginalOperatorIntentContract -NaturalRequest $Request -PreviewId 'hq-preview-00000000000000000000000000000000' -RepositoryTarget $root -WorktreeTarget $root
     $operations = @((Get-TsfOriginalOperationAnalysis $Request).requested_operations)
     $scope = New-TsfScopeTransformationContract -OriginalIntent $intent -AuthorizedMissionGoal $Request -ProposedOperations $operations -ProposedAccess ([string]$intent.requested_access) -RepositoryTarget $root -WorktreeTarget $root
@@ -27,19 +27,24 @@ function New-TestClaim {
     param(
         [Parameter(Mandatory)][object]$Contracts,
         [string]$Disposition = 'FULFILLED',
-        [string]$Answer = 'The fleet is idle, stated concisely as requested.',
-        [string[]]$Completed = @('requested_answer'),
+        [string]$Answer = '{"summary":"The bounded fleet fixture is idle and structurally verified.","findings":["No active owner is recorded.","No listener is present.","The queue has no active item."],"evidence_references":["fixture/owner.json","fixture/listener.json"],"limitations":"This proof is limited to the local fixture."}',
+        [string[]]$Completed = @('evidence_references','findings','limitations','summary'),
         [string[]]$Missing = @(),
-        [string]$AttemptedTaskSha256 = ''
+        [string]$AttemptedTaskSha256 = '',
+        [bool]$TaskAttempted = $true,
+        [bool]$TaskCompleted = $true,
+        [string]$BlockedReason = 'NONE',
+        [string[]]$Caveats = @()
     )
     if ([string]::IsNullOrWhiteSpace($AttemptedTaskSha256)) { $AttemptedTaskSha256 = [string]$Contracts.task.required_task_sha256 }
     [pscustomobject][ordered]@{
-        schema_version='tsf_worker_outcome_claim_v1';mission_id='semantic-test';mission_revision=1;run_id='canonical-result-semantic-test-1'
+        schema_version='tsf_worker_outcome_claim_v2';mission_id='semantic-test';mission_revision=1;run_id='canonical-result-semantic-test-1'
         task_completion_contract_identity_sha256=[string]$Contracts.task.task_completion_contract_identity_sha256
         original_intent_identity_sha256=[string]$Contracts.task.original_intent_identity_sha256
         scope_transformation_identity_sha256=[string]$Contracts.task.scope_transformation_identity_sha256
-        attempted_task_sha256=$AttemptedTaskSha256;outcome_disposition=$Disposition;completed_deliverables=@($Completed);missing_deliverables=@($Missing)
-        answer=$Answer;evidence=@('worker final response');caveats=@()
+        attempted_task_sha256=$AttemptedTaskSha256;task_attempted=$TaskAttempted;task_completed=$TaskCompleted;outcome_disposition=$Disposition
+        completed_deliverables=@($Completed);missing_deliverables=@($Missing);blocked_reason=$BlockedReason
+        substantive_answer=$Answer;evidence=@('worker final response');caveats=@($Caveats)
     }
 }
 
@@ -90,6 +95,7 @@ Assert-Tsf (!$fileScope.queue_allowed) 'A local-file request cannot queue when p
 Assert-Tsf ([string]$fileScope.classification -eq 'REQUEST_UNFULFILLABLE_UNDER_CURRENT_AUTHORITY') 'Unavailable file authority is explicit.'
 
 $contracts=New-TestContracts
+$requiredStructuredIds=@('evidence_references','findings','limitations','summary')
 $successClaim=New-TestClaim $contracts
 $success=Get-TestEvidence $contracts ($successClaim|ConvertTo-Json -Compress -Depth 20)
 Assert-Tsf $success.semantic_success 'Substantive, identity-bound fulfilled claim succeeds.'
@@ -102,26 +108,76 @@ $admissionWrongTask=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json;$
 Assert-Tsf (!(Test-TsfGeneralResultV2AdmissionEvidence -Mission $admissionMission -Result $admissionWrongTask).valid) 'Admission independently rejects a forged attempted-task identity.'
 $admissionWrongOutcome=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json;$admissionWrongOutcome.worker_claim.outcome_disposition='UNABLE_TO_PERFORM'
 Assert-Tsf (!(Test-TsfGeneralResultV2AdmissionEvidence -Mission $admissionMission -Result $admissionWrongOutcome).valid) 'Admission independently rejects worker-claim and canonical-outcome disagreement.'
-$admissionMissing=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json;$admissionMissing.observed_deliverables=@();$admissionMissing.missing_deliverables=@('requested_answer')
+$admissionMissing=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json;$admissionMissing.observed_deliverables=@();$admissionMissing.missing_deliverables=$requiredStructuredIds
 Assert-Tsf (!(Test-TsfGeneralResultV2AdmissionEvidence -Mission $admissionMission -Result $admissionMissing).valid) 'Admission independently rejects missing required deliverables.'
 $admissionCrossRun=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json;$admissionCrossRun.worker_claim.run_id='canonical-result-another-run-1'
 Assert-Tsf (!(Test-TsfGeneralResultV2AdmissionEvidence -Mission $admissionMission -Result $admissionCrossRun).valid) 'Admission independently rejects cross-run worker evidence.'
 
 $negativeCases=@(
-    [pscustomobject]@{disposition='FULFILLED';answer='I cannot perform this task.';completed=@('requested_answer');missing=@();expected='UNABLE_TO_PERFORM'},
-    [pscustomobject]@{disposition='REFUSED';answer='I refuse to perform this task.';completed=@();missing=@('requested_answer');expected='REFUSED'},
-    [pscustomobject]@{disposition='BLOCKED_BY_POLICY';answer='This task is blocked by policy.';completed=@();missing=@('requested_answer');expected='BLOCKED_BY_POLICY'},
-    [pscustomobject]@{disposition='NEEDS_CLARIFICATION';answer='Please clarify the requested output.';completed=@();missing=@('requested_answer');expected='NEEDS_CLARIFICATION'},
-    [pscustomobject]@{disposition='PARTIAL';answer='Only part of the requested answer is available.';completed=@();missing=@('requested_answer');expected='PARTIAL'},
-    [pscustomobject]@{disposition='FULFILLED';answer='Done.';completed=@('requested_answer');missing=@();expected='REQUIRED_DELIVERABLE_MISSING'},
-    [pscustomobject]@{disposition='FULFILLED';answer='This is a substantive answer but the required deliverable id is absent.';completed=@();missing=@('requested_answer');expected='REQUIRED_DELIVERABLE_MISSING'}
+    [pscustomobject]@{disposition='UNABLE_TO_PERFORM';answer='I cannot perform this task.';completed=@();missing=$requiredStructuredIds;attempted=$true;completedTask=$false;blocked='TASK_INCOMPLETE';expected='UNABLE_TO_PERFORM'},
+    [pscustomobject]@{disposition='REFUSED';answer='I refuse to perform this task.';completed=@();missing=$requiredStructuredIds;attempted=$false;completedTask=$false;blocked='REFUSED';expected='REFUSED'},
+    [pscustomobject]@{disposition='BLOCKED_BY_POLICY';answer='This task is blocked by policy.';completed=@();missing=$requiredStructuredIds;attempted=$false;completedTask=$false;blocked='POLICY_BLOCK';expected='BLOCKED_BY_POLICY'},
+    [pscustomobject]@{disposition='NEEDS_CLARIFICATION';answer='Please clarify the requested output.';completed=@();missing=$requiredStructuredIds;attempted=$false;completedTask=$false;blocked='NEEDS_CLARIFICATION';expected='NEEDS_CLARIFICATION'},
+    [pscustomobject]@{disposition='PARTIAL';answer='Only part of the requested answer is available.';completed=@();missing=$requiredStructuredIds;attempted=$true;completedTask=$false;blocked='TASK_INCOMPLETE';expected='PARTIAL'},
+    [pscustomobject]@{disposition='FULFILLED';answer='Done.';completed=@();missing=$requiredStructuredIds;attempted=$true;completedTask=$true;blocked='NONE';expected='REQUIRED_DELIVERABLE_MISSING'},
+    [pscustomobject]@{disposition='FULFILLED';answer='';completed=@();missing=$requiredStructuredIds;attempted=$true;completedTask=$true;blocked='NONE';expected='REQUIRED_DELIVERABLE_MISSING'}
 )
 foreach($case in $negativeCases){
-    $claim=New-TestClaim -Contracts $contracts -Disposition $case.disposition -Answer $case.answer -Completed $case.completed -Missing $case.missing
+    $claim=New-TestClaim -Contracts $contracts -Disposition $case.disposition -Answer $case.answer -Completed $case.completed -Missing $case.missing -TaskAttempted $case.attempted -TaskCompleted $case.completedTask -BlockedReason $case.blocked
     $evidence=Get-TestEvidence $contracts ($claim|ConvertTo-Json -Compress -Depth 20)
     Assert-Tsf (!$evidence.semantic_success) "Negative disposition $($case.expected) cannot succeed."
     Assert-Tsf ([string]$evidence.outcome_disposition -eq $case.expected) "Negative disposition $($case.expected) is explicit."
 }
+
+$analyticalAnswerCases=@(
+    'The contract says a worker claim cannot set verifier or admission authority; missing deliverables are not accepted.',
+    'Cannot: A worker claim cannot set the independent verifier. Missing deliverable: Admission checks the required set. Not accepted: PARTIAL and inability dispositions remain fail-closed.',
+    'The verifier documents inability, refusal, and policy blocks without treating those states as success.',
+    'This comparison explains that an unsupported legacy response is fail-closed while a structured fulfilled answer remains independently verified.'
+)
+foreach($answer in $analyticalAnswerCases){
+    $structuredAnswer=([pscustomobject][ordered]@{summary=$answer;findings=@('The historical statement is subject matter.','The closed worker status is evaluated separately.','Admission requires independently verified deliverables.');evidence_references=@('fixture/history.txt','fixture/policy.json');limitations='The proof is bounded to deterministic fixture evidence.'}|ConvertTo-Json -Compress -Depth 10)
+    $claim=New-TestClaim -Contracts $contracts -Disposition 'FULFILLED' -Answer $structuredAnswer -Completed $requiredStructuredIds -Missing @()
+    $evidence=Get-TestEvidence $contracts ($claim|ConvertTo-Json -Compress -Depth 20)
+    Assert-Tsf ($evidence.semantic_success) 'A structured analytical answer may discuss negative disposition language without becoming an inability.'
+    Assert-Tsf ([string]$evidence.outcome_disposition -eq 'FULFILLED') 'Structured fulfilled analysis retains its explicit disposition.'
+    $analyticalAdmission=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json
+    $analyticalAdmission.worker_claim=$evidence.worker_claim
+    $analyticalAdmission.semantic_status=$evidence.semantic_status
+    $analyticalAdmission.outcome_disposition=$evidence.outcome_disposition
+    $analyticalAdmission.observed_deliverables=@($evidence.observed_deliverables)
+    $analyticalAdmission.missing_deliverables=@($evidence.missing_deliverables)
+    $analyticalAdmission.outcome_evidence=@($evidence.outcome_evidence)
+    $analyticalAdmission.raw_worker_response_sha256=$evidence.raw_worker_response_sha256
+    Assert-Tsf ((Test-TsfGeneralResultV2AdmissionEvidence -Mission $admissionMission -Result $analyticalAdmission).valid) 'Admission independently accepts the same identity-bound analytical answer.'
+}
+
+$answerBoundaryCases=@(
+    'We need more clarification before completing the request.',
+    'This task is blocked by policy.',
+    'We will not perform this request.',
+    'Unable to perform the requested task.',
+    'Sorry, I cannot perform the requested task.',
+    'Unfortunately, I''m unable to perform the requested task.',
+    'The task could not be completed because the source file is missing.',
+    'The requested task cannot be completed under the current authority.',
+    'I was not able to perform the requested task.',
+    'The requested source file is unavailable.',
+    'No requested source was found.',
+    'Completion was not possible with the available evidence.',
+    'This request is not supported in the current scope.'
+)
+foreach($answer in $answerBoundaryCases){
+    $structuredAnswer=([pscustomobject][ordered]@{summary=$answer;findings=@('Quoted inability language is content.','Normative prohibition language is content.','Closed worker status remains authoritative only as a claim subject to verification.');evidence_references=@('fixture/history.txt');limitations='The proof is bounded to deterministic fixture evidence.'}|ConvertTo-Json -Compress -Depth 10)
+    $claim=New-TestClaim -Contracts $contracts -Disposition 'FULFILLED' -Answer $structuredAnswer -Completed $requiredStructuredIds -Missing @()
+    $evidence=Get-TestEvidence $contracts ($claim|ConvertTo-Json -Compress -Depth 20)
+    Assert-Tsf $evidence.semantic_success 'Substantive answer prose is not interpreted as worker-own status.'
+    Assert-Tsf ([string]$evidence.outcome_disposition -eq 'FULFILLED') 'The closed affirmative worker status remains separate from answer content.'
+}
+
+$passiveAdmission=$admissionResult|ConvertTo-Json -Depth 30|ConvertFrom-Json
+$passiveAdmission.worker_claim.substantive_answer=([pscustomobject][ordered]@{summary='The task could not be completed because the historical source file was missing.';findings=@('The statement is historical.','The current structured result is complete.','Status and subject matter remain separated.');evidence_references=@('fixture/history.txt');limitations='The proof is bounded to deterministic fixture evidence.'}|ConvertTo-Json -Compress -Depth 10)
+Assert-Tsf ((Test-TsfGeneralResultV2AdmissionEvidence -Mission $admissionMission -Result $passiveAdmission).valid) 'Admission does not reinterpret substantive answer prose as worker-own status.'
 
 $wrongTask=New-TestClaim -Contracts $contracts -AttemptedTaskSha256 ('f'*64)
 $wrongTaskEvidence=Get-TestEvidence $contracts ($wrongTask|ConvertTo-Json -Compress -Depth 20)
@@ -157,15 +213,15 @@ Assert-Tsf (!$legacyEmpty.admissible) 'Empty legacy response fails closed.'
 Assert-Tsf ([string]$legacyEmpty.outcome_disposition -eq 'REQUIRED_DELIVERABLE_MISSING') 'Empty legacy response has explicit disposition.'
 $legacyPolicy=Get-TestEvidence -Contracts $contracts -Raw 'The request is blocked by policy.' -TaskContract $null
 Assert-Tsf (!$legacyPolicy.admissible) 'Policy-block legacy response fails closed.'
-Assert-Tsf ([string]$legacyPolicy.outcome_disposition -eq 'BLOCKED_BY_POLICY') 'Policy-block legacy response is classified.'
+Assert-Tsf ([string]$legacyPolicy.outcome_disposition -eq 'UNCLASSIFIED_RESULT') 'Nonempty legacy prose remains unclassified instead of becoming status authority.'
 $legacyUnknown=Get-TestEvidence -Contracts $contracts -Raw 'A nonempty but unstructured response.' -TaskContract $null
 Assert-Tsf (!$legacyUnknown.admissible) 'Unknown legacy response never becomes success.'
 Assert-Tsf ([string]$legacyUnknown.outcome_disposition -eq 'UNCLASSIFIED_RESULT') 'Unknown legacy response is explicit.'
 $legacyUnsupported=Get-TestEvidence -Contracts $contracts -Raw 'The requested action is unsupported in this environment.' -TaskContract $null
 Assert-Tsf (!$legacyUnsupported.admissible) 'Unsupported-action legacy response fails closed.'
-Assert-Tsf ([string]$legacyUnsupported.outcome_disposition -eq 'UNABLE_TO_PERFORM') 'Unsupported-action legacy response is classified.'
+Assert-Tsf ([string]$legacyUnsupported.outcome_disposition -eq 'UNCLASSIFIED_RESULT') 'Unsupported-action legacy prose remains unclassified.'
 
 $lifecycleSource = Get-Content -LiteralPath (Join-Path $root 'tools\Invoke-TsfMissionLifecycle.ps1') -Raw
-Assert-Tsf ($lifecycleSource.Contains('answer must be a JSON string even when the requested answer is structured data; serialize any structured answer into that string.')) 'GENERAL_RESULT_V2 worker prompt explicitly binds answer to the canonical string type.'
+Assert-Tsf ($lifecycleSource.Contains('The answer, evidence, caveats, quotations, historical statements, normative rules, code, and examples are content only.')) 'GENERAL_RESULT_V2 worker prompt explicitly separates answer content from worker-own status.'
 
 "TSF_GENERAL_RESULT_INTENT_INTEGRITY_PASS assertions=$script:assertions"

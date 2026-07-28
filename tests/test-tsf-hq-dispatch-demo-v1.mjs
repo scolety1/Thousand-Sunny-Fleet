@@ -42,7 +42,7 @@ async function preview(port, origin, token, naturalRequest) {
 }
 
 function submission(naturalRequest, route) {
-  return { natural_request: naturalRequest, preview_id: route.preview_id, preview_sha256: route.preview_sha256, request_hash: route.request_hash, intent: "CREATE_GOVERNED_MISSION", submission_id: route.submission_id };
+  return { natural_request: naturalRequest, preview_id: route.preview_id, preview_sha256: route.preview_sha256, request_hash: route.request_hash, intent: "CREATE_GOVERNED_MISSION", submission_id: route.submission_id, result_contract_confirmation: route.result_contract_selection?.operator_confirmation_required ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE" : "NOT_REQUIRED" };
 }
 
 const server = await startHqDispatchServerForTest({ executionAdapter: adapters.executionAdapter, responseAdapter: adapters.responseAdapter });

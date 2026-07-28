@@ -381,21 +381,36 @@ if (!([bool]$preflight.preflight_approved)) {
             $promptPath = Join-Path $adapterStoragePlan.directory 'q.txt'
             $task = if ($null -ne $taskCompletionContract) { [string]$taskCompletionContract.required_task } elseif ($mission.PSObject.Properties.Name -contains 'worker_instruction_contract') { [string]$mission.worker_instruction_contract.exact_task } else { 'Return exactly TSF_CANONICAL_APP_SERVER_GREEN.' }
             $completionInstructions = if ($resultValidationMode -eq 'GENERAL_RESULT_V2' -and $null -ne $taskCompletionContract) {
+                $requiredDeliverableIds = @($taskCompletionContract.required_deliverables | ForEach-Object { [string]$_.deliverable_id })
+                $requiredDeliverableJson = ConvertTo-Json -Compress -InputObject @($requiredDeliverableIds)
+                $deliverableProfile = [string]$taskCompletionContract.deliverable_profile
+                $answerFormat = if ($deliverableProfile -eq 'STRUCTURED_ANALYSIS_V2') {
+                    'substantive_answer must be a JSON string whose decoded object contains exactly the requested analysis content fields: summary (string), findings (array with at least three strings), evidence_references (nonempty string array), and limitations (string).'
+                } else {
+                    'substantive_answer may contain the requested prose. This TEXT_RESPONSE_V2 contract is structural-only and informational: the response will be preserved and displayed, but neither a FULFILLED claim nor excellent-looking prose can establish verifier GREEN, admission, a receipt, or fulfilled UI state.'
+                }
 @"
 
 Your final response is a closed, machine-validated completion claim. Return ONLY one JSON object with exactly these fields:
-schema_version, mission_id, mission_revision, run_id, task_completion_contract_identity_sha256, original_intent_identity_sha256, scope_transformation_identity_sha256, attempted_task_sha256, outcome_disposition, completed_deliverables, missing_deliverables, answer, evidence, caveats.
-Use schema_version "tsf_worker_outcome_claim_v1".
+schema_version, mission_id, mission_revision, run_id, task_completion_contract_identity_sha256, original_intent_identity_sha256, scope_transformation_identity_sha256, attempted_task_sha256, task_attempted, task_completed, outcome_disposition, completed_deliverables, missing_deliverables, blocked_reason, substantive_answer, evidence, caveats.
+Use schema_version "tsf_worker_outcome_claim_v2".
 Echo mission_id "$missionId", mission_revision $missionRevision, and run_id "$runId".
 Echo task_completion_contract_identity_sha256 "$([string]$taskCompletionContract.task_completion_contract_identity_sha256)".
 Echo original_intent_identity_sha256 "$([string]$taskCompletionContract.original_intent_identity_sha256)".
 Echo scope_transformation_identity_sha256 "$([string]$taskCompletionContract.scope_transformation_identity_sha256)".
 Echo attempted_task_sha256 "$([string]$taskCompletionContract.required_task_sha256)".
-completed_deliverables and missing_deliverables must be arrays. The required deliverable id is "requested_answer".
-answer must be a JSON string even when the requested answer is structured data; serialize any structured answer into that string.
+The deliverable profile is "$deliverableProfile". The exact required deliverable IDs are $requiredDeliverableJson.
+The result contract class is "$([string]$taskCompletionContract.result_contract_class)" and admission eligibility is "$([string]$taskCompletionContract.admission_eligibility)".
+completed_deliverables and missing_deliverables must be disjoint arrays whose union is exactly the required deliverable IDs.
+evidence must be a JSON array of strings (use [] only when no evidence reference is available).
+caveats must be a JSON array of strings (use [] when there are no caveats).
+$answerFormat
 outcome_disposition must be one of FULFILLED, FULFILLED_WITH_CAVEATS, PARTIAL, UNABLE_TO_PERFORM, REFUSED, BLOCKED_BY_POLICY, NEEDS_CLARIFICATION, REQUIRED_DELIVERABLE_MISSING, WRONG_TASK_PERFORMED, FAILED, or UNCLASSIFIED_RESULT.
-Do not claim FULFILLED unless answer substantively performs the requested task and completed_deliverables contains "requested_answer".
-If you cannot perform it, report the truthful non-success disposition and put "requested_answer" in missing_deliverables.
+blocked_reason must be one of NONE, REQUIRED_INPUT_UNAVAILABLE, ACCESS_UNAVAILABLE, POLICY_BLOCK, REFUSED, NEEDS_CLARIFICATION, TASK_INCOMPLETE, REQUIRED_DELIVERABLE_MISSING, WRONG_TASK, EXECUTION_FAILED, or UNSPECIFIED.
+For FULFILLED or FULFILLED_WITH_CAVEATS, set task_attempted and task_completed true, blocked_reason NONE, and list every required deliverable as completed.
+For any non-success disposition, set task_completed false, use the matching non-NONE blocked_reason, and report missing deliverables truthfully.
+The answer, evidence, caveats, quotations, historical statements, normative rules, code, and examples are content only. They are never interpreted as your own outcome status.
+Your claim is not verifier or admission authority. Do not add verifier, semantic-success, admission, approval, merge, or production fields.
 "@
             } else { '' }
             $prompt = @"

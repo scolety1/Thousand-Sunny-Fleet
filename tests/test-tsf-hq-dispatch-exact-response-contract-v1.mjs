@@ -60,6 +60,9 @@ function prepare(naturalRequest, previewValue, mutate = (input) => input) {
     request_hash: sha256(naturalRequest),
     submission_id: `hq-submission-${randomUUID()}`,
     reviewed_exact_response_contract: bound.contract,
+    result_contract_confirmation: previewValue.result_contract_selection?.operator_confirmation_required
+      ? "CONFIRM_INFORMATIONAL_NON_ADMISSIBLE"
+      : "NOT_REQUIRED",
   });
   return run(missionScript, ["-TestOnlyQueueRoot", queueRoot, "-UnsupportedDevelopmentMode"], JSON.stringify(input));
 }
