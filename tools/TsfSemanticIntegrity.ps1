@@ -397,6 +397,80 @@ function Get-TsfWorkerOutcomeClaimV2Assessment {
     return [pscustomobject]@{compatibility_mode=$compatibility;outcome_disposition=$disposition;observed_deliverables=$observed;missing_deliverables=$missing;errors=@($errors | Sort-Object -Unique)}
 }
 
+function Test-TsfJsonDuplicateMemberNames {
+    param(
+        [AllowEmptyString()]
+        [string]$Json
+    )
+    $frames = [Collections.Generic.List[object]]::new()
+    $duplicates = [Collections.Generic.List[string]]::new()
+    $inString = $false
+    $escaped = $false
+    $stringStart = -1
+
+    for ($index = 0; $index -lt $Json.Length; $index++) {
+        $character = $Json[$index]
+        if ($inString) {
+            if ($escaped) {
+                $escaped = $false
+                continue
+            }
+            if ($character -eq '\') {
+                $escaped = $true
+                continue
+            }
+            if ($character -ne '"') { continue }
+
+            $inString = $false
+            $next = $index + 1
+            while ($next -lt $Json.Length -and [char]::IsWhiteSpace($Json[$next])) { $next++ }
+            if ($frames.Count -gt 0 -and
+                [string]$frames[$frames.Count - 1].type -eq 'OBJECT' -and
+                $next -lt $Json.Length -and
+                $Json[$next] -eq ':') {
+                $token = $Json.Substring($stringStart, $index - $stringStart + 1)
+                try {
+                    $memberName = $token | ConvertFrom-Json -ErrorAction Stop
+                } catch {
+                    return [pscustomobject]@{valid=$true;duplicate_count=0;duplicate_member_names=@()}
+                }
+                if ($memberName -is [string] -and -not $frames[$frames.Count - 1].names.Add([string]$memberName)) {
+                    $duplicates.Add([string]$memberName) | Out-Null
+                }
+            }
+            continue
+        }
+
+        switch ($character) {
+            '"' {
+                $inString = $true
+                $stringStart = $index
+            }
+            '{' {
+                $frames.Add([pscustomobject]@{
+                    type = 'OBJECT'
+                    names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+                }) | Out-Null
+            }
+            '[' {
+                $frames.Add([pscustomobject]@{type='ARRAY';names=$null}) | Out-Null
+            }
+            '}' {
+                if ($frames.Count -gt 0) { $frames.RemoveAt($frames.Count - 1) }
+            }
+            ']' {
+                if ($frames.Count -gt 0) { $frames.RemoveAt($frames.Count - 1) }
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        valid = $duplicates.Count -eq 0
+        duplicate_count = $duplicates.Count
+        duplicate_member_names = @($duplicates | Sort-Object -Unique)
+    }
+}
+
 function Get-TsfGeneralResultV2Evidence {
     param(
         [Parameter(Mandatory)][string]$MissionId,
@@ -414,11 +488,15 @@ function Get-TsfGeneralResultV2Evidence {
     }
     $claim = $null
     $parseError = $false
-    try { $claim = $raw | ConvertFrom-Json -ErrorAction Stop } catch { $parseError=$true }
+    $duplicateMemberCheck = Test-TsfJsonDuplicateMemberNames -Json $raw
+    if ($duplicateMemberCheck.valid) {
+        try { $claim = $raw | ConvertFrom-Json -ErrorAction Stop } catch { $parseError=$true }
+    }
     $assessment = Get-TsfWorkerOutcomeClaimV2Assessment -Claim $claim -Contract $TaskCompletionContract -MissionId $MissionId -MissionRevision $MissionRevision -RunId $RunId
     $errors = [Collections.Generic.List[string]]::new()
     foreach ($entry in @($assessment.errors)) { $errors.Add([string]$entry) | Out-Null }
     if ($parseError) { $errors.Add('WORKER_CLAIM_INVALID_JSON') | Out-Null }
+    if (!$duplicateMemberCheck.valid) { $errors.Add('WORKER_CLAIM_DUPLICATE_MEMBER_NAME') | Out-Null }
     $workerDisposition = [string]$assessment.outcome_disposition
     $missing = @($assessment.missing_deliverables)
     $completed = @($assessment.observed_deliverables)

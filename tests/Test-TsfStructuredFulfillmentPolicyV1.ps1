@@ -179,6 +179,19 @@ $callerAuthority|Add-Member verifier_green $true
 $callerAuthorityEvidence=Get-PolicyEvidence $structured $callerAuthority
 Assert-Policy (!$callerAuthorityEvidence.semantic_success-and$callerAuthorityEvidence.outcome_evidence-contains'WORKER_CLAIM_NOT_CLOSED') 'Caller-supplied verifier authority is rejected.'
 
+$structuredClaimJson=$structuredClaim|ConvertTo-Json -Compress -Depth 40
+foreach($duplicateCase in @(
+    [pscustomobject]@{name='duplicate mission identity';raw=$structuredClaimJson.Replace('{"schema_version"','{"mission_id":"forged-mission","schema_version"')},
+    [pscustomobject]@{name='duplicate contract identity';raw=$structuredClaimJson.Replace('{"schema_version"',('{"task_completion_contract_identity_sha256":"'+('a'*64)+'","schema_version"'))},
+    [pscustomobject]@{name='escaped duplicate mission identity';raw=$structuredClaimJson.Replace('{"schema_version"','{"mission_\u0069d":"forged-mission","schema_version"')}
+)) {
+    $duplicateEvidence=Get-TsfGeneralResultV2Evidence -MissionId $structuredMission -MissionRevision 1 -RunId $structuredRun -Adapter ([pscustomobject]@{transport_success=$true;final_response=$duplicateCase.raw}) -TaskCompletionContract $structured.completion
+    Assert-Policy (!$duplicateEvidence.semantic_success-and!$duplicateEvidence.admissible) "$($duplicateCase.name) cannot establish fulfillment."
+    Assert-Policy ($duplicateEvidence.outcome_evidence-contains'WORKER_CLAIM_DUPLICATE_MEMBER_NAME') "$($duplicateCase.name) has explicit duplicate-member evidence."
+    Assert-Policy ($null-eq$duplicateEvidence.worker_claim) "$($duplicateCase.name) does not preserve an ambiguous projected claim as verifier input."
+    Assert-Policy (!(Test-PolicyAdmission $structured $duplicateEvidence).valid) "$($duplicateCase.name) cannot pass independent admission."
+}
+
 $legacy=Get-TsfGeneralResultV2Evidence -MissionId $genericMission -MissionRevision 1 -RunId $genericRun -Adapter ([pscustomobject]@{transport_success=$true;final_response=$historyText}) -TaskCompletionContract $null
 Assert-Policy ([string]$legacy.compatibility_mode-eq'LEGACY_FAIL_CLOSED_V1') 'Legacy response remains readable under its historical compatibility mode.'
 Assert-Policy ([string]$legacy.outcome_disposition-eq'UNCLASSIFIED_RESULT'-and!$legacy.semantic_success-and!$legacy.admissible) 'Legacy generic prose cannot gain admission on replay.'
