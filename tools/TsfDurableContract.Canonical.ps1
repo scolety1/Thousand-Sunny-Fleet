@@ -864,6 +864,522 @@ function Write-TsfRecoveryConflictDiagnostic {
     if(Test-Path $path -PathType Leaf){return $path};Write-TsfAtomicJson $diagnostic $path $temp -NoReplace|Out-Null;$path
 }
 
+function ConvertTo-TsfSyntheticCanonicalValue {
+    param([AllowNull()][object]$Value,[string]$ExcludeProperty='')
+    if($null-eq$Value){return $null}
+    if($Value-is[string]-or$Value-is[bool]-or$Value-is[byte]-or$Value-is[int16]-or$Value-is[int32]-or$Value-is[int64]-or$Value-is[single]-or$Value-is[double]-or$Value-is[decimal]){return $Value}
+    if($Value-is[System.Collections.IEnumerable]-and$Value-isnot[System.Collections.IDictionary]-and$Value.PSObject.Properties.Name-notcontains'Count'){
+        return @($Value|ForEach-Object{ConvertTo-TsfSyntheticCanonicalValue $_})
+    }
+    if($Value-is[array]-or$Value-is[System.Collections.IList]){
+        return @($Value|ForEach-Object{ConvertTo-TsfSyntheticCanonicalValue $_})
+    }
+    $ordered=[ordered]@{}
+    foreach($name in @($Value.PSObject.Properties.Name|Where-Object{$_-cne$ExcludeProperty}|Sort-Object -CaseSensitive)){
+        $ordered[$name]=ConvertTo-TsfSyntheticCanonicalValue $Value.$name
+    }
+    [pscustomobject]$ordered
+}
+
+function Set-TsfSyntheticClosedProcessEnvironment {
+    param([Parameter(Mandatory)][Diagnostics.ProcessStartInfo]$StartInfo)
+    $processTemp='C:\TSF_SYNTHETIC_ITERATION_V2\.process-temp'
+    $processHome='C:\TSF_SYNTHETIC_ITERATION_V2\.process-home'
+    [IO.Directory]::CreateDirectory($processTemp)|Out-Null
+    [IO.Directory]::CreateDirectory($processHome)|Out-Null
+    $closed=[ordered]@{
+        SystemRoot='C:\Windows'
+        WINDIR='C:\Windows'
+        TEMP=$processTemp
+        TMP=$processTemp
+        HOME=$processHome
+        USERPROFILE=$processHome
+        PATH=''
+        PATHEXT='.COM;.EXE;.BAT;.CMD'
+        GIT_TERMINAL_PROMPT='0'
+        GCM_INTERACTIVE='Never'
+        GIT_CONFIG_NOSYSTEM='1'
+        GIT_CONFIG_GLOBAL='NUL'
+        GIT_CONFIG_COUNT='2'
+        GIT_CONFIG_KEY_0='credential.helper'
+        GIT_CONFIG_VALUE_0=''
+        GIT_CONFIG_KEY_1='core.hooksPath'
+        GIT_CONFIG_VALUE_1='NUL'
+    }
+    $StartInfo.EnvironmentVariables.Clear()
+    foreach($entry in $closed.GetEnumerator()){
+        $StartInfo.EnvironmentVariables[[string]$entry.Key]=[string]$entry.Value
+    }
+}
+
+function Get-TsfSyntheticCanonicalHash {
+    param([Parameter(Mandatory)][object]$Value,[string]$IdentityField='')
+    $nodePath='C:\Program Files\nodejs\node.exe'
+    $nodeSha256='3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5'
+    if(!(Test-Path -LiteralPath $nodePath -PathType Leaf)-or
+       (Get-FileHash -LiteralPath $nodePath -Algorithm SHA256).Hash.ToLowerInvariant()-cne$nodeSha256){
+        throw 'SYNTHETIC_CANONICAL_HASH_NODE_IDENTITY_CHANGED'
+    }
+    $json=ConvertTo-Json -InputObject $Value -Depth 100 -Compress
+    $nodeScript="const fs=require('fs'),c=require('crypto');const v=JSON.parse(fs.readFileSync(0,'utf8'));const f=process.argv[1]||'';if(f)delete v[f];const s=x=>Array.isArray(x)?x.map(s):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,s(x[k])])):x;process.stdout.write(c.createHash('sha256').update(JSON.stringify(s(v))).digest('hex'));"
+    $startInfo=[Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName=$nodePath
+    $startInfo.Arguments="-e `"$nodeScript`" `"$IdentityField`""
+    $startInfo.UseShellExecute=$false
+    $startInfo.CreateNoWindow=$true
+    $startInfo.RedirectStandardInput=$true
+    $startInfo.RedirectStandardOutput=$true
+    $startInfo.RedirectStandardError=$true
+    Set-TsfSyntheticClosedProcessEnvironment $startInfo
+    $process=[Diagnostics.Process]::new()
+    $process.StartInfo=$startInfo
+    if(!$process.Start()){throw 'SYNTHETIC_CANONICAL_HASH_PROCESS_FAILED'}
+    try{
+        $utf8=[Text.UTF8Encoding]::new($false).GetBytes($json)
+        $process.StandardInput.BaseStream.Write($utf8,0,$utf8.Length)
+        $process.StandardInput.BaseStream.Close()
+        $hash=$process.StandardOutput.ReadToEnd().Trim()
+        $stderr=$process.StandardError.ReadToEnd().Trim()
+        $process.WaitForExit()
+        if($process.ExitCode-ne0-or$hash-notmatch'^[a-f0-9]{64}$'){
+            throw "SYNTHETIC_CANONICAL_HASH_PROCESS_FAILED: $stderr"
+        }
+        $hash
+    }finally{
+        $process.Dispose()
+    }
+}
+
+function Get-TsfSyntheticIterationAdmissionDecisionV2 {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object]$Candidate,
+        [Parameter(Mandatory)][string]$CandidatePath
+    )
+
+    $required=@(
+        'schema_version','program_id','task_id','repository_root','branch','evidence_root',
+        'iteration','run_id','admission_bundle_relative_path','admission_bundle_sha256',
+        'admission_bundle_identity_sha256','registration_identity_sha256',
+        'preauthorization_identity_sha256','binding_identity_sha256',
+        'candidate_set_identity_sha256','writeset_identity_sha256',
+        'byte_observation_identity_sha256','precommit_verifier_identity_sha256',
+        'verifier_identity_sha256',
+        'commit_authority_identity_sha256','commit_receipt_identity_sha256',
+        'candidate_integrity_proof_identity_sha256','approved_replacement_sha256',
+        'replacement_byte_length','expected_file_mode',
+        'verifier_verdict','verifier_verified','commit','commit_subject','authority_use_count',
+        'push_performed','amend','expected_commit_subject','expected_baseline_commit',
+        'grants_approval','grants_merge_authority','grants_push_authority',
+        'grants_product_authority','candidate_identity_sha256'
+    )
+    $actual=@($Candidate.PSObject.Properties.Name|Sort-Object -CaseSensitive)
+    if(Compare-Object -ReferenceObject @($required|Sort-Object -CaseSensitive) -DifferenceObject $actual -CaseSensitive){
+        throw 'SYNTHETIC_ADMISSION_CANDIDATE_FIELDS_CHANGED'
+    }
+    $reasons=[Collections.Generic.List[string]]::new()
+    if([string]$Candidate.candidate_identity_sha256-cne(Get-TsfSyntheticCanonicalHash $Candidate 'candidate_identity_sha256')){
+        $reasons.Add('ADMISSION_CANDIDATE_IDENTITY_MISMATCH')|Out-Null
+    }
+    if([string]$Candidate.schema_version-cne'TSF_SYNTHETIC_TASK_ADMISSION_CANDIDATE_V2'){
+        $reasons.Add('ADMISSION_CANDIDATE_VERSION_MISMATCH')|Out-Null
+    }
+
+    $authorityPath=Join-Path $script:TsfRoot 'fleet\control\hq-dispatch\hq-dispatch-synthetic-iteration-authority.v2.json'
+    $authoritySchemaPath=Join-Path $script:TsfRoot 'fleet\control\hq-dispatch\hq-dispatch-synthetic-iteration-authority.schema.v2.json'
+    if(!(Test-Path -LiteralPath $authorityPath -PathType Leaf)-or!(Test-Path -LiteralPath $authoritySchemaPath -PathType Leaf)){
+        throw 'SYNTHETIC_ITERATION_AUTHORITY_V2_ABSENT'
+    }
+    $authority=Get-Content -LiteralPath $authorityPath -Raw -Encoding UTF8|ConvertFrom-Json
+    $authorityValidation=Test-TsfJsonContract $authority $authoritySchemaPath
+    if(!$authorityValidation.valid){throw "SYNTHETIC_ITERATION_AUTHORITY_V2_INVALID: $($authorityValidation.errors -join '; ')"}
+    if((Get-TsfSyntheticCanonicalHash $authority)-cne'1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222'){
+        throw 'SYNTHETIC_ITERATION_AUTHORITY_V2_EXACT_IDENTITY_CHANGED'
+    }
+    $task=@($authority.tasks|Where-Object{[string]::Equals([string]$_.task_id,[string]$Candidate.task_id,[StringComparison]::Ordinal)})
+    if($task.Count-ne1){$reasons.Add('ADMISSION_TASK_IDENTITY_MISMATCH')|Out-Null}
+    if(![string]::Equals([string]$Candidate.program_id,[string]$authority.program_id,[StringComparison]::Ordinal)){$reasons.Add('ADMISSION_PROGRAM_IDENTITY_MISMATCH')|Out-Null}
+    if(![string]::Equals([string]$Candidate.repository_root,[string]$authority.repository.root,[StringComparison]::Ordinal)){$reasons.Add('ADMISSION_REPOSITORY_ROOT_NOT_EXACT')|Out-Null}
+    if(![string]::Equals([string]$Candidate.branch,[string]$authority.repository.branch,[StringComparison]::Ordinal)){$reasons.Add('ADMISSION_BRANCH_IDENTITY_MISMATCH')|Out-Null}
+
+    $fixedEvidenceParent=[IO.Path]::GetFullPath('C:\TSF_SYNTHETIC_ITERATION_V2\evidence')
+    $evidenceRoot=[IO.Path]::GetFullPath([string]$Candidate.evidence_root)
+    $candidateFull=[IO.Path]::GetFullPath($CandidatePath)
+    $expectedCandidate=Join-Path $evidenceRoot "tasks\$($Candidate.task_id)\iteration-$([int]$Candidate.iteration)\admission-candidate.json"
+    if(![string]::Equals((Split-Path -Parent $evidenceRoot),$fixedEvidenceParent,[StringComparison]::Ordinal)-or
+       ![string]::Equals($candidateFull,$expectedCandidate,[StringComparison]::Ordinal)){
+        $reasons.Add('ADMISSION_CANDIDATE_PATH_OUTSIDE_EVIDENCE_ROOT')|Out-Null
+    }
+    foreach($pathToCheck in @($fixedEvidenceParent,$evidenceRoot,(Split-Path -Parent $candidateFull),$candidateFull)){
+        if(!(Test-Path -LiteralPath $pathToCheck)){continue}
+        if((Get-Item -LiteralPath $pathToCheck -Force).Attributes-band[IO.FileAttributes]::ReparsePoint){
+            $reasons.Add('ADMISSION_EVIDENCE_REPARSE_POINT')|Out-Null
+        }
+    }
+
+    $bundle=$null
+    $artifacts=@{}
+    $bundlePath=Join-Path $evidenceRoot ([string]$Candidate.admission_bundle_relative_path).Replace('/','\')
+    $expectedBundle=Join-Path $evidenceRoot "tasks\$($Candidate.task_id)\iteration-$([int]$Candidate.iteration)\admission-bundle.json"
+    if(![string]::Equals($bundlePath,$expectedBundle,[StringComparison]::Ordinal)-or!(Test-Path -LiteralPath $bundlePath -PathType Leaf)){
+        $reasons.Add('ADMISSION_BUNDLE_PATH_MISMATCH')|Out-Null
+    }else{
+        if((Get-Item -LiteralPath $bundlePath -Force).Attributes-band[IO.FileAttributes]::ReparsePoint){$reasons.Add('ADMISSION_BUNDLE_REPARSE_POINT')|Out-Null}
+        $bundleFileHash=(Get-FileHash -LiteralPath $bundlePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if($bundleFileHash-cne[string]$Candidate.admission_bundle_sha256){$reasons.Add('ADMISSION_BUNDLE_FILE_HASH_MISMATCH')|Out-Null}
+        $bundle=Get-Content -LiteralPath $bundlePath -Raw -Encoding UTF8|ConvertFrom-Json
+        if([string]$bundle.admission_bundle_identity_sha256-cne(Get-TsfSyntheticCanonicalHash $bundle 'admission_bundle_identity_sha256')-or
+           [string]$bundle.admission_bundle_identity_sha256-cne[string]$Candidate.admission_bundle_identity_sha256){
+            $reasons.Add('ADMISSION_BUNDLE_IDENTITY_MISMATCH')|Out-Null
+        }
+    }
+
+    if($null-ne$bundle-and$task.Count-eq1){
+        $expectedArtifactPaths=[ordered]@{
+            registration='registration.json'
+            preauthorization="tasks/$($Candidate.task_id)/preauthorization.json"
+            binding="tasks/$($Candidate.task_id)/binding.json"
+            candidate_set="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/approved-candidate-set.json"
+            writeset="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/approved-writeset.json"
+            byte_observation="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/byte-observation.json"
+            precommit_verifier="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/precommit-verifier.json"
+            verifier="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/verifier.json"
+            commit_authority="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/commit-authority.json"
+            commit_receipt="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/commit-receipt.json"
+            candidate_integrity_proof="tasks/$($Candidate.task_id)/iteration-$([int]$Candidate.iteration)/candidate-integrity-proof.json"
+        }
+        $identityFields=[ordered]@{
+            registration='registration_identity_sha256'
+            preauthorization='preauthorization_identity_sha256'
+            binding='binding_identity_sha256'
+            candidate_set='candidate_set_identity_sha256'
+            writeset='writeset_identity_sha256'
+            byte_observation='byte_observation_identity_sha256'
+            precommit_verifier='verifier_identity_sha256'
+            verifier='verifier_identity_sha256'
+            commit_authority='commit_authority_identity_sha256'
+            commit_receipt='commit_receipt_identity_sha256'
+            candidate_integrity_proof='candidate_integrity_proof_identity_sha256'
+        }
+        foreach($name in $expectedArtifactPaths.Keys){
+            $descriptor=$bundle.artifacts.$name
+            if($null-eq$descriptor-or![string]::Equals([string]$descriptor.relative_path,[string]$expectedArtifactPaths[$name],[StringComparison]::Ordinal)-or
+               ![string]::Equals([string]$descriptor.identity_field,[string]$identityFields[$name],[StringComparison]::Ordinal)){
+                $reasons.Add("ADMISSION_$($name.ToUpperInvariant())_DESCRIPTOR_MISMATCH")|Out-Null
+                continue
+            }
+            $artifactPath=Join-Path $evidenceRoot ([string]$descriptor.relative_path).Replace('/','\')
+            if(!(Test-Path -LiteralPath $artifactPath -PathType Leaf)-or
+               (Get-Item -LiteralPath $artifactPath -Force).Attributes-band[IO.FileAttributes]::ReparsePoint){
+                $reasons.Add("ADMISSION_$($name.ToUpperInvariant())_ARTIFACT_ABSENT")|Out-Null
+                continue
+            }
+            $fileHash=(Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $artifact=Get-Content -LiteralPath $artifactPath -Raw -Encoding UTF8|ConvertFrom-Json
+            $identityField=[string]$identityFields[$name]
+            $identity=[string]$artifact.$identityField
+            if($fileHash-cne[string]$descriptor.sha256-or$identity-cne[string]$descriptor.identity_sha256-or
+               $identity-cne(Get-TsfSyntheticCanonicalHash $artifact $identityField)){
+                $reasons.Add("ADMISSION_$($name.ToUpperInvariant())_ARTIFACT_MISMATCH")|Out-Null
+                continue
+            }
+            $artifacts[$name]=$artifact
+        }
+    }
+
+    if($artifacts.Count-eq11-and$task.Count-eq1){
+        $registration=$artifacts.registration;$preauthorization=$artifacts.preauthorization;$binding=$artifacts.binding
+        $candidateSet=$artifacts.candidate_set;$writeset=$artifacts.writeset
+        $byteObservation=$artifacts.byte_observation;$precommitVerifier=$artifacts.precommit_verifier
+        $verifier=$artifacts.verifier;$commitAuthority=$artifacts.commit_authority;$commitReceipt=$artifacts.commit_receipt
+        $candidateIntegrityProof=$artifacts.candidate_integrity_proof;$exactTask=$task[0]
+        $write=@($writeset.writes)[0]
+        foreach($pair in @(
+            @([string]$registration.program_id,[string]$authority.program_id,'ADMISSION_REGISTRATION_PROGRAM_MISMATCH'),
+            @([string]$registration.repository_root,[string]$authority.repository.root,'ADMISSION_REGISTRATION_ROOT_MISMATCH'),
+            @([string]$registration.branch,[string]$authority.repository.branch,'ADMISSION_REGISTRATION_BRANCH_MISMATCH'),
+            @([string]$preauthorization.task_id,[string]$Candidate.task_id,'ADMISSION_PREAUTHORIZATION_TASK_MISMATCH'),
+            @([string]$preauthorization.baseline_commit,[string]$Candidate.expected_baseline_commit,'ADMISSION_PREAUTHORIZATION_BASELINE_MISMATCH'),
+            @([string]$binding.registration_identity_sha256,[string]$registration.registration_identity_sha256,'ADMISSION_BINDING_REGISTRATION_MISMATCH'),
+            @([string]$binding.preauthorization_identity_sha256,[string]$preauthorization.preauthorization_identity_sha256,'ADMISSION_BINDING_PREAUTHORIZATION_MISMATCH'),
+            @([string]$binding.baseline_commit,[string]$Candidate.expected_baseline_commit,'ADMISSION_BINDING_BASELINE_MISMATCH'),
+            @([string]$candidateSet.registration_identity_sha256,[string]$registration.registration_identity_sha256,'ADMISSION_CANDIDATE_SET_REGISTRATION_MISMATCH'),
+            @([string]$candidateSet.preauthorization_identity_sha256,[string]$preauthorization.preauthorization_identity_sha256,'ADMISSION_CANDIDATE_SET_PREAUTHORIZATION_MISMATCH'),
+            @([string]$candidateSet.baseline_commit,[string]$preauthorization.baseline_commit,'ADMISSION_CANDIDATE_SET_BASELINE_MISMATCH'),
+            @([string]$candidateSet.baseline_tree,[string]$preauthorization.baseline_tree,'ADMISSION_CANDIDATE_SET_BASELINE_TREE_MISMATCH'),
+            @([string]$writeset.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_WRITESET_CANDIDATE_SET_MISMATCH'),
+            @([string]$writeset.preauthorization_identity_sha256,[string]$preauthorization.preauthorization_identity_sha256,'ADMISSION_WRITESET_PREAUTHORIZATION_MISMATCH'),
+            @([string]$byteObservation.candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_BYTE_EVIDENCE_CANDIDATE_SET_MISMATCH'),
+            @([string]$byteObservation.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_BYTE_EVIDENCE_WRITESET_MISMATCH'),
+            @([string]$precommitVerifier.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_PRECOMMIT_VERIFIER_CANDIDATE_SET_MISMATCH'),
+            @([string]$precommitVerifier.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_PRECOMMIT_VERIFIER_WRITESET_MISMATCH'),
+            @([string]$verifier.registration_identity_sha256,[string]$registration.registration_identity_sha256,'ADMISSION_VERIFIER_REGISTRATION_MISMATCH'),
+            @([string]$verifier.binding_identity_sha256,[string]$binding.binding_identity_sha256,'ADMISSION_VERIFIER_BINDING_MISMATCH'),
+            @([string]$verifier.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_VERIFIER_CANDIDATE_SET_MISMATCH'),
+            @([string]$verifier.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_VERIFIER_WRITESET_MISMATCH'),
+            @([string]$verifier.byte_observation_identity_sha256,[string]$byteObservation.byte_observation_identity_sha256,'ADMISSION_VERIFIER_BYTE_EVIDENCE_MISMATCH'),
+            @([string]$verifier.candidate_integrity_proof_identity_sha256,[string]$candidateIntegrityProof.candidate_integrity_proof_identity_sha256,'ADMISSION_VERIFIER_INTEGRITY_PROOF_MISMATCH'),
+            @([string]$verifier.precommit_verifier_identity_sha256,[string]$precommitVerifier.verifier_identity_sha256,'ADMISSION_VERIFIER_PRECOMMIT_MISMATCH'),
+            @([string]$verifier.commit_receipt_identity_sha256,[string]$commitReceipt.commit_receipt_identity_sha256,'ADMISSION_VERIFIER_COMMIT_RECEIPT_MISMATCH'),
+            @([string]$verifier.baseline_commit,[string]$binding.baseline_commit,'ADMISSION_VERIFIER_BASELINE_MISMATCH'),
+            @([string]$verifier.run_id,[string]$Candidate.run_id,'ADMISSION_VERIFIER_RUN_MISMATCH'),
+            @([string]$commitAuthority.verifier_identity_sha256,[string]$precommitVerifier.verifier_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_VERIFIER_MISMATCH'),
+            @([string]$commitAuthority.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_CANDIDATE_SET_MISMATCH'),
+            @([string]$commitAuthority.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_WRITESET_MISMATCH'),
+            @([string]$commitReceipt.commit_authority_identity_sha256,[string]$commitAuthority.commit_authority_identity_sha256,'ADMISSION_COMMIT_RECEIPT_AUTHORITY_MISMATCH'),
+            @([string]$commitReceipt.commit,[string]$Candidate.commit,'ADMISSION_COMMIT_RECEIPT_COMMIT_MISMATCH'),
+            @([string]$candidateIntegrityProof.commit_receipt_identity_sha256,[string]$commitReceipt.commit_receipt_identity_sha256,'ADMISSION_INTEGRITY_PROOF_COMMIT_RECEIPT_MISMATCH')
+        )){if(![string]::Equals($pair[0],$pair[1],[StringComparison]::Ordinal)){$reasons.Add($pair[2])|Out-Null}}
+
+        $templates=@($exactTask.approved_builder_candidate_sets|Where-Object{
+            [int]$_.iteration-eq[int]$Candidate.iteration-and
+            [string]::Equals([string]$_.repository_relative_path,[string]$candidateSet.repository_relative_path,[StringComparison]::Ordinal)
+        })
+        if($templates.Count-ne1){$reasons.Add('ADMISSION_CANONICAL_CANDIDATE_TEMPLATE_ABSENT')|Out-Null}
+        else{
+            $expectedCandidateSet=[pscustomobject][ordered]@{
+                schema_version='APPROVED_BUILDER_CANDIDATE_SET_V2'
+                contract_version='APPROVED_BUILDER_CANDIDATE_SET_V2'
+                canonical_authority_sha256='1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222'
+                program_id=[string]$authority.program_id
+                task_id=[string]$exactTask.task_id
+                registration_identity_sha256=[string]$registration.registration_identity_sha256
+                preauthorization_identity_sha256=[string]$preauthorization.preauthorization_identity_sha256
+                repository_root=[string]$registration.repository_root
+                git_top_level=[string]$registration.git_top_level
+                branch=[string]$registration.branch
+                baseline_commit=[string]$preauthorization.baseline_commit
+                baseline_tree=[string]$preauthorization.baseline_tree
+                iteration=[int]$Candidate.iteration
+                repository_relative_path=[string]$templates[0].repository_relative_path
+                candidates=@($templates[0].candidates)
+                maximum_candidate_count=[int]$templates[0].maximum_candidate_count
+                expires_at=[string]$authority.expires_at
+            }
+            $expectedCandidateSetIdentity=Get-TsfSyntheticCanonicalHash $expectedCandidateSet
+            if([string]$candidateSet.candidate_set_identity_sha256-cne$expectedCandidateSetIdentity-or
+               [string]$Candidate.candidate_set_identity_sha256-cne$expectedCandidateSetIdentity-or
+               @($binding.approved_candidate_set_identity_sha256s)-cnotcontains$expectedCandidateSetIdentity){
+                $reasons.Add('ADMISSION_CANDIDATE_SET_NOT_CANONICALLY_BOUND')|Out-Null
+            }
+            $member=@($templates[0].candidates|Where-Object{
+                [string]$_.sha256-ceq[string]$Candidate.approved_replacement_sha256-and
+                [int]$_.byte_length-eq[int]$Candidate.replacement_byte_length
+            })
+            if($member.Count-ne1){$reasons.Add('ADMISSION_REPLACEMENT_NOT_IN_CANONICAL_CANDIDATE_SET')|Out-Null}
+        }
+
+        if([int]$candidateSet.iteration-ne[int]$Candidate.iteration-or[int]$writeset.iteration-ne[int]$Candidate.iteration-or
+           [int]$verifier.iteration-ne[int]$Candidate.iteration-or[int]$commitAuthority.iteration-ne[int]$Candidate.iteration-or
+           [string]$commitAuthority.run_id-cne[string]$Candidate.run_id-or
+           [string]$writeset.run_id-cne[string]$Candidate.run_id){
+            $reasons.Add('ADMISSION_CROSS_CONTEXT_ARTIFACT')|Out-Null
+        }
+        if([string]$binding.binding_identity_sha256-cne[string]$Candidate.binding_identity_sha256-or
+           [string]$candidateSet.candidate_set_identity_sha256-cne[string]$Candidate.candidate_set_identity_sha256-or
+           [string]$writeset.writeset_identity_sha256-cne[string]$Candidate.writeset_identity_sha256-or
+           [string]$byteObservation.byte_observation_identity_sha256-cne[string]$Candidate.byte_observation_identity_sha256-or
+           [string]$precommitVerifier.verifier_identity_sha256-cne[string]$Candidate.precommit_verifier_identity_sha256-or
+           [string]$verifier.verifier_identity_sha256-cne[string]$Candidate.verifier_identity_sha256-or
+           [string]$commitAuthority.commit_authority_identity_sha256-cne[string]$Candidate.commit_authority_identity_sha256-or
+           [string]$commitReceipt.commit_receipt_identity_sha256-cne[string]$Candidate.commit_receipt_identity_sha256-or
+           [string]$candidateIntegrityProof.candidate_integrity_proof_identity_sha256-cne[string]$Candidate.candidate_integrity_proof_identity_sha256){
+            $reasons.Add('ADMISSION_CANDIDATE_ARTIFACT_IDENTITY_MISMATCH')|Out-Null
+        }
+        $expectedSource=@([string]$exactTask.authorized_source_paths[0])
+        if((Get-TsfSyntheticCanonicalHash @($verifier.changed_paths))-cne(Get-TsfSyntheticCanonicalHash $expectedSource)-or
+           (Get-TsfSyntheticCanonicalHash @($commitAuthority.changed_paths))-cne(Get-TsfSyntheticCanonicalHash $expectedSource)-or
+           (Get-TsfSyntheticCanonicalHash @($commitReceipt.changed_paths))-cne(Get-TsfSyntheticCanonicalHash $expectedSource)-or
+           [string]$write.relative_path-cne[string]$expectedSource[0]){
+            $reasons.Add('ADMISSION_CHANGED_PATH_SET_MISMATCH')|Out-Null
+        }
+        $approved=[string]$Candidate.approved_replacement_sha256
+        $boundaryValues=@(
+            [string]$byteObservation.candidate_artifact_sha256,
+            [string]$byteObservation.temporary_file_sha256,
+            [string]$byteObservation.post_write_file_sha256,
+            [string]$byteObservation.pre_test_file_sha256,
+            [string]$byteObservation.post_test_file_sha256,
+            [string]$commitReceipt.working_tree_before_stage_sha256,
+            [string]$commitReceipt.staged_blob.content_sha256,
+            [string]$commitReceipt.working_tree_before_commit_sha256,
+            [string]$commitReceipt.committed_blob.content_sha256,
+            [string]$commitReceipt.working_tree_after_commit_sha256
+        )
+        if(@($boundaryValues|Where-Object{$_-cne$approved}).Count-ne0-or
+           [string]$write.approved_replacement_sha256-cne$approved-or
+           [int]$write.replacement_byte_length-ne[int]$Candidate.replacement_byte_length-or
+           [string]$write.expected_file_mode-cne[string]$Candidate.expected_file_mode-or
+           [string]$commitReceipt.staged_blob.git_mode-cne[string]$Candidate.expected_file_mode-or
+           [string]$commitReceipt.committed_blob.git_mode-cne[string]$Candidate.expected_file_mode){
+            $reasons.Add('ADMISSION_BYTE_OR_GIT_BLOB_BINDING_MISMATCH')|Out-Null
+        }
+        if([string]$precommitVerifier.phase-cne'PRECOMMIT_EXECUTION'-or
+           [string]$precommitVerifier.verdict-cne'GREEN'-or![bool]$precommitVerifier.verified-or
+           [string]$verifier.phase-cne'POSTCOMMIT_BINDING'-or
+           [string]$verifier.verdict-cne'GREEN'-or![bool]$verifier.verified-or![bool]$verifier.binding_evidence_complete-or
+           [string]$Candidate.verifier_verdict-cne'GREEN'-or![bool]$Candidate.verifier_verified){
+            $reasons.Add('ADMISSION_VERIFIER_NOT_GREEN')|Out-Null
+        }
+        $commandReceipts=@($precommitVerifier.syntax)+@($precommitVerifier.focused)+@($precommitVerifier.acceptance)+@($precommitVerifier.diff_check)+@($precommitVerifier.status_porcelain_v2)
+        foreach($receipt in $commandReceipts){
+            $exeKey=[string]$receipt.executable
+            $pinned=$authority.executables.$exeKey
+            if([int]$receipt.exit_code-ne0-or[bool]$receipt.shell-or[bool]$receipt.network_used-or
+               ![string]::Equals([string]$receipt.executable_path,[string]$pinned.path,[StringComparison]::Ordinal)-or
+               [string]$receipt.executable_sha256-cne[string]$pinned.sha256){
+                $reasons.Add('ADMISSION_VERIFIER_COMMAND_RECEIPT_INVALID')|Out-Null
+            }
+        }
+        if([string]$commitAuthority.commit_subject-cne[string]$exactTask.required_commit_subject-or
+           [string]$commitReceipt.subject-cne[string]$exactTask.required_commit_subject-or
+           [int]$commitAuthority.use_count-ne0-or[int]$commitReceipt.authority_use_count-ne1-or
+           [bool]$commitAuthority.amend-or[bool]$commitReceipt.amend-or
+           [bool]$commitAuthority.push_performed-or[bool]$commitReceipt.push_performed){
+            $reasons.Add('ADMISSION_COMMIT_AUTHORITY_OR_RECEIPT_INVALID')|Out-Null
+        }
+    }
+
+    if([int]$Candidate.authority_use_count-ne1-or[bool]$Candidate.amend-or[bool]$Candidate.push_performed){
+        $reasons.Add('ADMISSION_CANDIDATE_COMMIT_USE_INVALID')|Out-Null
+    }
+    if([bool]$Candidate.grants_approval-or[bool]$Candidate.grants_merge_authority-or[bool]$Candidate.grants_push_authority-or[bool]$Candidate.grants_product_authority){
+        $reasons.Add('ADMISSION_CANDIDATE_ATTEMPTED_AUTHORITY_GRANT')|Out-Null
+    }
+    $admissionPath=Join-Path (Split-Path -Parent $candidateFull) 'admission.json'
+    if(Test-Path -LiteralPath $admissionPath -PathType Leaf){$reasons.Add('ADMISSION_BUNDLE_ALREADY_CONSUMED')|Out-Null}
+
+    $repo=[string]$Candidate.repository_root
+    if(!(Test-Path -LiteralPath $repo -PathType Container)){
+        $reasons.Add('ADMISSION_REPOSITORY_ABSENT')|Out-Null
+    }else{
+        $gitPath=[string]$authority.executables.git.path
+        if(!(Test-Path -LiteralPath $gitPath -PathType Leaf)-or(Get-FileHash -LiteralPath $gitPath -Algorithm SHA256).Hash.ToLowerInvariant()-cne[string]$authority.executables.git.sha256){
+            $reasons.Add('ADMISSION_GIT_EXECUTABLE_IDENTITY_CHANGED')|Out-Null
+        }else{
+            function Invoke-TsfSyntheticAdmissionGit([string[]]$Arguments){
+                $tokens=@('-c','credential.helper=','-c','core.hooksPath=NUL','-C',$repo)+@($Arguments)
+                if(@($tokens|Where-Object{$_-match'["\x00-\x1f]'}).Count-ne0){
+                    throw 'SYNTHETIC_ADMISSION_GIT_ARGUMENT_INVALID'
+                }
+                $gitStart=[Diagnostics.ProcessStartInfo]::new()
+                $gitStart.FileName=$gitPath
+                $gitStart.Arguments=(@($tokens|ForEach-Object{'"'+[string]$_+'"'})-join' ')
+                $gitStart.UseShellExecute=$false
+                $gitStart.CreateNoWindow=$true
+                $gitStart.RedirectStandardOutput=$true
+                $gitStart.RedirectStandardError=$true
+                Set-TsfSyntheticClosedProcessEnvironment $gitStart
+                $gitProcess=[Diagnostics.Process]::new()
+                $gitProcess.StartInfo=$gitStart
+                if(!$gitProcess.Start()){throw 'SYNTHETIC_ADMISSION_GIT_PROCESS_FAILED'}
+                try{
+                    $stdout=$gitProcess.StandardOutput.ReadToEnd().Trim()
+                    $stderr=$gitProcess.StandardError.ReadToEnd().Trim()
+                    $gitProcess.WaitForExit()
+                    [pscustomobject]@{
+                        text=if($gitProcess.ExitCode-eq0){$stdout}else{($stdout,$stderr|Where-Object{$_})-join[Environment]::NewLine}
+                        exit=[int]$gitProcess.ExitCode
+                    }
+                }finally{
+                    $gitProcess.Dispose()
+                }
+            }
+            function Invoke-TsfSyntheticAdmissionGitBytes([string[]]$Arguments){
+                $tokens=@('-c','credential.helper=','-c','core.hooksPath=NUL','-C',$repo)+@($Arguments)
+                if(@($tokens|Where-Object{$_-match'["\x00-\x1f]'}).Count-ne0){
+                    throw 'SYNTHETIC_ADMISSION_GIT_ARGUMENT_INVALID'
+                }
+                $gitStart=[Diagnostics.ProcessStartInfo]::new()
+                $gitStart.FileName=$gitPath
+                $gitStart.Arguments=(@($tokens|ForEach-Object{'"'+[string]$_+'"'})-join' ')
+                $gitStart.UseShellExecute=$false
+                $gitStart.CreateNoWindow=$true
+                $gitStart.RedirectStandardOutput=$true
+                $gitStart.RedirectStandardError=$true
+                Set-TsfSyntheticClosedProcessEnvironment $gitStart
+                $gitProcess=[Diagnostics.Process]::new()
+                $gitProcess.StartInfo=$gitStart
+                if(!$gitProcess.Start()){throw 'SYNTHETIC_ADMISSION_GIT_PROCESS_FAILED'}
+                try{
+                    $memory=[IO.MemoryStream]::new()
+                    $gitProcess.StandardOutput.BaseStream.CopyTo($memory)
+                    $stderr=$gitProcess.StandardError.ReadToEnd().Trim()
+                    $gitProcess.WaitForExit()
+                    [pscustomobject]@{
+                        bytes=$memory.ToArray()
+                        error=$stderr
+                        exit=[int]$gitProcess.ExitCode
+                    }
+                }finally{
+                    if($null-ne$memory){$memory.Dispose()}
+                    $gitProcess.Dispose()
+                }
+            }
+            $head=Invoke-TsfSyntheticAdmissionGit @('rev-parse','HEAD')
+            $branch=Invoke-TsfSyntheticAdmissionGit @('branch','--show-current')
+            $parent=Invoke-TsfSyntheticAdmissionGit @('rev-parse','HEAD^')
+            $subject=Invoke-TsfSyntheticAdmissionGit @('show','-s','--format=%s','HEAD')
+            $status=Invoke-TsfSyntheticAdmissionGit @('status','--porcelain=v2')
+            $remotes=Invoke-TsfSyntheticAdmissionGit @('remote')
+            $changed=Invoke-TsfSyntheticAdmissionGit @('diff','--name-only',"$($Candidate.expected_baseline_commit)..$($Candidate.commit)")
+            $gitResults=@($head,$branch,$parent,$subject,$status,$remotes,$changed)
+            $changedPaths=@($changed.text-split"`r?`n"|Where-Object{$_}|Sort-Object -CaseSensitive)
+            [object[]]$expectedPaths=if($task.Count-eq1){@([string]$task[0].authorized_source_paths[0])}else{@()}
+            if(@($gitResults|Where-Object{$_.exit-ne0}).Count-ne0-or
+               ![string]::Equals($head.text,[string]$Candidate.commit,[StringComparison]::Ordinal)-or
+               ![string]::Equals($branch.text,[string]$Candidate.branch,[StringComparison]::Ordinal)-or
+               ![string]::Equals($parent.text,[string]$Candidate.expected_baseline_commit,[StringComparison]::Ordinal)-or
+               ![string]::Equals($subject.text,[string]$Candidate.commit_subject,[StringComparison]::Ordinal)-or
+               $status.text-or$remotes.text-or
+               (Get-TsfSyntheticCanonicalHash $changedPaths)-cne(Get-TsfSyntheticCanonicalHash $expectedPaths)){
+                $reasons.Add('ADMISSION_OBSERVED_GIT_STATE_MISMATCH')|Out-Null
+            }
+            if($artifacts.Count-eq11-and$task.Count-eq1){
+                $sourcePath=[string]$task[0].authorized_source_paths[0]
+                $committedBlob=Invoke-TsfSyntheticAdmissionGitBytes @('show',"$($Candidate.commit):$sourcePath")
+                $committedMode=Invoke-TsfSyntheticAdmissionGit @('ls-tree',[string]$Candidate.commit,'--',$sourcePath)
+                $modeMatch=[regex]::Match([string]$committedMode.text,'^(\d{6})\s+blob\s+[0-9a-f]{40}\t')
+                $sha=[Security.Cryptography.SHA256]::Create()
+                try{
+                    $observedBlobSha256=($sha.ComputeHash([byte[]]$committedBlob.bytes)|ForEach-Object{$_.ToString('x2')})-join''
+                }finally{$sha.Dispose()}
+                if($committedBlob.exit-ne0-or$committedMode.exit-ne0-or!$modeMatch.Success-or
+                   $observedBlobSha256-cne[string]$Candidate.approved_replacement_sha256-or
+                   [int]$committedBlob.bytes.Length-ne[int]$Candidate.replacement_byte_length-or
+                   [string]$modeMatch.Groups[1].Value-cne[string]$Candidate.expected_file_mode-or
+                   [string]$artifacts.commit_receipt.committed_blob.content_sha256-cne$observedBlobSha256-or
+                   [string]$artifacts.commit_receipt.committed_blob.git_mode-cne[string]$modeMatch.Groups[1].Value){
+                    $reasons.Add('ADMISSION_OBSERVED_COMMITTED_BLOB_MISMATCH')|Out-Null
+                }
+            }
+        }
+    }
+    $disposition=if($reasons.Count-eq0){'ADMITTED'}else{'REJECTED_INVALID_EVIDENCE'}
+    $decision=[pscustomobject][ordered]@{
+        schema_version='TSF_SYNTHETIC_TASK_ADMISSION_EXTENSION_V2'
+        admission_engine='Get-TsfSyntheticIterationAdmissionDecisionV2'
+        candidate_identity_sha256=[string]$Candidate.candidate_identity_sha256
+        admission_bundle_identity_sha256=[string]$Candidate.admission_bundle_identity_sha256
+        program_id=[string]$Candidate.program_id
+        task_id=[string]$Candidate.task_id
+        binding_identity_sha256=[string]$Candidate.binding_identity_sha256
+        candidate_set_identity_sha256=[string]$Candidate.candidate_set_identity_sha256
+        writeset_identity_sha256=[string]$Candidate.writeset_identity_sha256
+        verifier_identity_sha256=[string]$Candidate.verifier_identity_sha256
+        approved_replacement_sha256=[string]$Candidate.approved_replacement_sha256
+        commit=[string]$Candidate.commit
+        disposition=$disposition
+        reasons=@($reasons)
+        grants_approval=$false
+        grants_merge_authority=$false
+        grants_push_authority=$false
+        grants_product_authority=$false
+    }
+    $decision|Add-Member -NotePropertyName admission_identity_sha256 -NotePropertyValue (Get-TsfContractJsonHash $decision)
+    $decision
+}
+
 function Get-TsfAdmissionDecision {
     [CmdletBinding()]
     param(

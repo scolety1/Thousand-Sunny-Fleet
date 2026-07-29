@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tsf://fleet/control/hq-dispatch/hq-dispatch-synthetic-iteration-authority.schema.v2.json",
+  "title": "TSF Synthetic Iteration Authority V2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_version",
+    "program_id",
+    "action_id",
+    "posture",
+    "expires_at",
+    "tim_authorization_provenance",
+    "limits",
+    "executables",
+    "prohibitions",
+    "repository",
+    "command_templates",
+    "iteration_states",
+    "state_transitions",
+    "tasks"
+  ],
+  "properties": {
+    "schema_version": { "const": "tsf_synthetic_iteration_authority_v2" },
+    "contract_version": { "const": "SYNTHETIC_ITERATION_AUTHORITY_V2" },
+    "program_id": { "const": "tsf-v1-synthetic-iteration-authority-v2-20260729" },
+    "action_id": { "const": "tsf_synthetic_workspace_iteration_v2" },
+    "posture": { "const": "CLOSED_TEST_ONLY" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "tim_authorization_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source", "source_sha256", "authorized_by", "automatic_approval_authority"],
+      "properties": {
+        "kind": { "const": "ADVANCE_REVIEWED_PROMPT" },
+        "source": { "const": "TSF V1 Synthetic Iteration Authority V2" },
+        "source_sha256": { "$ref": "#/$defs/sha256" },
+        "authorized_by": { "const": "TIM_LOCAL_OPERATOR" },
+        "automatic_approval_authority": { "const": false }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximum_tasks", "maximum_builder_iterations_per_task", "maximum_accepted_task_commits", "maximum_active_write_missions"],
+      "properties": {
+        "maximum_tasks": { "const": 3 },
+        "maximum_builder_iterations_per_task": { "const": 3 },
+        "maximum_accepted_task_commits": { "const": 3 },
+        "maximum_active_write_missions": { "const": 1 }
+      }
+    },
+    "executables": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "git"],
+      "properties": {
+        "node": { "$ref": "#/$defs/executableIdentity" },
+        "git": { "$ref": "#/$defs/executableIdentity" }
+      }
+    },
+    "prohibitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["worker_network", "remote_git", "package_installation", "plugins", "credentials", "product_repositories", "deployment", "services_tasks_daemons", "persistent_processes"],
+      "properties": {
+        "worker_network": { "const": true },
+        "remote_git": { "const": true },
+        "package_installation": { "const": true },
+        "plugins": { "const": true },
+        "credentials": { "const": true },
+        "product_repositories": { "const": true },
+        "deployment": { "const": true },
+        "services_tasks_daemons": { "const": true },
+        "persistent_processes": { "const": true }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "branch", "baseline_subject", "remote_policy", "setup_action", "allowed_paths"],
+      "properties": {
+        "root": { "const": "C:\\TSF_SYNTHETIC_ITERATION_V2\\fixture-repo" },
+        "branch": { "const": "pilot/tsf-synthetic-iteration-v2-20260729" },
+        "baseline_subject": { "const": "chore: seed synthetic iteration pilot v2" },
+        "remote_policy": { "const": "NO_REMOTE" },
+        "setup_action": { "const": "tsf_synthetic_repository_seed_v2" },
+        "allowed_paths": {
+          "type": "array",
+          "minItems": 13,
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/relativePath" }
+        }
+      }
+    },
+    "command_templates": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["contract_version", "template_id", "executable", "arguments", "path_argument"],
+        "properties": {
+          "contract_version": { "const": "APPROVED_COMMAND_TEMPLATE_V2" },
+          "template_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "executable": { "enum": ["node", "git"] },
+          "arguments": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "path_argument": {
+            "enum": ["NONE", "ONE_ALLOWLISTED_TEST", "ONE_ALLOWLISTED_MJS", "ONE_OR_MORE_AUTHORIZED_TASK_PATHS"]
+          }
+        }
+      }
+    },
+    "iteration_states": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Z_]+$" }
+    },
+    "state_transitions": {
+      "type": "object",
+      "minProperties": 20,
+      "maxProperties": 20,
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "type": "string", "pattern": "^[A-Z_]+$" }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task_id", "goal", "authorized_source_paths", "authorized_test_paths", "focused_tests", "acceptance_tests", "acceptance_criteria", "required_commit_subject", "approved_builder_candidate_sets", "maximum_iterations"],
+        "properties": {
+          "task_id": { "type": "string", "pattern": "^synthetic-[a-z0-9-]+-v2$" },
+          "goal": { "type": "string", "minLength": 20 },
+          "authorized_source_paths": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/relativePath" }
+          },
+          "authorized_test_paths": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/relativePath" }
+          },
+          "focused_tests": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/relativePath" }
+          },
+          "acceptance_tests": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/relativePath" }
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "minItems": 4,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 5 }
+          },
+          "required_commit_subject": { "type": "string", "pattern": "^fix: .+$" },
+          "approved_builder_candidate_sets": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/builderCandidateTemplate" }
+          },
+          "maximum_iterations": { "const": 3 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "executableIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^[A-Z]:\\\\.*\\.exe$" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "builderCandidateTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "iteration",
+        "repository_relative_path",
+        "maximum_candidate_count",
+        "candidates"
+      ],
+      "properties": {
+        "contract_version": { "const": "APPROVED_BUILDER_CANDIDATE_TEMPLATE_V2" },
+        "iteration": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "repository_relative_path": { "$ref": "#/$defs/relativePath" },
+        "maximum_candidate_count": { "const": 1 },
+        "candidates": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sha256", "byte_length", "provenance", "generation_run_identity"],
+            "properties": {
+              "sha256": { "$ref": "#/$defs/sha256" },
+              "byte_length": { "type": "integer", "minimum": 1 },
+              "provenance": { "const": "STATIC_BUILDER_CANDIDATE_V2" },
+              "generation_run_identity": {
+                "type": "string",
+                "pattern": "^synthetic-[a-z0-9-]+-v2-builder-generation-[1-3]$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))(?!.*(?:^|[/\\\\])\\.git(?:[/\\\\]|$))[A-Za-z0-9._/-]+$"
+    }
+  }
+}
