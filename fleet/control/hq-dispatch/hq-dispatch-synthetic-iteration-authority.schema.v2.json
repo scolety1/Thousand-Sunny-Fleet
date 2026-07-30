@@ -15,6 +15,7 @@
     "limits",
     "executables",
     "prohibitions",
+    "pilot_execution_contexts",
     "repository",
     "command_templates",
     "iteration_states",
@@ -74,6 +75,58 @@
         "deployment": { "const": true },
         "services_tasks_daemons": { "const": true },
         "persistent_processes": { "const": true }
+      }
+    },
+    "pilot_execution_contexts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "contract_version", "authorization_provenance",
+        "invocation_contexts", "contexts"
+      ],
+      "properties": {
+        "schema_version": { "const": "SYNTHETIC_PILOT_EXECUTION_CONTEXTS_V1" },
+        "contract_version": { "const": "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1" },
+        "authorization_provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind", "source", "source_sha256", "authorized_by",
+            "automatic_approval_authority"
+          ],
+          "properties": {
+            "kind": { "const": "ADVANCE_REVIEWED_PROMPT" },
+            "source": { "const": "TSF V1 Narrow Post-Merge Pilot Compatibility Hotfix" },
+            "source_sha256": {
+              "const": "b0cc2669277d60dbb372573cb957456b15f7b669f627babcb30e37d69b252347"
+            },
+            "authorized_by": { "const": "TIM_LOCAL_OPERATOR" },
+            "automatic_approval_authority": { "const": false }
+          }
+        },
+        "invocation_contexts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pilot", "archive-and-pilot", "archive-and-replay",
+            "canonical-postmerge-pilot"
+          ],
+          "properties": {
+            "pilot": { "const": "EXACT_CANDIDATE" },
+            "archive-and-pilot": { "const": "EXACT_CANDIDATE" },
+            "archive-and-replay": { "const": "EXACT_CANDIDATE" },
+            "canonical-postmerge-pilot": { "const": "EXACT_CANONICAL_POSTMERGE" }
+          }
+        },
+        "contexts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["EXACT_CANDIDATE", "EXACT_CANONICAL_POSTMERGE"],
+          "properties": {
+            "EXACT_CANDIDATE": { "$ref": "#/$defs/exactCandidateExecutionContext" },
+            "EXACT_CANONICAL_POSTMERGE": { "$ref": "#/$defs/exactCanonicalPostmergeExecutionContext" }
+          }
+        }
       }
     },
     "repository": {
@@ -193,6 +246,65 @@
   },
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "exactCandidateExecutionContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "execution_context", "candidate_head", "candidate_tree",
+        "candidate_parent", "reviewed_source_subject", "required_parent_count",
+        "expected_branch", "detached_allowed",
+        "dirty_worktree_allowed_only_on_expected_branch",
+        "context_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1" },
+        "execution_context": { "const": "EXACT_CANDIDATE" },
+        "candidate_head": { "$ref": "#/$defs/commit" },
+        "candidate_tree": { "$ref": "#/$defs/commit" },
+        "candidate_parent": { "$ref": "#/$defs/commit" },
+        "reviewed_source_subject": { "const": "feat: add governed synthetic coding iterations" },
+        "required_parent_count": { "const": 1 },
+        "expected_branch": { "const": "work/tsf-synthetic-iteration-authority-v2-20260729" },
+        "detached_allowed": { "const": true },
+        "dirty_worktree_allowed_only_on_expected_branch": { "const": true },
+        "context_identity_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "exactCanonicalPostmergeExecutionContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "execution_context", "canonical_merge_head", "merge_tree",
+        "canonical_merge_subject", "first_parent", "second_parent",
+        "reviewed_source_head", "reviewed_source_tree", "reviewed_source_subject",
+        "required_parent_count", "pr_number", "pr_state", "github_merged_at",
+        "validation_repository_root",
+        "expected_branch", "detached_required", "context_identity_sha256"
+      ],
+      "properties": {
+        "schema_version": { "const": "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1" },
+        "execution_context": { "const": "EXACT_CANONICAL_POSTMERGE" },
+        "canonical_merge_head": { "$ref": "#/$defs/commit" },
+        "merge_tree": { "$ref": "#/$defs/commit" },
+        "canonical_merge_subject": {
+          "const": "Merge pull request #24 from scolety1/work/tsf-synthetic-iteration-authority-v2-20260729"
+        },
+        "first_parent": { "$ref": "#/$defs/commit" },
+        "second_parent": { "$ref": "#/$defs/commit" },
+        "reviewed_source_head": { "$ref": "#/$defs/commit" },
+        "reviewed_source_tree": { "$ref": "#/$defs/commit" },
+        "reviewed_source_subject": { "const": "feat: add governed synthetic coding iterations" },
+        "required_parent_count": { "const": 2 },
+        "pr_number": { "const": 24 },
+        "pr_state": { "const": "MERGED" },
+        "github_merged_at": { "const": "2026-07-30T01:27:35Z" },
+        "validation_repository_root": { "const": "C:\\TSF_SYNTHETIC_ITERATION_POSTMERGE" },
+        "expected_branch": { "type": "null" },
+        "detached_required": { "const": true },
+        "context_identity_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "executableIdentity": {
       "type": "object",
       "additionalProperties": false,

@@ -41,14 +41,18 @@ if ($results.schema_version -ne 'TSF_SYNTHETIC_ITERATION_PILOT_RESULT_V2' -or
     [int]$results.task_commit_count -ne 3 -or
     [int]$results.remote_count -ne 0 -or
     [bool]$results.push_performed -or
-    [string]$results.authority_sha256 -cne '1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222') {
+    [string]$results.authority_sha256 -cne 'a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697') {
     throw 'TSF_SYNTHETIC_V2_PILOT_RESULT_NOT_PACKET_READY'
 }
 if ($manifest.summary.verdict -ne 'GREEN') {
     throw 'TSF_SYNTHETIC_V2_EVIDENCE_MANIFEST_NOT_GREEN'
 }
 $candidate = $results.tsf_candidate
-if ($null -eq $candidate -or
+$execution = $results.tsf_execution_identity
+if ([string]$results.execution_context -cne 'EXACT_CANDIDATE' -or
+    [string]$execution.execution_context -cne 'EXACT_CANDIDATE' -or
+    [string]$results.execution_context_identity_sha256 -cne [string]$execution.execution_context_identity_sha256 -or
+    $null -eq $candidate -or
     [string]$candidate.head -notmatch '^[a-f0-9]{40}$' -or
     [string]$candidate.tree -notmatch '^[a-f0-9]{40}$' -or
     [string]$candidate.parent -cne 'a3ee2b27e102c81f0c61c14fe522e6f40f5e6656' -or
@@ -63,7 +67,7 @@ if (!(Test-Path -LiteralPath $acceptanceSummaryPath -PathType Leaf) -or !(Test-P
     throw 'TSF_SYNTHETIC_V2_ACCEPTANCE_EVIDENCE_INCOMPLETE'
 }
 $acceptance = Get-Content -LiteralPath $acceptanceSummaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
-if ($acceptance.status -cne 'PASS' -or [int]$acceptance.execution.checks -ne 36 -or
+if ($acceptance.status -cne 'PASS' -or [int]$acceptance.execution.checks -ne 37 -or
     [int]$acceptance.execution.failed_checks -ne 0 -or ![bool]$acceptance.execution.real_app_server_proof_ran -or
     [string]$acceptance.repository.head -cne [string]$candidate.head -or
     [string]$acceptance.repository.tree -cne [string]$candidate.tree -or
@@ -103,8 +107,8 @@ $workingWrapper = Get-Content -LiteralPath $workingWrapperFinalPath -Raw -Encodi
 $workingReconciliation = Get-Content -LiteralPath $workingReconciliationPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if (
     $workingAcceptance.status -cne 'PASS' -or
-    [int]$workingAcceptance.execution.checks -ne 37 -or
-    [int]$workingAcceptance.execution.assertion_or_criterion_count -ne 1275 -or
+    [int]$workingAcceptance.execution.checks -ne 38 -or
+    [int]$workingAcceptance.execution.assertion_or_criterion_count -ne 1277 -or
     [int]$workingAcceptance.execution.failed_checks -ne 0 -or
     [int]$workingWrapper.true_numeric_exit -ne 0 -or
     ![bool]$workingReconciliation.pass
@@ -297,12 +301,22 @@ Copy-Item -LiteralPath $acceptanceSummaryPath -Destination (Join-Path $outputFul
 Copy-Item -LiteralPath $acceptanceIndexPath -Destination (Join-Path $outputFull 'ACCEPTANCE_EVIDENCE_INDEX.csv')
 Write-Json 'EXACT_CANDIDATE.json' ([pscustomobject][ordered]@{
     schema_version = 'tsf_synthetic_iteration_exact_candidate_v2'
+    execution_context = [string]$results.execution_context
+    execution_context_identity_sha256 = [string]$results.execution_context_identity_sha256
     repository_root = $candidate.repository_root
     git_top_level = $candidate.git_top_level
     head = $candidate.head
     tree = $candidate.tree
     parent = $candidate.parent
     subject = $candidate.subject
+    current_head_subject = [string]$results.current_head_subject
+    reviewed_source_subject = [string]$results.reviewed_source_subject
+    merge_commit = $results.merge_commit
+    merge_subject = $results.merge_subject
+    ordered_parents = @($results.ordered_parents)
+    reviewed_source_commit = [string]$results.reviewed_source_commit
+    pr_identity = $results.pr_identity
+    tree_equivalent = [bool]$results.tree_equivalent
     detached = $candidate.detached
     clean = $candidate.clean
     authority_sha256 = $results.authority_sha256

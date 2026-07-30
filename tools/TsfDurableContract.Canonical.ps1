@@ -961,7 +961,8 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
         'schema_version','program_id','task_id','repository_root','branch','evidence_root',
         'iteration','run_id','admission_bundle_relative_path','admission_bundle_sha256',
         'admission_bundle_identity_sha256','registration_identity_sha256',
-        'preauthorization_identity_sha256','binding_identity_sha256',
+        'preauthorization_identity_sha256','execution_context_identity_sha256',
+        'binding_identity_sha256',
         'candidate_set_identity_sha256','writeset_identity_sha256',
         'byte_observation_identity_sha256','precommit_verifier_identity_sha256',
         'verifier_identity_sha256',
@@ -993,8 +994,17 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
     $authority=Get-Content -LiteralPath $authorityPath -Raw -Encoding UTF8|ConvertFrom-Json
     $authorityValidation=Test-TsfJsonContract $authority $authoritySchemaPath
     if(!$authorityValidation.valid){throw "SYNTHETIC_ITERATION_AUTHORITY_V2_INVALID: $($authorityValidation.errors -join '; ')"}
-    if((Get-TsfSyntheticCanonicalHash $authority)-cne'1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222'){
+    if((Get-TsfSyntheticCanonicalHash $authority)-cne'a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697'){
         throw 'SYNTHETIC_ITERATION_AUTHORITY_V2_EXACT_IDENTITY_CHANGED'
+    }
+    $knownExecutionContexts=@($authority.pilot_execution_contexts.contexts.PSObject.Properties|ForEach-Object{
+        [string]$_.Value.context_identity_sha256
+    })
+    if(
+        [string]$Candidate.execution_context_identity_sha256-notmatch'^[a-f0-9]{64}$'-or
+        $knownExecutionContexts-cnotcontains[string]$Candidate.execution_context_identity_sha256
+    ){
+        $reasons.Add('ADMISSION_EXECUTION_CONTEXT_IDENTITY_UNKNOWN')|Out-Null
     }
     $task=@($authority.tasks|Where-Object{[string]::Equals([string]$_.task_id,[string]$Candidate.task_id,[StringComparison]::Ordinal)})
     if($task.Count-ne1){$reasons.Add('ADMISSION_TASK_IDENTITY_MISMATCH')|Out-Null}
@@ -1031,6 +1041,9 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
         if([string]$bundle.admission_bundle_identity_sha256-cne(Get-TsfSyntheticCanonicalHash $bundle 'admission_bundle_identity_sha256')-or
            [string]$bundle.admission_bundle_identity_sha256-cne[string]$Candidate.admission_bundle_identity_sha256){
             $reasons.Add('ADMISSION_BUNDLE_IDENTITY_MISMATCH')|Out-Null
+        }
+        if([string]$bundle.execution_context_identity_sha256-cne[string]$Candidate.execution_context_identity_sha256){
+            $reasons.Add('ADMISSION_BUNDLE_EXECUTION_CONTEXT_MISMATCH')|Out-Null
         }
     }
 
@@ -1098,23 +1111,31 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
             @([string]$registration.program_id,[string]$authority.program_id,'ADMISSION_REGISTRATION_PROGRAM_MISMATCH'),
             @([string]$registration.repository_root,[string]$authority.repository.root,'ADMISSION_REGISTRATION_ROOT_MISMATCH'),
             @([string]$registration.branch,[string]$authority.repository.branch,'ADMISSION_REGISTRATION_BRANCH_MISMATCH'),
+            @([string]$registration.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_REGISTRATION_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$preauthorization.task_id,[string]$Candidate.task_id,'ADMISSION_PREAUTHORIZATION_TASK_MISMATCH'),
+            @([string]$preauthorization.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_PREAUTHORIZATION_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$preauthorization.baseline_commit,[string]$Candidate.expected_baseline_commit,'ADMISSION_PREAUTHORIZATION_BASELINE_MISMATCH'),
             @([string]$binding.registration_identity_sha256,[string]$registration.registration_identity_sha256,'ADMISSION_BINDING_REGISTRATION_MISMATCH'),
             @([string]$binding.preauthorization_identity_sha256,[string]$preauthorization.preauthorization_identity_sha256,'ADMISSION_BINDING_PREAUTHORIZATION_MISMATCH'),
+            @([string]$binding.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_BINDING_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$binding.baseline_commit,[string]$Candidate.expected_baseline_commit,'ADMISSION_BINDING_BASELINE_MISMATCH'),
             @([string]$candidateSet.registration_identity_sha256,[string]$registration.registration_identity_sha256,'ADMISSION_CANDIDATE_SET_REGISTRATION_MISMATCH'),
             @([string]$candidateSet.preauthorization_identity_sha256,[string]$preauthorization.preauthorization_identity_sha256,'ADMISSION_CANDIDATE_SET_PREAUTHORIZATION_MISMATCH'),
+            @([string]$candidateSet.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_CANDIDATE_SET_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$candidateSet.baseline_commit,[string]$preauthorization.baseline_commit,'ADMISSION_CANDIDATE_SET_BASELINE_MISMATCH'),
             @([string]$candidateSet.baseline_tree,[string]$preauthorization.baseline_tree,'ADMISSION_CANDIDATE_SET_BASELINE_TREE_MISMATCH'),
             @([string]$writeset.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_WRITESET_CANDIDATE_SET_MISMATCH'),
             @([string]$writeset.preauthorization_identity_sha256,[string]$preauthorization.preauthorization_identity_sha256,'ADMISSION_WRITESET_PREAUTHORIZATION_MISMATCH'),
+            @([string]$writeset.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_WRITESET_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$byteObservation.candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_BYTE_EVIDENCE_CANDIDATE_SET_MISMATCH'),
             @([string]$byteObservation.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_BYTE_EVIDENCE_WRITESET_MISMATCH'),
+            @([string]$byteObservation.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_BYTE_EVIDENCE_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$precommitVerifier.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_PRECOMMIT_VERIFIER_CANDIDATE_SET_MISMATCH'),
             @([string]$precommitVerifier.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_PRECOMMIT_VERIFIER_WRITESET_MISMATCH'),
+            @([string]$precommitVerifier.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_PRECOMMIT_VERIFIER_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$verifier.registration_identity_sha256,[string]$registration.registration_identity_sha256,'ADMISSION_VERIFIER_REGISTRATION_MISMATCH'),
             @([string]$verifier.binding_identity_sha256,[string]$binding.binding_identity_sha256,'ADMISSION_VERIFIER_BINDING_MISMATCH'),
+            @([string]$verifier.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_VERIFIER_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$verifier.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_VERIFIER_CANDIDATE_SET_MISMATCH'),
             @([string]$verifier.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_VERIFIER_WRITESET_MISMATCH'),
             @([string]$verifier.byte_observation_identity_sha256,[string]$byteObservation.byte_observation_identity_sha256,'ADMISSION_VERIFIER_BYTE_EVIDENCE_MISMATCH'),
@@ -1124,10 +1145,13 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
             @([string]$verifier.baseline_commit,[string]$binding.baseline_commit,'ADMISSION_VERIFIER_BASELINE_MISMATCH'),
             @([string]$verifier.run_id,[string]$Candidate.run_id,'ADMISSION_VERIFIER_RUN_MISMATCH'),
             @([string]$commitAuthority.verifier_identity_sha256,[string]$precommitVerifier.verifier_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_VERIFIER_MISMATCH'),
+            @([string]$commitAuthority.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$commitAuthority.approved_candidate_set_identity_sha256,[string]$candidateSet.candidate_set_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_CANDIDATE_SET_MISMATCH'),
             @([string]$commitAuthority.writeset_identity_sha256,[string]$writeset.writeset_identity_sha256,'ADMISSION_COMMIT_AUTHORITY_WRITESET_MISMATCH'),
             @([string]$commitReceipt.commit_authority_identity_sha256,[string]$commitAuthority.commit_authority_identity_sha256,'ADMISSION_COMMIT_RECEIPT_AUTHORITY_MISMATCH'),
+            @([string]$commitReceipt.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_COMMIT_RECEIPT_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$commitReceipt.commit,[string]$Candidate.commit,'ADMISSION_COMMIT_RECEIPT_COMMIT_MISMATCH'),
+            @([string]$candidateIntegrityProof.execution_context_identity_sha256,[string]$Candidate.execution_context_identity_sha256,'ADMISSION_INTEGRITY_PROOF_EXECUTION_CONTEXT_MISMATCH'),
             @([string]$candidateIntegrityProof.commit_receipt_identity_sha256,[string]$commitReceipt.commit_receipt_identity_sha256,'ADMISSION_INTEGRITY_PROOF_COMMIT_RECEIPT_MISMATCH')
         )){if(![string]::Equals($pair[0],$pair[1],[StringComparison]::Ordinal)){$reasons.Add($pair[2])|Out-Null}}
 
@@ -1140,11 +1164,12 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
             $expectedCandidateSet=[pscustomobject][ordered]@{
                 schema_version='APPROVED_BUILDER_CANDIDATE_SET_V2'
                 contract_version='APPROVED_BUILDER_CANDIDATE_SET_V2'
-                canonical_authority_sha256='1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222'
+                canonical_authority_sha256='a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697'
                 program_id=[string]$authority.program_id
                 task_id=[string]$exactTask.task_id
                 registration_identity_sha256=[string]$registration.registration_identity_sha256
                 preauthorization_identity_sha256=[string]$preauthorization.preauthorization_identity_sha256
+                execution_context_identity_sha256=[string]$registration.execution_context_identity_sha256
                 repository_root=[string]$registration.repository_root
                 git_top_level=[string]$registration.git_top_level
                 branch=[string]$registration.branch
@@ -1364,6 +1389,7 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
         program_id=[string]$Candidate.program_id
         task_id=[string]$Candidate.task_id
         binding_identity_sha256=[string]$Candidate.binding_identity_sha256
+        execution_context_identity_sha256=[string]$Candidate.execution_context_identity_sha256
         candidate_set_identity_sha256=[string]$Candidate.candidate_set_identity_sha256
         writeset_identity_sha256=[string]$Candidate.writeset_identity_sha256
         verifier_identity_sha256=[string]$Candidate.verifier_identity_sha256
