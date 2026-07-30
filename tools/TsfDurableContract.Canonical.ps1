@@ -994,7 +994,7 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
     $authority=Get-Content -LiteralPath $authorityPath -Raw -Encoding UTF8|ConvertFrom-Json
     $authorityValidation=Test-TsfJsonContract $authority $authoritySchemaPath
     if(!$authorityValidation.valid){throw "SYNTHETIC_ITERATION_AUTHORITY_V2_INVALID: $($authorityValidation.errors -join '; ')"}
-    if((Get-TsfSyntheticCanonicalHash $authority)-cne'a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697'){
+    if((Get-TsfSyntheticCanonicalHash $authority)-cne'a8021980aa8538eae84d97bab52d85ca80436d74cbfacd49e3c7dcd819c810ed'){
         throw 'SYNTHETIC_ITERATION_AUTHORITY_V2_EXACT_IDENTITY_CHANGED'
     }
     $knownExecutionContexts=@($authority.pilot_execution_contexts.contexts.PSObject.Properties|ForEach-Object{
@@ -1164,7 +1164,7 @@ function Get-TsfSyntheticIterationAdmissionDecisionV2 {
             $expectedCandidateSet=[pscustomobject][ordered]@{
                 schema_version='APPROVED_BUILDER_CANDIDATE_SET_V2'
                 contract_version='APPROVED_BUILDER_CANDIDATE_SET_V2'
-                canonical_authority_sha256='a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697'
+                canonical_authority_sha256='a8021980aa8538eae84d97bab52d85ca80436d74cbfacd49e3c7dcd819c810ed'
                 program_id=[string]$authority.program_id
                 task_id=[string]$exactTask.task_id
                 registration_identity_sha256=[string]$registration.registration_identity_sha256
