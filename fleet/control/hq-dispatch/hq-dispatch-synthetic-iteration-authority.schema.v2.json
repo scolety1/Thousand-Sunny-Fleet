@@ -288,17 +288,17 @@
         "canonical_merge_head": { "$ref": "#/$defs/commit" },
         "merge_tree": { "$ref": "#/$defs/commit" },
         "canonical_merge_subject": {
-          "const": "Merge pull request #24 from scolety1/work/tsf-synthetic-iteration-authority-v2-20260729"
+          "const": "Merge pull request #25 from scolety1/hotfix/tsf-postmerge-pilot-identity-compat-v1-20260730"
         },
         "first_parent": { "$ref": "#/$defs/commit" },
         "second_parent": { "$ref": "#/$defs/commit" },
         "reviewed_source_head": { "$ref": "#/$defs/commit" },
         "reviewed_source_tree": { "$ref": "#/$defs/commit" },
-        "reviewed_source_subject": { "const": "feat: add governed synthetic coding iterations" },
+        "reviewed_source_subject": { "const": "fix: validate merged-main synthetic pilot identity" },
         "required_parent_count": { "const": 2 },
-        "pr_number": { "const": 24 },
+        "pr_number": { "const": 25 },
         "pr_state": { "const": "MERGED" },
-        "github_merged_at": { "const": "2026-07-30T01:27:35Z" },
+        "github_merged_at": { "const": "2026-07-30T06:02:17Z" },
         "validation_repository_root": { "const": "C:\\TSF_SYNTHETIC_ITERATION_POSTMERGE" },
         "expected_branch": { "type": "null" },
         "detached_required": { "const": true },

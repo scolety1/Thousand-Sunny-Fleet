@@ -106,7 +106,7 @@ function expectCode(fn, code, disposition = "BLOCKED") {
 
 test("candidate and canonical post-merge identities are distinct exact contracts", () => {
   assert.notEqual(candidate.context_identity_sha256, postmerge.context_identity_sha256);
-  assert.equal(candidate.candidate_tree, postmerge.merge_tree);
+  assert.notEqual(candidate.candidate_tree, postmerge.merge_tree);
   assert.equal(postmerge.reviewed_source_tree, postmerge.merge_tree);
   assert.notEqual(postmerge.canonical_merge_subject, postmerge.reviewed_source_subject);
   assert.equal(postmerge.reviewed_source_head, postmerge.second_parent);
@@ -173,7 +173,7 @@ test("actual immutable Git objects satisfy the canonical post-merge tuple", () =
   assert.equal(exact.current_head_subject, postmerge.canonical_merge_subject);
   assert.equal(exact.reviewed_source_subject, postmerge.reviewed_source_subject);
   assert.deepEqual(exact.ordered_parents, [postmerge.first_parent, postmerge.second_parent]);
-  assert.equal(exact.pr_identity.number, 24);
+  assert.equal(exact.pr_identity.number, 25);
   assert.equal(exact.pr_identity.state, "MERGED");
   assert.equal(exact.tree_equivalent, true);
   assert.equal(exact.source_contained, true);
@@ -211,10 +211,10 @@ test("canonical post-merge validation rejects identity, topology, provenance, an
     [{
       source_to_head_commits: [postmerge.canonical_merge_head, "d".repeat(40)],
     }, "TSF_POSTMERGE_UNRELATED_DESCENDANT_PRESENT"],
-    [{ pr_number: 25 }, "TSF_POSTMERGE_PR_NUMBER_CHANGED"],
+    [{ pr_number: 24 }, "TSF_POSTMERGE_PR_NUMBER_CHANGED"],
     [{ pr_state: "OPEN" }, "TSF_POSTMERGE_PR_NOT_MERGED"],
     [{ pr_merge_commit: candidate.candidate_head }, "TSF_POSTMERGE_PR_MERGE_COMMIT_CHANGED"],
-    [{ github_merged_at: "2026-07-30T01:27:36Z" }, "TSF_POSTMERGE_PR_MERGED_AT_CHANGED"],
+    [{ github_merged_at: "2026-07-30T06:02:18Z" }, "TSF_POSTMERGE_PR_MERGED_AT_CHANGED"],
     [{ branch: "main", detached: false }, "TSF_POSTMERGE_WORKTREE_STATE_CHANGED"],
     [{ clean: false, working_tree_status: ["1 .M N... hotfix"] }, "TSF_POSTMERGE_NOT_CLEAN"],
     [{ base_to_head_commits: [candidate.candidate_head] }, "TSF_POSTMERGE_CANDIDATE_DISTANCE_EVIDENCE_PRESENT"],

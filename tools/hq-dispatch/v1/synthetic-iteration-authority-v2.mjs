@@ -41,7 +41,7 @@ export const AUTHORITY_SCHEMA_PATH = path.join(
 export const PILOT_ROOT = "C:\\TSF_SYNTHETIC_ITERATION_V2";
 export const FIXTURE_ROOT = path.join(PILOT_ROOT, "fixture-repo");
 export const EVIDENCE_ROOT = path.join(PILOT_ROOT, "evidence");
-export const EXPECTED_AUTHORITY_SHA256 = "a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697";
+export const EXPECTED_AUTHORITY_SHA256 = "a8021980aa8538eae84d97bab52d85ca80436d74cbfacd49e3c7dcd819c810ed";
 const PINNED_EXECUTABLES = Object.freeze({
   node: Object.freeze({
     path: "C:\\Program Files\\nodejs\\node.exe",
@@ -384,18 +384,18 @@ function validatePilotExecutionContextAuthority(contract) {
   requireValue(
     postmerge.schema_version === "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1"
       && postmerge.execution_context === "EXACT_CANONICAL_POSTMERGE"
-      && postmerge.canonical_merge_head === "aeade9377808ee719638da8c58ae458f9170e5e6"
-      && postmerge.merge_tree === "000ed61e697954da89a732b7fa04e7d2d22a5450"
-      && postmerge.canonical_merge_subject === "Merge pull request #24 from scolety1/work/tsf-synthetic-iteration-authority-v2-20260729"
-      && postmerge.first_parent === "a3ee2b27e102c81f0c61c14fe522e6f40f5e6656"
-      && postmerge.second_parent === "a14bdd87ccd0efe6c5c07ef25552c6c2d0b9ebeb"
+      && postmerge.canonical_merge_head === "c28ba80208e14c02005397267cb140d39d1fe552"
+      && postmerge.merge_tree === "116a5f3aee279b2063f5dc5aa5be03789ed5017e"
+      && postmerge.canonical_merge_subject === "Merge pull request #25 from scolety1/hotfix/tsf-postmerge-pilot-identity-compat-v1-20260730"
+      && postmerge.first_parent === "aeade9377808ee719638da8c58ae458f9170e5e6"
+      && postmerge.second_parent === "61acd2257c98942787225366360b73bad80dea23"
       && postmerge.reviewed_source_head === postmerge.second_parent
       && postmerge.reviewed_source_tree === postmerge.merge_tree
-      && postmerge.reviewed_source_subject === "feat: add governed synthetic coding iterations"
+      && postmerge.reviewed_source_subject === "fix: validate merged-main synthetic pilot identity"
       && postmerge.required_parent_count === 2
-      && postmerge.pr_number === 24
+      && postmerge.pr_number === 25
       && postmerge.pr_state === "MERGED"
-      && postmerge.github_merged_at === "2026-07-30T01:27:35Z"
+      && postmerge.github_merged_at === "2026-07-30T06:02:17Z"
       && postmerge.validation_repository_root === "C:\\TSF_SYNTHETIC_ITERATION_POSTMERGE"
       && postmerge.expected_branch === null
       && postmerge.detached_required === true,

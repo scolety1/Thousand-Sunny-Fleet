@@ -41,7 +41,7 @@ if ($results.schema_version -ne 'TSF_SYNTHETIC_ITERATION_PILOT_RESULT_V2' -or
     [int]$results.task_commit_count -ne 3 -or
     [int]$results.remote_count -ne 0 -or
     [bool]$results.push_performed -or
-    [string]$results.authority_sha256 -cne 'a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697') {
+    [string]$results.authority_sha256 -cne 'a8021980aa8538eae84d97bab52d85ca80436d74cbfacd49e3c7dcd819c810ed') {
     throw 'TSF_SYNTHETIC_V2_PILOT_RESULT_NOT_PACKET_READY'
 }
 if ($manifest.summary.verdict -ne 'GREEN') {

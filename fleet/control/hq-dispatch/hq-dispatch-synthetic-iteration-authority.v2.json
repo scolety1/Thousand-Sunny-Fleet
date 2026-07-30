@@ -72,22 +72,22 @@
       "EXACT_CANONICAL_POSTMERGE": {
         "schema_version": "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1",
         "execution_context": "EXACT_CANONICAL_POSTMERGE",
-        "canonical_merge_head": "aeade9377808ee719638da8c58ae458f9170e5e6",
-        "merge_tree": "000ed61e697954da89a732b7fa04e7d2d22a5450",
-        "canonical_merge_subject": "Merge pull request #24 from scolety1/work/tsf-synthetic-iteration-authority-v2-20260729",
-        "first_parent": "a3ee2b27e102c81f0c61c14fe522e6f40f5e6656",
-        "second_parent": "a14bdd87ccd0efe6c5c07ef25552c6c2d0b9ebeb",
-        "reviewed_source_head": "a14bdd87ccd0efe6c5c07ef25552c6c2d0b9ebeb",
-        "reviewed_source_tree": "000ed61e697954da89a732b7fa04e7d2d22a5450",
-        "reviewed_source_subject": "feat: add governed synthetic coding iterations",
+        "canonical_merge_head": "c28ba80208e14c02005397267cb140d39d1fe552",
+        "merge_tree": "116a5f3aee279b2063f5dc5aa5be03789ed5017e",
+        "canonical_merge_subject": "Merge pull request #25 from scolety1/hotfix/tsf-postmerge-pilot-identity-compat-v1-20260730",
+        "first_parent": "aeade9377808ee719638da8c58ae458f9170e5e6",
+        "second_parent": "61acd2257c98942787225366360b73bad80dea23",
+        "reviewed_source_head": "61acd2257c98942787225366360b73bad80dea23",
+        "reviewed_source_tree": "116a5f3aee279b2063f5dc5aa5be03789ed5017e",
+        "reviewed_source_subject": "fix: validate merged-main synthetic pilot identity",
         "required_parent_count": 2,
-        "pr_number": 24,
+        "pr_number": 25,
         "pr_state": "MERGED",
-        "github_merged_at": "2026-07-30T01:27:35Z",
+        "github_merged_at": "2026-07-30T06:02:17Z",
         "validation_repository_root": "C:\\TSF_SYNTHETIC_ITERATION_POSTMERGE",
         "expected_branch": null,
         "detached_required": true,
-        "context_identity_sha256": "363cf8d40a8aec09af0ef04470c15f8e8676b58eb6fcc55862ce224451892946"
+        "context_identity_sha256": "e7fe69130893003d9cffbf3aeb40b97ad72c0c23254af16e5066db17e1951936"
       }
     }
   },
