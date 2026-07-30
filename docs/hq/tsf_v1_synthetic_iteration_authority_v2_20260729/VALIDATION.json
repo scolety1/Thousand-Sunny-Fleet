@@ -1,0 +1,143 @@
+{
+  "schema_version": "tsf_synthetic_iteration_authority_v2_validation",
+  "status": "WORKING_TREE_ACCEPTANCE_GREEN_EXACT_PROOF_PENDING",
+  "canonical_base": {
+    "commit": "a3ee2b27e102c81f0c61c14fe522e6f40f5e6656",
+    "tree": "4318a090a086a730795f72b115266f2ac49b444d"
+  },
+  "branch": "work/tsf-synthetic-iteration-authority-v2-20260729",
+  "worktree": "C:\\TSF_SYNTHETIC_AUTH_V2",
+  "starting_candidate": {
+    "head": "e671736c7c3f795f74b69ac992a8d0737f5e30e0",
+    "tree": "1c1a6d9e6d44198ff6d0b6a76a99e97af622d606",
+    "parent": "a3ee2b27e102c81f0c61c14fe522e6f40f5e6656"
+  },
+  "authority_sha256": "1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222",
+  "recovery_snapshot": {
+    "root": "C:\\TSF_SYNTHETIC_AUTH_V2\\.codex-local\\recovery\\persisted-candidate-binding-recovery\\20260729T205446935Z",
+    "manifest_sha256": "df6ac483b54cfb1dc4260e373c4f8da10984d1fc8afd40a94e348a2ba93b9566",
+    "entries": 21,
+    "verified": true
+  },
+  "architect_review": {
+    "primary_classification": "MULTIPLE_LOCALIZED_CORRECTIONS_REQUIRED",
+    "conclusion": "PROCEED",
+    "new_architectural_system_required": false
+  },
+  "localized_correction_cycles": 2,
+  "reamends": 0,
+  "focused_tests": {
+    "tests": 25,
+    "passed": 25,
+    "failed": 0
+  },
+  "arbitrary_sha_attack": {
+    "invalid_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "attacked_writeset_identity_sha256": "07087eba5710ac51ab518a6680b5fe325612b8e093d87cc44d7979937e5b6440",
+    "attacked_recovery_identity_sha256": "e509badf28143b18de0b426d691374994ca7b90377f5e4178b6b69eab8740592",
+    "classification": "REPLACEMENT_SHA_NOT_IN_APPROVED_BUILDER_CANDIDATE_SET",
+    "rejected_before_mutation": true,
+    "rejected_before_tests": true,
+    "target_hash_unchanged": true,
+    "target_mtime_unchanged": true,
+    "fixture_head_unchanged": true,
+    "fixture_status_unchanged": true
+  },
+  "persisted_recovery": {
+    "canonical_candidate_authority_reloaded": true,
+    "serialized_valid_ignored": true,
+    "serialized_verified_ignored": true,
+    "legacy_record_classification": "RECOVERY_CANONICAL_CANDIDATE_BINDING_ABSENT",
+    "legacy_record_disposition": "NEW_GOVERNED_RECOVERY_REQUIRED"
+  },
+  "working_tree_pilot": {
+    "evidence_root": "C:\\TSF_SYNTHETIC_ITERATION_V2\\evidence\\candidate-binding-working-01",
+    "manifest_sha256": "0dcafea7617c6bc376a5d5aa041c35a14f828adf3b87772c1714db3c201c1864",
+    "manifest_entries": 76,
+    "manifest_failures": 0,
+    "baseline_commit": "59765f4282fd0a8b0af2480b2f1b0c1aab26dcb5",
+    "baseline_tree": "2a4156d500aa295cb4d45bb1fc80418ff2428bc7",
+    "final_commit": "5832ae20821924f37d7a826e2f395c41f1daf736",
+    "final_tree": "606e0c2c9b06f089fa20d8092ae1fe29203f8094",
+    "task_commits": 3,
+    "task_iterations": [1, 2, 2],
+    "task_admissions": ["ADMITTED", "ADMITTED", "ADMITTED"],
+    "task2_first_attempt_rejected": true,
+    "task3_first_attempt_rejected": true,
+    "interruption_recovered": true,
+    "staged_blobs_match_approved_candidates": true,
+    "committed_blobs_match_approved_candidates": true,
+    "remote_count": 0,
+    "push_performed": false,
+    "clean": true
+  },
+  "working_tree_full_v1_acceptance": {
+    "classification": "COMPLETED_WORKING_TREE_ACCEPTANCE",
+    "evidence_root": "C:\\TSF_SYNTHETIC_AUTH_V2\\.codex-local\\evidence\\synthetic-v2-candidate-binding-working-acceptance-02",
+    "wrapper_root": "C:\\TSF_SYNTHETIC_AUTH_V2\\.codex-local\\evidence\\synthetic-v2-candidate-binding-working-acceptance-02-wrapper",
+    "numeric_exit": 0,
+    "status": "PASS",
+    "checks": 37,
+    "passed_checks": 37,
+    "criteria_or_assertions": 1275,
+    "failed_checks": 0,
+    "dirty_binding_sha256": "83e751d33b915c34c4c3f79f9862cd48d18c20b99b1266bae0160111c5bbab56",
+    "summary_sha256": "a7cbf0ecbf951234aff374c10f314d3f344b975ab518cba850b22ca10015c735",
+    "evidence_index_sha256": "0524120d6150cecdb5efd88dd2164e827838cd362e8d0536940a84f27eb3967f",
+    "stdout_sha256": "2c7b450d9394e795f2b609cf2197e4a2c1c5c71861b011402b7c51b6cd63d24a",
+    "stderr_sha256": "531e52c6167372f1db527c38a249d0c277f3ee1b0c5bcdf4313c496083930775",
+    "owner_disposition": "ABSENT",
+    "listener_count": 0,
+    "owned_child_count": 0,
+    "runtime_cleanup_passed": true,
+    "wrapper_cleanup_flag": false,
+    "wrapper_cleanup_flag_reason": "READ_ONLY_POLL_OBSERVER_FALSE_POSITIVE",
+    "post_run_reconciliation_root": "C:\\TSF_SYNTHETIC_AUTH_V2\\.codex-local\\evidence\\synthetic-v2-candidate-binding-working-acceptance-02-post-run-reconciliation-02",
+    "post_run_reconciliation_sha256": "956f9efdfb3eb1b148760dd24c37e6791b86ac1f6d82c57b3adeb505fa193013",
+    "post_run_reconciliation_passed": true
+  },
+  "interrupted_acceptance_01": {
+    "evidence_root": "C:\\TSF_SYNTHETIC_AUTH_V2\\.codex-local\\evidence\\synthetic-v2-candidate-binding-working-acceptance-01",
+    "classification": "GENUINE_ACCEPTANCE_FAILURE_FOUND_IN_PRESERVED_LOGS",
+    "overall_disposition": "INCOMPLETE_EXTERNAL_INTERRUPTION_WITH_EARLIER_DURABLE_SUBCHECK_FAILURE",
+    "acceptance_summary_present": false,
+    "numeric_exit_available": false,
+    "durable_failed_subcheck": "structured_fulfillment_targeted_soak_v5/final-doctor",
+    "durable_failed_subcheck_exit": 4,
+    "durable_failed_subcheck_root_cause": "DOCTOR_CORRECTLY_REJECTED_INTENTIONALLY_DIRTY_UNCOMMITTED_CANDIDATE_WORKTREE",
+    "logs_end_abruptly": true,
+    "green": false,
+    "rewritten": false
+  },
+  "post_crash_recovery": {
+    "reconciliation_classification": "GENUINE_ACCEPTANCE_FAILURE_FOUND_IN_PRESERVED_LOGS",
+    "surviving_owned_process": false,
+    "port_4317_listener_count": 0,
+    "unattributed_process_terminated": false,
+    "pre_documentation_snapshot": "C:\\TSF_SYNTHETIC_AUTH_V2\\.codex-local\\recovery\\working-tree-evidence-completion-pre-edit\\20260729T224851221Z",
+    "pre_documentation_snapshot_manifest_sha256": "7d77fa055af27ca7ee0f88aea3df60407a59ba1d09efd160501fa5665df84d04",
+    "pre_documentation_snapshot_entries": 46
+  },
+  "final_exact_candidate_requirement": {
+    "new_detached_proof_required": true,
+    "full_v1_acceptance_required": true,
+    "correction_02_packet_required": true,
+    "fresh_tester_required": true,
+    "fresh_auditor_required": true,
+    "status": "PENDING"
+  },
+  "correction_01_preserved": true,
+  "correction_01_publication_authority": false,
+  "product_repository_accessed": false,
+  "synthetic_network_used": false,
+  "synthetic_remote_created": false,
+  "synthetic_push_performed": false,
+  "plugin_used": false,
+  "credential_accessed": false,
+  "package_installed": false,
+  "deployment_performed": false,
+  "service_task_or_persistent_process_created": false,
+  "unattributed_process_terminated": false,
+  "historical_evidence_rewritten": false,
+  "runtime_evidence_deleted": false
+}

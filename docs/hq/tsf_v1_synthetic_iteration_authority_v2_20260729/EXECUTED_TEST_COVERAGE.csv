@@ -1,0 +1,27 @@
+phase,test_or_invariant,required_result,evidence,status
+architecture,fresh read-only Security Architect,PROCEED without a new authority system,MULTIPLE_LOCALIZED_CORRECTIONS_REQUIRED,PASS
+implementation,static authority and schema validation,exit 0,authority sha256 1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222,PASS
+implementation,assertion-derived unit and adversarial tests,exit 0 and 25 tests pass,node test output 25 pass 0 fail,PASS
+security,all-a coherent writeset reidentity,reject before mutation or tests,REPLACEMENT_SHA_NOT_IN_APPROVED_BUILDER_CANDIDATE_SET,PASS
+security,candidate-set substitution and caller-created set,reject despite descendant reidentity,focused adversarial tests,PASS
+security,cross-task path and iteration candidate reuse,reject before mutation,focused adversarial tests,PASS
+security,replacement temporary written and pre-test byte mismatch,reject at earliest boundary,focused adversarial tests,PASS
+security,staged and committed blob mismatch,reject before commit or admission,focused adversarial tests,PASS
+security,duplicate JSON member,reject during recovery parse,focused adversarial tests,PASS
+recovery,historical record without candidate binding,fail closed before lock or mutation,RECOVERY_CANONICAL_CANDIDATE_BINDING_ABSENT,PASS
+recovery,persisted valid and verified fields,ignore and reload canonical authority,candidate-binding-valid-flag-ignored-01,PASS
+pilot,three-task candidate-binding working pilot,three admissions and three local commits,candidate-binding-working-01 manifest 0dcafea7617c6bc376a5d5aa041c35a14f828adf3b87772c1714db3c201c1864,PASS
+pilot,Task 2 first attempt,acceptance rejection preserved then iteration 2 admitted,iterations 1 and 2,PASS
+pilot,Task 3 first attempt,acceptance rejection preserved then iteration 2 admitted,iterations 1 and 2,PASS
+pilot,interrupted-write recovery,writer exits 86 and separate process reloads canonical candidate authority,Task 1 candidate-binding-working-01,PASS
+pilot,staged and committed blob proof,each equals exact approved replacement,three admitted tasks,PASS
+evidence,working pilot manifest self-check,76 entries and byte counts exact,0 failures,PASS
+regression,dirty-candidate acceptance harness correction tests,default fail-closed plus exact external dirty binding,74 assertions,PASS
+recovery,post-crash process and listener reconciliation,exact recorded identities and port 4317,no surviving owned process and no listener,PASS
+recovery,interrupted acceptance-01 classification,no fabricated full-run verdict,INCOMPLETE_EXTERNAL_INTERRUPTION_WITH_EARLIER_DURABLE_SUBCHECK_FAILURE,PASS
+regression,working-tree full V1 acceptance,37 checks and 1275 criteria/assertions,acceptance-02 exit 0 all checks PASS,PASS
+regression,acceptance-02 final runtime cleanup,owner absent listeners 0 owned children 0,canonical acceptance summary,PASS
+evidence,acceptance-02 wrapper observer reconciliation,preserve false flag and prove observer naturally terminated,reconciliation-02 SHA 956f9efdfb3eb1b148760dd24c37e6791b86ac1f6d82c57b3adeb505fa193013,PASS
+candidate,final amended detached exact-candidate proof,attacks pilot acceptance and cleanup,pending new proof,PENDING
+evidence,correction-02 packet,detached clean candidate and matching acceptance hashes,pending exact candidate,PENDING
+publication,merge-tree diff-check and check inspection,no conflicts and truthful check state,pending fresh GREEN reviews,PENDING

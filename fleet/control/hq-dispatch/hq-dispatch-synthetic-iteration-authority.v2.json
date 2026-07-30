@@ -1,0 +1,339 @@
+{
+  "schema_version": "tsf_synthetic_iteration_authority_v2",
+  "contract_version": "SYNTHETIC_ITERATION_AUTHORITY_V2",
+  "program_id": "tsf-v1-synthetic-iteration-authority-v2-20260729",
+  "action_id": "tsf_synthetic_workspace_iteration_v2",
+  "posture": "CLOSED_TEST_ONLY",
+  "expires_at": "2026-07-31T23:59:59Z",
+  "tim_authorization_provenance": {
+    "kind": "ADVANCE_REVIEWED_PROMPT",
+    "source": "TSF V1 Synthetic Iteration Authority V2",
+    "source_sha256": "7dc4a6a005cdc728f670e8131ab46ff1eb35044944b1ec29befb3e2bee0bccc1",
+    "authorized_by": "TIM_LOCAL_OPERATOR",
+    "automatic_approval_authority": false
+  },
+  "limits": {
+    "maximum_tasks": 3,
+    "maximum_builder_iterations_per_task": 3,
+    "maximum_accepted_task_commits": 3,
+    "maximum_active_write_missions": 1
+  },
+  "executables": {
+    "node": {
+      "path": "C:\\Program Files\\nodejs\\node.exe",
+      "sha256": "3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5"
+    },
+    "git": {
+      "path": "C:\\Program Files\\Git\\cmd\\git.exe",
+      "sha256": "81ef35ae005ca9318018d18e3327578ce939fb99feaad6b2d7c8ab15f3de8db5"
+    }
+  },
+  "prohibitions": {
+    "worker_network": true,
+    "remote_git": true,
+    "package_installation": true,
+    "plugins": true,
+    "credentials": true,
+    "product_repositories": true,
+    "deployment": true,
+    "services_tasks_daemons": true,
+    "persistent_processes": true
+  },
+  "repository": {
+    "root": "C:\\TSF_SYNTHETIC_ITERATION_V2\\fixture-repo",
+    "branch": "pilot/tsf-synthetic-iteration-v2-20260729",
+    "baseline_subject": "chore: seed synthetic iteration pilot v2",
+    "remote_policy": "NO_REMOTE",
+    "setup_action": "tsf_synthetic_repository_seed_v2",
+    "allowed_paths": [
+      "README.md",
+      "package.json",
+      "PILOT_CONTRACT.json",
+      ".gitignore",
+      "src/path-containment.mjs",
+      "src/job-admission.mjs",
+      "src/result-parser.mjs",
+      "test/path-containment.test.mjs",
+      "test/job-admission.test.mjs",
+      "test/result-parser.test.mjs",
+      "acceptance/path-containment.acceptance.test.mjs",
+      "acceptance/job-admission.acceptance.test.mjs",
+      "acceptance/result-parser.acceptance.test.mjs"
+    ]
+  },
+  "command_templates": [
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "node-test-all",
+      "executable": "node",
+      "arguments": ["--test"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "node-test-one",
+      "executable": "node",
+      "arguments": ["--test", "<ALLOWLISTED_TEST_PATH>"],
+      "path_argument": "ONE_ALLOWLISTED_TEST"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "node-check-one",
+      "executable": "node",
+      "arguments": ["--check", "<ALLOWLISTED_MJS_PATH>"],
+      "path_argument": "ONE_ALLOWLISTED_MJS"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-status-short",
+      "executable": "git",
+      "arguments": ["status", "--short"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-status-porcelain-v2",
+      "executable": "git",
+      "arguments": ["status", "--porcelain=v2"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-diff-check",
+      "executable": "git",
+      "arguments": ["diff", "--check"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-diff-binary",
+      "executable": "git",
+      "arguments": ["diff", "--binary"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-diff-name-only",
+      "executable": "git",
+      "arguments": ["diff", "--name-only"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-rev-parse-head",
+      "executable": "git",
+      "arguments": ["rev-parse", "HEAD"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-rev-parse-top",
+      "executable": "git",
+      "arguments": ["rev-parse", "--show-toplevel"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-branch-current",
+      "executable": "git",
+      "arguments": ["branch", "--show-current"],
+      "path_argument": "NONE"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-add-task-paths",
+      "executable": "git",
+      "arguments": ["add", "--", "<EXPLICIT_AUTHORIZED_TASK_PATHS>"],
+      "path_argument": "ONE_OR_MORE_AUTHORIZED_TASK_PATHS"
+    },
+    {
+      "contract_version": "APPROVED_COMMAND_TEMPLATE_V2",
+      "template_id": "git-commit-task-subject",
+      "executable": "git",
+      "arguments": ["commit", "-m", "<EXACT_TASK_SUBJECT>"],
+      "path_argument": "NONE"
+    }
+  ],
+  "iteration_states": [
+    "PLANNED",
+    "PREAUTHORIZED",
+    "PREVIEWED",
+    "QUEUED",
+    "WORKER_RUNNING",
+    "PATCH_PRODUCED",
+    "FOCUSED_TESTS_FAILED",
+    "ACCEPTANCE_TESTS_FAILED",
+    "VERIFIER_REJECTED",
+    "CORRECTION_PLANNED",
+    "CORRECTION_APPROVED",
+    "VERIFIED",
+    "COMMIT_AUTHORIZED",
+    "COMMITTED",
+    "ADMITTED",
+    "INTERRUPTED",
+    "RECOVERY_REQUIRED",
+    "ROLLED_BACK",
+    "BLOCKED",
+    "EXHAUSTED"
+  ],
+  "state_transitions": {
+    "PLANNED": ["PREAUTHORIZED", "BLOCKED"],
+    "PREAUTHORIZED": ["PREVIEWED", "BLOCKED"],
+    "PREVIEWED": ["QUEUED", "BLOCKED"],
+    "QUEUED": ["WORKER_RUNNING", "BLOCKED"],
+    "WORKER_RUNNING": ["PATCH_PRODUCED", "INTERRUPTED", "BLOCKED"],
+    "PATCH_PRODUCED": ["FOCUSED_TESTS_FAILED", "ACCEPTANCE_TESTS_FAILED", "VERIFIER_REJECTED", "VERIFIED", "INTERRUPTED", "BLOCKED"],
+    "FOCUSED_TESTS_FAILED": ["CORRECTION_PLANNED", "EXHAUSTED", "BLOCKED"],
+    "ACCEPTANCE_TESTS_FAILED": ["CORRECTION_PLANNED", "EXHAUSTED", "BLOCKED"],
+    "VERIFIER_REJECTED": ["CORRECTION_PLANNED", "EXHAUSTED", "BLOCKED"],
+    "CORRECTION_PLANNED": ["CORRECTION_APPROVED", "BLOCKED"],
+    "CORRECTION_APPROVED": ["PLANNED", "EXHAUSTED", "BLOCKED"],
+    "VERIFIED": ["COMMIT_AUTHORIZED", "BLOCKED"],
+    "COMMIT_AUTHORIZED": ["COMMITTED", "BLOCKED"],
+    "COMMITTED": ["ADMITTED", "BLOCKED"],
+    "ADMITTED": [],
+    "INTERRUPTED": ["RECOVERY_REQUIRED", "BLOCKED"],
+    "RECOVERY_REQUIRED": ["PATCH_PRODUCED", "ROLLED_BACK", "BLOCKED", "EXHAUSTED"],
+    "ROLLED_BACK": ["CORRECTION_PLANNED", "BLOCKED", "EXHAUSTED"],
+    "BLOCKED": [],
+    "EXHAUSTED": []
+  },
+  "tasks": [
+    {
+      "task_id": "synthetic-path-containment-v2",
+      "goal": "Correct a synthetic path-containment function so mixed path separators and parent traversal cannot escape the fixture root.",
+      "authorized_source_paths": ["src/path-containment.mjs"],
+      "authorized_test_paths": [
+        "test/path-containment.test.mjs",
+        "acceptance/path-containment.acceptance.test.mjs"
+      ],
+      "focused_tests": ["test/path-containment.test.mjs"],
+      "acceptance_tests": ["acceptance/path-containment.acceptance.test.mjs"],
+      "acceptance_criteria": [
+        "visible unit tests pass",
+        "hidden-independent acceptance tests pass",
+        "traversal and mixed-separator cases fail closed",
+        "no other path changes"
+      ],
+      "required_commit_subject": "fix: correct synthetic path containment",
+      "approved_builder_candidate_sets": [
+        {
+          "contract_version": "APPROVED_BUILDER_CANDIDATE_TEMPLATE_V2",
+          "iteration": 1,
+          "repository_relative_path": "src/path-containment.mjs",
+          "maximum_candidate_count": 1,
+          "candidates": [
+            {
+              "sha256": "88095e8a37ba3230b8e1c756b30613728e246ce2cac4f53c228f5c08b1fe7765",
+              "byte_length": 860,
+              "provenance": "STATIC_BUILDER_CANDIDATE_V2",
+              "generation_run_identity": "synthetic-path-containment-v2-builder-generation-1"
+            }
+          ]
+        }
+      ],
+      "maximum_iterations": 3
+    },
+    {
+      "task_id": "synthetic-idempotency-replay-v2",
+      "goal": "Correct a synthetic job-admission function so exact duplicate requests reuse the existing job and changed content under the same idempotency identity fails closed.",
+      "authorized_source_paths": ["src/job-admission.mjs"],
+      "authorized_test_paths": [
+        "test/job-admission.test.mjs",
+        "acceptance/job-admission.acceptance.test.mjs"
+      ],
+      "focused_tests": ["test/job-admission.test.mjs"],
+      "acceptance_tests": ["acceptance/job-admission.acceptance.test.mjs"],
+      "acceptance_criteria": [
+        "exact duplicate request reuses the existing job",
+        "changed content with the same idempotency identity fails closed",
+        "changed replay neither reuses nor creates another job",
+        "first rejected attempt is preserved",
+        "no other path changes"
+      ],
+      "required_commit_subject": "fix: enforce synthetic replay identity",
+      "approved_builder_candidate_sets": [
+        {
+          "contract_version": "APPROVED_BUILDER_CANDIDATE_TEMPLATE_V2",
+          "iteration": 1,
+          "repository_relative_path": "src/job-admission.mjs",
+          "maximum_candidate_count": 1,
+          "candidates": [
+            {
+              "sha256": "94906bfd75c924151d80de73591026b27eab682bd78ed3fa1fc28d7fe104d954",
+              "byte_length": 424,
+              "provenance": "STATIC_BUILDER_CANDIDATE_V2",
+              "generation_run_identity": "synthetic-idempotency-replay-v2-builder-generation-1"
+            }
+          ]
+        },
+        {
+          "contract_version": "APPROVED_BUILDER_CANDIDATE_TEMPLATE_V2",
+          "iteration": 2,
+          "repository_relative_path": "src/job-admission.mjs",
+          "maximum_candidate_count": 1,
+          "candidates": [
+            {
+              "sha256": "e970edb4c9f0a4035993651ffac1942c99484807ad8ce6db59a8f71d8c866778",
+              "byte_length": 1113,
+              "provenance": "STATIC_BUILDER_CANDIDATE_V2",
+              "generation_run_identity": "synthetic-idempotency-replay-v2-builder-generation-2"
+            }
+          ]
+        }
+      ],
+      "maximum_iterations": 3
+    },
+    {
+      "task_id": "synthetic-result-identity-v2",
+      "goal": "Correct a synthetic JSON result parser so duplicate identity members, unknown identity substitution, and malformed result identity fail closed.",
+      "authorized_source_paths": ["src/result-parser.mjs"],
+      "authorized_test_paths": [
+        "test/result-parser.test.mjs",
+        "acceptance/result-parser.acceptance.test.mjs"
+      ],
+      "focused_tests": ["test/result-parser.test.mjs"],
+      "acceptance_tests": ["acceptance/result-parser.acceptance.test.mjs"],
+      "acceptance_criteria": [
+        "duplicate identity members rejected",
+        "required identity fields exact",
+        "unknown identity substitutions rejected",
+        "valid structured result accepted",
+        "at least one rejected correction attempt is preserved",
+        "no unrelated path changes"
+      ],
+      "required_commit_subject": "fix: validate synthetic result identity",
+      "approved_builder_candidate_sets": [
+        {
+          "contract_version": "APPROVED_BUILDER_CANDIDATE_TEMPLATE_V2",
+          "iteration": 1,
+          "repository_relative_path": "src/result-parser.mjs",
+          "maximum_candidate_count": 1,
+          "candidates": [
+            {
+              "sha256": "4914a922d1a0bcae4b292840c96da34c8f73c72591698cc7589fa455ce8e65af",
+              "byte_length": 687,
+              "provenance": "STATIC_BUILDER_CANDIDATE_V2",
+              "generation_run_identity": "synthetic-result-identity-v2-builder-generation-1"
+            }
+          ]
+        },
+        {
+          "contract_version": "APPROVED_BUILDER_CANDIDATE_TEMPLATE_V2",
+          "iteration": 2,
+          "repository_relative_path": "src/result-parser.mjs",
+          "maximum_candidate_count": 1,
+          "candidates": [
+            {
+              "sha256": "5294ac5c379e436e7187544a750c47453f3b0ff55a2cef9df415f5013dd077b9",
+              "byte_length": 1934,
+              "provenance": "STATIC_BUILDER_CANDIDATE_V2",
+              "generation_run_identity": "synthetic-result-identity-v2-builder-generation-2"
+            }
+          ]
+        }
+      ],
+      "maximum_iterations": 3
+    }
+  ]
+}

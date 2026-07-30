@@ -1,7 +1,12 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$EvidenceRoot,
-    [switch]$SkipRealAppServerProof
+    [switch]$SkipRealAppServerProof,
+    [switch]$AuthorizedDirtyCandidateWorktree,
+    [string]$ExpectedCandidateHead = '',
+    [string]$ExpectedCandidateTree = '',
+    [string]$ExpectedCandidateBranch = '',
+    [string]$ExpectedDirtyWorktreeBindingSha256 = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -173,14 +178,53 @@ $allowedPattern = '^(tools/(codex-fleet-enforcement-kernel\.ps1|TsfDurableContra
 $hotfixAllowedPattern = '^(\.gitattributes|\.gitignore|docs/hq/enforcement_kernel/minimum_viable_local_tsf_enforcement_kernel_v1/mission_schema_v1\.json|docs/hq/tsf_v1_response_contract_runtime_cleanliness_hotfix_v1_20260718/.*|docs/hq/tsf_canonical_runtime_app_server_vertical_slice_v1_20260711/(APP_SERVER_CAPABILITY_REPORT\.json|APP_SERVER_EVENT_SUMMARY\.json|EXECUTED_TEST_COVERAGE\.csv|VALIDATION\.json)|fleet/control/(exact-literal-response-contract|mission-envelope|canonical-queue-document|worker-instruction-packet|policy-manifest)\.(schema\.)?v1\.json|fleet/control/hq-dispatch/hq-dispatch-(route-preview-response|interruption-evidence)\.schema\.v1\.json|tools/(Invoke-TsfMissionLifecycle|TsfJsonContract)\.ps1|tools/tsf-codex-app-server-adapter\.mjs|tools/hq-dispatch/v1/(Invoke-TsfHqDispatchRoutePreview|New-TsfHqDispatchGovernedMission|Test-TsfHqDispatchCanonicalQueueRecordsV1)\.ps1|tools/hq-dispatch/v1/(demo-fixtures|demo|mission-relay|reliability|reliability-cli|server)\.mjs|tools/hq-dispatch/v1/public/(app\.js|index\.html|styles\.css)|tests/fixtures/fleet/durable-contract/fake-codex-app-server\.mjs|tests/support/(New-TsfCanonicalQueueTestRecords\.ps1|TsfFinalAcceptanceGitState\.ps1|TsfPacketEvidencePath\.ps1|tsf-canonical-packet-hash\.mjs|tsf-hq-dispatch-initial-doctor-isolation\.mjs|tsf-hq-dispatch-m3-real-interruption-barrier\.mjs|tsf-hq-dispatch-recovery-result-contract-proof\.mjs|tsf-process-action-ledger\.mjs|tsf-proof-fetch-trace\.mjs|tsf-stop-receipt-contract\.mjs)|tests/(run-tsf-final-three-authority-tests|run-tsf-hq-dispatch-exact-result-evidence-tests|run-tsf-hq-dispatch-wrong-result-lifecycle-proof-v1|run-tsf-native-fast-fail-diagnostic-v1|run-tsf-response-runtime-hotfix-packet-self-check-v1|test-tsf-v1-final-acceptance-git-state-v1|test-tsf-response-runtime-hotfix-packet-evidence-paths-v1)\.ps1|tests/(run-tsf-hq-dispatch-real-readonly-v1|run-tsf-hq-dispatch-production-hotfix-proof-v1|run-tsf-response-runtime-hotfix-packet-hash-v1|test-tsf-response-runtime-hotfix-packet-hash-v1|test-tsf-hq-dispatch-initial-doctor-isolation-v1|test-tsf-hq-dispatch-demo-v1|test-tsf-hq-dispatch-exact-response-adapter-v1|test-tsf-hq-dispatch-interruption-barrier-safety-v1|test-tsf-hq-dispatch-recovery-result-contract-proof-v1|test-tsf-hq-dispatch-responsive-layout-v1|test-tsf-hq-dispatch-reliability-v1|test-tsf-hq-dispatch-real-reliability-v1|test-tsf-hq-dispatch-restart-tim-v1|test-tsf-hq-dispatch-request-result-relay-v1|test-tsf-hq-dispatch-exact-response-contract-v1|test-tsf-hq-dispatch-shutdown-coordinator-v1|test-tsf-owned-process-registration-synchronization-v1|test-tsf-owned-process-registry-v1|test-tsf-process-action-ledger-v1|test-tsf-proof-fetch-native-ladder-v1|test-tsf-proof-fetch-trace-v1|test-tsf-stop-receipt-contract-v1|test-tsf-runtime-queue-cleanliness-v1)\.mjs)$'
 $semanticHotfixAllowedPattern = '^(docs/hq/(tsf_v1_general_result_intent_fidelity_hotfix_v1_20260722|tsf_v1_semantic_outcome_calibration_hotfix_v1_20260724)/.*|fleet/control/((admission-decision|general-result-v2|original-operator-intent|result-envelope|scope-transformation|task-completion-contract)\.schema\.v1|task-completion-contract\.schema\.v2)\.json|tools/(Invoke-TsfCodexAppServerForeground|New-TsfProjectMainBotMissionDraft|TsfSemanticIntegrity)\.ps1|tests/(Test-TsfGeneralResultIntentIntegrityV1|Test-TsfGeneralResultKernelVerifierV1|Test-TsfSemanticOutcomeCalibrationV1|run-minimum-viable-kernel-tests|run-tsf-hq-dispatch-tim-relay-validation-v1|run-tsf-semantic-outcome-targeted-soak-v3)\.ps1|tests/(test-tsf-hq-dispatch-intent-authorization-v1|test-tsf-hq-dispatch-route-preview-v1|test-tsf-hq-dispatch-tim-relay-http-v1)\.mjs|tests/fixtures/fleet/(project-main-bot/role_aware_lifecycle/requests/overnight-safe\.request\.json|semantic-outcome/semantic-outcome-corpus\.v1\.json))$'
 $structuredPolicyAllowedPattern = '^(docs/hq/tsf_v1_structured_fulfillment_policy_hotfix_v1_20260724/.*|tests/(Test-TsfStructuredFulfillmentPolicyV1|Test-TsfRecoveryFixtureContractsV1|Test-TsfStructuredFulfillmentStaticIntegrityV1|Test-TsfStructuredFulfillmentPacketV1|run-tsf-structured-fulfillment-real-proofs-v1|run-tsf-structured-fulfillment-targeted-soak-v4|run-tsf-structured-fulfillment-targeted-soak-v5)\.ps1|tests/run-tsf-hq-dispatch-tim-relay-real-readonly-v1\.mjs)$'
-$unexpectedPaths = @($changedPaths | Where-Object { $_.Replace('\', '/') -notmatch $allowedPattern -and $_.Replace('\', '/') -notmatch $hotfixAllowedPattern -and $_.Replace('\', '/') -notmatch $semanticHotfixAllowedPattern -and $_.Replace('\', '/') -notmatch $structuredPolicyAllowedPattern })
+$syntheticIterationV2AllowedPattern = '^(docs/hq/tsf_v1_synthetic_iteration_authority_v2_20260729/.*|fleet/control/hq-dispatch/hq-dispatch-synthetic-iteration-authority(\.schema)?\.v2\.json|fleet/control/synthetic-iteration-v2/synthetic-iteration-runtime-contracts\.schema\.v2\.json|tools/(Get-TsfSyntheticIterationAdmissionDecisionV2\.ps1|Invoke-TsfSyntheticIterationPilotV2\.mjs|New-TsfSyntheticIterationV2ReviewPacket\.ps1|hq-dispatch/v1/synthetic-iteration-authority-v2\.mjs)|tests/(run-tsf-v1-final-acceptance-v1\.ps1|synthetic-iteration-authority-v2(-adversarial)?\.test\.mjs))$'
+$unexpectedPaths = @($changedPaths | Where-Object { $_.Replace('\', '/') -notmatch $allowedPattern -and $_.Replace('\', '/') -notmatch $hotfixAllowedPattern -and $_.Replace('\', '/') -notmatch $semanticHotfixAllowedPattern -and $_.Replace('\', '/') -notmatch $structuredPolicyAllowedPattern -and $_.Replace('\', '/') -notmatch $syntheticIterationV2AllowedPattern })
 Add-AssertionRow -Name 'protected_path_scope' -Passed ($unexpectedPaths.Count -eq 0) -Evidence $(if ($unexpectedPaths.Count) { 'unexpected=' + ($unexpectedPaths -join ',') } else { 'Only M4 acceptance, documentation, and localized caveat paths changed.' })
+
+$dirtyAllowedPatterns = @($allowedPattern, $hotfixAllowedPattern, $semanticHotfixAllowedPattern, $structuredPolicyAllowedPattern, $syntheticIterationV2AllowedPattern)
+$dirtyBindingParametersPresent = (
+    -not [string]::IsNullOrWhiteSpace($ExpectedCandidateHead) -or
+    -not [string]::IsNullOrWhiteSpace($ExpectedCandidateTree) -or
+    -not [string]::IsNullOrWhiteSpace($ExpectedCandidateBranch) -or
+    -not [string]::IsNullOrWhiteSpace($ExpectedDirtyWorktreeBindingSha256)
+)
+if (-not $AuthorizedDirtyCandidateWorktree -and $dirtyBindingParametersPresent) {
+    throw 'FINAL_ACCEPTANCE_DIRTY_BINDING_PARAMETERS_REQUIRE_EXPLICIT_MODE'
+}
+$initialWorktreeBindingState = $null
+$initialDirtyWorktreeBinding = $null
+if ($AuthorizedDirtyCandidateWorktree) {
+    if (
+        [string]::IsNullOrWhiteSpace($ExpectedCandidateHead) -or
+        [string]::IsNullOrWhiteSpace($ExpectedCandidateTree) -or
+        [string]::IsNullOrWhiteSpace($ExpectedCandidateBranch) -or
+        [string]::IsNullOrWhiteSpace($ExpectedDirtyWorktreeBindingSha256)
+    ) {
+        throw 'FINAL_ACCEPTANCE_DIRTY_BINDING_PARAMETERS_MISSING'
+    }
+    $initialWorktreeBindingState = Get-TsfFinalAcceptanceWorktreeBindingState -RepositoryRoot $repoRoot -GitExecutable $git
+    $initialDirtyWorktreeBinding = Test-TsfFinalAcceptanceAuthorizedDirtyWorktreeBinding -State $initialWorktreeBindingState -ExpectedHead $ExpectedCandidateHead -ExpectedTree $ExpectedCandidateTree -ExpectedBranch $ExpectedCandidateBranch -ExpectedBindingSha256 $ExpectedDirtyWorktreeBindingSha256 -AllowedPathPatterns $dirtyAllowedPatterns
+    $dirtyPreflightPath = Join-Path $EvidenceRoot 'authorized-dirty-worktree-preflight.json'
+    [IO.File]::WriteAllText($dirtyPreflightPath, ([pscustomobject][ordered]@{ state = $initialWorktreeBindingState; binding = $initialDirtyWorktreeBinding } | ConvertTo-Json -Depth 20), $utf8NoBom)
+    Add-AssertionRow -Name 'authorized_dirty_candidate_worktree_preflight' -Passed ([bool]$initialDirtyWorktreeBinding.valid) -Evidence "head=$($initialWorktreeBindingState.head) tree=$($initialWorktreeBindingState.tree) branch=$($initialWorktreeBindingState.branch) binding_sha256=$($initialWorktreeBindingState.binding_sha256) dirty_paths=$(@($initialWorktreeBindingState.dirty_paths).Count) staged=$(@($initialWorktreeBindingState.staged_paths).Count) errors=$($initialDirtyWorktreeBinding.errors -join ',')" -PassBasis 'EXPLICIT_EXTERNAL_HEAD_TREE_BRANCH_AND_EXACT_DIRTY_BYTE_BINDING'
+}
 
 Invoke-AcceptanceCommand -Name 'structured_fulfillment_policy' -File $powershell -Arguments ($psBase + @((Join-Path $PSScriptRoot 'Test-TsfStructuredFulfillmentPolicyV1.ps1'))) -PassBasis 'DETERMINISTIC_STRUCTURAL_ADMISSION_POLICY_AND_SCHEMA_COMPATIBILITY_ASSERTIONS' -AssertionOrCriterionCount 72 | Out-Null
 $recoveryFixtureRow = Invoke-AcceptanceCommand -Name 'recovery_fixture_contract_separation' -File $powershell -Arguments ($psBase + @((Join-Path $PSScriptRoot 'Test-TsfRecoveryFixtureContractsV1.ps1'))) -PassBasis 'BEHAVIOR_DERIVED_STRUCTURED_ADMITTED_AND_GENERIC_NON_ADMITTED_RECOVERY_ASSERTIONS'
 Add-AssertionRow -Name 'recovery_pipeline_completed_and_admitted' -Passed ($recoveryFixtureRow.status -eq 'PASS') -Evidence "Fixture A process result=$($recoveryFixtureRow.result_identity); structured recovery requires independent verification and admission."
 Add-AssertionRow -Name 'generic_recovery_response_preserved_non_admissible' -Passed ($recoveryFixtureRow.status -eq 'PASS') -Evidence "Fixture B process result=$($recoveryFixtureRow.result_identity); generic recovery is preserved without admission or a success receipt."
-Invoke-AcceptanceCommand -Name 'structured_fulfillment_targeted_soak_v5' -File $powershell -Arguments ($psBase + @((Join-Path $PSScriptRoot 'run-tsf-structured-fulfillment-targeted-soak-v5.ps1'))) -PassBasis 'TWENTY_THREE_CASE_TARGETED_STRUCTURED_FULFILLMENT_AND_RECOVERY_SOAK' -AssertionOrCriterionCount 23 | Out-Null
+$soakArguments = $psBase + @((Join-Path $PSScriptRoot 'run-tsf-structured-fulfillment-targeted-soak-v5.ps1'))
+if ($AuthorizedDirtyCandidateWorktree) {
+    $soakArguments += @(
+        '-AuthorizedDirtyCandidateWorktree',
+        '-ExpectedCandidateHead', $ExpectedCandidateHead,
+        '-ExpectedCandidateTree', $ExpectedCandidateTree,
+        '-ExpectedCandidateBranch', $ExpectedCandidateBranch,
+        '-ExpectedDirtyWorktreeBindingSha256', $ExpectedDirtyWorktreeBindingSha256
+    )
+}
+Invoke-AcceptanceCommand -Name 'structured_fulfillment_targeted_soak_v5' -File $powershell -Arguments $soakArguments -PassBasis 'TWENTY_THREE_CASE_TARGETED_STRUCTURED_FULFILLMENT_RECOVERY_AND_EXACT_WORKTREE_BINDING_SOAK' -AssertionOrCriterionCount 23 | Out-Null
 Invoke-AcceptanceCommand -Name 'm4_localized_corrections' -File $powershell -Arguments ($psBase + @((Join-Path $PSScriptRoot 'test-tsf-v1-m4-acceptance-corrections-v1.ps1'))) | Out-Null
 Invoke-AcceptanceCommand -Name 'm3_reliability_aggregate' -File $powershell -Arguments ($psBase + @((Join-Path $PSScriptRoot 'run-tsf-hq-dispatch-reliability-v1.ps1'), '-EvidenceRoot', (Join-Path $EvidenceRoot 'm3-aggregate'), '-Milestone4Acceptance')) | Out-Null
 Invoke-AcceptanceCommand -Name 'm1_route_preview' -File $node -Arguments @((Join-Path $PSScriptRoot 'test-tsf-hq-dispatch-route-preview-v1.mjs')) | Out-Null
@@ -213,18 +257,42 @@ if (-not $SkipRealAppServerProof -and -not $hasFailure) {
     Add-AssertionRow -Name 'structured_admitted_real_app_server_interruption_recovery' -Passed $false -Evidence 'Blocked because an earlier acceptance gate failed; no real proof was started.'
 }
 
-$doctorRow = Invoke-AcceptanceCommand -Name 'final_doctor_json' -File $powershell -Arguments ($psBase + @((Join-Path $repoRoot 'tools\hq-dispatch\v1\Test-TsfHqDispatchDoctorV1.ps1'), '-Json')) -PassBasis 'DOCTOR_EXPECTED_GREEN_ACTION_REQUIRED_OR_TIM_REQUIRED_EXIT_AND_CANONICAL_JSON_ASSERTIONS' -ExpectedExitCodes @(0, 2, 3)
+$doctorExpectedExitCodes = if ($AuthorizedDirtyCandidateWorktree) { @(0, 2, 3, 4) } else { @(0, 2, 3) }
+$doctorRow = Invoke-AcceptanceCommand -Name 'final_doctor_json' -File $powershell -Arguments ($psBase + @((Join-Path $repoRoot 'tools\hq-dispatch\v1\Test-TsfHqDispatchDoctorV1.ps1'), '-Json')) -PassBasis 'DOCTOR_EXPECTED_GOVERNED_EXIT_PLUS_EXACT_RUNTIME_AND_OPTIONAL_DIRTY_BYTE_BINDING_ASSERTIONS' -ExpectedExitCodes $doctorExpectedExitCodes
 $doctor = $null
 try {
-    if (@(0, 2, 3) -contains $doctorRow.exit_code) { $doctor = Get-Content -LiteralPath (Join-Path $EvidenceRoot 'final_doctor_json.stdout.txt') -Raw | ConvertFrom-Json }
+    if ($doctorExpectedExitCodes -contains $doctorRow.exit_code) { $doctor = Get-Content -LiteralPath (Join-Path $EvidenceRoot 'final_doctor_json.stdout.txt') -Raw | ConvertFrom-Json }
 } catch {
     $doctor = $null
 }
-$cleanupPassed = $null -ne $doctor -and $doctor.safe_to_start -and @($doctor.listener_state.listeners).Count -eq 0 -and $doctor.process_owner.disposition -eq 'ABSENT' -and @($doctor.active_child).Count -eq 0
-Add-AssertionRow -Name 'final_no_owner_listener_or_owned_child' -Passed $cleanupPassed -Evidence $(if ($doctor) { "safe=$($doctor.safe_to_start) owner=$($doctor.process_owner.disposition) listeners=$(@($doctor.listener_state.listeners).Count) children=$(@($doctor.active_child).Count)" } else { 'Doctor JSON unavailable or non-GREEN.' })
+$runtimeCleanupPassed = $null -ne $doctor -and @($doctor.listener_state.listeners).Count -eq 0 -and $doctor.process_owner.disposition -eq 'ABSENT' -and @($doctor.active_child).Count -eq 0
+$finalWorktreeBindingState = Get-TsfFinalAcceptanceWorktreeBindingState -RepositoryRoot $repoRoot -GitExecutable $git
+$finalDirtyWorktreeBinding = $null
+$finalDirtyDoctorBinding = $null
+if ($AuthorizedDirtyCandidateWorktree) {
+    $finalDirtyWorktreeBinding = Test-TsfFinalAcceptanceAuthorizedDirtyWorktreeBinding -State $finalWorktreeBindingState -ExpectedHead $ExpectedCandidateHead -ExpectedTree $ExpectedCandidateTree -ExpectedBranch $ExpectedCandidateBranch -ExpectedBindingSha256 $ExpectedDirtyWorktreeBindingSha256 -AllowedPathPatterns $dirtyAllowedPatterns
+    if ($null -ne $doctor) {
+        $finalDirtyDoctorBinding = Test-TsfFinalAcceptanceAuthorizedDirtyDoctorBinding -Doctor $doctor -WorktreeBinding $finalDirtyWorktreeBinding -ExpectedHead $ExpectedCandidateHead -ExpectedBranch $ExpectedCandidateBranch
+    } else {
+        $finalDirtyDoctorBinding = [pscustomobject][ordered]@{ valid = $false; errors = @('DOCTOR_JSON_UNAVAILABLE') }
+    }
+    $dirtyFinalPath = Join-Path $EvidenceRoot 'authorized-dirty-worktree-final.json'
+    [IO.File]::WriteAllText($dirtyFinalPath, ([pscustomobject][ordered]@{ state = $finalWorktreeBindingState; binding = $finalDirtyWorktreeBinding; doctor_binding = $finalDirtyDoctorBinding } | ConvertTo-Json -Depth 20), $utf8NoBom)
+}
+$cleanupPassed = if ($AuthorizedDirtyCandidateWorktree) {
+    $runtimeCleanupPassed -and $null -ne $finalDirtyDoctorBinding -and [bool]$finalDirtyDoctorBinding.valid
+} else {
+    $runtimeCleanupPassed -and $null -ne $doctor -and [bool]$doctor.safe_to_start
+}
+Add-AssertionRow -Name 'final_no_owner_listener_or_owned_child' -Passed $cleanupPassed -Evidence $(if ($doctor) { "safe=$($doctor.safe_to_start) owner=$($doctor.process_owner.disposition) listeners=$(@($doctor.listener_state.listeners).Count) children=$(@($doctor.active_child).Count) authorized_dirty=$([bool]$AuthorizedDirtyCandidateWorktree) dirty_doctor_binding=$(if($finalDirtyDoctorBinding){$finalDirtyDoctorBinding.valid}else{'N/A'})" } else { 'Doctor JSON unavailable.' })
 
 $trackedStatus = @(git -C $repoRoot status --porcelain=v2 --untracked-files=all | Where-Object { $_ -notmatch '^\? \.codex-local/' })
-Add-AssertionRow -Name 'final_tracked_worktree_clean' -Passed ($trackedStatus.Count -eq 0) -Evidence $(if ($trackedStatus.Count) { $trackedStatus -join ' | ' } else { 'No tracked or non-ignored untracked changes remain.' })
+$finalWorktreeStatePassed = if ($AuthorizedDirtyCandidateWorktree) {
+    $null -ne $finalDirtyWorktreeBinding -and [bool]$finalDirtyWorktreeBinding.valid
+} else {
+    $trackedStatus.Count -eq 0
+}
+Add-AssertionRow -Name 'final_tracked_worktree_clean' -Passed $finalWorktreeStatePassed -Evidence $(if ($AuthorizedDirtyCandidateWorktree) { "AUTHORIZED_DIRTY_WORKTREE_UNCHANGED binding_sha256=$($finalWorktreeBindingState.binding_sha256) paths=$(@($finalWorktreeBindingState.dirty_paths).Count) staged=$(@($finalWorktreeBindingState.staged_paths).Count) errors=$($finalDirtyWorktreeBinding.errors -join ',')" } elseif ($trackedStatus.Count) { $trackedStatus -join ' | ' } else { 'No tracked or non-ignored untracked changes remain.' }) -PassBasis 'CLEAN_EXACT_CANDIDATE_OR_EXPLICIT_HEAD_TREE_BRANCH_AND_DIRTY_BYTE_BINDING'
 
 $finishedAt = [datetimeoffset]::UtcNow
 $status = if ($hasFailure) { 'FAIL' } elseif ($SkipRealAppServerProof) { 'PASS_DETERMINISTIC_ONLY_REAL_PROOF_NOT_RERUN' } elseif ($realProofRan) { 'PASS' } else { 'FAIL' }
@@ -261,6 +329,8 @@ $summary = [pscustomobject][ordered]@{
         real_app_server_proof_ran = $realProofRan
         control_plane_network_policy = if ($realProofRan) { 'CODEX_SERVICE_ONLY' } else { 'NOT_USED_BY_THIS_RUN' }
         worker_tool_network = 'DISABLED'
+        authorized_dirty_candidate_worktree = [bool]$AuthorizedDirtyCandidateWorktree
+        authorized_dirty_worktree_binding_sha256 = if ($AuthorizedDirtyCandidateWorktree) { $ExpectedDirtyWorktreeBindingSha256 } else { $null }
     }
     checks = @($rows)
     final_cleanup = [pscustomobject][ordered]@{
@@ -271,6 +341,9 @@ $summary = [pscustomobject][ordered]@{
         listener_count = if ($doctor) { @($doctor.listener_state.listeners).Count } else { $null }
         owned_child_count = if ($doctor) { @($doctor.active_child).Count } else { $null }
         tracked_status = $trackedStatus
+        runtime_cleanup_passed = $runtimeCleanupPassed
+        authorized_dirty_worktree_binding_valid = if ($AuthorizedDirtyCandidateWorktree -and $finalDirtyWorktreeBinding) { [bool]$finalDirtyWorktreeBinding.valid } else { $null }
+        authorized_dirty_doctor_binding_valid = if ($AuthorizedDirtyCandidateWorktree -and $finalDirtyDoctorBinding) { [bool]$finalDirtyDoctorBinding.valid } else { $null }
     }
     authority_boundary = [pscustomobject][ordered]@{
         arbitrary_command_authority_added = $false

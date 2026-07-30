@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $repoRoot 'tools\hq-dispatch\v1\doctor-format.ps1')
 . (Join-Path $PSScriptRoot 'support\TsfParserEvidence.ps1')
+. (Join-Path $PSScriptRoot 'support\TsfFinalAcceptanceGitState.ps1')
 $assertions = 0
 
 function Assert-True([bool]$Condition, [string]$Message) {
@@ -77,12 +78,53 @@ Assert-True ($canonicalMatrixSource -notmatch "New-CanonicalMission 'synthetic-t
 $staticIntegritySource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-final-static-integrity-tests.ps1') -Raw
 Assert-True ($staticIntegritySource -match 'git diff --name-only "\$BaseRef\.\.\.HEAD"') 'Static integrity discovers committed M4 corrections relative to the baseline'
 $finalAcceptanceSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'run-tsf-v1-final-acceptance-v1.ps1') -Raw
-Assert-True ($finalAcceptanceSource -match 'ExpectedExitCodes @\(0, 2, 3\)') 'Final acceptance recognizes every safe governed Doctor disposition'
-Assert-True ($finalAcceptanceSource -notmatch 'ExpectedExitCodes @\(0, 2, 3, 4\)') 'Final acceptance never accepts Doctor UNSAFE_TO_START exit four'
+Assert-True ($finalAcceptanceSource -match '\[switch\]\$AuthorizedDirtyCandidateWorktree') 'Working-tree acceptance requires an explicit mode switch'
+Assert-True ($finalAcceptanceSource -match '\$doctorExpectedExitCodes = if \(\$AuthorizedDirtyCandidateWorktree\) \{ @\(0, 2, 3, 4\) \} else \{ @\(0, 2, 3\) \}') 'Doctor exit four is conditional on the explicit dirty-candidate mode while clean acceptance keeps the governed exits'
+Assert-True ($finalAcceptanceSource -match 'Test-TsfFinalAcceptanceAuthorizedDirtyWorktreeBinding') 'Final acceptance verifies the exact dirty byte binding before and after tests'
+Assert-True ($finalAcceptanceSource -match 'Test-TsfFinalAcceptanceAuthorizedDirtyDoctorBinding') 'Final acceptance independently binds Doctor exit four to dirty-worktree-only unsafety and clean runtime ownership'
+Assert-True ($finalAcceptanceSource -match 'FINAL_ACCEPTANCE_DIRTY_BINDING_PARAMETERS_REQUIRE_EXPLICIT_MODE') 'Dirty binding parameters fail closed without the explicit mode'
 Assert-True ($finalAcceptanceSource -match "diff', '--check', 'refs/remotes/origin/main\.\.\.HEAD'") 'Final acceptance checks whitespace in the committed candidate diff'
 Assert-True ($finalAcceptanceSource -match "201_ASSERTION_REAL_APP_SERVER_INTERRUPTION_STRUCTURED_RECOVERY_ADMISSION_AND_FRESH_EXACT_STOP_PROOF") 'Final acceptance PASS basis records the exact current structured-recovery and fresh-owner Stop real-proof assertion count'
 Assert-True ($finalAcceptanceSource -notmatch "186_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_FRESH_EXACT_STOP_MISSION_REVISION_RECOVERY_PROOF") 'Final acceptance rejects the superseded pre-structured-recovery assertion count'
 Assert-True ($finalAcceptanceSource -notmatch "94_ASSERTION_REAL_APP_SERVER_INTERRUPTION_AND_NEW_RUN_RECOVERY_PROOF") 'Final acceptance rejects the stale universal exact-evidence real-proof assertion count'
+$bindingFixture = [pscustomobject][ordered]@{
+    head = ('a' * 40)
+    tree = ('b' * 40)
+    branch = 'work/test'
+    binding_sha256 = ('c' * 64)
+    errors = @()
+    staged_paths = @()
+    dirty_paths = @('tests/allowed.ps1')
+}
+$validBinding = Test-TsfFinalAcceptanceAuthorizedDirtyWorktreeBinding -State $bindingFixture -ExpectedHead ('a' * 40) -ExpectedTree ('b' * 40) -ExpectedBranch 'work/test' -ExpectedBindingSha256 ('c' * 64) -AllowedPathPatterns @('^tests/allowed\.ps1$')
+Assert-True $validBinding.valid 'Exact head, tree, branch, byte binding, empty index, and allowed path set are accepted'
+$wrongBinding = Test-TsfFinalAcceptanceAuthorizedDirtyWorktreeBinding -State $bindingFixture -ExpectedHead ('a' * 40) -ExpectedTree ('b' * 40) -ExpectedBranch 'work/test' -ExpectedBindingSha256 ('d' * 64) -AllowedPathPatterns @('^tests/allowed\.ps1$')
+Assert-True (-not $wrongBinding.valid) 'A substituted dirty-worktree byte binding is rejected'
+Assert-True (@($wrongBinding.errors) -contains 'WORKTREE_BINDING_SHA256_MISMATCH') 'Dirty-worktree mismatch has a deterministic rejection identity'
+$stagedFixture = $bindingFixture.PSObject.Copy()
+$stagedFixture.staged_paths = @('tests/allowed.ps1')
+$stagedBinding = Test-TsfFinalAcceptanceAuthorizedDirtyWorktreeBinding -State $stagedFixture -ExpectedHead ('a' * 40) -ExpectedTree ('b' * 40) -ExpectedBranch 'work/test' -ExpectedBindingSha256 ('c' * 64) -AllowedPathPatterns @('^tests/allowed\.ps1$')
+Assert-True (-not $stagedBinding.valid) 'Dirty acceptance rejects a nonempty index'
+$dirtyDoctorFixture = [pscustomobject][ordered]@{
+    overall_status = 'UNSAFE_TO_START'
+    safe_to_start = $false
+    repository = [pscustomobject]@{ head = ('a' * 40); branch = 'work/test'; clean = $false }
+    process_owner = [pscustomobject]@{ disposition = 'ABSENT' }
+    listener_state = [pscustomobject]@{ listeners = @() }
+    active_child = @()
+    checks = @(
+        [pscustomobject]@{ id = 'repository'; status = 'GREEN' },
+        [pscustomobject]@{ id = 'worktree_cleanliness'; status = 'UNSAFE_TO_START' },
+        [pscustomobject]@{ id = 'canonical_reconciliation'; status = 'TIM_REQUIRED' }
+    )
+}
+$validDoctorBinding = Test-TsfFinalAcceptanceAuthorizedDirtyDoctorBinding -Doctor $dirtyDoctorFixture -WorktreeBinding $validBinding -ExpectedHead ('a' * 40) -ExpectedBranch 'work/test'
+Assert-True $validDoctorBinding.valid 'Doctor exit four is acceptable only when dirty-worktree cleanliness is the sole unsafe check and runtime ownership is clean'
+$badDoctorFixture = $dirtyDoctorFixture.PSObject.Copy()
+$badDoctorFixture.listener_state = [pscustomobject]@{ listeners = @([pscustomobject]@{ owning_pid = 42 }) }
+$badDoctorBinding = Test-TsfFinalAcceptanceAuthorizedDirtyDoctorBinding -Doctor $badDoctorFixture -WorktreeBinding $validBinding -ExpectedHead ('a' * 40) -ExpectedBranch 'work/test'
+Assert-True (-not $badDoctorBinding.valid) 'Dirty-worktree mode never authorizes a listener'
+Assert-True (@($badDoctorBinding.errors) -contains 'DOCTOR_LISTENER_PRESENT') 'Listener rejection remains explicit'
 $kernelSource = Get-Content -LiteralPath (Join-Path $repoRoot 'tools\codex-fleet-enforcement-kernel.ps1') -Raw
 Assert-True ($kernelSource -match 'mission_revision\s*=\s*\[int\]\$responseContractMission\.mission_revision') 'Verifier top-level revision comes from the authoritative durable response contract'
 $durableContractSource = Get-Content -LiteralPath (Join-Path $repoRoot 'tools\TsfDurableContract.Canonical.ps1') -Raw
