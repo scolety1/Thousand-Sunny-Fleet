@@ -43,8 +43,8 @@ $dirtyAllowedPatterns=@(
     '^docs/hq/tsf_v1_synthetic_iteration_authority_v2_20260729/.*$',
     '^fleet/control/hq-dispatch/hq-dispatch-synthetic-iteration-authority(\.schema)?\.v2\.json$',
     '^fleet/control/synthetic-iteration-v2/synthetic-iteration-runtime-contracts\.schema\.v2\.json$',
-    '^tools/(New-TsfSyntheticIterationV2ReviewPacket\.ps1|TsfDurableContract\.Canonical\.ps1|hq-dispatch/v1/synthetic-iteration-authority-v2\.mjs)$',
-    '^tests/(synthetic-iteration-authority-v2(-adversarial)?\.test\.mjs|run-tsf-v1-final-acceptance-v1\.ps1|run-tsf-structured-fulfillment-targeted-soak-v5\.ps1|test-tsf-v1-m4-acceptance-corrections-v1\.ps1|support/TsfFinalAcceptanceGitState\.ps1)$'
+    '^tools/(Invoke-TsfSyntheticIterationPilotV2\.mjs|New-TsfSyntheticIterationV2ReviewPacket\.ps1|TsfDurableContract\.Canonical\.ps1|hq-dispatch/v1/synthetic-iteration-authority-v2\.mjs)$',
+    '^tests/(synthetic-iteration-authority-v2(-adversarial)?\.test\.mjs|synthetic-iteration-pilot-execution-context-v1\.test\.mjs|run-tsf-v1-final-acceptance-v1\.ps1|run-tsf-structured-fulfillment-targeted-soak-v5\.ps1|test-tsf-v1-m4-acceptance-corrections-v1\.ps1|support/TsfFinalAcceptanceGitState\.ps1)$'
 )
 $bindingParametersPresent=-not [string]::IsNullOrWhiteSpace($ExpectedCandidateHead)-or-not [string]::IsNullOrWhiteSpace($ExpectedCandidateTree)-or-not [string]::IsNullOrWhiteSpace($ExpectedCandidateBranch)-or-not [string]::IsNullOrWhiteSpace($ExpectedDirtyWorktreeBindingSha256)
 if(!$AuthorizedDirtyCandidateWorktree-and$bindingParametersPresent){throw 'SOAK_V5_DIRTY_BINDING_PARAMETERS_REQUIRE_EXPLICIT_MODE'}

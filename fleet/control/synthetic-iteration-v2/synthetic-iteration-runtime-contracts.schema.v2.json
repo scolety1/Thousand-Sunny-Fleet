@@ -37,7 +37,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "schema_version", "registration_id", "program_id", "action_id", "repository_root",
+        "schema_version", "registration_id", "program_id", "action_id",
+        "execution_context_identity_sha256", "repository_root",
         "git_top_level", "branch", "baseline_commit", "baseline_tree", "baseline_subject",
         "file_inventory", "file_hashes", "remote_count", "registered_at", "expires_at",
         "contract_version", "registration_identity_sha256"
@@ -47,6 +48,7 @@
         "registration_id": { "type": "string", "minLength": 16 },
         "program_id": { "type": "string", "minLength": 8 },
         "action_id": { "const": "tsf_synthetic_workspace_iteration_v2" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "repository_root": { "type": "string", "minLength": 8 },
         "git_top_level": { "type": "string", "minLength": 8 },
         "branch": { "const": "pilot/tsf-synthetic-iteration-v2-20260729" },
@@ -71,7 +73,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "schema_version", "program_id", "action_id", "task_id", "goal", "repository_root",
+        "schema_version", "program_id", "action_id", "execution_context_identity_sha256",
+        "task_id", "goal", "repository_root",
         "git_top_level", "branch", "baseline_commit", "baseline_tree", "authorized_source_paths",
         "authorized_test_paths", "authorized_command_templates", "required_focused_tests",
         "required_acceptance_tests", "acceptance_criteria", "maximum_iterations",
@@ -84,6 +87,7 @@
         "schema_version": { "const": "SYNTHETIC_TASK_PREAUTHORIZATION_V2" },
         "program_id": { "type": "string" },
         "action_id": { "const": "tsf_synthetic_workspace_iteration_v2" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "task_id": { "type": "string" },
         "goal": { "type": "string", "minLength": 20 },
         "repository_root": { "type": "string" },
@@ -125,7 +129,8 @@
       "additionalProperties": false,
       "required": [
         "schema_version", "program_id", "task_id", "registration_identity_sha256",
-        "preauthorization_identity_sha256", "repository_root", "branch", "baseline_commit",
+        "preauthorization_identity_sha256", "execution_context_identity_sha256",
+        "repository_root", "branch", "baseline_commit",
         "baseline_tree", "approved_candidate_set_identity_sha256s",
         "mission_authority_added", "path_authority_added", "command_authority_added",
         "test_requirement_removed", "acceptance_requirement_weakened",
@@ -137,6 +142,7 @@
         "task_id": { "type": "string" },
         "registration_identity_sha256": { "$ref": "#/$defs/sha256" },
         "preauthorization_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "repository_root": { "type": "string" },
         "branch": { "const": "pilot/tsf-synthetic-iteration-v2-20260729" },
         "baseline_commit": { "$ref": "#/$defs/commit" },
@@ -163,6 +169,7 @@
       "additionalProperties": false,
       "required": [
         "schema_version", "program_id", "task_id", "task_binding_identity_sha256",
+        "execution_context_identity_sha256",
         "iteration", "run_id", "maximum_iterations", "diagnosis", "candidate_content_sha256",
         "approved_candidate_set", "writeset", "replacement", "recovery_checkpoint",
         "syntax", "focused_tests", "acceptance_tests", "byte_observation",
@@ -175,6 +182,7 @@
         "program_id": { "type": "string" },
         "task_id": { "type": "string" },
         "task_binding_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "iteration": { "type": "integer", "minimum": 1, "maximum": 3 },
         "run_id": { "type": "string", "minLength": 16 },
         "maximum_iterations": { "const": 3 },
@@ -210,7 +218,8 @@
       "required": [
         "schema_version", "contract_version", "canonical_authority_sha256",
         "program_id", "task_id", "registration_identity_sha256",
-        "preauthorization_identity_sha256", "repository_root", "git_top_level",
+        "preauthorization_identity_sha256", "execution_context_identity_sha256",
+        "repository_root", "git_top_level",
         "branch", "baseline_commit", "baseline_tree", "iteration",
         "repository_relative_path", "candidates", "maximum_candidate_count",
         "expires_at", "candidate_set_identity_sha256"
@@ -223,6 +232,7 @@
         "task_id": { "type": "string" },
         "registration_identity_sha256": { "$ref": "#/$defs/sha256" },
         "preauthorization_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "repository_root": { "type": "string" },
         "git_top_level": { "type": "string" },
         "branch": { "const": "pilot/tsf-synthetic-iteration-v2-20260729" },
@@ -258,7 +268,8 @@
       "required": [
         "schema_version", "program_id", "task_id", "preauthorization_identity_sha256",
         "binding_identity_sha256", "approved_candidate_set_identity_sha256",
-        "registration_identity_sha256", "repository_root", "branch", "baseline_commit",
+        "registration_identity_sha256", "execution_context_identity_sha256",
+        "repository_root", "branch", "baseline_commit",
         "baseline_tree",
         "iteration", "run_id", "writes", "temporary_files_inside_repository",
         "command_templates", "writeset_identity_sha256"
@@ -271,6 +282,7 @@
         "binding_identity_sha256": { "$ref": "#/$defs/sha256" },
         "approved_candidate_set_identity_sha256": { "$ref": "#/$defs/sha256" },
         "registration_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "repository_root": { "type": "string" },
         "branch": { "const": "pilot/tsf-synthetic-iteration-v2-20260729" },
         "baseline_commit": { "$ref": "#/$defs/commit" },
@@ -333,7 +345,8 @@
       "additionalProperties": false,
       "required": [
         "schema_version", "program_id", "task_id", "registration_identity_sha256",
-        "preauthorization_identity_sha256", "binding_identity_sha256",
+        "preauthorization_identity_sha256", "execution_context_identity_sha256",
+        "binding_identity_sha256",
         "verifier_identity_sha256", "approved_candidate_set_identity_sha256",
         "writeset_identity_sha256", "byte_observation_identity_sha256",
         "approved_replacement_sha256", "replacement_byte_length",
@@ -350,6 +363,7 @@
         "task_id": { "type": "string" },
         "registration_identity_sha256": { "$ref": "#/$defs/sha256" },
         "preauthorization_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "binding_identity_sha256": { "$ref": "#/$defs/sha256" },
         "verifier_identity_sha256": { "$ref": "#/$defs/sha256" },
         "approved_candidate_set_identity_sha256": { "$ref": "#/$defs/sha256" },
@@ -383,7 +397,8 @@
       "required": [
         "schema_version", "program_id", "task_id", "repository_root", "branch",
         "baseline_commit", "baseline_tree", "registration_identity_sha256",
-        "preauthorization_identity_sha256", "binding_identity_sha256",
+        "preauthorization_identity_sha256", "execution_context_identity_sha256",
+        "binding_identity_sha256",
         "candidate_set_identity_sha256", "candidate_set_relative_path",
         "candidate_set_file_sha256",
         "writeset_identity_sha256", "writeset_relative_path", "writeset_file_sha256",
@@ -405,6 +420,7 @@
         "baseline_tree": { "$ref": "#/$defs/commit" },
         "registration_identity_sha256": { "$ref": "#/$defs/sha256" },
         "preauthorization_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "binding_identity_sha256": { "$ref": "#/$defs/sha256" },
         "candidate_set_identity_sha256": { "$ref": "#/$defs/sha256" },
         "candidate_set_relative_path": { "$ref": "#/$defs/path" },
@@ -440,7 +456,8 @@
       "required": [
         "schema_version", "phase", "program_id", "verifier_id", "verifier_role",
         "independence", "task_id", "registration_identity_sha256",
-        "preauthorization_identity_sha256", "binding_identity_sha256",
+        "preauthorization_identity_sha256", "execution_context_identity_sha256",
+        "binding_identity_sha256",
         "approved_candidate_set_identity_sha256", "writeset_identity_sha256",
         "baseline_commit", "baseline_tree", "iteration", "run_id",
         "approved_replacement_sha256", "syntax", "focused", "acceptance",
@@ -457,6 +474,7 @@
         "task_id": { "type": "string" },
         "registration_identity_sha256": { "$ref": "#/$defs/sha256" },
         "preauthorization_identity_sha256": { "$ref": "#/$defs/sha256" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "binding_identity_sha256": { "$ref": "#/$defs/sha256" },
         "approved_candidate_set_identity_sha256": { "$ref": "#/$defs/sha256" },
         "writeset_identity_sha256": { "$ref": "#/$defs/sha256" },
@@ -494,6 +512,7 @@
       "additionalProperties": false,
       "required": [
         "schema_version", "task_id", "iteration", "run_id",
+        "execution_context_identity_sha256",
         "candidate_set_identity_sha256", "writeset_identity_sha256",
         "approved_replacement_sha256", "replacement_byte_length",
         "candidate_artifact_sha256", "candidate_artifact_byte_length",
@@ -506,6 +525,7 @@
         "task_id": { "type": "string" },
         "iteration": { "type": "integer", "minimum": 1, "maximum": 3 },
         "run_id": { "type": "string" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "candidate_set_identity_sha256": { "$ref": "#/$defs/sha256" },
         "writeset_identity_sha256": { "$ref": "#/$defs/sha256" },
         "approved_replacement_sha256": { "$ref": "#/$defs/sha256" },
@@ -524,7 +544,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "schema_version", "candidate_set_identity_sha256",
+        "schema_version", "execution_context_identity_sha256",
+        "candidate_set_identity_sha256",
         "writeset_identity_sha256", "byte_observation_identity_sha256",
         "precommit_verifier_identity_sha256", "commit_receipt_identity_sha256",
         "task_id", "iteration", "run_id", "relative_path",
@@ -534,6 +555,7 @@
       ],
       "properties": {
         "schema_version": { "const": "TSF_SYNTHETIC_CANDIDATE_INTEGRITY_PROOF_V2" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "candidate_set_identity_sha256": { "$ref": "#/$defs/sha256" },
         "writeset_identity_sha256": { "$ref": "#/$defs/sha256" },
         "byte_observation_identity_sha256": { "$ref": "#/$defs/sha256" },
@@ -557,7 +579,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "schema_version", "task_id", "commit_authority_identity_sha256",
+        "schema_version", "task_id", "execution_context_identity_sha256",
+        "commit_authority_identity_sha256",
         "preauthorization_identity_sha256", "binding_identity_sha256",
         "approved_candidate_set_identity_sha256", "writeset_identity_sha256",
         "byte_observation_identity_sha256", "precommit_verifier_identity_sha256",
@@ -572,6 +595,7 @@
       "properties": {
         "schema_version": { "const": "SYNTHETIC_TASK_COMMIT_RECEIPT_V2" },
         "task_id": { "type": "string" },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "commit_authority_identity_sha256": { "$ref": "#/$defs/sha256" },
         "preauthorization_identity_sha256": { "$ref": "#/$defs/sha256" },
         "binding_identity_sha256": { "$ref": "#/$defs/sha256" },
@@ -605,6 +629,7 @@
       "additionalProperties": false,
       "required": [
         "schema_version", "program_id", "task_id", "iteration", "run_id",
+        "execution_context_identity_sha256",
         "evidence_root", "baseline_commit", "commit", "authorized_source_path",
         "artifacts", "admission_bundle_identity_sha256"
       ],
@@ -614,6 +639,7 @@
         "task_id": { "type": "string" },
         "iteration": { "type": "integer", "minimum": 1, "maximum": 3 },
         "run_id": { "type": "string", "minLength": 16 },
+        "execution_context_identity_sha256": { "$ref": "#/$defs/sha256" },
         "evidence_root": { "type": "string" },
         "baseline_commit": { "$ref": "#/$defs/commit" },
         "commit": { "$ref": "#/$defs/commit" },

@@ -41,7 +41,7 @@ export const AUTHORITY_SCHEMA_PATH = path.join(
 export const PILOT_ROOT = "C:\\TSF_SYNTHETIC_ITERATION_V2";
 export const FIXTURE_ROOT = path.join(PILOT_ROOT, "fixture-repo");
 export const EVIDENCE_ROOT = path.join(PILOT_ROOT, "evidence");
-export const EXPECTED_AUTHORITY_SHA256 = "1721d6f9ac4380c22b8bad2d753432978d55f35f2f2cbcb1c9c9cce362471222";
+export const EXPECTED_AUTHORITY_SHA256 = "a49273f8e1b6bb54976d44853672c88ca58871f6f74d31a937798f3f04769697";
 const PINNED_EXECUTABLES = Object.freeze({
   node: Object.freeze({
     path: "C:\\Program Files\\nodejs\\node.exe",
@@ -180,6 +180,7 @@ export function validateAuthority(authority) {
     "limits",
     "executables",
     "prohibitions",
+    "pilot_execution_contexts",
     "repository",
     "command_templates",
     "iteration_states",
@@ -202,6 +203,7 @@ export function validateAuthority(authority) {
     git: PINNED_EXECUTABLES.git,
   }), "EXECUTABLE_AUTHORITY_CHANGED", "TIM_REQUIRED");
   requireValue(Object.values(authority.prohibitions).every((value) => value === true), "PROHIBITION_WEAKENED");
+  validatePilotExecutionContextAuthority(authority.pilot_execution_contexts);
   requireValue(authority.repository.root === FIXTURE_ROOT, "REPOSITORY_ROOT_CHANGED");
   requireValue(authority.repository.branch === "pilot/tsf-synthetic-iteration-v2-20260729", "REPOSITORY_BRANCH_CHANGED");
   requireValue(authority.repository.allowed_paths.length === 13, "REPOSITORY_ALLOWLIST_CHANGED");
@@ -282,6 +284,337 @@ export function validateAuthority(authority) {
     }
   }
   return { valid: true, authority_sha256: sha256(canonicalJson(authority)) };
+}
+
+function validatePilotExecutionContextAuthority(contract) {
+  exactKeys(contract, [
+    "schema_version",
+    "contract_version",
+    "authorization_provenance",
+    "invocation_contexts",
+    "contexts",
+  ], "PILOT_EXECUTION_CONTEXT_AUTHORITY");
+  requireValue(
+    contract.schema_version === "SYNTHETIC_PILOT_EXECUTION_CONTEXTS_V1"
+      && contract.contract_version === "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1",
+    "PILOT_EXECUTION_CONTEXT_CONTRACT_CHANGED",
+    "TIM_REQUIRED",
+  );
+  exactKeys(contract.authorization_provenance, [
+    "kind",
+    "source",
+    "source_sha256",
+    "authorized_by",
+    "automatic_approval_authority",
+  ], "PILOT_EXECUTION_CONTEXT_PROVENANCE");
+  requireValue(
+    contract.authorization_provenance.kind === "ADVANCE_REVIEWED_PROMPT"
+      && contract.authorization_provenance.source === "TSF V1 Narrow Post-Merge Pilot Compatibility Hotfix"
+      && contract.authorization_provenance.source_sha256 === "b0cc2669277d60dbb372573cb957456b15f7b669f627babcb30e37d69b252347"
+      && contract.authorization_provenance.authorized_by === "TIM_LOCAL_OPERATOR"
+      && contract.authorization_provenance.automatic_approval_authority === false,
+    "PILOT_EXECUTION_CONTEXT_PROVENANCE_CHANGED",
+    "TIM_REQUIRED",
+  );
+  requireValue(canonicalJson(contract.invocation_contexts) === canonicalJson({
+    pilot: "EXACT_CANDIDATE",
+    "archive-and-pilot": "EXACT_CANDIDATE",
+    "archive-and-replay": "EXACT_CANDIDATE",
+    "canonical-postmerge-pilot": "EXACT_CANONICAL_POSTMERGE",
+  }), "PILOT_EXECUTION_CONTEXT_INVOCATION_MAPPING_CHANGED", "TIM_REQUIRED");
+  exactKeys(contract.contexts, [
+    "EXACT_CANDIDATE",
+    "EXACT_CANONICAL_POSTMERGE",
+  ], "PILOT_EXECUTION_CONTEXT_SET");
+  const candidate = contract.contexts.EXACT_CANDIDATE;
+  exactKeys(candidate, [
+    "schema_version",
+    "execution_context",
+    "candidate_head",
+    "candidate_tree",
+    "candidate_parent",
+    "reviewed_source_subject",
+    "required_parent_count",
+    "expected_branch",
+    "detached_allowed",
+    "dirty_worktree_allowed_only_on_expected_branch",
+    "context_identity_sha256",
+  ], "EXACT_CANDIDATE_CONTEXT");
+  requireValue(
+    candidate.schema_version === "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1"
+      && candidate.execution_context === "EXACT_CANDIDATE"
+      && candidate.candidate_head === "a14bdd87ccd0efe6c5c07ef25552c6c2d0b9ebeb"
+      && candidate.candidate_tree === "000ed61e697954da89a732b7fa04e7d2d22a5450"
+      && candidate.candidate_parent === "a3ee2b27e102c81f0c61c14fe522e6f40f5e6656"
+      && candidate.reviewed_source_subject === "feat: add governed synthetic coding iterations"
+      && candidate.required_parent_count === 1
+      && candidate.expected_branch === "work/tsf-synthetic-iteration-authority-v2-20260729"
+      && candidate.detached_allowed === true
+      && candidate.dirty_worktree_allowed_only_on_expected_branch === true,
+    "EXACT_CANDIDATE_CONTEXT_CHANGED",
+    "TIM_REQUIRED",
+  );
+  requireValue(
+    candidate.context_identity_sha256
+      === identityRecord(candidate, "context_identity_sha256").context_identity_sha256,
+    "EXACT_CANDIDATE_CONTEXT_IDENTITY_INVALID",
+    "TIM_REQUIRED",
+  );
+  const postmerge = contract.contexts.EXACT_CANONICAL_POSTMERGE;
+  exactKeys(postmerge, [
+    "schema_version",
+    "execution_context",
+    "canonical_merge_head",
+    "merge_tree",
+    "canonical_merge_subject",
+    "first_parent",
+    "second_parent",
+    "reviewed_source_head",
+    "reviewed_source_tree",
+    "reviewed_source_subject",
+    "required_parent_count",
+    "pr_number",
+    "pr_state",
+    "github_merged_at",
+    "validation_repository_root",
+    "expected_branch",
+    "detached_required",
+    "context_identity_sha256",
+  ], "EXACT_CANONICAL_POSTMERGE_CONTEXT");
+  requireValue(
+    postmerge.schema_version === "SYNTHETIC_PILOT_EXECUTION_CONTEXT_V1"
+      && postmerge.execution_context === "EXACT_CANONICAL_POSTMERGE"
+      && postmerge.canonical_merge_head === "aeade9377808ee719638da8c58ae458f9170e5e6"
+      && postmerge.merge_tree === "000ed61e697954da89a732b7fa04e7d2d22a5450"
+      && postmerge.canonical_merge_subject === "Merge pull request #24 from scolety1/work/tsf-synthetic-iteration-authority-v2-20260729"
+      && postmerge.first_parent === "a3ee2b27e102c81f0c61c14fe522e6f40f5e6656"
+      && postmerge.second_parent === "a14bdd87ccd0efe6c5c07ef25552c6c2d0b9ebeb"
+      && postmerge.reviewed_source_head === postmerge.second_parent
+      && postmerge.reviewed_source_tree === postmerge.merge_tree
+      && postmerge.reviewed_source_subject === "feat: add governed synthetic coding iterations"
+      && postmerge.required_parent_count === 2
+      && postmerge.pr_number === 24
+      && postmerge.pr_state === "MERGED"
+      && postmerge.github_merged_at === "2026-07-30T01:27:35Z"
+      && postmerge.validation_repository_root === "C:\\TSF_SYNTHETIC_ITERATION_POSTMERGE"
+      && postmerge.expected_branch === null
+      && postmerge.detached_required === true,
+    "EXACT_CANONICAL_POSTMERGE_CONTEXT_CHANGED",
+    "TIM_REQUIRED",
+  );
+  requireValue(
+    postmerge.context_identity_sha256
+      === identityRecord(postmerge, "context_identity_sha256").context_identity_sha256,
+    "EXACT_CANONICAL_POSTMERGE_CONTEXT_IDENTITY_INVALID",
+    "TIM_REQUIRED",
+  );
+  requireValue(
+    candidate.context_identity_sha256 !== postmerge.context_identity_sha256,
+    "PILOT_EXECUTION_CONTEXT_IDENTITIES_COLLIDE",
+    "TIM_REQUIRED",
+  );
+  return { valid: true };
+}
+
+function trustedExecutionContext(authority, executionContext) {
+  requireValue(
+    executionContext === "EXACT_CANDIDATE"
+      || executionContext === "EXACT_CANONICAL_POSTMERGE",
+    "PILOT_EXECUTION_CONTEXT_UNKNOWN",
+    "TIM_REQUIRED",
+  );
+  validateAuthority(authority);
+  return authority.pilot_execution_contexts.contexts[executionContext];
+}
+
+export function validateSyntheticPilotExecutionContext(
+  authority,
+  executionContext,
+  observed,
+  { allowDirtyCandidate = false } = {},
+) {
+  const expected = trustedExecutionContext(authority, executionContext);
+  exactKeys(observed, [
+    "repository_root",
+    "git_top_level",
+    "head",
+    "tree",
+    "current_head_subject",
+    "branch",
+    "detached",
+    "clean",
+    "working_tree_status",
+    "ordered_parents",
+    "parent_count",
+    "first_parent_tree",
+    "second_parent_tree",
+    "second_parent_subject",
+    "source_contained",
+    "base_to_head_commits",
+    "source_to_head_commits",
+    "pr_number",
+    "pr_state",
+    "pr_merge_commit",
+    "github_merged_at",
+  ], "PILOT_EXECUTION_CONTEXT_OBSERVATION");
+  const trustedValidationRoot = executionContext === "EXACT_CANDIDATE"
+    ? TSF_ROOT
+    : expected.validation_repository_root;
+  requireValue(
+    sameWindowsPath(observed.repository_root, trustedValidationRoot),
+    "TSF_EXECUTION_CONTEXT_ROOT_MISMATCH",
+  );
+  requireValue(
+    sameWindowsPath(observed.git_top_level, trustedValidationRoot),
+    "TSF_EXECUTION_CONTEXT_TOP_MISMATCH",
+  );
+  requireValue(
+    HEX40.test(observed.head)
+      && HEX40.test(observed.tree)
+      && observed.ordered_parents.every((value) => HEX40.test(value)),
+    "TSF_EXECUTION_CONTEXT_IDENTITY_INVALID",
+  );
+  requireValue(
+    observed.detached === (observed.branch === null),
+    "TSF_EXECUTION_CONTEXT_BRANCH_STATE_INCOHERENT",
+  );
+  requireValue(
+    observed.parent_count === observed.ordered_parents.length,
+    "TSF_EXECUTION_CONTEXT_PARENT_COUNT_INCOHERENT",
+  );
+
+  if (executionContext === "EXACT_CANDIDATE") {
+    requireValue(observed.head === expected.candidate_head, "TSF_CANDIDATE_HEAD_CHANGED");
+    requireValue(observed.tree === expected.candidate_tree, "TSF_CANDIDATE_TREE_CHANGED");
+    requireValue(observed.parent_count === expected.required_parent_count, "TSF_CANDIDATE_TOPOLOGY_CHANGED");
+    requireValue(
+      canonicalJson(observed.ordered_parents) === canonicalJson([expected.candidate_parent]),
+      "TSF_CANDIDATE_PARENT_CHANGED",
+    );
+    requireValue(
+      canonicalJson(observed.base_to_head_commits) === canonicalJson([expected.candidate_head]),
+      "TSF_CANDIDATE_COMMIT_DISTANCE_CHANGED",
+    );
+    requireValue(
+      observed.current_head_subject === expected.reviewed_source_subject,
+      "TSF_CANDIDATE_SUBJECT_CHANGED",
+    );
+    requireValue(
+      observed.detached || observed.branch === expected.expected_branch,
+      "TSF_CANDIDATE_BRANCH_STATE_CHANGED",
+    );
+    requireValue(
+      observed.clean
+        || (
+          allowDirtyCandidate
+          && expected.dirty_worktree_allowed_only_on_expected_branch
+          && observed.branch === expected.expected_branch
+        ),
+      "TSF_CANDIDATE_NOT_CLEAN",
+    );
+    requireValue(
+      observed.second_parent_tree === null
+        && observed.second_parent_subject === null
+        && observed.source_to_head_commits.length === 0
+        && observed.pr_number === null
+        && observed.pr_state === null
+        && observed.pr_merge_commit === null
+        && observed.github_merged_at === null,
+      "TSF_CANDIDATE_POSTMERGE_EVIDENCE_PRESENT",
+    );
+    return identityRecord({
+      schema_version: "SYNTHETIC_PILOT_EXECUTION_CONTEXT_VALIDATION_V1",
+      execution_context: executionContext,
+      execution_context_identity_sha256: expected.context_identity_sha256,
+      repository_root: observed.repository_root,
+      git_top_level: observed.git_top_level,
+      current_head: observed.head,
+      current_tree: observed.tree,
+      current_head_subject: observed.current_head_subject,
+      reviewed_source_head: expected.candidate_head,
+      reviewed_source_tree: expected.candidate_tree,
+      reviewed_source_subject: expected.reviewed_source_subject,
+      canonical_merge_commit: null,
+      merge_subject: null,
+      ordered_parents: observed.ordered_parents,
+      pr_identity: null,
+      tree_equivalent: true,
+      source_contained: true,
+      no_unrelated_commits: true,
+      branch: observed.branch,
+      detached: observed.detached,
+      clean: observed.clean,
+      working_tree_status: observed.working_tree_status,
+    }, "execution_context_validation_identity_sha256");
+  }
+
+  requireValue(observed.head === expected.canonical_merge_head, "TSF_POSTMERGE_HEAD_CHANGED");
+  requireValue(observed.tree === expected.merge_tree, "TSF_POSTMERGE_TREE_CHANGED");
+  requireValue(
+    observed.current_head_subject === expected.canonical_merge_subject,
+    "TSF_POSTMERGE_MERGE_SUBJECT_CHANGED",
+  );
+  requireValue(observed.parent_count === expected.required_parent_count, "TSF_POSTMERGE_PARENT_COUNT_CHANGED");
+  requireValue(observed.ordered_parents[0] === expected.first_parent, "TSF_POSTMERGE_FIRST_PARENT_CHANGED");
+  requireValue(observed.ordered_parents[1] === expected.second_parent, "TSF_POSTMERGE_SECOND_PARENT_CHANGED");
+  requireValue(
+    canonicalJson(observed.ordered_parents)
+      === canonicalJson([expected.first_parent, expected.second_parent]),
+    "TSF_POSTMERGE_PARENT_ORDER_CHANGED",
+  );
+  requireValue(observed.second_parent_tree === expected.reviewed_source_tree, "TSF_POSTMERGE_SOURCE_TREE_CHANGED");
+  requireValue(observed.second_parent_tree === observed.tree, "TSF_POSTMERGE_TREE_NOT_SOURCE_EQUIVALENT");
+  requireValue(
+    observed.second_parent_subject === expected.reviewed_source_subject,
+    "TSF_POSTMERGE_SOURCE_SUBJECT_CHANGED",
+  );
+  requireValue(observed.source_contained === true, "TSF_POSTMERGE_SOURCE_NOT_CONTAINED");
+  requireValue(
+    canonicalJson(observed.source_to_head_commits)
+      === canonicalJson([expected.canonical_merge_head]),
+    "TSF_POSTMERGE_UNRELATED_DESCENDANT_PRESENT",
+  );
+  requireValue(observed.pr_number === expected.pr_number, "TSF_POSTMERGE_PR_NUMBER_CHANGED");
+  requireValue(observed.pr_state === expected.pr_state, "TSF_POSTMERGE_PR_NOT_MERGED");
+  requireValue(observed.pr_merge_commit === expected.canonical_merge_head, "TSF_POSTMERGE_PR_MERGE_COMMIT_CHANGED");
+  requireValue(observed.github_merged_at === expected.github_merged_at, "TSF_POSTMERGE_PR_MERGED_AT_CHANGED");
+  requireValue(
+    observed.detached === expected.detached_required && observed.branch === expected.expected_branch,
+    "TSF_POSTMERGE_WORKTREE_STATE_CHANGED",
+  );
+  requireValue(observed.clean, "TSF_POSTMERGE_NOT_CLEAN");
+  requireValue(observed.base_to_head_commits.length === 0, "TSF_POSTMERGE_CANDIDATE_DISTANCE_EVIDENCE_PRESENT");
+  return identityRecord({
+    schema_version: "SYNTHETIC_PILOT_EXECUTION_CONTEXT_VALIDATION_V1",
+    execution_context: executionContext,
+    execution_context_identity_sha256: expected.context_identity_sha256,
+    repository_root: observed.repository_root,
+    git_top_level: observed.git_top_level,
+    current_head: observed.head,
+    current_tree: observed.tree,
+    current_head_subject: observed.current_head_subject,
+    reviewed_source_head: expected.reviewed_source_head,
+    reviewed_source_tree: expected.reviewed_source_tree,
+    reviewed_source_subject: expected.reviewed_source_subject,
+    canonical_merge_commit: expected.canonical_merge_head,
+    merge_subject: observed.current_head_subject,
+    ordered_parents: observed.ordered_parents,
+    pr_identity: {
+      number: observed.pr_number,
+      state: observed.pr_state,
+      merge_commit: observed.pr_merge_commit,
+      github_merged_at: observed.github_merged_at,
+      verification_source: "EXACT_HASH_PINNED_AUTHORITY_AND_CANONICAL_GIT_TUPLE",
+    },
+    tree_equivalent: observed.tree === observed.second_parent_tree,
+    source_contained: observed.source_contained,
+    no_unrelated_commits: observed.source_to_head_commits.length === 1
+      && observed.source_to_head_commits[0] === observed.head,
+    branch: observed.branch,
+    detached: observed.detached,
+    clean: observed.clean,
+    working_tree_status: observed.working_tree_status,
+  }, "execution_context_validation_identity_sha256");
 }
 
 export function normalizeRepositoryRelativePath(value) {
@@ -462,6 +795,7 @@ export function validateRegistrationRecord(record, authority, { now = new Date()
     "registration_id",
     "program_id",
     "action_id",
+    "execution_context_identity_sha256",
     "repository_root",
     "git_top_level",
     "branch",
@@ -481,6 +815,12 @@ export function validateRegistrationRecord(record, authority, { now = new Date()
   requireValue(identity === expectedIdentity && SHA256.test(identity), "REGISTRATION_IDENTITY_INVALID", "TIM_REQUIRED");
   requireValue(record.schema_version === "SYNTHETIC_REPOSITORY_REGISTRATION_V2", "REGISTRATION_VERSION_CHANGED", "TIM_REQUIRED");
   requireValue(record.program_id === authority.program_id && record.action_id === authority.action_id, "REGISTRATION_PROGRAM_OR_ACTION_CHANGED", "TIM_REQUIRED");
+  requireValue(
+    Object.values(authority.pilot_execution_contexts.contexts)
+      .some((context) => context.context_identity_sha256 === record.execution_context_identity_sha256),
+    "REGISTRATION_EXECUTION_CONTEXT_CHANGED",
+    "TIM_REQUIRED",
+  );
   requireValue(record.repository_root === authority.repository.root, "REGISTRATION_ROOT_CHANGED", "TIM_REQUIRED");
   requireValue(record.git_top_level === authority.repository.root, "REGISTRATION_GIT_TOP_CHANGED", "TIM_REQUIRED");
   requireValue(record.branch === authority.repository.branch, "REGISTRATION_BRANCH_CHANGED", "TIM_REQUIRED");
@@ -500,7 +840,16 @@ export function validateRegistrationRecord(record, authority, { now = new Date()
   return { valid: true, registration_identity_sha256: identity };
 }
 
-export function inspectFixtureRegistration(authority, { now = new Date() } = {}) {
+export function inspectFixtureRegistration(
+  authority,
+  { now = new Date(), executionContextIdentitySha256 } = {},
+) {
+  requireValue(
+    Object.values(authority.pilot_execution_contexts.contexts)
+      .some((context) => context.context_identity_sha256 === executionContextIdentitySha256),
+    "FIXTURE_EXECUTION_CONTEXT_REQUIRED",
+    "TIM_REQUIRED",
+  );
   const root = authority.repository.root;
   requireValue(existsSync(root) && statSync(root).isDirectory(), "FIXTURE_REPOSITORY_ABSENT");
   requireValue(!lstatSync(root).isSymbolicLink(), "FIXTURE_REPOSITORY_REPARSE_POINT");
@@ -521,6 +870,7 @@ export function inspectFixtureRegistration(authority, { now = new Date() } = {})
     registration_id: `synthetic-registration-${sha256(`${root}\n${head}`).slice(0, 32)}`,
     program_id: authority.program_id,
     action_id: authority.action_id,
+    execution_context_identity_sha256: executionContextIdentitySha256,
     repository_root: root,
     git_top_level: root,
     branch,
@@ -574,6 +924,7 @@ export function createTaskPreauthorization(
     schema_version: "SYNTHETIC_TASK_PREAUTHORIZATION_V2",
     program_id: authority.program_id,
     action_id: authority.action_id,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     task_id: task.task_id,
     goal: task.goal,
     repository_root: registration.repository_root,
@@ -643,6 +994,7 @@ export function createApprovedBuilderCandidateSet(
     task_id: task.task_id,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     repository_root: registration.repository_root,
     git_top_level: registration.git_top_level,
     branch: registration.branch,
@@ -674,6 +1026,7 @@ export function validateApprovedBuilderCandidateSet(
     "task_id",
     "registration_identity_sha256",
     "preauthorization_identity_sha256",
+    "execution_context_identity_sha256",
     "repository_root",
     "git_top_level",
     "branch",
@@ -694,6 +1047,11 @@ export function validateApprovedBuilderCandidateSet(
   requireValue(candidateSet.program_id === authority.program_id, "APPROVED_CANDIDATE_SET_PROGRAM_CHANGED");
   requireValue(candidateSet.task_id === task.task_id, "APPROVED_CANDIDATE_SET_TASK_CHANGED");
   requireValue(candidateSet.registration_identity_sha256 === registration.registration_identity_sha256, "APPROVED_CANDIDATE_SET_REGISTRATION_CHANGED");
+  requireValue(
+    candidateSet.execution_context_identity_sha256 === registration.execution_context_identity_sha256
+      && candidateSet.execution_context_identity_sha256 === preauthorization.execution_context_identity_sha256,
+    "APPROVED_CANDIDATE_SET_EXECUTION_CONTEXT_CHANGED",
+  );
   requireValue(
     candidateSet.preauthorization_identity_sha256 === preauthorization.preauthorization_identity_sha256,
     "APPROVED_CANDIDATE_SET_PREAUTHORIZATION_CHANGED",
@@ -767,6 +1125,7 @@ export function createPreauthorizedTaskBinding(authority, registration, candidat
     task_id: expected.task_id,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: expected.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     repository_root: registration.repository_root,
     branch: registration.branch,
     baseline_commit: expected.baseline_commit,
@@ -883,6 +1242,7 @@ export function createApprovedWriteset({
     binding_identity_sha256: binding.binding_identity_sha256,
     approved_candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
     registration_identity_sha256: registration.registration_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     repository_root: registration.repository_root,
     branch: registration.branch,
     baseline_commit: binding.baseline_commit,
@@ -937,6 +1297,7 @@ export function validateApprovedWriteset(
     "binding_identity_sha256",
     "approved_candidate_set_identity_sha256",
     "registration_identity_sha256",
+    "execution_context_identity_sha256",
     "repository_root",
     "branch",
     "baseline_commit",
@@ -955,6 +1316,12 @@ export function validateApprovedWriteset(
     "WRITESET_PREAUTHORIZATION_CHANGED",
   );
   requireValue(writeset.registration_identity_sha256 === registration.registration_identity_sha256, "WRITESET_REGISTRATION_CHANGED");
+  requireValue(
+    writeset.execution_context_identity_sha256 === registration.execution_context_identity_sha256
+      && writeset.execution_context_identity_sha256 === preauthorization.execution_context_identity_sha256
+      && writeset.execution_context_identity_sha256 === candidateSet.execution_context_identity_sha256,
+    "WRITESET_EXECUTION_CONTEXT_CHANGED",
+  );
   requireValue(writeset.binding_identity_sha256 === binding.binding_identity_sha256, "WRITESET_BINDING_CHANGED");
   requireValue(
     writeset.approved_candidate_set_identity_sha256 === candidateSet.candidate_set_identity_sha256
@@ -1040,6 +1407,7 @@ export function validateRecoveryState(
     "baseline_tree",
     "registration_identity_sha256",
     "preauthorization_identity_sha256",
+    "execution_context_identity_sha256",
     "binding_identity_sha256",
     "candidate_set_identity_sha256",
     "candidate_set_relative_path",
@@ -1079,6 +1447,13 @@ export function validateRecoveryState(
     "RECOVERY_PREAUTHORIZATION_CHANGED",
   );
   requireValue(recovery.binding_identity_sha256 === binding.binding_identity_sha256, "RECOVERY_BINDING_CHANGED");
+  requireValue(
+    recovery.execution_context_identity_sha256 === registration.execution_context_identity_sha256
+      && recovery.execution_context_identity_sha256 === preauthorization.execution_context_identity_sha256
+      && recovery.execution_context_identity_sha256 === candidateSet.execution_context_identity_sha256
+      && recovery.execution_context_identity_sha256 === writeset.execution_context_identity_sha256,
+    "RECOVERY_EXECUTION_CONTEXT_CHANGED",
+  );
   requireValue(
     recovery.candidate_set_identity_sha256 === candidateSet.candidate_set_identity_sha256,
     "RECOVERY_CANDIDATE_SET_IDENTITY_CHANGED",
@@ -1126,6 +1501,7 @@ export function validateCommitAuthority(authority, task, candidate, context = {}
     "task_id",
     "registration_identity_sha256",
     "preauthorization_identity_sha256",
+    "execution_context_identity_sha256",
     "binding_identity_sha256",
     "verifier_identity_sha256",
     "approved_candidate_set_identity_sha256",
@@ -1158,6 +1534,7 @@ export function validateCommitAuthority(authority, task, candidate, context = {}
   requireValue(
     SHA256.test(candidate.registration_identity_sha256)
       && SHA256.test(candidate.preauthorization_identity_sha256)
+      && SHA256.test(candidate.execution_context_identity_sha256)
       && SHA256.test(candidate.binding_identity_sha256)
       && SHA256.test(candidate.verifier_identity_sha256)
       && SHA256.test(candidate.approved_candidate_set_identity_sha256)
@@ -1183,6 +1560,10 @@ export function validateCommitAuthority(authority, task, candidate, context = {}
   requireValue(typeof candidate.run_id === "string" && candidate.run_id.startsWith(`${task.task_id}-iteration-${candidate.iteration}-`), "COMMIT_AUTHORITY_RUN_INVALID");
   if (context.registration) {
     requireValue(candidate.registration_identity_sha256 === context.registration.registration_identity_sha256, "COMMIT_AUTHORITY_REGISTRATION_CHANGED");
+    requireValue(
+      candidate.execution_context_identity_sha256 === context.registration.execution_context_identity_sha256,
+      "COMMIT_AUTHORITY_EXECUTION_CONTEXT_CHANGED",
+    );
   }
   if (context.binding) {
     requireValue(candidate.binding_identity_sha256 === context.binding.binding_identity_sha256, "COMMIT_AUTHORITY_BINDING_CHANGED");
@@ -1712,9 +2093,18 @@ function writeExactFixtureFiles(authority) {
   }
 }
 
-export function seedSyntheticFixture(authority, { now = new Date() } = {}) {
+export function seedSyntheticFixture(
+  authority,
+  { now = new Date(), executionContextIdentitySha256 } = {},
+) {
   validateAuthority(authority);
   requireValue(now <= new Date(authority.expires_at), "SETUP_AUTHORITY_EXPIRED", "TIM_REQUIRED");
+  requireValue(
+    Object.values(authority.pilot_execution_contexts.contexts)
+      .some((context) => context.context_identity_sha256 === executionContextIdentitySha256),
+    "SETUP_EXECUTION_CONTEXT_REQUIRED",
+    "TIM_REQUIRED",
+  );
   assertSetupRootSafe(authority.repository.root);
   writeExactFixtureFiles(authority);
   const root = authority.repository.root;
@@ -1727,7 +2117,10 @@ export function seedSyntheticFixture(authority, { now = new Date() } = {}) {
     GIT_COMMITTER_EMAIL: "tsf-synthetic@example.invalid",
   };
   requireInternalSuccess(gitInternal(root, ["commit", "-m", authority.repository.baseline_subject], { env }), "SETUP_BASELINE_COMMIT_FAILED");
-  const registration = inspectFixtureRegistration(authority, { now });
+  const registration = inspectFixtureRegistration(authority, {
+    now,
+    executionContextIdentitySha256,
+  });
   const status = requireInternalSuccess(gitInternal(root, ["status", "--porcelain=v2"]), "SETUP_STATUS_FAILED");
   requireValue(status === "", "SETUP_REPOSITORY_NOT_CLEAN");
   return registration;
@@ -1817,30 +2210,132 @@ function currentGitFacts(authority, task) {
   };
 }
 
-function inspectTsfCandidate({ allowDirty = false } = {}) {
-  const top = requireInternalSuccess(gitInternal(TSF_ROOT, ["rev-parse", "--show-toplevel"]), "TSF_CANDIDATE_TOP_UNAVAILABLE");
-  const head = requireInternalSuccess(gitInternal(TSF_ROOT, ["rev-parse", "HEAD"]), "TSF_CANDIDATE_HEAD_UNAVAILABLE");
-  const tree = requireInternalSuccess(gitInternal(TSF_ROOT, ["rev-parse", "HEAD^{tree}"]), "TSF_CANDIDATE_TREE_UNAVAILABLE");
-  const parent = requireInternalSuccess(gitInternal(TSF_ROOT, ["rev-parse", "HEAD^"]), "TSF_CANDIDATE_PARENT_UNAVAILABLE");
-  const subject = requireInternalSuccess(gitInternal(TSF_ROOT, ["show", "-s", "--format=%s", "HEAD"]), "TSF_CANDIDATE_SUBJECT_UNAVAILABLE");
-  const branch = requireInternalSuccess(gitInternal(TSF_ROOT, ["branch", "--show-current"]), "TSF_CANDIDATE_BRANCH_UNAVAILABLE");
-  const status = requireInternalSuccess(gitInternal(TSF_ROOT, ["status", "--porcelain=v2"]), "TSF_CANDIDATE_STATUS_UNAVAILABLE");
-  requireValue(sameWindowsPath(top, TSF_ROOT), "TSF_CANDIDATE_TOP_MISMATCH");
-  requireValue(HEX40.test(head) && HEX40.test(tree) && HEX40.test(parent), "TSF_CANDIDATE_IDENTITY_INVALID");
-  requireValue(subject === "feat: add governed synthetic coding iterations", "TSF_CANDIDATE_SUBJECT_CHANGED");
-  requireValue(allowDirty || status === "", "TSF_CANDIDATE_NOT_CLEAN");
-  return {
-    repository_root: TSF_ROOT,
+function inspectTsfExecutionContext(
+  authority,
+  executionContext,
+  { allowDirtyCandidate = false } = {},
+) {
+  const expected = trustedExecutionContext(authority, executionContext);
+  const validationRoot = executionContext === "EXACT_CANDIDATE"
+    ? TSF_ROOT
+    : expected.validation_repository_root;
+  requireValue(
+    existsSync(validationRoot) && statSync(validationRoot).isDirectory(),
+    "TSF_EXECUTION_CONTEXT_ROOT_ABSENT",
+  );
+  requireValue(
+    !lstatSync(validationRoot).isSymbolicLink()
+      && sameWindowsPath(realpathSync.native(validationRoot), validationRoot),
+    "TSF_EXECUTION_CONTEXT_ROOT_ALIAS_OR_REPARSE",
+  );
+  const gitAtValidationRoot = (args) => gitInternal(
+    validationRoot,
+    ["-c", `safe.directory=${validationRoot.replaceAll("\\", "/")}`, ...args],
+  );
+  const top = requireInternalSuccess(gitAtValidationRoot(["rev-parse", "--show-toplevel"]), "TSF_CANDIDATE_TOP_UNAVAILABLE");
+  const head = requireInternalSuccess(gitAtValidationRoot(["rev-parse", "HEAD"]), "TSF_CANDIDATE_HEAD_UNAVAILABLE");
+  const tree = requireInternalSuccess(gitAtValidationRoot(["rev-parse", "HEAD^{tree}"]), "TSF_CANDIDATE_TREE_UNAVAILABLE");
+  const parentsText = requireInternalSuccess(
+    gitAtValidationRoot(["show", "-s", "--format=%P", "HEAD"]),
+    "TSF_EXECUTION_CONTEXT_PARENTS_UNAVAILABLE",
+  );
+  const orderedParents = parentsText.split(/\s+/).filter(Boolean);
+  const currentHeadSubject = requireInternalSuccess(
+    gitAtValidationRoot(["show", "-s", "--format=%s", "HEAD"]),
+    "TSF_CANDIDATE_SUBJECT_UNAVAILABLE",
+  );
+  const branch = requireInternalSuccess(gitAtValidationRoot(["branch", "--show-current"]), "TSF_CANDIDATE_BRANCH_UNAVAILABLE");
+  const status = requireInternalSuccess(gitAtValidationRoot(["status", "--porcelain=v2"]), "TSF_CANDIDATE_STATUS_UNAVAILABLE");
+  const firstParentTree = orderedParents[0]
+    ? requireInternalSuccess(
+      gitAtValidationRoot(["rev-parse", `${orderedParents[0]}^{tree}`]),
+      "TSF_EXECUTION_CONTEXT_FIRST_PARENT_TREE_UNAVAILABLE",
+    )
+    : null;
+  const secondParentTree = orderedParents[1]
+    ? requireInternalSuccess(
+      gitAtValidationRoot(["rev-parse", `${orderedParents[1]}^{tree}`]),
+      "TSF_EXECUTION_CONTEXT_SECOND_PARENT_TREE_UNAVAILABLE",
+    )
+    : null;
+  const secondParentSubject = orderedParents[1]
+    ? requireInternalSuccess(
+      gitAtValidationRoot(["show", "-s", "--format=%s", orderedParents[1]]),
+      "TSF_EXECUTION_CONTEXT_SECOND_PARENT_SUBJECT_UNAVAILABLE",
+    )
+    : null;
+  let sourceContained = false;
+  let baseToHeadCommits = [];
+  let sourceToHeadCommits = [];
+  let prNumber = null;
+  let prState = null;
+  let prMergeCommit = null;
+  let githubMergedAt = null;
+  if (executionContext === "EXACT_CANDIDATE") {
+    baseToHeadCommits = requireInternalSuccess(
+      gitAtValidationRoot([
+        "rev-list",
+        "--ancestry-path",
+        "--reverse",
+        `${expected.candidate_parent}..${head}`,
+      ]),
+      "TSF_CANDIDATE_COMMIT_DISTANCE_UNAVAILABLE",
+    ).split(/\r?\n/).filter(Boolean);
+  } else {
+    const containment = gitAtValidationRoot([
+      "merge-base",
+      "--is-ancestor",
+      expected.reviewed_source_head,
+      head,
+    ]);
+    sourceContained = containment.exit_code === 0;
+    requireValue(
+      containment.exit_code === 0 || containment.exit_code === 1,
+      "TSF_POSTMERGE_SOURCE_CONTAINMENT_UNAVAILABLE",
+    );
+    sourceToHeadCommits = requireInternalSuccess(
+      gitAtValidationRoot([
+        "rev-list",
+        "--ancestry-path",
+        "--reverse",
+        `${expected.reviewed_source_head}..${head}`,
+      ]),
+      "TSF_POSTMERGE_SOURCE_PATH_UNAVAILABLE",
+    ).split(/\r?\n/).filter(Boolean);
+    prNumber = expected.pr_number;
+    prState = expected.pr_state;
+    prMergeCommit = expected.canonical_merge_head;
+    githubMergedAt = expected.github_merged_at;
+  }
+  const observed = {
+    repository_root: validationRoot,
     git_top_level: top,
     head,
     tree,
-    parent,
-    subject,
+    current_head_subject: currentHeadSubject,
     branch: branch || null,
     detached: branch === "",
     clean: status === "",
     working_tree_status: status ? status.split(/\r?\n/).filter(Boolean) : [],
+    ordered_parents: orderedParents,
+    parent_count: orderedParents.length,
+    first_parent_tree: firstParentTree,
+    second_parent_tree: secondParentTree,
+    second_parent_subject: secondParentSubject,
+    source_contained: sourceContained,
+    base_to_head_commits: baseToHeadCommits,
+    source_to_head_commits: sourceToHeadCommits,
+    pr_number: prNumber,
+    pr_state: prState,
+    pr_merge_commit: prMergeCommit,
+    github_merged_at: githubMergedAt,
   };
+  return validateSyntheticPilotExecutionContext(
+    authority,
+    executionContext,
+    observed,
+    { allowDirtyCandidate },
+  );
 }
 
 export function assertApprovedCandidateBytes(candidateSet, writeset, bytes, code = "APPROVED_CANDIDATE_BYTES_MISMATCH") {
@@ -1998,6 +2493,7 @@ function runIndependentVerifier(
     task_id: task.task_id,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
     approved_candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
     writeset_identity_sha256: writeset.writeset_identity_sha256,
@@ -2049,6 +2545,7 @@ function createCommitAuthority(
     task_id: task.task_id,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
     verifier_identity_sha256: verifier.verifier_identity_sha256,
     approved_candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
@@ -2207,6 +2704,7 @@ function commitVerifiedTask(
   return identityRecord({
     schema_version: "SYNTHETIC_TASK_COMMIT_RECEIPT_V2",
     task_id: task.task_id,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     commit_authority_identity_sha256: commitAuthority.commit_authority_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
@@ -2268,6 +2766,7 @@ export function createCandidateIntegrityProof(
   requireValue(boundaryHashes.every((value) => value === expectedSha256), "CANDIDATE_INTEGRITY_BOUNDARY_HASH_MISMATCH");
   return identityRecord({
     schema_version: "TSF_SYNTHETIC_CANDIDATE_INTEGRITY_PROOF_V2",
+    execution_context_identity_sha256: writeset.execution_context_identity_sha256,
     candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
     writeset_identity_sha256: writeset.writeset_identity_sha256,
     byte_observation_identity_sha256: byteObservation.byte_observation_identity_sha256,
@@ -2319,7 +2818,9 @@ function runCompletedVerifier(
     "FINAL_VERIFIER_INTEGRITY_PROOF_INVALID",
   );
   requireValue(
-    candidateIntegrityProof.candidate_set_identity_sha256 === candidateSet.candidate_set_identity_sha256
+    candidateIntegrityProof.execution_context_identity_sha256
+      === registration.execution_context_identity_sha256
+      && candidateIntegrityProof.candidate_set_identity_sha256 === candidateSet.candidate_set_identity_sha256
       && candidateIntegrityProof.writeset_identity_sha256 === writeset.writeset_identity_sha256
       && candidateIntegrityProof.byte_observation_identity_sha256 === byteObservation.byte_observation_identity_sha256
       && candidateIntegrityProof.precommit_verifier_identity_sha256 === precommitVerifier.verifier_identity_sha256
@@ -2356,6 +2857,7 @@ function runCompletedVerifier(
     task_id: task.task_id,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
     approved_candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
     writeset_identity_sha256: writeset.writeset_identity_sha256,
@@ -2430,6 +2932,7 @@ function getCanonicalTaskAdmission(
     task_id: task.task_id,
     iteration,
     run_id: runId,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     evidence_root: store.root,
     baseline_commit: binding.baseline_commit,
     commit: commitReceipt.commit,
@@ -2470,6 +2973,7 @@ function getCanonicalTaskAdmission(
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
     candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     writeset_identity_sha256: writeset.writeset_identity_sha256,
     byte_observation_identity_sha256: byteObservation.byte_observation_identity_sha256,
     precommit_verifier_identity_sha256: precommitVerifier.verifier_identity_sha256,
@@ -2520,6 +3024,10 @@ function getCanonicalTaskAdmission(
   requireValue(admission.disposition === "ADMITTED", "CANONICAL_ADMISSION_REJECTED", "BLOCKED", admission);
   requireValue(admission.candidate_identity_sha256 === candidate.candidate_identity_sha256, "CANONICAL_ADMISSION_CANDIDATE_MISMATCH");
   requireValue(admission.admission_bundle_identity_sha256 === bundle.admission_bundle_identity_sha256, "CANONICAL_ADMISSION_BUNDLE_MISMATCH");
+  requireValue(
+    admission.execution_context_identity_sha256 === registration.execution_context_identity_sha256,
+    "CANONICAL_ADMISSION_EXECUTION_CONTEXT_MISMATCH",
+  );
   requireValue(admission.grants_approval === false
     && admission.grants_merge_authority === false
     && admission.grants_push_authority === false
@@ -2586,6 +3094,7 @@ function createRecoveryState(
     baseline_tree: binding.baseline_tree,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
     candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
     candidate_set_relative_path: artifacts.candidateSet.path,
@@ -2758,6 +3267,7 @@ export function applyPersistedReplacementForInterruption(evidenceRoot, taskId, i
   });
   const record = identityRecord({
     schema_version: "TSF_SYNTHETIC_INTERRUPTED_REPLACEMENT_OBSERVATION_V2",
+    execution_context_identity_sha256: context.registration.execution_context_identity_sha256,
     task_id: context.task.task_id,
     iteration,
     run_id: context.writeset.run_id,
@@ -2816,6 +3326,8 @@ export function resumePersistedRecovery(evidenceRoot, taskId, iteration) {
       ).value;
       requireValue(
         interruptedObservation.schema_version === "TSF_SYNTHETIC_INTERRUPTED_REPLACEMENT_OBSERVATION_V2"
+          && interruptedObservation.execution_context_identity_sha256
+            === context.registration.execution_context_identity_sha256
           && interruptedObservation.candidate_set_identity_sha256 === context.candidateSet.candidate_set_identity_sha256
           && interruptedObservation.writeset_identity_sha256 === context.writeset.writeset_identity_sha256
           && interruptedObservation.approved_replacement_sha256 === context.writeset.writes[0].approved_replacement_sha256
@@ -2839,6 +3351,7 @@ export function resumePersistedRecovery(evidenceRoot, taskId, iteration) {
     );
     const receipt = identityRecord({
       schema_version: "TSF_SYNTHETIC_WRITE_RECOVERY_RECEIPT_V2",
+      execution_context_identity_sha256: context.registration.execution_context_identity_sha256,
       recovery_identity_sha256: context.recovery.recovery_identity_sha256,
       writeset_identity_sha256: context.writeset.writeset_identity_sha256,
       candidate_set_identity_sha256: context.candidateSet.candidate_set_identity_sha256,
@@ -2900,6 +3413,7 @@ export function resumePersistedTask(evidenceRoot, taskId, iteration) {
   requireValue(acceptance.every((item) => item.exit_code === 0), "RECOVERY_CONTINUATION_ACCEPTANCE_TESTS_FAILED");
   const byteObservation = identityRecord({
     schema_version: "TSF_SYNTHETIC_CANDIDATE_BYTE_OBSERVATION_V2",
+    execution_context_identity_sha256: context.registration.execution_context_identity_sha256,
     task_id: context.task.task_id,
     iteration,
     run_id: context.writeset.run_id,
@@ -3000,6 +3514,7 @@ export function resumePersistedTask(evidenceRoot, taskId, iteration) {
   store.write(`${context.base}/admission.json`, admission);
   const result = identityRecord({
     schema_version: "TSF_SYNTHETIC_RECOVERY_CONTINUATION_RESULT_V2",
+    execution_context_identity_sha256: context.registration.execution_context_identity_sha256,
     task_id: context.task.task_id,
     iteration,
     syntax,
@@ -3262,6 +3777,7 @@ function runTask(authority, registration, task, store, consumedBindingIdentities
       );
       byteObservation = identityRecord({
         schema_version: "TSF_SYNTHETIC_CANDIDATE_BYTE_OBSERVATION_V2",
+        execution_context_identity_sha256: registration.execution_context_identity_sha256,
         task_id: task.task_id,
         iteration,
         run_id: authorization.run_id,
@@ -3382,6 +3898,7 @@ function runTask(authority, registration, task, store, consumedBindingIdentities
       program_id: authority.program_id,
       task_id: task.task_id,
       task_binding_identity_sha256: binding.binding_identity_sha256,
+      execution_context_identity_sha256: registration.execution_context_identity_sha256,
       iteration,
       run_id: authorization.run_id,
       maximum_iterations: authorization.maximum,
@@ -3420,6 +3937,7 @@ function runTask(authority, registration, task, store, consumedBindingIdentities
       focused_passed: focusedPass,
       acceptance_passed: acceptancePass,
       verifier_verdict: verifier?.verdict ?? "NOT_RUN",
+      execution_context_identity_sha256: registration.execution_context_identity_sha256,
       approved_candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
       writeset_identity_sha256: writeset.writeset_identity_sha256,
       approved_replacement_sha256: writeset.writes[0].approved_replacement_sha256,
@@ -3438,6 +3956,7 @@ function runTask(authority, registration, task, store, consumedBindingIdentities
     baseline_commit: preauthorization.baseline_commit,
     binding_identity_sha256: binding.binding_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     iterations,
     iteration_count: iterations.length,
     final_verifier_identity_sha256: finalVerifier.verifier_identity_sha256,
@@ -3455,19 +3974,62 @@ function runTask(authority, registration, task, store, consumedBindingIdentities
   };
 }
 
-export function runThreeTaskPilot({
-  authority = loadAuthority(),
-  evidenceLabel = `pilot-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`,
-  now = new Date(),
-  allowDirtyTsfCandidate = false,
-} = {}) {
+function assertClosedPilotOptions(options, allowedKeys) {
+  requireValue(
+    options && typeof options === "object" && !Array.isArray(options),
+    "PILOT_OPTIONS_INVALID",
+  );
+  const unexpected = Object.keys(options).filter((key) => !allowedKeys.has(key));
+  requireValue(
+    unexpected.length === 0,
+    "PILOT_CALLER_CONTEXT_SUBSTITUTION",
+    "TIM_REQUIRED",
+    { unexpected },
+  );
+}
+
+export function inspectCanonicalPostmergePilotExecutionContext(options = {}) {
+  assertClosedPilotOptions(options, new Set(["authority"]));
+  const authority = options.authority ?? loadAuthority();
+  validateAuthority(authority);
+  return inspectTsfExecutionContext(
+    authority,
+    "EXACT_CANONICAL_POSTMERGE",
+    { allowDirtyCandidate: false },
+  );
+}
+
+function runThreeTaskPilotInternal({
+  authority,
+  evidenceLabel,
+  now,
+  allowDirtyTsfCandidate,
+  invocation,
+}) {
   validateAuthority(authority);
   requireValue(now <= new Date(authority.expires_at), "PILOT_AUTHORITY_EXPIRED", "TIM_REQUIRED");
-  const tsfCandidate = inspectTsfCandidate({ allowDirty: allowDirtyTsfCandidate });
-  const registration = seedSyntheticFixture(authority, { now });
+  const executionContext = authority.pilot_execution_contexts.invocation_contexts[invocation];
+  requireValue(executionContext, "PILOT_INVOCATION_CONTEXT_UNAUTHORIZED", "TIM_REQUIRED");
+  requireValue(
+    executionContext !== "EXACT_CANONICAL_POSTMERGE" || allowDirtyTsfCandidate === false,
+    "PILOT_POSTMERGE_DIRTY_COMPATIBILITY_FLAG_PROHIBITED",
+    "TIM_REQUIRED",
+  );
+  const tsfExecutionIdentity = executionContext === "EXACT_CANONICAL_POSTMERGE"
+    ? inspectCanonicalPostmergePilotExecutionContext({ authority })
+    : inspectTsfExecutionContext(
+      authority,
+      executionContext,
+      { allowDirtyCandidate: allowDirtyTsfCandidate },
+    );
+  const registration = seedSyntheticFixture(authority, {
+    now,
+    executionContextIdentitySha256: tsfExecutionIdentity.execution_context_identity_sha256,
+  });
   mkdirSync(EVIDENCE_ROOT, { recursive: true });
   const store = new EvidenceStore(path.join(EVIDENCE_ROOT, evidenceLabel));
   store.write("authority.json", authority);
+  store.write("execution-context.json", tsfExecutionIdentity);
   store.write("registration.json", registration);
   const pilotStarted = performance.now();
   const results = [];
@@ -3494,11 +4056,36 @@ export function runThreeTaskPilot({
   requireValue(results[1].iteration_count === 2 && results[1].iterations[0].acceptance_passed === false, "PILOT_TASK2_REJECTION_NOT_PROVEN");
   requireValue(results[2].iteration_count >= 2 && results[2].iterations[0].acceptance_passed === false, "PILOT_TASK3_CORRECTION_NOT_PROVEN");
   requireValue(results[0].iterations.some((item) => item.interrupted), "PILOT_INTERRUPTION_NOT_PROVEN");
+  const legacyCandidate = executionContext === "EXACT_CANDIDATE" ? {
+    repository_root: tsfExecutionIdentity.repository_root,
+    git_top_level: tsfExecutionIdentity.git_top_level,
+    head: tsfExecutionIdentity.current_head,
+    tree: tsfExecutionIdentity.current_tree,
+    parent: tsfExecutionIdentity.ordered_parents[0],
+    subject: tsfExecutionIdentity.reviewed_source_subject,
+    branch: tsfExecutionIdentity.branch,
+    detached: tsfExecutionIdentity.detached,
+    clean: tsfExecutionIdentity.clean,
+    working_tree_status: tsfExecutionIdentity.working_tree_status,
+  } : null;
   const summary = {
     schema_version: "TSF_SYNTHETIC_ITERATION_PILOT_RESULT_V2",
     program_id: authority.program_id,
     action_id: authority.action_id,
-    tsf_candidate: tsfCandidate,
+    execution_context: executionContext,
+    execution_context_identity_sha256: tsfExecutionIdentity.execution_context_identity_sha256,
+    execution_context_validation_identity_sha256:
+      tsfExecutionIdentity.execution_context_validation_identity_sha256,
+    tsf_execution_identity: tsfExecutionIdentity,
+    tsf_candidate: legacyCandidate,
+    current_head_subject: tsfExecutionIdentity.current_head_subject,
+    reviewed_source_subject: tsfExecutionIdentity.reviewed_source_subject,
+    merge_commit: tsfExecutionIdentity.canonical_merge_commit,
+    merge_subject: tsfExecutionIdentity.merge_subject,
+    ordered_parents: tsfExecutionIdentity.ordered_parents,
+    reviewed_source_commit: tsfExecutionIdentity.reviewed_source_head,
+    pr_identity: tsfExecutionIdentity.pr_identity,
+    tree_equivalent: tsfExecutionIdentity.tree_equivalent,
     authority_sha256: sha256(canonicalJson(authority)),
     registration_identity_sha256: registration.registration_identity_sha256,
     fixture_root: authority.repository.root,
@@ -3524,6 +4111,8 @@ export function runThreeTaskPilot({
   store.write("RESULTS.json", summary);
   const manifest = store.finalize({
     verdict: "GREEN",
+    execution_context: executionContext,
+    execution_context_identity_sha256: tsfExecutionIdentity.execution_context_identity_sha256,
     task_count: 3,
     task_commit_count: 3,
     interruption_recovered: true,
@@ -3534,6 +4123,36 @@ export function runThreeTaskPilot({
     evidence_root: store.root,
     evidence_manifest_sha256: manifest.sha256,
   };
+}
+
+export function runThreeTaskPilot(options = {}) {
+  assertClosedPilotOptions(
+    options,
+    new Set(["authority", "evidenceLabel", "now", "allowDirtyTsfCandidate"]),
+  );
+  return runThreeTaskPilotInternal({
+    authority: options.authority ?? loadAuthority(),
+    evidenceLabel: options.evidenceLabel
+      ?? `pilot-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`,
+    now: options.now ?? new Date(),
+    allowDirtyTsfCandidate: options.allowDirtyTsfCandidate ?? false,
+    invocation: "pilot",
+  });
+}
+
+export function runCanonicalPostmergePilot(options = {}) {
+  assertClosedPilotOptions(
+    options,
+    new Set(["authority", "evidenceLabel", "now"]),
+  );
+  return runThreeTaskPilotInternal({
+    authority: options.authority ?? loadAuthority(),
+    evidenceLabel: options.evidenceLabel
+      ?? `canonical-postmerge-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`,
+    now: options.now ?? new Date(),
+    allowDirtyTsfCandidate: false,
+    invocation: "canonical-postmerge-pilot",
+  });
 }
 
 export function archiveFixtureForFreshProof(label, authority = loadAuthority()) {

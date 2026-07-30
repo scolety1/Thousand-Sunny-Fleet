@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   AuthorityV2Error,
@@ -23,6 +24,8 @@ function registrationFixture(authority) {
     registration_id: "synthetic-registration-unit-test",
     program_id: authority.program_id,
     action_id: authority.action_id,
+    execution_context_identity_sha256:
+      authority.pilot_execution_contexts.contexts.EXACT_CANDIDATE.context_identity_sha256,
     repository_root: authority.repository.root,
     git_top_level: authority.repository.root,
     branch: authority.repository.branch,
@@ -54,6 +57,16 @@ test("static V2 authority remains closed and exact", () => {
   assert.equal(authority.tasks.length, 3);
   assert.equal(authority.repository.allowed_paths.length, 13);
   assert.equal(authority.command_templates.length, 13);
+  assert.deepEqual(
+    authority.pilot_execution_contexts.invocation_contexts,
+    {
+      pilot: "EXACT_CANDIDATE",
+      "archive-and-pilot": "EXACT_CANDIDATE",
+      "archive-and-replay": "EXACT_CANDIDATE",
+      "canonical-postmerge-pilot": "EXACT_CANONICAL_POSTMERGE",
+    },
+  );
+  assert.equal(Object.keys(authority.pilot_execution_contexts.contexts).length, 2);
   assert.equal(authority.executables.node.path, "C:\\Program Files\\nodejs\\node.exe");
   assert.equal(authority.executables.git.path, "C:\\Program Files\\Git\\cmd\\git.exe");
   assert.ok(authority.tasks.every((task) => task.approved_builder_candidate_sets.every(
@@ -68,6 +81,41 @@ test("static V2 authority remains closed and exact", () => {
   assert.equal(authority.iteration_states.length, 20);
   assert.ok(authority.command_templates.every((template) => template.contract_version === "APPROVED_COMMAND_TEMPLATE_V2"));
   assert.ok(Object.values(authority.prohibitions).every(Boolean));
+});
+
+test("runtime evidence contracts require the execution-context identity end to end", () => {
+  const schema = JSON.parse(readFileSync(
+    new URL(
+      "../fleet/control/synthetic-iteration-v2/synthetic-iteration-runtime-contracts.schema.v2.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ));
+  for (const definition of [
+    "registration",
+    "preauthorization",
+    "binding",
+    "iteration",
+    "candidateSet",
+    "writeset",
+    "commitAuthority",
+    "recoveryState",
+    "verifier",
+    "byteObservation",
+    "candidateIntegrityProof",
+    "commitReceipt",
+    "admissionBundle",
+  ]) {
+    assert.ok(
+      schema.$defs[definition].required.includes("execution_context_identity_sha256"),
+      `${definition} must require execution context`,
+    );
+    assert.deepEqual(
+      schema.$defs[definition].properties.execution_context_identity_sha256,
+      { $ref: "#/$defs/sha256" },
+      `${definition} must bind a SHA-256 context identity`,
+    );
+  }
 });
 
 test("strict path grammar accepts canonical allowlist syntax", () => {

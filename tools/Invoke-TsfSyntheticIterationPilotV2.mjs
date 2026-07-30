@@ -5,13 +5,14 @@ import {
   archiveFixtureForFreshProof,
   loadAuthority,
   resumePersistedTask,
+  runCanonicalPostmergePilot,
   runThreeTaskPilot,
   validateAuthority,
 } from "./hq-dispatch/v1/synthetic-iteration-authority-v2.mjs";
 
 function usage() {
   process.stderr.write(
-    "Usage: node tools/Invoke-TsfSyntheticIterationPilotV2.mjs <validate|pilot|archive-and-pilot|archive-and-replay> [label]\n"
+    "Usage: node tools/Invoke-TsfSyntheticIterationPilotV2.mjs <validate|pilot|canonical-postmerge-pilot|archive-and-pilot|archive-and-replay> [label]\n"
       + "       node tools/Invoke-TsfSyntheticIterationPilotV2.mjs <apply-and-crash|resume-task> <evidence-root> <task-id> <iteration>\n",
   );
 }
@@ -35,6 +36,12 @@ try {
       authority,
       evidenceLabel: labelOrDefault("working-tree"),
       allowDirtyTsfCandidate: true,
+    });
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  } else if (command === "canonical-postmerge-pilot") {
+    const result = runCanonicalPostmergePilot({
+      authority,
+      evidenceLabel: labelOrDefault("canonical-postmerge"),
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else if (command === "archive-and-pilot") {

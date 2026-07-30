@@ -39,6 +39,8 @@ function registrationFixture() {
     registration_id: "synthetic-registration-adversarial",
     program_id: authority.program_id,
     action_id: authority.action_id,
+    execution_context_identity_sha256:
+      authority.pilot_execution_contexts.contexts.EXACT_CANDIDATE.context_identity_sha256,
     repository_root: authority.repository.root,
     git_top_level: authority.repository.root,
     branch: authority.repository.branch,
@@ -119,6 +121,8 @@ function commitAuthorityFixture(overrides = {}) {
     task_id: task.task_id,
     registration_identity_sha256: "1".repeat(64),
     preauthorization_identity_sha256: "4".repeat(64),
+    execution_context_identity_sha256:
+      authority.pilot_execution_contexts.contexts.EXACT_CANDIDATE.context_identity_sha256,
     binding_identity_sha256: "2".repeat(64),
     verifier_identity_sha256: "3".repeat(64),
     approved_candidate_set_identity_sha256: "5".repeat(64),
@@ -369,6 +373,7 @@ test("recovery is bound to exact task, writeset, baseline, run, and non-automati
     baseline_tree: binding.baseline_tree,
     registration_identity_sha256: registration.registration_identity_sha256,
     preauthorization_identity_sha256: preauthorization.preauthorization_identity_sha256,
+    execution_context_identity_sha256: registration.execution_context_identity_sha256,
     binding_identity_sha256: binding.binding_identity_sha256,
     candidate_set_identity_sha256: candidateSet.candidate_set_identity_sha256,
     candidate_set_relative_path: `tasks/${task.task_id}/iteration-1/approved-candidate-set.json`,
@@ -590,6 +595,7 @@ test("temporary written pre-test staged and committed byte mismatches reject", (
   const approved = context.writeset.writes[0].approved_replacement_sha256;
   const byteObservation = identityRecord({
     schema_version: "TSF_SYNTHETIC_CANDIDATE_BYTE_OBSERVATION_V2",
+    execution_context_identity_sha256: context.registration.execution_context_identity_sha256,
     candidate_set_identity_sha256: context.candidateSet.candidate_set_identity_sha256,
     writeset_identity_sha256: context.writeset.writeset_identity_sha256,
     candidate_artifact_sha256: approved,
