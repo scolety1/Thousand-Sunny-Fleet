@@ -1,3 +1,22 @@
+> ## ⚠️ LEGACY / SUPERSEDED
+>
+> This repository contains the **original Codex Fleet / early Thousand
+> Sunny Fleet** implementation (a PowerShell-based local task-loop
+> harness). It is **not** under active development.
+>
+> **Current Thousand Sunny Fleet development lives at:**
+>
+> - Repository: [`scolety1/orca`](https://github.com/scolety1/orca)
+> - Branch: [`tsf/main`](https://github.com/scolety1/orca/tree/tsf/main)
+> - Directory: [`tsf/`](https://github.com/scolety1/orca/tree/tsf/main/tsf)
+>
+> **Why:** current TSF is implemented as a TSF-owned orchestration/
+> governance overlay on the Orca foundation, rather than as a
+> standalone PowerShell harness. This repository is kept as-is for
+> history and reference — nothing here has been deleted, and its
+> history has not been rewritten — but its `main` branch does not
+> reflect current TSF capability or design.
+
 # Codex Fleet
 
 Reusable local harness for running bounded Codex task loops across multiple projects.
