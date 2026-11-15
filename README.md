@@ -1,18 +1,43 @@
 # Thousand Sunny Fleet
 
-A project by Spencer Colety exploring accountable, AI-assisted coordination across software projects.
+**A planned connection between Dot and an accountable fleet of AI-assisted development teams.**
 
-## Start with the current project
+Thousand Sunny Fleet (TSF) is Spencer Colety's project for turning an idea into coordinated, reviewable software work across multiple projects. The goal is not simply more agents: it is useful progress with clear ownership, trustworthy evidence, and a readable view of what is done, blocked, or still planned.
 
-- [Current TSF engineering tour](https://github.com/scolety1/orca/blob/tsf/main/tsf/SHOWCASE.md): architecture, contribution and attribution, bounded examples, and evidence limits.
-- [Current TSF source](https://github.com/scolety1/orca/tree/tsf/main/tsf): the TSF overlay on the upstream Orca foundation.
-- [Current setup documentation](https://github.com/scolety1/orca/blob/tsf/main/tsf/README.md).
+**Status: in development.** This page presents the intended system alongside links to the current implementation. The complete TSF–Dot connection, autonomous team workflow, and end-to-end acceptance are not claimed complete.
 
-**This repository is the historical implementation, not the current TSF release.** The public engineering tour is the best starting point for evaluating the project. Its dated fixture checks are not proof that every test, real-agent workflow, or Dot integration is complete. Current local work is not automatically reflected in the public branch.
+## The system we are building
 
-TSF is developed with AI assistance. Orca and its contributors retain credit for the underlying application; the current project should not be presented as a wholly original IDE.
+- **Dot as the coordinating interface:** discuss goals, set priorities, and see the next meaningful result without managing every individual worker.
+- **Captains and specialist teams:** divide larger projects into bounded work, use parallel teams where tasks are genuinely independent, and retain one accountable owner for each outcome.
+- **Research-based development:** investigate before implementing; when progress stalls, assess relevant repositories, tools, plugins, and established approaches rather than repeatedly guessing. Adoption still requires review for fit, licensing, security, and permissions.
+- **Evidence-led testing:** identify the exact source being checked, start with small synthetic tests, retain results, and have a separate observer review what they prove. Local checks and CI should serve the same acceptance criteria; neither a passing component test nor a written plan proves the whole system works.
+- **Reliable handoffs and recovery:** distinguish active work, real blockers, completed tasks, and missing follow-through. Surface the concrete next action instead of hiding failures behind activity counts.
+- **A clear path to completion:** keep a concise checklist, put decisions requiring the owner in a visible section, and finish with an overall audit that checks the original goals were actually delivered.
+
+These are product goals and acceptance expectations, not a list of already shipped capabilities. Parallel work, integrations, and recovery must remain within each project's approved scope.
+
+## Explore the implementation and evidence
+
+| What you want to see | Where to start |
+| --- | --- |
+| Current architecture, attribution, and bounded examples | [TSF engineering tour](https://github.com/scolety1/orca/blob/tsf/main/tsf/SHOWCASE.md) |
+| Current public TSF overlay source | [Orca fork → tsf/main → tsf/](https://github.com/scolety1/orca/tree/tsf/main/tsf) |
+| Current operator setup documentation | [TSF README](https://github.com/scolety1/orca/blob/tsf/main/tsf/README.md) |
+| Earlier local task-loop implementation | Historical reference below and this repository's source |
+
+The current TSF overlay builds on Orca. This repository retains the earlier PowerShell implementation and serves as a public project overview; its code is not a new copy of the current overlay. Public source and newer local work can differ. Consult the branch and dated evidence before treating a feature as integrated or a test as current.
+
+The engineering tour records bounded fixture checks and their limits. They are not proof that every test, real-agent workflow, or Dot integration is complete. This documentation update did not run tests, synchronize unpublished source, enable an integration, or change runtime behavior.
+
+## Contribution and attribution
+
+Spencer Colety directs the product goals, workflow design, and AI-assisted development of TSF. Orca and its contributors retain credit for the underlying application. The project is not presented as a wholly original IDE, and Git author labels alone do not establish manual line authorship.
 
 ## Historical implementation
+
+<details>
+<summary>Earlier Codex Fleet / TSF documentation and commands (legacy reference)</summary>
 
 > ## ⚠️ LEGACY / SUPERSEDED
 >
@@ -388,3 +413,6 @@ Validate and import proposed tasks:
 ```
 
 More detail: [docs/HOW_TO_ADD_PROJECT.md](docs/HOW_TO_ADD_PROJECT.md)
+
+
+</details>
