@@ -1,3 +1,19 @@
+# Thousand Sunny Fleet
+
+A project by Spencer Colety exploring accountable, AI-assisted coordination across software projects.
+
+## Start with the current project
+
+- [Current TSF engineering tour](https://github.com/scolety1/orca/blob/tsf/main/tsf/SHOWCASE.md): architecture, contribution and attribution, bounded examples, and evidence limits.
+- [Current TSF source](https://github.com/scolety1/orca/tree/tsf/main/tsf): the TSF overlay on the upstream Orca foundation.
+- [Current setup documentation](https://github.com/scolety1/orca/blob/tsf/main/tsf/README.md).
+
+**This repository is the historical implementation, not the current TSF release.** The public engineering tour is the best starting point for evaluating the project. Its dated fixture checks are not proof that every test, real-agent workflow, or Dot integration is complete. Current local work is not automatically reflected in the public branch.
+
+TSF is developed with AI assistance. Orca and its contributors retain credit for the underlying application; the current project should not be presented as a wholly original IDE.
+
+## Historical implementation
+
 > ## ⚠️ LEGACY / SUPERSEDED
 >
 > This repository contains the **original Codex Fleet / early Thousand
