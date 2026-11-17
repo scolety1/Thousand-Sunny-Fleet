@@ -1,10 +1,18 @@
 # Thousand Sunny Fleet
 
-**A planned connection between Dot and an accountable fleet of AI-assisted development teams.**
+**Coordinating large AI-assisted projects through a captain, team leads and parallel specialist workers.**
 
 Thousand Sunny Fleet (TSF) is Spencer Colety's project for turning an idea into coordinated, reviewable software work across multiple projects. The goal is not simply more agents: it is useful progress with clear ownership, trustworthy evidence, and a readable view of what is done, blocked, or still planned.
 
 **Status: in development.** This page presents the intended system alongside links to the current implementation. The complete TSF–Dot connection, autonomous team workflow, and end-to-end acceptance are not claimed complete.
+
+## Product direction: an agentic corporation
+
+Spencer Colety describes TSF as an **agentic corporation**: a captain coordinates team leads and specialist workers, divides large projects into bounded tasks, runs independent work in parallel, reviews results and escalates serious blockers. The purpose is sustained progress across large software projects with less repeated manual prompting.
+
+Spencer reports using Dot as the conversational interface connected to TSF's backend, bringing project discussion and the fleet workflow together. **T.Dot is a working name for that integration.** This owner-reported workflow does not mean every integration or newer local change is present in this public branch.
+
+Reliable overnight and multi-day execution is an ongoing engineering goal. Completing a game-scale project in a few days is an ambition, not a measured throughput guarantee. Test-driven development, handoffs, recovery and acceptance checks remain central to the work. Orca, Dot and model providers retain credit for their underlying systems.
 
 ## The system we are building
 
